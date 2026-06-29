@@ -14,7 +14,12 @@ export function ChatPanel() {
     streamTools,
     sendMessage,
     currentSessionId,
+    config,
   } = useStore();
+
+  const activeTools = config
+    ? Object.values(config.tools).filter(Boolean).length
+    : 0;
 
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -45,10 +50,15 @@ export function ChatPanel() {
       <div className="flex h-[42px] flex-none items-center gap-2 border-b border-line-soft px-[18px]">
         <Chip>Invite système</Chip>
         <Chip>
-          <span className="h-1.5 w-1.5 rounded-full bg-ok" />3 outils actifs
+          <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+          {activeTools} outil{activeTools > 1 ? "s" : ""} actif
+          {activeTools > 1 ? "s" : ""}
         </Chip>
         <Chip>
-          Température <b className="font-semibold text-[#e7ddcd]">0.7</b>
+          Température{" "}
+          <b className="font-semibold text-[#e7ddcd]">
+            {config ? config.temperature.toFixed(2) : "—"}
+          </b>
         </Chip>
         <div className="flex-1" />
         <span className="font-mono text-[11px] text-muted-4">

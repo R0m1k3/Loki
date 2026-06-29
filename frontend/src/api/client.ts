@@ -55,6 +55,34 @@ export interface Message {
   created_at: number;
 }
 
+export interface AgentConfig {
+  system_prompt: string;
+  temperature: number;
+  top_p: number;
+  top_k: number;
+  max_tokens: number;
+  tools: Record<string, boolean>;
+}
+
+export async function getConfig(): Promise<{
+  config: AgentConfig;
+  available_tools: string[];
+}> {
+  const res = await fetch("/api/config");
+  return res.json();
+}
+
+export async function saveConfig(
+  patch: Partial<AgentConfig>
+): Promise<AgentConfig> {
+  const res = await fetch("/api/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return (await res.json()).config;
+}
+
 export interface FileNode {
   name: string;
   path: string;

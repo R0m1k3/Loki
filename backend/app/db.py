@@ -54,6 +54,10 @@ def init_db() -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
         if "meta" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN meta TEXT")
+        # Table clé/valeur pour la configuration de l'agent.
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)"
+        )
 
 
 def _now() -> float:
@@ -160,3 +164,22 @@ def list_messages_for_model(sid: str) -> list[dict]:
         {"role": m["role"], "content": m["content"]}
         for m in list_messages(sid)
     ]
+
+
+# ── Configuration (clé/valeur JSON) ──────────────────────────────────────
+def get_config_value(key: str) -> dict | None:
+    with _LOCK, _connect() as conn:
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = ?", (key,)
+        ).fetchone()
+    return json.loads(row["value"]) if row else None
+
+
+def set_config_value(key: str, value: dict) -> None:
+    payload = json.dumps(value, ensure_ascii=False)
+    with _LOCK, _connect() as conn:
+        conn.execute(
+            "INSERT INTO config (key, value) VALUES (?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, payload),
+        )

@@ -40,9 +40,17 @@ async def run_agent(
     convo: list[dict],
     *,
     options: dict | None = None,
-    tools_enabled: bool = True,
+    enabled_tools: list[str] | None = None,
 ) -> AsyncIterator[dict]:
-    tools = TOOL_DEFINITIONS if tools_enabled else None
+    # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
+    if enabled_tools is None:
+        tools = TOOL_DEFINITIONS
+    elif enabled_tools:
+        tools = [
+            t for t in TOOL_DEFINITIONS if t["function"]["name"] in enabled_tools
+        ]
+    else:
+        tools = None
     collected: list[dict] = []
     text_parts: list[str] = []
 

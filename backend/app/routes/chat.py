@@ -14,26 +14,17 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import db
+from .. import agent_config, db
 from ..agent import run_agent
 from ..config import settings
 
 router = APIRouter(prefix="/api", tags=["chat"])
-
-SYSTEM_PROMPT = (
-    "Tu es Loki, un assistant de développement local agentique. Tu disposes "
-    "d'outils pour lire, écrire et lister des fichiers dans le workspace. "
-    "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
-    "concise en français. Après avoir écrit un fichier, propose un aperçu."
-)
 
 
 class ChatRequest(BaseModel):
     session_id: str
     content: str
     model: str | None = None
-    options: dict | None = None
-    tools_enabled: bool = True
 
 
 def _sse(event: str, data: dict) -> str:
@@ -47,6 +38,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         raise HTTPException(404, "session introuvable")
 
     model = req.model or session.get("model") or settings.default_model
+    cfg = agent_config.get_config()
 
     # Premier message : titre la session avec un extrait.
     if not db.list_messages(req.session_id):
@@ -55,7 +47,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     db.add_message(req.session_id, "user", req.content, None)
 
-    convo = [{"role": "system", "content": SYSTEM_PROMPT}]
+    convo = [{"role": "system", "content": cfg["system_prompt"]}]
     convo += db.list_messages_for_model(req.session_id)
 
     async def event_stream():
@@ -64,7 +56,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         tools_meta: list[dict] = []
 
         async for ev in run_agent(
-            model, convo, options=req.options, tools_enabled=req.tools_enabled
+            model,
+            convo,
+            options=agent_config.ollama_options(cfg),
+            enabled_tools=agent_config.enabled_tool_names(cfg),
         ):
             etype = ev.pop("type")
             if etype == "token":

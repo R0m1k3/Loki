@@ -2,13 +2,16 @@ import { create } from "zustand";
 import {
   createSession,
   deleteSession,
+  getConfig,
   getModels,
   getSession,
   getStatus,
   fileContent,
   listFiles,
   listSessions,
+  saveConfig,
   streamChat,
+  type AgentConfig,
   type FileNode,
   type Message,
   type OllamaModel,
@@ -33,6 +36,11 @@ interface LokiState {
   fileTree: FileNode[];
   previewPath: string | null;
   previewContent: string;
+
+  config: AgentConfig | null;
+  availableTools: string[];
+  refreshConfig: () => Promise<void>;
+  updateConfig: (patch: Partial<AgentConfig>) => Promise<void>;
 
   openPreview: (path: string) => Promise<void>;
   setSelectedModel: (name: string) => void;
@@ -62,6 +70,18 @@ export const useStore = create<LokiState>((set, get) => ({
   fileTree: [],
   previewPath: null,
   previewContent: "",
+  config: null,
+  availableTools: [],
+
+  refreshConfig: async () => {
+    const { config, available_tools } = await getConfig();
+    set({ config, availableTools: available_tools });
+  },
+
+  updateConfig: async (patch) => {
+    const config = await saveConfig(patch);
+    set({ config });
+  },
 
   openPreview: async (path) => {
     const content = await fileContent(path);
