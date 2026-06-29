@@ -27,16 +27,16 @@ COPY backend/ ./backend/
 # Frontend compilé servi en statique par FastAPI
 COPY --from=frontend /app/frontend/dist ./backend/static
 
-# Utilisateur non-root + dossiers de runtime lui appartenant
-RUN useradd --create-home --uid 10001 loki \
-    && mkdir -p /workspace /data \
-    && chown -R loki:loki /workspace /data /app
-USER loki
+RUN mkdir -p /workspace /data
+
+# NB : on tourne en root par défaut pour rester compatible avec les volumes
+# montés d'Unraid (/mnt/user/appdata/...), souvent détenus par root. Pour
+# durcir, surcharge l'utilisateur côté compose (ex. user: "99:100").
 
 EXPOSE 8080
 WORKDIR /app/backend
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/api/health" || exit 1
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
