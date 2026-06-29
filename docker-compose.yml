@@ -1,0 +1,36 @@
+services:
+  loki:
+    build: .
+    container_name: loki
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama3.1:8b}
+      - WORKSPACE_DIR=/workspace
+      - DATA_DIR=/data
+      - PORT=8080
+    volumes:
+      - ./workspace:/workspace
+      - ./data:/data
+    extra_hosts:
+      # Permet d'atteindre un Ollama installé sur la machine hôte
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ── Ollama optionnel ──────────────────────────────────────────────────
+  # Par défaut, Loki se connecte à un Ollama déjà présent sur l'hôte.
+  # Pour embarquer Ollama dans la stack, lance :  docker compose --profile ollama up
+  # et règle OLLAMA_HOST=http://ollama:11434
+  ollama:
+    image: ollama/ollama:latest
+    container_name: loki-ollama
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-models:

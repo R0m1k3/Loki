@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #1a1714;
+  color: #efe9df;
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Barres de défilement fidèles au visuel */
+.scr::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.scr::-webkit-scrollbar-thumb {
+  background: #3a342c;
+  border-radius: 6px;
+}
+.scr::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+.vite/
+
+# Data & workspace (runtime)
+data/*.db
+data/*.sqlite3
+workspace/*
+!workspace/.gitkeep
+
+# Env / IDE
+.env
+.env.local
+.DS_Store
+.idea/
+.vscode/
+
+# TS build cache
+frontend/tsconfig.tsbuildinfo
