@@ -1,23 +1,26 @@
 # ───────────────────────────────────────────────────────────────────────────
-# Loki — docker-compose pour Unraid
+# Loki — docker-compose pour Unraid (image préconstruite par GitHub)
 #
-# PRÉREQUIS (une seule fois, via le terminal Unraid) :
-#   mkdir -p /mnt/user/appdata/loki
-#   git clone https://github.com/R0m1k3/Loki.git /mnt/user/appdata/loki/repo
-#   mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
+# Aucun build ni git nécessaire sur Unraid : l'image est publiée automatiquement
+# sur GHCR par GitHub Actions à chaque push sur main.
 #
-# Puis colle ce fichier dans le plugin « Compose Manager » (nouvelle stack)
-# et lance « Compose Up ». Pour mettre à jour plus tard :
-#   cd /mnt/user/appdata/loki/repo && git pull   (puis Compose Up --build)
+# MISE EN PLACE :
+#   1) Crée les dossiers de données (terminal Unraid) :
+#        mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
+#   2) Plugin « Compose Manager » -> nouvelle stack -> colle ce fichier.
+#   3) Adapte OLLAMA_HOST avec l'IP de ton serveur Unraid (Ollama sur :11434).
+#   4) Compose Up. Interface : http://<ip-unraid>:8080
 #
-# IMPORTANT : remplace l'IP dans OLLAMA_HOST par celle de ton serveur Unraid
-# (là où tourne ton conteneur Ollama, port 11434).
+#   Mise à jour : Compose Down puis Up (l'option « pull image » récupère la
+#   dernière version), ou « docker compose pull » avant Up.
+#
+# NB : si l'image ghcr.io/r0m1k3/loki est privée, rends-la publique une fois
+#      (GitHub -> Packages -> loki -> Package settings -> Change visibility),
+#      ou connecte Unraid à GHCR avec un token.
 # ───────────────────────────────────────────────────────────────────────────
 services:
   loki:
-    build:
-      context: /mnt/user/appdata/loki/repo
-    image: loki:latest
+    image: ghcr.io/r0m1k3/loki:latest
     container_name: loki
     ports:
       - "8080:8080"
@@ -34,7 +37,7 @@ services:
       - /mnt/user/appdata/loki/workspace:/workspace
       - /mnt/user/appdata/loki/data:/data
     extra_hosts:
-      # Permet aussi d'utiliser OLLAMA_HOST=http://host.docker.internal:11434
+      # Permet aussi OLLAMA_HOST=http://host.docker.internal:11434
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]

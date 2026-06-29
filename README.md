@@ -42,12 +42,14 @@ Application disponible sur http://localhost:8080
 
 ## Installation sur Unraid
 
-Un compose prêt à l'emploi est fourni : [`docker-compose.unraid.yml`](docker-compose.unraid.yml).
+L'image est **construite et publiée automatiquement par GitHub Actions** sur GHCR
+(`ghcr.io/r0m1k3/loki:latest`) à chaque push sur `main`. Aucun build ni `git`
+n'est nécessaire sur Unraid — un simple `pull`. Compose prêt à l'emploi :
+[`docker-compose.unraid.yml`](docker-compose.unraid.yml).
 
-1. Dans le terminal Unraid, prépare les dossiers et le code source :
+1. Dans le terminal Unraid, crée les dossiers de données :
    ```bash
    mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
-   git clone https://github.com/R0m1k3/Loki.git /mnt/user/appdata/loki/repo
    ```
 2. Installe le plugin **Compose Manager** (Apps), crée une nouvelle stack, et
    colle le contenu de `docker-compose.unraid.yml`.
@@ -55,9 +57,13 @@ Un compose prêt à l'emploi est fourni : [`docker-compose.unraid.yml`](docker-c
    conteneur Ollama, p. ex. `http://192.168.1.10:11434`.
 4. **Compose Up**. Loki est accessible sur `http://<ip-unraid>:8080`.
 
+> La première publication de l'image prend quelques minutes (le temps que le
+> workflow GitHub se termine). Si l'image est privée, rends le package **public**
+> une fois (GitHub → Packages → `loki` → Package settings → Change visibility).
+>
 > Les modèles déjà présents dans ton Ollama sont **détectés automatiquement** ;
 > tu peux en télécharger d'autres depuis l'onglet Configuration.
-> Mise à jour : `cd /mnt/user/appdata/loki/repo && git pull`, puis Compose Up (rebuild).
+> Mise à jour : Compose Down/Up (avec pull), ou `docker compose pull`.
 
 ## Développement (sans Docker)
 
