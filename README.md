@@ -16,8 +16,9 @@ Frontend (React + Vite + TS + Tailwind)
 Backend (FastAPI, Python)
    ├── /api/status, /api/models, /api/models/pull   (Ollama)
    ├── /api/sessions  (CRUD sessions)
-   ├── /api/chat      (conversation streaming, SSE)
-   │   (outils agentiques : phases suivantes)
+   ├── /api/chat      (boucle agentique + outils, streaming SSE)
+   ├── /api/files     (arborescence + contenu du workspace)
+   │   Outils agent : read_file · write_file · list_dir (confinés au workspace)
         │ httpx                     │ volume
      Ollama (:11434)            /workspace + /data (SQLite)
 ```
@@ -70,8 +71,8 @@ npm run dev        # http://localhost:5173
 - [x] **Phase 1** — Socle + design system fidèle au thème, layout 3 panneaux
 - [x] **Phase 2** — Connexion Ollama : statut, liste des modèles, pull avec progression, sélecteur
 - [x] **Phase 3** — Chat streaming (SSE) + persistance des sessions (SQLite)
-- [ ] **Phase 4** — Boucle agentique & outils fichiers (read/write/list)
-- [ ] **Phase 5** — Aperçu HTML live + onglets Code/Logs + arborescence
+- [x] **Phase 4** — Boucle agentique & outils fichiers (read/write/list), confinés au workspace, rendu des appels d'outils dans le fil
+- [~] **Phase 5** — Aperçu HTML live + onglet Code + arborescence du workspace (fait) · onglet Logs (à venir)
 - [ ] **Phase 6** — Configuration complète (génération, toggles d'outils, invite système)
 - [ ] **Phase 7** — Outils avancés (web_search, run_shell confirmé, html_preview)
 - [ ] **Phase 8** — Hardening & documentation Docker

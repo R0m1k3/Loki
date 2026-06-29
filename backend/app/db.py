@@ -5,6 +5,7 @@ sont rapides ; un verrou protège l'accès concurrent depuis les routes async.
 """
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
@@ -42,12 +43,17 @@ def init_db() -> None:
                 role        TEXT NOT NULL,
                 content     TEXT NOT NULL,
                 model       TEXT,
+                meta        TEXT,
                 created_at  REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_messages_session
                 ON messages(session_id, created_at);
             """
         )
+        # Migration douce : ajoute la colonne meta aux bases antérieures.
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
+        if "meta" not in cols:
+            conn.execute("ALTER TABLE messages ADD COLUMN meta TEXT")
 
 
 def _now() -> float:
@@ -110,20 +116,33 @@ def touch_session(sid: str) -> None:
 
 
 # ── Messages ─────────────────────────────────────────────────────────────
-def add_message(sid: str, role: str, content: str, model: str | None) -> dict:
+def add_message(
+    sid: str,
+    role: str,
+    content: str,
+    model: str | None,
+    meta: dict | None = None,
+) -> dict:
     mid = uuid.uuid4().hex
     now = _now()
+    meta_json = json.dumps(meta, ensure_ascii=False) if meta else None
     with _LOCK, _connect() as conn:
         conn.execute(
-            "INSERT INTO messages (id, session_id, role, content, model, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (mid, sid, role, content, model, now),
+            "INSERT INTO messages (id, session_id, role, content, model, meta, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (mid, sid, role, content, model, meta_json, now),
         )
         conn.execute(
             "UPDATE sessions SET updated_at = ? WHERE id = ?", (now, sid)
         )
     return {"id": mid, "session_id": sid, "role": role, "content": content,
-            "model": model, "created_at": now}
+            "model": model, "meta": meta, "created_at": now}
+
+
+def _row_to_message(row: sqlite3.Row) -> dict:
+    msg = dict(row)
+    msg["meta"] = json.loads(msg["meta"]) if msg.get("meta") else None
+    return msg
 
 
 def list_messages(sid: str) -> list[dict]:
@@ -132,4 +151,12 @@ def list_messages(sid: str) -> list[dict]:
             "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at",
             (sid,),
         ).fetchall()
-    return [dict(r) for r in rows]
+    return [_row_to_message(r) for r in rows]
+
+
+def list_messages_for_model(sid: str) -> list[dict]:
+    """Historique épuré (role/content) destiné au contexte du modèle."""
+    return [
+        {"role": m["role"], "content": m["content"]}
+        for m in list_messages(sid)
+    ]

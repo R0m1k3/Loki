@@ -5,12 +5,16 @@ import {
   getModels,
   getSession,
   getStatus,
+  fileContent,
+  listFiles,
   listSessions,
   streamChat,
+  type FileNode,
   type Message,
   type OllamaModel,
   type OllamaStatus,
   type Session,
+  type ToolCall,
 } from "../api/client";
 
 interface LokiState {
@@ -24,10 +28,17 @@ interface LokiState {
   messages: Message[];
   streaming: boolean;
   streamContent: string; // réponse de l'agent en cours de frappe
+  streamTools: ToolCall[]; // appels d'outils de la réponse en cours
 
+  fileTree: FileNode[];
+  previewPath: string | null;
+  previewContent: string;
+
+  openPreview: (path: string) => Promise<void>;
   setSelectedModel: (name: string) => void;
   refreshStatus: () => Promise<void>;
   refreshModels: () => Promise<void>;
+  refreshFiles: () => Promise<void>;
 
   refreshSessions: () => Promise<void>;
   newSession: () => Promise<void>;
@@ -47,8 +58,25 @@ export const useStore = create<LokiState>((set, get) => ({
   messages: [],
   streaming: false,
   streamContent: "",
+  streamTools: [],
+  fileTree: [],
+  previewPath: null,
+  previewContent: "",
+
+  openPreview: async (path) => {
+    const content = await fileContent(path);
+    set({ previewPath: path, previewContent: content });
+  },
 
   setSelectedModel: (name) => set({ selectedModel: name }),
+
+  refreshFiles: async () => {
+    try {
+      set({ fileTree: await listFiles() });
+    } catch {
+      /* workspace indisponible */
+    }
+  },
 
   refreshStatus: async () => {
     try {
@@ -122,17 +150,42 @@ export const useStore = create<LokiState>((set, get) => ({
       messages: [...get().messages, userMsg],
       streaming: true,
       streamContent: "",
+      streamTools: [],
     });
 
     await streamChat(
       { session_id: sid, content, model: get().selectedModel || undefined },
       {
         onToken: (t) => set({ streamContent: get().streamContent + t }),
+        onToolCall: (call) =>
+          set({ streamTools: [...get().streamTools, call] }),
+        onToolResult: (call) => {
+          // Met à jour le dernier outil correspondant (statut + résumé).
+          const tools = [...get().streamTools];
+          for (let i = tools.length - 1; i >= 0; i--) {
+            if (tools[i].name === call.name && tools[i].status === "running") {
+              tools[i] = { ...tools[i], ...call };
+              break;
+            }
+          }
+          set({ streamTools: tools });
+        },
         onDone: async () => {
-          set({ streaming: false, streamContent: "" });
-          // Recharge depuis la base pour récupérer les ids/horodatages réels.
+          // Repère un fichier HTML écrit pour l'afficher automatiquement.
+          const writtenHtml = [...get().streamTools]
+            .reverse()
+            .find(
+              (t) =>
+                t.name === "write_file" &&
+                typeof t.args?.path === "string" &&
+                /\.html?$/.test(t.args.path as string)
+            );
+          set({ streaming: false, streamContent: "", streamTools: [] });
+          // Recharge depuis la base + l'arborescence (fichiers créés par l'agent).
           if (get().currentSessionId === sid) await get().openSession(sid!);
           await get().refreshSessions();
+          await get().refreshFiles();
+          if (writtenHtml) await get().openPreview(writtenHtml.args.path as string);
         },
         onError: (msg) => {
           const errMsg: Message = {
@@ -145,6 +198,7 @@ export const useStore = create<LokiState>((set, get) => ({
           set({
             streaming: false,
             streamContent: "",
+            streamTools: [],
             messages: [...get().messages, errMsg],
           });
         },

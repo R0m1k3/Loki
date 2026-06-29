@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { PlusIcon } from "../components/Icon";
+import type { FileNode } from "../api/client";
 
 /** Panneau gauche : historique des sessions + arborescence de fichiers. */
 export function LeftPanel() {
@@ -8,6 +9,8 @@ export function LeftPanel() {
     sessions,
     currentSessionId,
     refreshSessions,
+    refreshFiles,
+    fileTree,
     newSession,
     openSession,
     removeSession,
@@ -15,7 +18,8 @@ export function LeftPanel() {
 
   useEffect(() => {
     refreshSessions();
-  }, [refreshSessions]);
+    refreshFiles();
+  }, [refreshSessions, refreshFiles]);
 
   return (
     <div className="flex w-[268px] flex-none flex-col border-r border-line-soft bg-panel">
@@ -91,13 +95,57 @@ export function LeftPanel() {
       </div>
 
       <div className="scr flex-1 overflow-auto px-2.5 pb-3.5 font-mono text-xs">
-        <div className="px-2 py-4 text-center text-muted-3">
-          Aucun fichier pour l'instant.
-          <br />
-          L'agent créera des fichiers ici.
-        </div>
+        {fileTree.length === 0 ? (
+          <div className="px-2 py-4 text-center text-muted-3">
+            Aucun fichier pour l'instant.
+            <br />
+            L'agent créera des fichiers ici.
+          </div>
+        ) : (
+          <FileTree nodes={fileTree} depth={0} />
+        )}
       </div>
     </div>
+  );
+}
+
+function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
+  const openPreview = useStore((s) => s.openPreview);
+  return (
+    <>
+      {nodes.map((n) => (
+        <div key={n.path}>
+          <div
+            onClick={() => n.type === "file" && openPreview(n.path)}
+            className={`flex items-center gap-2 rounded-[7px] px-2 py-[5px] ${
+              n.type === "file"
+                ? "cursor-pointer text-ink-2 hover:bg-[#221e18]"
+                : "text-muted"
+            }`}
+            style={{ paddingLeft: 8 + depth * 14 }}
+          >
+            {n.type === "dir" ? (
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-[1.5px] bg-accent" />
+            )}
+            <span className="truncate">{n.name}</span>
+          </div>
+          {n.children && <FileTree nodes={n.children} depth={depth + 1} />}
+        </div>
+      ))}
+    </>
   );
 }
 

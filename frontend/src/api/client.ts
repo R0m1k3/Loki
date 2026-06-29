@@ -38,13 +38,40 @@ export interface Session {
   message_count?: number;
 }
 
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  summary?: string;
+  status?: "ok" | "error" | "running";
+}
+
 export interface Message {
   id: string;
   session_id: string;
   role: "user" | "assistant";
   content: string;
   model?: string;
+  meta?: { tools?: ToolCall[] } | null;
   created_at: number;
+}
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: "dir" | "file";
+  size?: number;
+  children?: FileNode[];
+}
+
+export async function listFiles(): Promise<FileNode[]> {
+  const res = await fetch("/api/files");
+  return (await res.json()).tree;
+}
+
+export async function fileContent(path: string): Promise<string> {
+  const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+  if (!res.ok) return "";
+  return (await res.json()).content;
 }
 
 export async function listSessions(): Promise<Session[]> {
@@ -77,6 +104,8 @@ export async function streamChat(
   body: { session_id: string; content: string; model?: string },
   handlers: {
     onToken: (t: string) => void;
+    onToolCall: (call: ToolCall) => void;
+    onToolResult: (call: ToolCall) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
   }
@@ -113,6 +142,9 @@ export async function streamChat(
       try {
         const payload = JSON.parse(data);
         if (event === "token") handlers.onToken(payload.content);
+        else if (event === "tool_call")
+          handlers.onToolCall({ ...payload, status: "running" });
+        else if (event === "tool_result") handlers.onToolResult(payload);
         else if (event === "done") handlers.onDone(payload.content);
         else if (event === "error") handlers.onError(payload.message);
       } catch {

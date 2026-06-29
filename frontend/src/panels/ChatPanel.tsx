@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ClipIcon, LokiMark, SendIcon } from "../components/Icon";
-import type { Message } from "../api/client";
+import { ToolCard } from "../components/ToolCard";
+import type { Message, ToolCall } from "../api/client";
 
 /** Panneau central : barre de contexte, fil de conversation, composer. */
 export function ChatPanel() {
@@ -10,6 +11,7 @@ export function ChatPanel() {
     messages,
     streaming,
     streamContent,
+    streamTools,
     sendMessage,
     currentSessionId,
   } = useStore();
@@ -20,7 +22,7 @@ export function ChatPanel() {
   // Auto-scroll vers le bas à chaque token / message.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, streamContent]);
+  }, [messages, streamContent, streamTools]);
 
   const submit = () => {
     if (!draft.trim() || streaming) return;
@@ -43,7 +45,7 @@ export function ChatPanel() {
       <div className="flex h-[42px] flex-none items-center gap-2 border-b border-line-soft px-[18px]">
         <Chip>Invite système</Chip>
         <Chip>
-          <span className="h-1.5 w-1.5 rounded-full bg-ok" />0 outil actif
+          <span className="h-1.5 w-1.5 rounded-full bg-ok" />3 outils actifs
         </Chip>
         <Chip>
           Température <b className="font-semibold text-[#e7ddcd]">0.7</b>
@@ -82,6 +84,7 @@ export function ChatPanel() {
                   role: "assistant",
                   content: streamContent,
                   model: selectedModel,
+                  meta: { tools: streamTools },
                   created_at: Date.now() / 1000,
                 }}
                 pending
@@ -172,12 +175,17 @@ function Bubble({ msg, pending }: { msg: Message; pending?: boolean }) {
             {time}
           </span>
         </div>
-        <div className="text-sm leading-[1.65] text-ink-2 whitespace-pre-wrap">
-          {msg.content}
-          {pending && (
-            <span className="ml-0.5 inline-block h-3.5 w-[7px] animate-pulse bg-accent align-middle" />
-          )}
-        </div>
+        {(msg.meta?.tools ?? []).map((t: ToolCall, i: number) => (
+          <ToolCard key={i} call={t} />
+        ))}
+        {(msg.content || pending) && (
+          <div className="text-sm leading-[1.65] text-ink-2 whitespace-pre-wrap">
+            {msg.content}
+            {pending && (
+              <span className="ml-0.5 inline-block h-3.5 w-[7px] animate-pulse bg-accent align-middle" />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

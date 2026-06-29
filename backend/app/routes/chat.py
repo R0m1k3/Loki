@@ -1,29 +1,30 @@
-"""Route de conversation : streaming token par token depuis Ollama (SSE).
+"""Route de conversation agentique : boucle d'outils + streaming SSE.
 
 Flux :
   1. on enregistre le message utilisateur ;
-  2. on rejoue l'historique de la session vers Ollama en streaming ;
-  3. on relaie chaque token au client (SSE) ;
-  4. on enregistre la réponse complète de l'assistant.
+  2. on lance la boucle agentique (run_agent) sur l'historique de la session ;
+  3. on relaie tokens et événements d'outils au client (SSE) ;
+  4. on enregistre la réponse finale de l'assistant + le récap des outils.
 """
 from __future__ import annotations
 
 import json
 
-import httpx
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from .. import db
+from ..agent import run_agent
 from ..config import settings
-from ..ollama_client import ollama
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 SYSTEM_PROMPT = (
-    "Tu es Loki, un assistant de développement local. Tu écris du code clair, "
-    "commenté en français, et tu réponds de façon concise et utile."
+    "Tu es Loki, un assistant de développement local agentique. Tu disposes "
+    "d'outils pour lire, écrire et lister des fichiers dans le workspace. "
+    "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
+    "concise en français. Après avoir écrit un fichier, propose un aperçu."
 )
 
 
@@ -32,6 +33,7 @@ class ChatRequest(BaseModel):
     content: str
     model: str | None = None
     options: dict | None = None
+    tools_enabled: bool = True
 
 
 def _sse(event: str, data: dict) -> str:
@@ -46,39 +48,45 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     model = req.model or session.get("model") or settings.default_model
 
-    # Premier message : on titre la session avec un extrait.
-    history = db.list_messages(req.session_id)
-    if not history:
+    # Premier message : titre la session avec un extrait.
+    if not db.list_messages(req.session_id):
         title = req.content.strip().split("\n")[0][:60] or "Nouvelle session"
         db.rename_session(req.session_id, title)
 
     db.add_message(req.session_id, "user", req.content, None)
 
-    # Contexte envoyé à Ollama : invite système + historique complet.
     convo = [{"role": "system", "content": SYSTEM_PROMPT}]
-    convo += [
-        {"role": m["role"], "content": m["content"]}
-        for m in db.list_messages(req.session_id)
-    ]
+    convo += db.list_messages_for_model(req.session_id)
 
     async def event_stream():
         yield _sse("start", {"model": model})
-        full = ""
-        try:
-            async for chunk in ollama.chat(
-                model, convo, options=req.options, stream=True
-            ):
-                token = chunk.get("message", {}).get("content", "")
-                if token:
-                    full += token
-                    yield _sse("token", {"content": token})
-                if chunk.get("done"):
-                    break
-        except (httpx.HTTPError, OSError) as exc:
-            yield _sse("error", {"message": str(exc)})
+        final_content = ""
+        tools_meta: list[dict] = []
 
-        if full:
-            db.add_message(req.session_id, "assistant", full, model)
-        yield _sse("done", {"content": full, "model": model})
+        async for ev in run_agent(
+            model, convo, options=req.options, tools_enabled=req.tools_enabled
+        ):
+            etype = ev.pop("type")
+            if etype == "token":
+                yield _sse("token", ev)
+            elif etype == "tool_call":
+                yield _sse("tool_call", ev)
+            elif etype == "tool_result":
+                yield _sse("tool_result", ev)
+            elif etype == "error":
+                yield _sse("error", ev)
+            elif etype == "final":
+                final_content = ev["content"]
+                tools_meta = ev["tools"]
+
+        if final_content or tools_meta:
+            db.add_message(
+                req.session_id,
+                "assistant",
+                final_content,
+                model,
+                meta={"tools": tools_meta} if tools_meta else None,
+            )
+        yield _sse("done", {"content": final_content, "tools": tools_meta})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

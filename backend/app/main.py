@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import db
 from .config import settings
-from .routes import chat, models, sessions
+from .routes import chat, files, models, sessions
 
 
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.add_middleware(
 app.include_router(models.router)
 app.include_router(sessions.router)
 app.include_router(chat.router)
+app.include_router(files.router)
 
 
 @app.get("/api/health")
