@@ -40,6 +40,25 @@ Application disponible sur http://localhost:8080
 > stack : `docker compose --profile ollama up` puis règle
 > `OLLAMA_HOST=http://ollama:11434`.
 
+## Installation sur Unraid
+
+Un compose prêt à l'emploi est fourni : [`docker-compose.unraid.yml`](docker-compose.unraid.yml).
+
+1. Dans le terminal Unraid, prépare les dossiers et le code source :
+   ```bash
+   mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
+   git clone https://github.com/R0m1k3/Loki.git /mnt/user/appdata/loki/repo
+   ```
+2. Installe le plugin **Compose Manager** (Apps), crée une nouvelle stack, et
+   colle le contenu de `docker-compose.unraid.yml`.
+3. **Adapte `OLLAMA_HOST`** : mets l'IP de ton serveur Unraid où tourne le
+   conteneur Ollama, p. ex. `http://192.168.1.10:11434`.
+4. **Compose Up**. Loki est accessible sur `http://<ip-unraid>:8080`.
+
+> Les modèles déjà présents dans ton Ollama sont **détectés automatiquement** ;
+> tu peux en télécharger d'autres depuis l'onglet Configuration.
+> Mise à jour : `cd /mnt/user/appdata/loki/repo && git pull`, puis Compose Up (rebuild).
+
 ## Développement (sans Docker)
 
 **Backend**

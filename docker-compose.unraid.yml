@@ -1,0 +1,45 @@
+# ───────────────────────────────────────────────────────────────────────────
+# Loki — docker-compose pour Unraid
+#
+# PRÉREQUIS (une seule fois, via le terminal Unraid) :
+#   mkdir -p /mnt/user/appdata/loki
+#   git clone https://github.com/R0m1k3/Loki.git /mnt/user/appdata/loki/repo
+#   mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
+#
+# Puis colle ce fichier dans le plugin « Compose Manager » (nouvelle stack)
+# et lance « Compose Up ». Pour mettre à jour plus tard :
+#   cd /mnt/user/appdata/loki/repo && git pull   (puis Compose Up --build)
+#
+# IMPORTANT : remplace l'IP dans OLLAMA_HOST par celle de ton serveur Unraid
+# (là où tourne ton conteneur Ollama, port 11434).
+# ───────────────────────────────────────────────────────────────────────────
+services:
+  loki:
+    build:
+      context: /mnt/user/appdata/loki/repo
+    image: loki:latest
+    container_name: loki
+    ports:
+      - "8080:8080"
+    environment:
+      # >>> À ADAPTER : IP de ton serveur Unraid (Ollama écoute sur :11434) <<<
+      - OLLAMA_HOST=http://192.168.1.10:11434
+      - DEFAULT_MODEL=llama3.1:8b
+      - WORKSPACE_DIR=/workspace
+      - DATA_DIR=/data
+      - PORT=8080
+      # Optionnel : instance SearxNG pour l'outil web_search (sinon DuckDuckGo)
+      - SEARX_URL=
+    volumes:
+      - /mnt/user/appdata/loki/workspace:/workspace
+      - /mnt/user/appdata/loki/data:/data
+    extra_hosts:
+      # Permet aussi d'utiliser OLLAMA_HOST=http://host.docker.internal:11434
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
