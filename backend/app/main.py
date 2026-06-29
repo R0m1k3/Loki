@@ -5,16 +5,27 @@ Sert l'API (/api/*) et, en production, le frontend React compilé (static/).
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import db
 from .config import settings
-from .routes import models
+from .routes import chat, models, sessions
 
-app = FastAPI(title="Loki", description="Agent IA local sur Ollama")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    db.init_db()
+    yield
+
+
+app = FastAPI(
+    title="Loki", description="Agent IA local sur Ollama", lifespan=lifespan
+)
 
 # En dev, le front tourne sur Vite (5173). On autorise le CORS large ;
 # en prod le front est servi par le même origin, donc sans impact.
@@ -26,6 +37,8 @@ app.add_middleware(
 )
 
 app.include_router(models.router)
+app.include_router(sessions.router)
+app.include_router(chat.router)
 
 
 @app.get("/api/health")

@@ -15,7 +15,9 @@ Frontend (React + Vite + TS + Tailwind)
         │ HTTP + SSE
 Backend (FastAPI, Python)
    ├── /api/status, /api/models, /api/models/pull   (Ollama)
-   │   (chat agentique & outils : phases suivantes)
+   ├── /api/sessions  (CRUD sessions)
+   ├── /api/chat      (conversation streaming, SSE)
+   │   (outils agentiques : phases suivantes)
         │ httpx                     │ volume
      Ollama (:11434)            /workspace + /data (SQLite)
 ```
@@ -67,7 +69,7 @@ npm run dev        # http://localhost:5173
 
 - [x] **Phase 1** — Socle + design system fidèle au thème, layout 3 panneaux
 - [x] **Phase 2** — Connexion Ollama : statut, liste des modèles, pull avec progression, sélecteur
-- [ ] **Phase 3** — Chat streaming (SSE) + persistance des sessions (SQLite)
+- [x] **Phase 3** — Chat streaming (SSE) + persistance des sessions (SQLite)
 - [ ] **Phase 4** — Boucle agentique & outils fichiers (read/write/list)
 - [ ] **Phase 5** — Aperçu HTML live + onglets Code/Logs + arborescence
 - [ ] **Phase 6** — Configuration complète (génération, toggles d'outils, invite système)
