@@ -33,7 +33,7 @@ cp .env.example .env          # ajuste OLLAMA_HOST si besoin
 docker compose up --build
 ```
 
-Application disponible sur http://localhost:8080
+Application disponible sur http://localhost:8717
 
 > **Ollama** : par défaut Loki vise `http://host.docker.internal:11434`
 > (un Ollama installé sur la machine hôte). Pour embarquer Ollama dans la
@@ -55,7 +55,8 @@ n'est nécessaire sur Unraid — un simple `pull`. Compose prêt à l'emploi :
    colle le contenu de `docker-compose.unraid.yml`.
 3. **Adapte `OLLAMA_HOST`** : mets l'IP de ton serveur Unraid où tourne le
    conteneur Ollama, p. ex. `http://192.168.1.10:11434`.
-4. **Compose Up**. Loki est accessible sur `http://<ip-unraid>:8080`.
+4. **Compose Up**. Loki est accessible sur `http://<ip-unraid>:8717`
+   (change le port à gauche du mapping `8717:8080` s'il est déjà pris).
 
 > La première publication de l'image prend quelques minutes (le temps que le
 > workflow GitHub se termine). Si l'image est privée, rends le package **public**
@@ -89,7 +90,8 @@ npm run dev        # http://localhost:5173
 | `DEFAULT_MODEL` | `llama3.1:8b`                        | Modèle sélectionné au démarrage |
 | `WORKSPACE_DIR` | `/workspace`                        | Dossier de travail de l'agent |
 | `DATA_DIR`      | `/data`                             | Base SQLite (sessions + config) |
-| `PORT`          | `8080`                              | Port exposé                   |
+| `HOST_PORT`     | `8717`                              | Port d'accès sur l'hôte        |
+| `PORT`          | `8080`                              | Port interne du conteneur      |
 | `SEARX_URL`     | *(vide)*                            | Instance SearxNG pour `web_search` (sinon DuckDuckGo) |
 
 ## Utilisation

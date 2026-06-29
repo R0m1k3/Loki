@@ -3,7 +3,8 @@ services:
     build: .
     container_name: loki
     ports:
-      - "${PORT:-8080}:8080"
+      # Port d'accès sur l'hôte (gauche) -> port interne du conteneur (droite)
+      - "${HOST_PORT:-8717}:8080"
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-llama3.1:8b}
