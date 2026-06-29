@@ -16,6 +16,10 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
     PORT=8080
 
+# curl pour le HEALTHCHECK
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -23,8 +27,16 @@ COPY backend/ ./backend/
 # Frontend compilé servi en statique par FastAPI
 COPY --from=frontend /app/frontend/dist ./backend/static
 
-RUN mkdir -p /workspace /data
+# Utilisateur non-root + dossiers de runtime lui appartenant
+RUN useradd --create-home --uid 10001 loki \
+    && mkdir -p /workspace /data \
+    && chown -R loki:loki /workspace /data /app
+USER loki
 
 EXPOSE 8080
 WORKDIR /app/backend
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://localhost:${PORT}/api/health" || exit 1
+
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

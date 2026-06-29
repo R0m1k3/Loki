@@ -63,8 +63,44 @@ npm run dev        # http://localhost:5173
 | `OLLAMA_HOST`   | `http://host.docker.internal:11434` | URL de l'instance Ollama      |
 | `DEFAULT_MODEL` | `llama3.1:8b`                        | Modèle sélectionné au démarrage |
 | `WORKSPACE_DIR` | `/workspace`                        | Dossier de travail de l'agent |
-| `DATA_DIR`      | `/data`                             | Base SQLite (sessions)        |
+| `DATA_DIR`      | `/data`                             | Base SQLite (sessions + config) |
 | `PORT`          | `8080`                              | Port exposé                   |
+| `SEARX_URL`     | *(vide)*                            | Instance SearxNG pour `web_search` (sinon DuckDuckGo) |
+
+## Utilisation
+
+1. Vérifie la pastille **Ollama** (verte = connecté) en haut à droite, et choisis
+   un modèle qui supporte le *function calling* (ex. `llama3.1:8b`,
+   `qwen2.5-coder`).
+2. Décris une tâche dans le tchat, p. ex. *« Crée une landing page pour un café
+   nommé Café Lumière, avec menu et horaires »*.
+3. L'agent lit/écrit des fichiers dans le **workspace** ; chaque appel d'outil
+   s'affiche dans le fil, et l'aperçu HTML apparaît à droite (onglets **Aperçu /
+   Code / Logs**).
+4. Règle le comportement dans **Configuration** (modèle, température/top-p/top-k,
+   jetons max, outils actifs, invite système).
+
+## Outils de l'agent
+
+| Outil         | Rôle                                   | Par défaut |
+| ------------- | -------------------------------------- | ---------- |
+| `read_file`   | Lire un fichier du workspace           | activé     |
+| `write_file`  | Créer / modifier un fichier            | activé     |
+| `list_dir`    | Lister un répertoire                   | activé     |
+| `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
+| `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
+
+## Sécurité
+
+- **Confinement** : toutes les opérations fichier (`read_file`, `write_file`,
+  `list_dir`) et `run_shell` sont strictement confinées au `WORKSPACE_DIR`. Toute
+  tentative de sortie (`../`, chemin absolu) est rejetée.
+- **`run_shell`** est désactivé par défaut. Une fois activé, chaque commande
+  proposée par l'agent demande une **validation explicite** dans l'interface
+  (option *confirm_shell*, activée par défaut) avant exécution.
+- Le conteneur tourne en **utilisateur non-root** et expose un **HEALTHCHECK**.
+- Loki est conçu pour un usage **local** : n'expose pas le port publiquement sans
+  ajouter ta propre couche d'authentification.
 
 ## Feuille de route
 

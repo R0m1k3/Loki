@@ -1,0 +1,26 @@
+# Contrôle de version
+.git
+.gitignore
+
+# Python
+**/__pycache__
+**/*.pyc
+backend/.venv
+backend/venv
+
+# Node / build
+frontend/node_modules
+frontend/dist
+**/.vite
+frontend/tsconfig.tsbuildinfo
+
+# Données & workspace de runtime (montés en volume)
+data
+workspace
+
+# Environnement / IDE
+.env
+.env.local
+.idea
+.vscode
+**/.DS_Store

@@ -10,12 +10,20 @@ services:
       - WORKSPACE_DIR=/workspace
       - DATA_DIR=/data
       - PORT=8080
+      # Optionnel : instance SearxNG pour web_search (sinon DuckDuckGo)
+      - SEARX_URL=${SEARX_URL:-}
     volumes:
       - ./workspace:/workspace
       - ./data:/data
     extra_hosts:
       # Permet d'atteindre un Ollama installé sur la machine hôte
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   # ── Ollama optionnel ──────────────────────────────────────────────────
