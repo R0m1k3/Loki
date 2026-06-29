@@ -4,11 +4,16 @@ import type { ToolCall } from "../api/client";
 export function ToolCard({ call }: { call: ToolCall }) {
   const running = call.status === "running";
   const error = call.status === "error";
+  const pending = call.status === "pending";
 
-  // Argument principal affiché entre parenthèses (path le plus souvent).
+  // Argument principal affiché entre parenthèses selon l'outil.
+  const mainArg =
+    (call.args?.path as string) ??
+    (call.args?.query as string) ??
+    (call.args?.command as string);
   const argPreview =
-    typeof call.args?.path === "string"
-      ? `("${call.args.path}")`
+    typeof mainArg === "string"
+      ? `("${mainArg.length > 48 ? mainArg.slice(0, 48) + "…" : mainArg}")`
       : Object.keys(call.args ?? {}).length
       ? "(…)"
       : "()";
@@ -32,6 +37,8 @@ export function ToolCard({ call }: { call: ToolCall }) {
             <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-muted-3 border-t-accent" />
             en cours
           </span>
+        ) : pending ? (
+          <span className="font-mono text-[11px] text-warn">⏸ à valider</span>
         ) : (
           <span
             className={`flex items-center gap-1.5 font-mono text-[11px] ${
@@ -72,6 +79,20 @@ function ToolGlyph({ name }: { name: string }) {
     return (
       <svg {...common}>
         <path d="M4 7h6l2 2h8v9H4z" />
+      </svg>
+    );
+  if (name === "web_search")
+    return (
+      <svg {...common}>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+    );
+  if (name === "run_shell")
+    return (
+      <svg {...common}>
+        <path d="m6 9 3 3-3 3M13 15h5" />
+        <rect x="2" y="4" width="20" height="16" rx="2" />
       </svg>
     );
   // read_file (défaut)

@@ -8,7 +8,10 @@ const TOOL_DESC: Record<string, string> = {
   read_file: "Lire un fichier du projet",
   write_file: "Créer / modifier un fichier",
   list_dir: "Lister un répertoire",
+  web_search: "Recherche web",
+  run_shell: "Exécuter une commande",
 };
+const SENSITIVE = new Set(["run_shell"]);
 
 /** Vue Configuration (Frame 2) — Modèle & génération, outils, invite système. */
 export function SettingsView() {
@@ -279,6 +282,9 @@ export function SettingsView() {
                         </span>
                         <span className="flex-1 text-xs text-muted-2">
                           {TOOL_DESC[name] ?? ""}
+                          {SENSITIVE.has(name) && (
+                            <span className="text-warn"> · sensible</span>
+                          )}
                         </span>
                         <button
                           onClick={() =>
@@ -298,9 +304,28 @@ export function SettingsView() {
                       </div>
                     );
                   })}
-                  <div className="mt-1 border-t border-line-soft pt-2.5 font-mono text-[11px] text-muted-3">
-                    web_search · run_shell — arrivent bientôt (sensibles)
-                  </div>
+                  {draft.tools.run_shell && (
+                    <div className="mt-2 flex items-center gap-3 rounded-[10px] border border-line-soft bg-base px-3 py-2.5">
+                      <span className="flex-1 text-xs text-ink-3">
+                        Demander une validation avant chaque commande shell
+                      </span>
+                      <button
+                        onClick={() => set("confirm_shell", !draft.confirm_shell)}
+                        className="relative h-5 w-[34px] rounded-full transition-colors"
+                        style={{
+                          background: draft.confirm_shell ? "#f0a15c" : "#3a342c",
+                        }}
+                      >
+                        <span
+                          className="absolute top-0.5 h-4 w-4 rounded-full transition-all"
+                          style={{
+                            background: draft.confirm_shell ? "#1f1b16" : "#6f675c",
+                            left: draft.confirm_shell ? 16 : 2,
+                          }}
+                        />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

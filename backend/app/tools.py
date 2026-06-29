@@ -9,7 +9,12 @@ toute tentative de sortie (../, chemin absolu hors workspace) est rejetée.
 """
 from __future__ import annotations
 
+import html
 import os
+import re
+import subprocess
+
+import httpx
 
 from .config import settings
 
@@ -71,11 +76,114 @@ def list_dir(path: str = ".") -> dict:
     }
 
 
+def web_search(query: str, max_results: int = 5) -> dict:
+    """Recherche web (DuckDuckGo HTML, sans clé d'API).
+
+    Optionnellement, si SEARX_URL est défini, interroge une instance SearxNG.
+    Renvoie une liste de résultats {title, url, snippet}.
+    """
+    query = (query or "").strip()
+    if not query:
+        raise ToolError("requête de recherche vide")
+
+    searx = os.environ.get("SEARX_URL")
+    try:
+        if searx:
+            results = _search_searx(searx, query, max_results)
+        else:
+            results = _search_duckduckgo(query, max_results)
+    except httpx.HTTPError as exc:
+        raise ToolError(f"recherche web indisponible : {exc}") from exc
+
+    summary = f"{len(results)} résultat(s)" if results else "aucun résultat"
+    return {"ok": True, "results": results, "summary": summary}
+
+
+def _search_searx(base: str, query: str, n: int) -> list[dict]:
+    with httpx.Client(timeout=10.0) as client:
+        r = client.get(
+            base.rstrip("/") + "/search",
+            params={"q": query, "format": "json"},
+        )
+        r.raise_for_status()
+        data = r.json().get("results", [])[:n]
+    return [
+        {"title": d.get("title", ""), "url": d.get("url", ""),
+         "snippet": d.get("content", "")}
+        for d in data
+    ]
+
+
+_DDG_RESULT = re.compile(
+    r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>'
+    r'.*?class="result__snippet"[^>]*>(.*?)</a>',
+    re.DOTALL,
+)
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _clean(text: str) -> str:
+    return html.unescape(_TAGS.sub("", text)).strip()
+
+
+def _search_duckduckgo(query: str, n: int) -> list[dict]:
+    with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+        r = client.post(
+            "https://html.duckduckgo.com/html/",
+            data={"q": query},
+            headers={"User-Agent": "Mozilla/5.0 (Loki agent)"},
+        )
+        r.raise_for_status()
+    results = []
+    for url, title, snippet in _DDG_RESULT.findall(r.text)[:n]:
+        results.append({
+            "title": _clean(title),
+            "url": html.unescape(url),
+            "snippet": _clean(snippet),
+        })
+    return results
+
+
+def run_shell(command: str, timeout: int = 60) -> dict:
+    """Exécute une commande shell dans le workspace (outil sensible).
+
+    L'exécution effective n'a lieu qu'après validation utilisateur (gérée par
+    la boucle agentique / la route /api/shell). Confinée au workspace.
+    """
+    command = (command or "").strip()
+    if not command:
+        raise ToolError("commande vide")
+    try:
+        proc = subprocess.run(
+            command,
+            shell=True,
+            cwd=_workspace_root(),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ToolError(f"délai dépassé ({timeout}s)") from exc
+
+    out = (proc.stdout or "") + (proc.stderr or "")
+    out = out[:4000]  # borne la taille renvoyée au modèle
+    status = "ok" if proc.returncode == 0 else "error"
+    return {
+        "ok": proc.returncode == 0,
+        "exit_code": proc.returncode,
+        "output": out,
+        "summary": f"code {proc.returncode}",
+        "_status": status,
+    }
+
+
 # ── Registre & définitions exposées au modèle ────────────────────────────
 TOOL_IMPL = {
     "read_file": read_file,
     "write_file": write_file,
     "list_dir": list_dir,
+    "web_search": web_search,
+    "run_shell": run_shell,
 }
 
 TOOL_DEFINITIONS = [
@@ -118,6 +226,37 @@ TOOL_DEFINITIONS = [
                 "properties": {
                     "path": {"type": "string", "description": "Répertoire (défaut : racine)"}
                 },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Rechercher sur le web et renvoyer les meilleurs résultats.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Termes de recherche"}
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_shell",
+            "description": (
+                "Exécuter une commande shell dans le workspace. Outil sensible :"
+                " l'utilisateur doit valider la commande avant exécution."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Commande à exécuter"}
+                },
+                "required": ["command"],
             },
         },
     },

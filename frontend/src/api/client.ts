@@ -42,7 +42,7 @@ export interface ToolCall {
   name: string;
   args: Record<string, unknown>;
   summary?: string;
-  status?: "ok" | "error" | "running";
+  status?: "ok" | "error" | "running" | "pending";
 }
 
 export interface Message {
@@ -62,6 +62,18 @@ export interface AgentConfig {
   top_k: number;
   max_tokens: number;
   tools: Record<string, boolean>;
+  confirm_shell: boolean;
+}
+
+export async function runShell(
+  command: string
+): Promise<{ command: string; exit_code: number; output: string }> {
+  const res = await fetch("/api/shell/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ command }),
+  });
+  return res.json();
 }
 
 export async function getConfig(): Promise<{
@@ -134,6 +146,7 @@ export async function streamChat(
     onToken: (t: string) => void;
     onToolCall: (call: ToolCall) => void;
     onToolResult: (call: ToolCall) => void;
+    onToolConfirm: (command: string) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
   }
@@ -173,6 +186,7 @@ export async function streamChat(
         else if (event === "tool_call")
           handlers.onToolCall({ ...payload, status: "running" });
         else if (event === "tool_result") handlers.onToolResult(payload);
+        else if (event === "tool_confirm") handlers.onToolConfirm(payload.command);
         else if (event === "done") handlers.onDone(payload.content);
         else if (event === "error") handlers.onError(payload.message);
       } catch {

@@ -60,16 +60,11 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             convo,
             options=agent_config.ollama_options(cfg),
             enabled_tools=agent_config.enabled_tool_names(cfg),
+            confirm_shell=cfg.get("confirm_shell", True),
         ):
             etype = ev.pop("type")
-            if etype == "token":
-                yield _sse("token", ev)
-            elif etype == "tool_call":
-                yield _sse("tool_call", ev)
-            elif etype == "tool_result":
-                yield _sse("tool_result", ev)
-            elif etype == "error":
-                yield _sse("error", ev)
+            if etype in ("token", "tool_call", "tool_result", "tool_confirm", "error"):
+                yield _sse(etype, ev)
             elif etype == "final":
                 final_content = ev["content"]
                 tools_meta = ev["tools"]

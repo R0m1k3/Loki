@@ -16,8 +16,17 @@ DEFAULT_SYSTEM_PROMPT = (
     "concise en français. Après avoir écrit un fichier, propose un aperçu."
 )
 
-# Outils réellement disponibles (les sensibles arrivent en phase 7).
-AVAILABLE_TOOLS = ["read_file", "write_file", "list_dir"]
+# Outils disponibles. Les sensibles (web_search, run_shell) sont désactivés
+# par défaut, conformément à la maquette.
+AVAILABLE_TOOLS = ["read_file", "write_file", "list_dir", "web_search", "run_shell"]
+SENSITIVE_TOOLS = {"run_shell"}
+DEFAULT_TOOL_STATE = {
+    "read_file": True,
+    "write_file": True,
+    "list_dir": True,
+    "web_search": False,
+    "run_shell": False,
+}
 
 DEFAULT_CONFIG: dict = {
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
@@ -25,7 +34,9 @@ DEFAULT_CONFIG: dict = {
     "top_p": 0.9,
     "top_k": 40,
     "max_tokens": 2048,
-    "tools": {name: True for name in AVAILABLE_TOOLS},
+    "tools": dict(DEFAULT_TOOL_STATE),
+    # Demander une validation utilisateur avant toute commande shell.
+    "confirm_shell": True,
 }
 
 
@@ -34,7 +45,7 @@ def get_config() -> dict:
     stored = db.get_config_value(CONFIG_KEY) or {}
     cfg = {**DEFAULT_CONFIG, **stored}
     cfg["tools"] = {
-        name: bool(stored.get("tools", {}).get(name, True))
+        name: bool(stored.get("tools", {}).get(name, DEFAULT_TOOL_STATE[name]))
         for name in AVAILABLE_TOOLS
     }
     return cfg
@@ -45,7 +56,11 @@ def save_config(patch: dict) -> dict:
     cfg = {**get_config(), **{k: v for k, v in patch.items() if v is not None}}
     if "tools" in patch and patch["tools"]:
         cfg["tools"] = {
-            name: bool(patch["tools"].get(name, cfg["tools"].get(name, True)))
+            name: bool(
+                patch["tools"].get(
+                    name, cfg["tools"].get(name, DEFAULT_TOOL_STATE[name])
+                )
+            )
             for name in AVAILABLE_TOOLS
         }
     db.set_config_value(CONFIG_KEY, cfg)

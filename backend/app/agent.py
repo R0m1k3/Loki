@@ -41,6 +41,7 @@ async def run_agent(
     *,
     options: dict | None = None,
     enabled_tools: list[str] | None = None,
+    confirm_shell: bool = True,
 ) -> AsyncIterator[dict]:
     # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
     if enabled_tools is None:
@@ -83,6 +84,7 @@ async def run_agent(
                 break
 
             # Exécution des outils demandés, puis réinjection des résultats.
+            awaiting_confirmation = False
             for tc in tool_calls:
                 fn = tc.get("function", {})
                 name = fn.get("name", "")
@@ -90,10 +92,39 @@ async def run_agent(
 
                 yield {"type": "tool_call", "name": name, "args": args}
 
+                # run_shell est sensible : on demande validation au lieu d'exécuter.
+                if name == "run_shell" and confirm_shell:
+                    command = args.get("command", "")
+                    record = {
+                        "name": name,
+                        "args": args,
+                        "summary": "validation requise",
+                        "status": "pending",
+                    }
+                    collected.append(record)
+                    yield {"type": "tool_confirm", "name": name, "command": command}
+                    convo.append(
+                        {
+                            "role": "tool",
+                            "name": name,
+                            "content": json.dumps(
+                                {
+                                    "ok": False,
+                                    "status": "pending",
+                                    "message": "Commande en attente de validation "
+                                    "de l'utilisateur. N'exécute rien d'autre.",
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    )
+                    awaiting_confirmation = True
+                    continue
+
                 try:
                     result = run_tool(name, args)
                     summary = result.get("summary", "terminé")
-                    status = "ok"
+                    status = result.get("_status", "ok")
                 except ToolError as exc:
                     result = {"ok": False, "error": str(exc)}
                     summary = str(exc)
@@ -110,6 +141,21 @@ async def run_agent(
                         "content": json.dumps(result, ensure_ascii=False),
                     }
                 )
+
+            # Une commande shell attend une validation : on interrompt la boucle.
+            if awaiting_confirmation:
+                # Laisse le modèle conclure son tour (message d'attente).
+                final_chunk = ""
+                async for chunk in ollama.chat(model, convo, options=options, stream=True):
+                    tok = chunk.get("message", {}).get("content", "")
+                    if tok:
+                        final_chunk += tok
+                        yield {"type": "token", "content": tok}
+                    if chunk.get("done"):
+                        break
+                if final_chunk.strip():
+                    text_parts.append(final_chunk.strip())
+                break
     except (httpx.HTTPError, OSError) as exc:
         yield {"type": "error", "message": str(exc)}
         return

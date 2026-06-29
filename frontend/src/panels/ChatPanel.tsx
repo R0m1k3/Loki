@@ -15,6 +15,9 @@ export function ChatPanel() {
     sendMessage,
     currentSessionId,
     config,
+    pendingShell,
+    approveShell,
+    rejectShell,
   } = useStore();
 
   const activeTools = config
@@ -98,6 +101,13 @@ export function ChatPanel() {
                   created_at: Date.now() / 1000,
                 }}
                 pending
+              />
+            )}
+            {pendingShell && (
+              <ShellConfirm
+                command={pendingShell}
+                onApprove={approveShell}
+                onReject={rejectShell}
               />
             )}
           </div>
@@ -196,6 +206,46 @@ function Bubble({ msg, pending }: { msg: Message; pending?: boolean }) {
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ShellConfirm({
+  command,
+  onApprove,
+  onReject,
+}: {
+  command: string;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="ml-[43px] overflow-hidden rounded-[11px] border border-[#4a3a2a] bg-card-deep">
+      <div className="flex items-center gap-2 border-b border-line-soft px-[13px] py-2.5">
+        <span className="font-mono text-[12.5px] font-semibold text-warn">
+          run_shell
+        </span>
+        <span className="text-xs text-muted-2">· commande sensible à valider</span>
+      </div>
+      <div className="px-[13px] py-3">
+        <pre className="m-0 mb-3 overflow-auto whitespace-pre-wrap rounded-lg bg-sunken px-3 py-2.5 font-mono text-[12px] text-ink-2">
+          $ {command}
+        </pre>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onApprove}
+            className="flex h-[30px] items-center gap-1.5 rounded-lg bg-accent px-3.5 text-[12.5px] font-bold text-[#1f1b16]"
+          >
+            Approuver &amp; exécuter
+          </button>
+          <button
+            onClick={onReject}
+            className="flex h-[30px] items-center rounded-lg border border-line-strong px-3.5 text-[12.5px] font-semibold text-ink-3"
+          >
+            Refuser
+          </button>
+        </div>
       </div>
     </div>
   );

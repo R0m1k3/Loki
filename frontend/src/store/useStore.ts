@@ -9,6 +9,7 @@ import {
   fileContent,
   listFiles,
   listSessions,
+  runShell,
   saveConfig,
   streamChat,
   type AgentConfig,
@@ -42,6 +43,10 @@ interface LokiState {
   refreshConfig: () => Promise<void>;
   updateConfig: (patch: Partial<AgentConfig>) => Promise<void>;
 
+  pendingShell: string | null; // commande shell en attente de validation
+  approveShell: () => Promise<void>;
+  rejectShell: () => Promise<void>;
+
   openPreview: (path: string) => Promise<void>;
   setSelectedModel: (name: string) => void;
   refreshStatus: () => Promise<void>;
@@ -72,6 +77,32 @@ export const useStore = create<LokiState>((set, get) => ({
   previewContent: "",
   config: null,
   availableTools: [],
+  pendingShell: null,
+
+  approveShell: async () => {
+    const cmd = get().pendingShell;
+    if (!cmd) return;
+    set({ pendingShell: null });
+    let report: string;
+    try {
+      const r = await runShell(cmd);
+      report =
+        `J'ai validé la commande \`${cmd}\` (code ${r.exit_code}).\n` +
+        `Sortie :\n\`\`\`\n${r.output || "(vide)"}\n\`\`\``;
+    } catch {
+      report = `Échec de l'exécution de \`${cmd}\`.`;
+    }
+    await get().refreshFiles();
+    // On renvoie le résultat à l'agent pour qu'il poursuive.
+    await get().sendMessage(report);
+  },
+
+  rejectShell: async () => {
+    const cmd = get().pendingShell;
+    if (!cmd) return;
+    set({ pendingShell: null });
+    await get().sendMessage(`J'ai refusé la commande \`${cmd}\`. N'exécute pas cette commande.`);
+  },
 
   refreshConfig: async () => {
     const { config, available_tools } = await getConfig();
@@ -171,6 +202,7 @@ export const useStore = create<LokiState>((set, get) => ({
       streaming: true,
       streamContent: "",
       streamTools: [],
+      pendingShell: null,
     });
 
     await streamChat(
@@ -190,6 +222,7 @@ export const useStore = create<LokiState>((set, get) => ({
           }
           set({ streamTools: tools });
         },
+        onToolConfirm: (command) => set({ pendingShell: command }),
         onDone: async () => {
           // Repère un fichier HTML écrit pour l'afficher automatiquement.
           const writtenHtml = [...get().streamTools]
