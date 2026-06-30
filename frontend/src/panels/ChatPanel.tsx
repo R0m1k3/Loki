@@ -11,6 +11,7 @@ export function ChatPanel() {
     selectedModel,
     messages,
     streaming,
+    streamingSessionId,
     streamContent,
     streamThinking,
     streamStatus,
@@ -22,6 +23,7 @@ export function ChatPanel() {
     pendingShell,
     approveShell,
     rejectShell,
+    sessions,
   } = useStore();
 
   const activeTools = config
@@ -49,7 +51,9 @@ export function ChatPanel() {
     }
   };
 
-  const empty = messages.length === 0 && !streaming;
+  const showingStreaming = streaming && currentSessionId === streamingSessionId;
+  const workingSession = sessions.find((s) => s.id === streamingSessionId);
+  const empty = messages.length === 0 && !showingStreaming;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-base">
@@ -88,7 +92,7 @@ export function ChatPanel() {
             {messages.map((m) => (
               <Bubble key={m.id} msg={m} />
             ))}
-            {streaming && (
+            {showingStreaming && (
               <Bubble
                 msg={{
                   id: "stream",
@@ -105,7 +109,7 @@ export function ChatPanel() {
                 thinking={streamThinking}
               />
             )}
-            {pendingShell && (
+            {showingStreaming && pendingShell && (
               <ShellConfirm
                 command={pendingShell}
                 onApprove={approveShell}
@@ -132,12 +136,23 @@ export function ChatPanel() {
               <button className="flex h-8 w-8 items-center justify-center border-2 border-line text-ink-2">
                 <ClipIcon />
               </button>
-              <div className="flex h-8 items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2">
+              <div
+                className="flex h-8 min-w-0 max-w-[220px] items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2"
+                title={selectedModel || undefined}
+              >
                 <span className="h-2 w-2 border-2 border-line bg-accent" />
-                {selectedModel || "—"}
+                <span className="min-w-0 truncate">{selectedModel || "—"}</span>
               </div>
-              <div className="flex-1" />
-              <span className="text-[13px] text-muted-3">⏎ envoyer · ⇧⏎ ligne</span>
+              {streaming && !showingStreaming ? (
+                <span className="min-w-0 flex-1 truncate text-[13px] text-accent">
+                  Travail en cours : {workingSession?.title ?? "session ouverte"}
+                </span>
+              ) : (
+                <>
+                  <div className="flex-1" />
+                  <span className="text-[13px] text-muted-3">⏎ envoyer · ⇧⏎ ligne</span>
+                </>
+              )}
               <button
                 onClick={submit}
                 disabled={streaming || !draft.trim()}

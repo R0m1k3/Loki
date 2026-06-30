@@ -31,6 +31,7 @@ interface LokiState {
   currentSessionId: string | null;
   messages: Message[];
   streaming: boolean;
+  streamingSessionId: string | null;
   streamContent: string; // réponse de l'agent en cours de frappe
   streamThinking: string; // raisonnement de l'agent en cours
   streamStatus: string;
@@ -73,6 +74,7 @@ export const useStore = create<LokiState>((set, get) => ({
   currentSessionId: null,
   messages: [],
   streaming: false,
+  streamingSessionId: null,
   streamContent: "",
   streamThinking: "",
   streamStatus: "",
@@ -174,24 +176,26 @@ export const useStore = create<LokiState>((set, get) => ({
 
   newSession: async () => {
     const s = await createSession(get().selectedModel || undefined);
+    const streaming = get().streaming;
     set({
       currentSessionId: s.id,
       messages: [],
-      streamContent: "",
-      streamStatus: "",
-      streamNotice: null,
+      ...(streaming
+        ? {}
+        : { streamContent: "", streamStatus: "", streamNotice: null }),
     });
     await get().refreshSessions();
   },
 
   openSession: async (id) => {
     const { messages } = await getSession(id);
+    const streaming = get().streaming;
     set({
       currentSessionId: id,
       messages,
-      streamContent: "",
-      streamStatus: "",
-      streamNotice: null,
+      ...(streaming
+        ? {}
+        : { streamContent: "", streamStatus: "", streamNotice: null }),
     });
   },
 
@@ -251,6 +255,7 @@ export const useStore = create<LokiState>((set, get) => ({
     set({
       messages: [...get().messages, userMsg],
       streaming: true,
+      streamingSessionId: sid,
       streamContent: "",
       streamThinking: "",
       streamStatus: "Connexion à Ollama…",
@@ -292,6 +297,7 @@ export const useStore = create<LokiState>((set, get) => ({
             );
           set({
             streaming: false,
+            streamingSessionId: null,
             streamContent: "",
             streamThinking: "",
             streamStatus: "",
@@ -314,13 +320,18 @@ export const useStore = create<LokiState>((set, get) => ({
           };
           set({
             streaming: false,
+            streamingSessionId: null,
             streamContent: "",
             streamThinking: "",
             streamStatus: "",
             streamNotice: null,
             streamTools: [],
-            messages: [...get().messages, errMsg],
+            messages:
+              get().currentSessionId === sid
+                ? [...get().messages, errMsg]
+                : get().messages,
           });
+          void get().refreshSessions();
         },
       }
     );

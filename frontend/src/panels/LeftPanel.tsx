@@ -8,6 +8,7 @@ export function LeftPanel() {
   const {
     sessions,
     currentSessionId,
+    streamingSessionId,
     refreshSessions,
     refreshFiles,
     fileTree,
@@ -43,6 +44,7 @@ export function LeftPanel() {
         )}
         {sessions.map((s) => {
           const active = s.id === currentSessionId;
+          const working = s.id === streamingSessionId;
           return (
             <div
               key={s.id}
@@ -60,6 +62,14 @@ export function LeftPanel() {
                 >
                   {s.title}
                 </div>
+                {working && (
+                  <span
+                    className="flex-none border-2 border-line bg-accent px-1.5 py-0.5 text-[10px] leading-none text-white"
+                    title="Session en cours de travail"
+                  >
+                    EN COURS
+                  </span>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
