@@ -20,6 +20,7 @@ class ConfigPatch(BaseModel):
     num_batch: int | None = None
     tools: dict[str, bool] | None = None
     confirm_shell: bool | None = None
+    think: bool | None = None
 
 
 @router.get("")

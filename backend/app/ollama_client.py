@@ -106,6 +106,7 @@ class OllamaClient:
         *,
         tools: list[dict] | None = None,
         options: dict | None = None,
+        think: bool | None = None,
         stream: bool = True,
     ) -> AsyncIterator[dict]:
         """Conversation avec le modèle, en streaming token par token."""
@@ -114,6 +115,9 @@ class OllamaClient:
             payload["tools"] = tools
         if options:
             payload["options"] = options
+        # think=False désactive le raisonnement des modèles « thinking ».
+        if think is not None:
+            payload["think"] = think
 
         async with httpx.AsyncClient(
             timeout=_STREAM_TIMEOUT, follow_redirects=True

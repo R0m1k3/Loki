@@ -72,6 +72,9 @@ DEFAULT_CONFIG: dict = {
     "tools": dict(DEFAULT_TOOL_STATE),
     # Demander une validation utilisateur avant toute commande shell.
     "confirm_shell": True,
+    # Mode réflexion des modèles « thinking ». Désactiver (False) évite qu'un
+    # modèle ne renvoie que du raisonnement sans réponse finale.
+    "think": True,
 }
 
 

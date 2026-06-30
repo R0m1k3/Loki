@@ -289,6 +289,16 @@ export function SettingsView() {
                     onChange={(v) => set("num_batch", Math.round(v))}
                     last
                   />
+                  <div className="mt-4 flex items-center gap-3 border-2 border-line bg-base px-3 py-2.5">
+                    <div className="flex-1">
+                      <div className="text-[14px] text-ink">Mode réflexion</div>
+                      <div className="text-[12px] text-muted-2">
+                        Désactive si le modèle ne renvoie que du raisonnement sans
+                        réponse.
+                      </div>
+                    </div>
+                    <Toggle on={draft.think} onClick={() => set("think", !draft.think)} />
+                  </div>
                   <div className="mt-3 border-2 border-line bg-card-soft px-3 py-2 text-[12px] leading-relaxed text-muted-2">
                     La précision KV (<code>f16</code>/<code>q8_0</code>) est un
                     réglage global du serveur Ollama et nécessite son redémarrage.

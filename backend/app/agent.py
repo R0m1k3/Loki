@@ -44,6 +44,12 @@ def _tools_not_supported(exc: OllamaError) -> bool:
     )
 
 
+def _thinking_not_supported(exc: OllamaError) -> bool:
+    """Le modèle (ou son template) refuse le paramètre ``think``."""
+    message = str(exc).lower()
+    return "does not support thinking" in message or "thinking is not supported" in message
+
+
 def _invalid_tool_arguments(exc: OllamaError) -> bool:
     message = str(exc).lower()
     return (
@@ -71,6 +77,7 @@ async def run_agent(
     options: dict | None = None,
     enabled_tools: list[str] | None = None,
     confirm_shell: bool = True,
+    think: bool = True,
 ) -> AsyncIterator[dict]:
     # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
     if enabled_tools is None:
@@ -88,6 +95,9 @@ async def run_agent(
     tool_fallback_used = False
     tool_repair_attempts = 0
     request_options = dict(options or {})
+    # On n'envoie ``think`` que pour le DÉSACTIVER (False) ; laissé à None, le
+    # modèle garde son comportement par défaut. Repli si le modèle le refuse.
+    request_think: bool | None = None if think else False
 
     # Métriques cumulées sur tous les appels Ollama du tour agentique : Ollama
     # les renvoie dans le chunk final (done=true) de chaque génération.
@@ -114,6 +124,7 @@ async def run_agent(
                         convo,
                         tools=active_tools,
                         options=request_options,
+                        think=request_think,
                         stream=True,
                     ):
                         msg = chunk.get("message", {})
@@ -190,6 +201,11 @@ async def run_agent(
                                 "réponse en mode conversation simple."
                             ),
                         }
+                        continue
+                    if request_think is not None and _thinking_not_supported(exc):
+                        # Le modèle n'accepte pas qu'on désactive sa réflexion :
+                        # on retire le paramètre et on relance.
+                        request_think = None
                         continue
                     raise
 
@@ -270,7 +286,8 @@ async def run_agent(
                 # Laisse le modèle conclure son tour (message d'attente).
                 final_chunk = ""
                 async for chunk in ollama.chat(
-                    model, convo, options=request_options, stream=True
+                    model, convo, options=request_options,
+                    think=request_think, stream=True
                 ):
                     tok = chunk.get("message", {}).get("content", "")
                     if tok:
@@ -299,8 +316,9 @@ async def run_agent(
         yield {
             "type": "error",
             "message": (
-                "Le modèle a terminé sans renvoyer de texte. Essayez un modèle "
-                "de chat récent ou désactivez son mode de réflexion avancée."
+                "Le modèle a terminé sans renvoyer de texte (il n'a produit que "
+                "du raisonnement). Désactive « Mode réflexion » dans les Réglages, "
+                "ou essaie un modèle de chat plus récent."
             ),
         }
         return

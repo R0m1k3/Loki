@@ -72,6 +72,7 @@ export interface AgentConfig {
   num_batch: number;
   tools: Record<string, boolean>;
   confirm_shell: boolean;
+  think: boolean;
 }
 
 export async function runShell(

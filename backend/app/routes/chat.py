@@ -72,6 +72,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     options=agent_config.ollama_options(cfg),
                     enabled_tools=agent_config.enabled_tool_names(cfg),
                     confirm_shell=cfg.get("confirm_shell", True),
+                    think=cfg.get("think", True),
                 ):
                     await queue.put(event)
             except Exception as exc:
