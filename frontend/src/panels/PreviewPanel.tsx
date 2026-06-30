@@ -107,7 +107,10 @@ export function PreviewPanel() {
             title="aperçu"
             srcDoc={previewContent}
             className="h-full w-full border-0 bg-white"
-            sandbox="allow-same-origin"
+            // allow-scripts : sans ça, le JS de la page générée ne s'exécute pas
+            // (animations, canvas…). On garde une origine opaque (pas
+            // d'allow-same-origin) pour que le script ne puisse pas atteindre Loki.
+            sandbox="allow-scripts"
           />
           ) : (
             <pre className="m-0 whitespace-pre-wrap p-4 font-mono text-[11.5px] leading-relaxed text-[#2a2018]">

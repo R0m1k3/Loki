@@ -58,6 +58,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         yield _sse("start", {"model": model})
         final_content = ""
         tools_meta: list[dict] = []
+        stats_meta: dict | None = None
         error_message = ""
 
         queue: asyncio.Queue[dict | None] = asyncio.Queue()
@@ -113,6 +114,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 elif etype == "final":
                     final_content = ev["content"]
                     tools_meta = ev["tools"]
+                    stats_meta = ev.get("stats")
         finally:
             if not producer.done():
                 producer.cancel()
@@ -120,18 +122,24 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 await producer
 
         if final_content or tools_meta:
+            meta: dict = {}
+            if tools_meta:
+                meta["tools"] = tools_meta
+            if stats_meta:
+                meta["stats"] = stats_meta
             db.add_message(
                 req.session_id,
                 "assistant",
                 final_content,
                 model,
-                meta={"tools": tools_meta} if tools_meta else None,
+                meta=meta or None,
             )
         yield _sse(
             "done",
             {
                 "content": final_content,
                 "tools": tools_meta,
+                "stats": stats_meta,
                 "error": error_message or None,
             },
         )

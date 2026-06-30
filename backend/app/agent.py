@@ -75,6 +75,15 @@ async def run_agent(
     tool_repair_attempts = 0
     request_options = dict(options or {})
 
+    # Métriques cumulées sur tous les appels Ollama du tour agentique : Ollama
+    # les renvoie dans le chunk final (done=true) de chaque génération.
+    stats = {"eval_count": 0, "eval_duration": 0, "prompt_eval_count": 0}
+
+    def _accumulate(chunk: dict) -> None:
+        stats["eval_count"] += chunk.get("eval_count") or 0
+        stats["eval_duration"] += chunk.get("eval_duration") or 0
+        stats["prompt_eval_count"] += chunk.get("prompt_eval_count") or 0
+
     try:
         for _ in range(MAX_ITERATIONS):
             content_buf = ""
@@ -107,6 +116,7 @@ async def run_agent(
                         if msg.get("tool_calls"):
                             tool_calls.extend(msg["tool_calls"])
                         if chunk.get("done"):
+                            _accumulate(chunk)
                             break
                     break
                 except OllamaError as exc:
@@ -249,6 +259,7 @@ async def run_agent(
                         final_chunk += tok
                         yield {"type": "token", "content": tok}
                     if chunk.get("done"):
+                        _accumulate(chunk)
                         break
                 if final_chunk.strip():
                     text_parts.append(final_chunk.strip())
@@ -276,4 +287,17 @@ async def run_agent(
         }
         return
 
-    yield {"type": "final", "content": final_content, "tools": collected}
+    eval_secs = stats["eval_duration"] / 1e9
+    final_stats = {
+        "eval_count": stats["eval_count"],
+        "prompt_eval_count": stats["prompt_eval_count"],
+        "tokens_per_sec": (
+            round(stats["eval_count"] / eval_secs, 1) if eval_secs > 0 else None
+        ),
+    }
+    yield {
+        "type": "final",
+        "content": final_content,
+        "tools": collected,
+        "stats": final_stats,
+    }

@@ -18,7 +18,10 @@ DEFAULT_SYSTEM_PROMPT = (
     "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
     "concise en français. Pour un fichier long, appelle write_file en plusieurs "
     "morceaux (overwrite puis append) afin de toujours produire un JSON valide. "
-    "Après avoir écrit un fichier, propose un aperçu."
+    "Après avoir écrit un fichier, propose un aperçu. "
+    "Formate TOUJOURS tes réponses en Markdown : titres, listes, gras pour les "
+    "points clés, tableaux si pertinent, et surtout des blocs de code avec le "
+    "langage indiqué (```python, ```html…) pour tout extrait de code ou commande."
 )
 
 # Outils disponibles. Les sensibles (web_search, run_shell) sont désactivés

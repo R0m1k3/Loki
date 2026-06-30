@@ -45,13 +45,19 @@ export interface ToolCall {
   status?: "ok" | "error" | "running" | "pending";
 }
 
+export interface MessageStats {
+  eval_count: number; // jetons générés
+  prompt_eval_count: number; // jetons du prompt
+  tokens_per_sec: number | null; // vitesse de génération
+}
+
 export interface Message {
   id: string;
   session_id: string;
   role: "user" | "assistant";
   content: string;
   model?: string;
-  meta?: { tools?: ToolCall[] } | null;
+  meta?: { tools?: ToolCall[]; stats?: MessageStats } | null;
   created_at: number;
 }
 

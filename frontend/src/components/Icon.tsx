@@ -85,6 +85,19 @@ export const DownloadIcon = ({ size = 14, className }: Props) => (
   </svg>
 );
 
+export const CopyIcon = ({ size = 14, className }: Props) => (
+  <svg {...base(size, className)} strokeWidth={1.7}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+  </svg>
+);
+
+export const CheckIcon = ({ size = 14, className }: Props) => (
+  <svg {...base(size, className)} strokeWidth={2.3}>
+    <path d="m5 12 4.5 4.5L19 7" />
+  </svg>
+);
+
 /** Logo Loki : carré dégradé + losange interne. */
 export const LokiMark = ({ size = 26 }: { size?: number }) => (
   <div

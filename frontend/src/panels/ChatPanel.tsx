@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ClipIcon, LokiMark, SendIcon } from "../components/Icon";
 import { ToolCard } from "../components/ToolCard";
+import { MessageContent } from "../components/MessageContent";
 import type { Message, ToolCall } from "../api/client";
 
 /** Panneau central : barre de contexte, fil de conversation, composer. */
@@ -218,12 +219,27 @@ function Bubble({
           </div>
         )}
         {(msg.content || pending) && (
-          <div className="text-sm leading-[1.65] text-ink-2 whitespace-pre-wrap">
-            {msg.content || (
+          <div className="text-sm leading-[1.65] text-ink-2">
+            {msg.content ? (
+              <MessageContent text={msg.content} />
+            ) : (
               <span className="text-muted-2">{pendingStatus || "Génération…"}</span>
             )}
             {pending && (
               <span className="ml-0.5 inline-block h-3.5 w-[7px] animate-pulse bg-accent align-middle" />
+            )}
+          </div>
+        )}
+        {!pending && msg.meta?.stats && (
+          <div className="mt-2 flex items-center gap-2.5 font-mono text-[10.5px] text-muted-4">
+            {msg.meta.stats.tokens_per_sec != null && (
+              <span className="text-muted-3">
+                {msg.meta.stats.tokens_per_sec} tok/s
+              </span>
+            )}
+            <span>{msg.meta.stats.eval_count} jetons</span>
+            {msg.meta.stats.prompt_eval_count > 0 && (
+              <span>· {msg.meta.stats.prompt_eval_count} en entrée</span>
             )}
           </div>
         )}
