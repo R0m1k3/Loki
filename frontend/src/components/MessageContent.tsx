@@ -25,20 +25,20 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   };
 
   return (
-    <div className="my-2 overflow-hidden rounded-[10px] border border-line-strong bg-sunken">
-      <div className="flex items-center justify-between border-b border-line-soft px-3 py-1.5">
-        <span className="font-mono text-[10.5px] uppercase tracking-wide text-muted-3">
+    <div className="my-2 overflow-hidden border-[3px] border-line bg-card-deep shadow-hard-sm" style={{ borderRadius: 7 }}>
+      <div className="flex items-center justify-between border-b-2 border-chrome-2 px-3 py-1.5">
+        <span className="font-mono text-[10.5px] uppercase tracking-wide text-on-dark-2">
           {lang || "code"}
         </span>
         <button
           onClick={copy}
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-2 transition-colors hover:text-ink"
+          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-on-dark-2 transition-colors hover:text-white"
         >
           {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
           {copied ? "Copié" : "Copier"}
         </button>
       </div>
-      <pre className="scr m-0 overflow-auto p-3 font-mono text-[12px] leading-relaxed text-ink-2">
+      <pre className="scr m-0 overflow-auto p-3 font-mono text-[12px] leading-relaxed text-on-dark">
         <code>{code}</code>
       </pre>
     </div>
