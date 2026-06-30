@@ -275,13 +275,43 @@ TOOL_DEFINITIONS = [
 ]
 
 
+def _normalize_args(name: str, args: dict | None) -> dict:
+    args = dict(args or {})
+    if name == "write_file":
+        if "path" not in args:
+            for alias in ("file_path", "filepath", "filename", "file", "name"):
+                if args.get(alias):
+                    args["path"] = args[alias]
+                    break
+        if "content" not in args:
+            for alias in ("text", "body", "data", "contents"):
+                if alias in args:
+                    args["content"] = args[alias]
+                    break
+    elif name in {"read_file", "list_dir"} and "path" not in args:
+        for alias in ("file_path", "filepath", "filename", "file", "dir", "directory"):
+            if args.get(alias):
+                args["path"] = args[alias]
+                break
+    return args
+
+
 def run_tool(name: str, args: dict) -> dict:
     """Exécute un outil par son nom ; lève ToolError si inconnu/invalide."""
     impl = TOOL_IMPL.get(name)
     if impl is None:
         raise ToolError(f"outil inconnu : {name}")
+    args = _normalize_args(name, args)
+    if name == "write_file":
+        missing = [key for key in ("path", "content") if key not in args]
+        if missing:
+            raise ToolError(
+                "arguments invalides pour write_file : "
+                f"{', '.join(missing)} requis. Utilise par exemple "
+                '{"path":"index.html","content":"...","mode":"overwrite"}.'
+            )
     try:
-        return impl(**(args or {}))
+        return impl(**args)
     except ToolError:
         raise
     except TypeError as exc:

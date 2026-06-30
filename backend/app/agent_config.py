@@ -10,13 +10,14 @@ from . import db
 CONFIG_KEY = "agent"
 MODEL_PROFILES_KEY = "model_profiles"
 PROFILE_STATE_KEY = "model_profiles_state"
-PROFILE_VERSION = 4
+PROFILE_VERSION = 5
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
     "d'outils pour lire, écrire et lister des fichiers dans le workspace. "
     "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
-    "concise en français. Pour un fichier long, appelle write_file en plusieurs "
+    "concise en français. Quand tu appelles write_file, fournis toujours "
+    "`path` et `content`. Pour un fichier long, appelle write_file en plusieurs "
     "morceaux (overwrite puis append) afin de toujours produire un JSON valide. "
     "Après avoir écrit un fichier, propose un aperçu. "
     "Formate TOUJOURS tes réponses en Markdown : titres, listes, gras pour les "
@@ -44,6 +45,13 @@ GENERATION_FIELDS = {
     "num_ctx",
     "num_gpu",
     "num_batch",
+}
+PROFILE_FIELDS = {
+    "system_prompt",
+    "tools",
+    "confirm_shell",
+    "think",
+    *GENERATION_FIELDS,
 }
 
 DEFAULT_GENERATION: dict = {
@@ -106,42 +114,41 @@ def _migrate_profiles() -> None:
     db.set_config_value(PROFILE_STATE_KEY, {"version": PROFILE_VERSION})
 
 
-def get_config(model: str | None = None) -> dict:
-    """Configuration globale complétée par le profil du modèle demandé."""
-    _migrate_profiles()
-    stored = db.get_config_value(CONFIG_KEY) or {}
-    global_stored = {k: v for k, v in stored.items() if k not in GENERATION_FIELDS}
-    cfg = {**DEFAULT_CONFIG, **global_stored}
-    if model:
-        profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
-        cfg.update({**_default_generation(model), **profiles.get(model, {})})
-    cfg["tools"] = {
-        name: bool(stored.get("tools", {}).get(name, DEFAULT_TOOL_STATE[name]))
+def _clean_tools(value: dict | None, fallback: dict | None = None) -> dict:
+    fallback = fallback or DEFAULT_TOOL_STATE
+    return {
+        name: bool((value or {}).get(name, fallback.get(name, DEFAULT_TOOL_STATE[name])))
         for name in AVAILABLE_TOOLS
     }
+
+
+def get_config(model: str | None = None) -> dict:
+    """Configuration complète, avec surcharge sauvegardée par modèle."""
+    _migrate_profiles()
+    stored = db.get_config_value(CONFIG_KEY) or {}
+    cfg = {**DEFAULT_CONFIG, **stored}
+    cfg["tools"] = _clean_tools(stored.get("tools"))
+    if model:
+        profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
+        profile = profiles.get(model, {})
+        cfg.update({**_default_generation(model), **profile})
+        cfg["tools"] = _clean_tools(profile.get("tools"), cfg["tools"])
     return cfg
 
 
 def save_config(patch: dict, model: str | None = None) -> dict:
-    """Sauvegarde le comportement global et la génération par modèle."""
+    """Sauvegarde tous les réglages, globalement ou pour un modèle."""
     clean = {k: v for k, v in patch.items() if v is not None}
     cfg = {**get_config(model), **clean}
     if "tools" in patch and patch["tools"]:
-        cfg["tools"] = {
-            name: bool(
-                patch["tools"].get(
-                    name, cfg["tools"].get(name, DEFAULT_TOOL_STATE[name])
-                )
-            )
-            for name in AVAILABLE_TOOLS
-        }
-    global_cfg = {k: v for k, v in cfg.items() if k not in GENERATION_FIELDS}
-    db.set_config_value(CONFIG_KEY, global_cfg)
+        cfg["tools"] = _clean_tools(patch["tools"], cfg["tools"])
 
     if model:
         profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
-        profiles[model] = {field: cfg[field] for field in GENERATION_FIELDS}
+        profiles[model] = {field: cfg[field] for field in PROFILE_FIELDS}
         db.set_config_value(MODEL_PROFILES_KEY, profiles)
+    else:
+        db.set_config_value(CONFIG_KEY, {field: cfg[field] for field in PROFILE_FIELDS})
     return get_config(model)
 
 

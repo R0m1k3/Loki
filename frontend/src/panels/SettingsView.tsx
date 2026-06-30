@@ -100,7 +100,8 @@ export function SettingsView() {
               MODÈLE &amp; GÉNÉRATION
             </div>
             <div className="mt-2 text-[14px] text-muted-2">
-              Choisis le modèle local et règle son comportement.
+              Choisis le modèle local et règle son comportement. Les changements
+              sont sauvegardés pour le modèle sélectionné.
             </div>
           </div>
           <div className="flex items-center gap-3">
