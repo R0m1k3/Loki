@@ -13,6 +13,38 @@ import httpx
 from .config import settings
 
 
+class OllamaError(RuntimeError):
+    """Erreur renvoyée par Ollama (statut HTTP ≥ 400 ou champ ``error`` dans le flux).
+
+    Ollama signale certains échecs *au milieu* d'un flux streaming (HTTP 200)
+    via une ligne JSON ``{"error": "..."}`` — typiquement un débordement mémoire
+    ou un contexte trop grand. On lève alors cette exception pour que l'appelant
+    la remonte à l'utilisateur au lieu de l'avaler silencieusement.
+    """
+
+
+# Connexion rapide à échouer si Ollama est injoignable, mais lecture sans limite :
+# une génération longue (ou un chargement de modèle sur CPU) ne doit pas couper.
+_STREAM_TIMEOUT = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=10.0)
+
+
+async def _raise_for_stream_status(resp: httpx.Response) -> None:
+    """Lève une ``OllamaError`` détaillée si la réponse streaming est en erreur.
+
+    Sur une réponse en flux, ``raise_for_status`` n'inclut pas le corps ; on le
+    lit explicitement pour exposer le message d'Ollama (modèle absent, etc.).
+    """
+    if resp.status_code < 400:
+        return
+    body = await resp.aread()
+    detail = body.decode(errors="replace").strip()
+    try:
+        detail = json.loads(detail).get("error", detail)
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    raise OllamaError(f"Ollama a renvoyé {resp.status_code} : {detail[:500]}")
+
+
 class OllamaClient:
     """Enveloppe asynchrone autour de l'API REST d'Ollama."""
 
@@ -49,14 +81,23 @@ class OllamaClient:
 
     async def pull_model(self, name: str) -> AsyncIterator[dict]:
         """Télécharge un modèle en streamant la progression (/api/pull)."""
-        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=_STREAM_TIMEOUT, follow_redirects=True
+        ) as client:
             async with client.stream(
                 "POST", f"{self.host}/api/pull", json={"name": name}
             ) as resp:
-                resp.raise_for_status()
+                await _raise_for_stream_status(resp)
                 async for line in resp.aiter_lines():
-                    if line.strip():
-                        yield json.loads(line)
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(chunk, dict) and chunk.get("error"):
+                        raise OllamaError(str(chunk["error"]))
+                    yield chunk
 
     async def chat(
         self,
@@ -74,14 +115,27 @@ class OllamaClient:
         if options:
             payload["options"] = options
 
-        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=_STREAM_TIMEOUT, follow_redirects=True
+        ) as client:
             async with client.stream(
                 "POST", f"{self.host}/api/chat", json=payload
             ) as resp:
-                resp.raise_for_status()
+                await _raise_for_stream_status(resp)
                 async for line in resp.aiter_lines():
-                    if line.strip():
-                        yield json.loads(line)
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        # Ligne partielle / non-JSON : on l'ignore plutôt que de
+                        # faire planter tout le flux.
+                        continue
+                    # Échec en cours de génération (OOM, contexte trop grand…) :
+                    # Ollama l'émet dans le flux avec HTTP 200. On le remonte.
+                    if isinstance(chunk, dict) and chunk.get("error"):
+                        raise OllamaError(str(chunk["error"]))
+                    yield chunk
 
 
 ollama = OllamaClient()

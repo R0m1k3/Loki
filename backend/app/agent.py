@@ -18,7 +18,7 @@ from typing import AsyncIterator
 
 import httpx
 
-from .ollama_client import ollama
+from .ollama_client import OllamaError, ollama
 from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 
 MAX_ITERATIONS = 6
@@ -156,6 +156,11 @@ async def run_agent(
                 if final_chunk.strip():
                     text_parts.append(final_chunk.strip())
                 break
+    except OllamaError as exc:
+        # Échec signalé par Ollama (HTTP ou ligne d'erreur dans le flux) :
+        # souvent un débordement mémoire / contexte trop grand. On l'expose.
+        yield {"type": "error", "message": f"Ollama : {exc}"}
+        return
     except (httpx.HTTPError, OSError) as exc:
         yield {"type": "error", "message": str(exc)}
         return
