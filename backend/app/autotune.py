@@ -169,9 +169,15 @@ async def recommend(model: str) -> dict:
     rationale: list[str] = []
 
     if not gpu["available"]:
-        # CPU : on reste prudent (le contexte coûte cher en latence).
-        num_ctx = _round_ctx(8192, ctx_max)
-        rationale.append("Aucun GPU détecté — réglages CPU prudents.")
+        # GPU non détecté CÔTÉ LOKI : Ollama tourne probablement sur une autre
+        # machine. On ne force surtout PAS num_ctx (0 = défaut du modèle), sinon
+        # Ollama chargerait une instance distincte qui déborderait sur le CPU.
+        num_ctx = 0
+        rationale.append(
+            "GPU non détecté côté Loki (Ollama distant ?) — contexte laissé au "
+            "défaut du modèle pour rester sur le GPU. Déclare GPU_VRAM_MB pour "
+            "un réglage précis."
+        )
     else:
         vram = gpu["vram_total_mb"]
         model_mb = prof.get("size_mb") or _fallback_model_mb(prof)
@@ -193,8 +199,9 @@ async def recommend(model: str) -> dict:
             num_ctx = _round_ctx(_tier_ctx(budget), ctx_max)
             rationale.append("Archi modèle incomplète — estimation par paliers.")
 
-    # Jetons de sortie : moitié du contexte, borné, en laissant de la place au prompt.
-    max_tokens = max(512, min(num_ctx // 2, 8192))
+    # Jetons de sortie : moitié du contexte, borné. Si num_ctx=0 (auto), on
+    # garde une valeur raisonnable sans la réduire.
+    max_tokens = 2048 if num_ctx == 0 else max(512, min(num_ctx // 2, 8192))
 
     return {
         "gpu": gpu,
