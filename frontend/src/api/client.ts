@@ -176,15 +176,36 @@ export async function streamChat(
     onToolCall: (call: ToolCall) => void;
     onToolResult: (call: ToolCall) => void;
     onToolConfirm: (command: string) => void;
+    onStatus: (msg: string) => void;
+    onNotice: (msg: string) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
   }
 ): Promise<void> {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    handlers.onError(
+      err instanceof Error ? err.message : "serveur Loki injoignable"
+    );
+    return;
+  }
+  if (!res.ok) {
+    let message = `requête refusée (${res.status})`;
+    try {
+      const payload = await res.json();
+      message = payload.detail ?? payload.error ?? message;
+    } catch {
+      /* réponse non JSON */
+    }
+    handlers.onError(message);
+    return;
+  }
   if (!res.body) {
     handlers.onError("pas de flux de réponse");
     return;
@@ -193,35 +214,71 @@ export async function streamChat(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let terminal = false;
+  let failed = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-
-    for (const block of events) {
-      let event = "message";
-      let data = "";
-      for (const line of block.split("\n")) {
-        if (line.startsWith("event: ")) event = line.slice(7).trim();
-        else if (line.startsWith("data: ")) data += line.slice(6);
+  const dispatch = (raw: string) => {
+    const block = raw.replace(/\r\n/g, "\n");
+    let event = "message";
+    const dataLines: string[] = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    if (dataLines.length === 0) return;
+    try {
+      const payload = JSON.parse(dataLines.join("\n"));
+      if (event === "token") handlers.onToken(payload.content);
+      else if (event === "status") handlers.onStatus(payload.message);
+      else if (event === "notice") handlers.onNotice(payload.message);
+      else if (event === "tool_call")
+        handlers.onToolCall({ ...payload, status: "running" });
+      else if (event === "tool_result") handlers.onToolResult(payload);
+      else if (event === "tool_confirm") handlers.onToolConfirm(payload.command);
+      else if (event === "error") {
+        failed = true;
+        handlers.onError(payload.message);
+      } else if (event === "done") {
+        terminal = true;
+        if (payload.error) {
+          if (!failed) handlers.onError(payload.error);
+          failed = true;
+        } else if (!failed) {
+          handlers.onDone(payload.content);
+        }
       }
-      if (!data) continue;
-      try {
-        const payload = JSON.parse(data);
-        if (event === "token") handlers.onToken(payload.content);
-        else if (event === "tool_call")
-          handlers.onToolCall({ ...payload, status: "running" });
-        else if (event === "tool_result") handlers.onToolResult(payload);
-        else if (event === "tool_confirm") handlers.onToolConfirm(payload.command);
-        else if (event === "done") handlers.onDone(payload.content);
-        else if (event === "error") handlers.onError(payload.message);
-      } catch {
-        /* bloc partiel */
+    } catch {
+      if (!failed) {
+        failed = true;
+        handlers.onError("réponse illisible reçue du serveur");
       }
     }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+      for (const block of events) {
+        if (block.trim()) dispatch(block);
+      }
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) dispatch(buffer);
+  } catch (err) {
+    if (!failed) {
+      failed = true;
+      handlers.onError(
+        err instanceof Error ? err.message : "connexion au chat interrompue"
+      );
+    }
+  }
+
+  if (!terminal && !failed) {
+    handlers.onError("le serveur a fermé la réponse avant sa fin");
   }
 }
 

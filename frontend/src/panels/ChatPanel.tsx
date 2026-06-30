@@ -11,6 +11,8 @@ export function ChatPanel() {
     messages,
     streaming,
     streamContent,
+    streamStatus,
+    streamNotice,
     streamTools,
     sendMessage,
     currentSessionId,
@@ -101,6 +103,8 @@ export function ChatPanel() {
                   created_at: Date.now() / 1000,
                 }}
                 pending
+                pendingStatus={streamStatus}
+                notice={streamNotice}
               />
             )}
             {pendingShell && (
@@ -154,7 +158,17 @@ export function ChatPanel() {
   );
 }
 
-function Bubble({ msg, pending }: { msg: Message; pending?: boolean }) {
+function Bubble({
+  msg,
+  pending,
+  pendingStatus,
+  notice,
+}: {
+  msg: Message;
+  pending?: boolean;
+  pendingStatus?: string;
+  notice?: string | null;
+}) {
   const time = new Date(msg.created_at * 1000).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -198,9 +212,16 @@ function Bubble({ msg, pending }: { msg: Message; pending?: boolean }) {
         {(msg.meta?.tools ?? []).map((t: ToolCall, i: number) => (
           <ToolCard key={i} call={t} />
         ))}
+        {notice && (
+          <div className="mb-2 rounded-lg border border-[#4a3a2a] bg-card-deep px-3 py-2 text-xs text-warn">
+            {notice}
+          </div>
+        )}
         {(msg.content || pending) && (
           <div className="text-sm leading-[1.65] text-ink-2 whitespace-pre-wrap">
-            {msg.content}
+            {msg.content || (
+              <span className="text-muted-2">{pendingStatus || "Génération…"}</span>
+            )}
             {pending && (
               <span className="ml-0.5 inline-block h-3.5 w-[7px] animate-pulse bg-accent align-middle" />
             )}

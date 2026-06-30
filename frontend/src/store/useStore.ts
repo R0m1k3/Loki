@@ -34,6 +34,8 @@ interface LokiState {
   messages: Message[];
   streaming: boolean;
   streamContent: string; // réponse de l'agent en cours de frappe
+  streamStatus: string;
+  streamNotice: string | null;
   streamTools: ToolCall[]; // appels d'outils de la réponse en cours
 
   fileTree: FileNode[];
@@ -77,6 +79,8 @@ export const useStore = create<LokiState>((set, get) => ({
   messages: [],
   streaming: false,
   streamContent: "",
+  streamStatus: "",
+  streamNotice: null,
   streamTools: [],
   fileTree: [],
   previewPath: null,
@@ -154,9 +158,6 @@ export const useStore = create<LokiState>((set, get) => ({
     try {
       const status = await getStatus();
       set({ status });
-      if (!get().selectedModel && status.default_model) {
-        set({ selectedModel: status.default_model });
-      }
     } catch {
       set({ status: { connected: false, host: "", default_model: "" } });
     }
@@ -166,8 +167,14 @@ export const useStore = create<LokiState>((set, get) => ({
     set({ loadingModels: true });
     try {
       const { models, default: def } = await getModels();
-      set({ models });
-      if (!get().selectedModel && def) set({ selectedModel: def });
+      const installed = new Set(models.map((model) => model.name));
+      const current = get().selectedModel;
+      const selectedModel = installed.has(current)
+        ? current
+        : installed.has(def)
+          ? def
+          : models[0]?.name ?? "";
+      set({ models, selectedModel });
     } finally {
       set({ loadingModels: false });
     }
@@ -180,13 +187,25 @@ export const useStore = create<LokiState>((set, get) => ({
 
   newSession: async () => {
     const s = await createSession(get().selectedModel || undefined);
-    set({ currentSessionId: s.id, messages: [], streamContent: "" });
+    set({
+      currentSessionId: s.id,
+      messages: [],
+      streamContent: "",
+      streamStatus: "",
+      streamNotice: null,
+    });
     await get().refreshSessions();
   },
 
   openSession: async (id) => {
     const { messages } = await getSession(id);
-    set({ currentSessionId: id, messages, streamContent: "" });
+    set({
+      currentSessionId: id,
+      messages,
+      streamContent: "",
+      streamStatus: "",
+      streamNotice: null,
+    });
   },
 
   removeSession: async (id) => {
@@ -201,13 +220,37 @@ export const useStore = create<LokiState>((set, get) => ({
     if (get().streaming) return;
     content = content.trim();
     if (!content) return;
+    if (!get().selectedModel) {
+      const errMsg: Message = {
+        id: `err-${Date.now()}`,
+        session_id: get().currentSessionId ?? "",
+        role: "assistant",
+        content: "⚠️ Aucun modèle Ollama installé ou sélectionné.",
+        created_at: Date.now() / 1000,
+      };
+      set({ messages: [...get().messages, errMsg] });
+      return;
+    }
 
     // Crée une session à la volée si aucune n'est ouverte.
     let sid = get().currentSessionId;
-    if (!sid) {
-      const s = await createSession(get().selectedModel || undefined);
-      sid = s.id;
-      set({ currentSessionId: s.id });
+    try {
+      if (!sid) {
+        const s = await createSession(get().selectedModel || undefined);
+        sid = s.id;
+        set({ currentSessionId: s.id });
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "backend injoignable";
+      const errMsg: Message = {
+        id: `err-${Date.now()}`,
+        session_id: "",
+        role: "assistant",
+        content: `⚠️ Impossible de créer la session : ${detail}`,
+        created_at: Date.now() / 1000,
+      };
+      set({ messages: [...get().messages, errMsg] });
+      return;
     }
 
     // Affichage optimiste du message utilisateur.
@@ -222,6 +265,8 @@ export const useStore = create<LokiState>((set, get) => ({
       messages: [...get().messages, userMsg],
       streaming: true,
       streamContent: "",
+      streamStatus: "Connexion à Ollama…",
+      streamNotice: null,
       streamTools: [],
       pendingShell: null,
     });
@@ -230,6 +275,8 @@ export const useStore = create<LokiState>((set, get) => ({
       { session_id: sid, content, model: get().selectedModel || undefined },
       {
         onToken: (t) => set({ streamContent: get().streamContent + t }),
+        onStatus: (message) => set({ streamStatus: message }),
+        onNotice: (message) => set({ streamNotice: message }),
         onToolCall: (call) =>
           set({ streamTools: [...get().streamTools, call] }),
         onToolResult: (call) => {
@@ -254,7 +301,13 @@ export const useStore = create<LokiState>((set, get) => ({
                 typeof t.args?.path === "string" &&
                 /\.html?$/.test(t.args.path as string)
             );
-          set({ streaming: false, streamContent: "", streamTools: [] });
+          set({
+            streaming: false,
+            streamContent: "",
+            streamStatus: "",
+            streamNotice: null,
+            streamTools: [],
+          });
           // Recharge depuis la base + l'arborescence (fichiers créés par l'agent).
           if (get().currentSessionId === sid) await get().openSession(sid!);
           await get().refreshSessions();
@@ -272,6 +325,8 @@ export const useStore = create<LokiState>((set, get) => ({
           set({
             streaming: false,
             streamContent: "",
+            streamStatus: "",
+            streamNotice: null,
             streamTools: [],
             messages: [...get().messages, errMsg],
           });

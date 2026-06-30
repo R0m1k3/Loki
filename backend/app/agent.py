@@ -24,6 +24,12 @@ from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 MAX_ITERATIONS = 6
 
 
+def _tools_not_supported(exc: OllamaError) -> bool:
+    """Détecte l'erreur Ollama renvoyée par un modèle sans function calling."""
+    message = str(exc).lower()
+    return "does not support tools" in message or "does not support tool" in message
+
+
 def _parse_args(raw) -> dict:
     if isinstance(raw, dict):
         return raw
@@ -54,26 +60,62 @@ async def run_agent(
         tools = None
     collected: list[dict] = []
     text_parts: list[str] = []
+    active_tools = tools
+    tool_fallback_used = False
 
     try:
         for _ in range(MAX_ITERATIONS):
             content_buf = ""
+            thinking_buf = ""
+            thinking_status_sent = False
             tool_calls: list[dict] = []
 
-            async for chunk in ollama.chat(
-                model, convo, tools=tools, options=options, stream=True
-            ):
-                msg = chunk.get("message", {})
-                token = msg.get("content", "")
-                if token:
-                    content_buf += token
-                    yield {"type": "token", "content": token}
-                if msg.get("tool_calls"):
-                    tool_calls.extend(msg["tool_calls"])
-                if chunk.get("done"):
+            # Un modèle peut savoir discuter sans supporter les outils. Ollama
+            # refuse alors la requête entière : on retente une fois en chat simple.
+            while True:
+                try:
+                    async for chunk in ollama.chat(
+                        model, convo, tools=active_tools, options=options, stream=True
+                    ):
+                        msg = chunk.get("message", {})
+                        token = msg.get("content", "")
+                        thinking = msg.get("thinking", "")
+                        if thinking:
+                            thinking_buf += thinking
+                            if not thinking_status_sent:
+                                thinking_status_sent = True
+                                yield {"type": "status", "message": "Réflexion…"}
+                        if token:
+                            content_buf += token
+                            yield {"type": "token", "content": token}
+                        if msg.get("tool_calls"):
+                            tool_calls.extend(msg["tool_calls"])
+                        if chunk.get("done"):
+                            break
                     break
+                except OllamaError as exc:
+                    if (
+                        active_tools
+                        and not tool_fallback_used
+                        and not content_buf
+                        and not tool_calls
+                        and _tools_not_supported(exc)
+                    ):
+                        active_tools = None
+                        tool_fallback_used = True
+                        yield {
+                            "type": "notice",
+                            "message": (
+                                "Ce modèle ne supporte pas les outils ; "
+                                "réponse en mode conversation simple."
+                            ),
+                        }
+                        continue
+                    raise
 
             assistant_turn: dict = {"role": "assistant", "content": content_buf}
+            if thinking_buf:
+                assistant_turn["thinking"] = thinking_buf
             if tool_calls:
                 assistant_turn["tool_calls"] = tool_calls
             convo.append(assistant_turn)
@@ -106,7 +148,7 @@ async def run_agent(
                     convo.append(
                         {
                             "role": "tool",
-                            "name": name,
+                            "tool_name": name,
                             "content": json.dumps(
                                 {
                                     "ok": False,
@@ -137,7 +179,7 @@ async def run_agent(
                 convo.append(
                     {
                         "role": "tool",
-                        "name": name,
+                        "tool_name": name,
                         "content": json.dumps(result, ensure_ascii=False),
                     }
                 )
@@ -162,11 +204,21 @@ async def run_agent(
         yield {"type": "error", "message": f"Ollama : {exc}"}
         return
     except (httpx.HTTPError, OSError) as exc:
-        yield {"type": "error", "message": str(exc)}
+        yield {
+            "type": "error",
+            "message": f"Impossible de joindre Ollama ({ollama.host}) : {exc}",
+        }
         return
 
-    yield {
-        "type": "final",
-        "content": "\n\n".join(text_parts).strip(),
-        "tools": collected,
-    }
+    final_content = "\n\n".join(text_parts).strip()
+    if not final_content and not collected:
+        yield {
+            "type": "error",
+            "message": (
+                "Le modèle a terminé sans renvoyer de texte. Essayez un modèle "
+                "de chat récent ou désactivez son mode de réflexion avancée."
+            ),
+        }
+        return
+
+    yield {"type": "final", "content": final_content, "tools": collected}
