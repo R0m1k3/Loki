@@ -21,28 +21,28 @@ class OllamaClient:
 
     async def ping(self) -> dict:
         """Vérifie la connexion et renvoie la version d'Ollama."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
             resp = await client.get(f"{self.host}/api/version")
             resp.raise_for_status()
             return resp.json()
 
     async def list_models(self) -> list[dict]:
         """Liste les modèles installés localement (/api/tags)."""
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             resp = await client.get(f"{self.host}/api/tags")
             resp.raise_for_status()
             return resp.json().get("models", [])
 
     async def show(self, name: str) -> dict:
         """Métadonnées détaillées d'un modèle (/api/show)."""
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             resp = await client.post(f"{self.host}/api/show", json={"name": name})
             resp.raise_for_status()
             return resp.json()
 
     async def pull_model(self, name: str) -> AsyncIterator[dict]:
         """Télécharge un modèle en streamant la progression (/api/pull)."""
-        async with httpx.AsyncClient(timeout=None) as client:
+        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
             async with client.stream(
                 "POST", f"{self.host}/api/pull", json={"name": name}
             ) as resp:
@@ -67,7 +67,7 @@ class OllamaClient:
         if options:
             payload["options"] = options
 
-        async with httpx.AsyncClient(timeout=None) as client:
+        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
             async with client.stream(
                 "POST", f"{self.host}/api/chat", json=payload
             ) as resp:
