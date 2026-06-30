@@ -33,6 +33,13 @@ class OllamaClient:
             resp.raise_for_status()
             return resp.json().get("models", [])
 
+    async def ps(self) -> list[dict]:
+        """Modèles actuellement chargés et leur répartition VRAM/CPU (/api/ps)."""
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            resp = await client.get(f"{self.host}/api/ps")
+            resp.raise_for_status()
+            return resp.json().get("models", [])
+
     async def show(self, name: str) -> dict:
         """Métadonnées détaillées d'un modèle (/api/show)."""
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:

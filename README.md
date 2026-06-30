@@ -116,6 +116,26 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
+## Auto-réglage GPU (« Réglage auto »)
+
+Dans **Configuration → Génération**, le bouton **⚡ Réglage auto** :
+1. détecte le GPU (VRAM) via `nvidia-smi`/`rocm-smi`, ou la valeur déclarée
+   `GPU_VRAM_MB` ;
+2. lit les métadonnées du modèle sélectionné via Ollama (contexte max,
+   architecture, taille, quantization) ;
+3. calcule la **fenêtre de contexte (`num_ctx`)** la plus grande qui tient en
+   VRAM (estimation du cache KV) et un nombre de **jetons max** cohérent, puis
+   les applique ;
+4. vérifie le **placement réel** du modèle via `/api/ps` d'Ollama (GPU / CPU).
+
+> **Ollama distant** : si Ollama tourne sur une autre machine que Loki, la
+> détection `nvidia-smi` ne voit pas ce GPU. Déclare alors la VRAM avec
+> `GPU_VRAM_MB` (ex. `12000` pour une carte 12 Go) pour un réglage précis.
+>
+> **Pourquoi c'est utile** : un `num_ctx` trop grand fait déborder le modèle sur
+> le CPU (lent). En l'ajustant à ta VRAM, le modèle reste sur le GPU. Laisse
+> `num_ctx = 0` (auto) pour utiliser le défaut du modèle.
+
 ## Sécurité
 
 - **Confinement** : toutes les opérations fichier (`read_file`, `write_file`,

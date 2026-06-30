@@ -35,6 +35,9 @@ services:
       - PORT=8717
       # Optionnel : instance SearxNG pour l'outil web_search (sinon DuckDuckGo)
       - SEARX_URL=
+      # Optionnel : VRAM (Mo) de ton GPU pour l'auto-réglage, si Ollama est sur
+      # une autre machine (sinon laisse 0). Ex. 12000 pour une carte 12 Go.
+      - GPU_VRAM_MB=0
     volumes:
       - /mnt/user/appdata/loki/workspace:/workspace
       - /mnt/user/appdata/loki/data:/data

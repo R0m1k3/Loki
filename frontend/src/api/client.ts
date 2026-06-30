@@ -61,8 +61,37 @@ export interface AgentConfig {
   top_p: number;
   top_k: number;
   max_tokens: number;
+  num_ctx: number;
   tools: Record<string, boolean>;
   confirm_shell: boolean;
+}
+
+export interface AutoTuneResult {
+  detection: {
+    gpu: { available: boolean; name: string; vram_total_mb: number; source: string };
+    model_profile: {
+      context_length: number | null;
+      parameter_size: string | null;
+      quantization: string | null;
+      size_mb: number | null;
+    };
+    recommended: { num_ctx: number; max_tokens: number };
+    rationale: string;
+  };
+  placement: { loaded: boolean; where?: string; gpu_percent?: number };
+  config: AgentConfig;
+}
+
+export async function autoTune(
+  model: string,
+  apply = true
+): Promise<AutoTuneResult> {
+  const res = await fetch("/api/config/auto", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, apply }),
+  });
+  return res.json();
 }
 
 export async function runShell(

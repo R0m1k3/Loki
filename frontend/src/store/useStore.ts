@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  autoTune,
   createSession,
   deleteSession,
   getConfig,
@@ -13,6 +14,7 @@ import {
   saveConfig,
   streamChat,
   type AgentConfig,
+  type AutoTuneResult,
   type FileNode,
   type Message,
   type OllamaModel,
@@ -42,6 +44,10 @@ interface LokiState {
   availableTools: string[];
   refreshConfig: () => Promise<void>;
   updateConfig: (patch: Partial<AgentConfig>) => Promise<void>;
+
+  tuning: boolean;
+  tuneResult: AutoTuneResult | null;
+  runAutoTune: () => Promise<void>;
 
   pendingShell: string | null; // commande shell en attente de validation
   approveShell: () => Promise<void>;
@@ -112,6 +118,21 @@ export const useStore = create<LokiState>((set, get) => ({
   updateConfig: async (patch) => {
     const config = await saveConfig(patch);
     set({ config });
+  },
+
+  tuning: false,
+  tuneResult: null,
+
+  runAutoTune: async () => {
+    const model = get().selectedModel;
+    if (!model || get().tuning) return;
+    set({ tuning: true });
+    try {
+      const result = await autoTune(model, true);
+      set({ tuneResult: result, config: result.config });
+    } finally {
+      set({ tuning: false });
+    }
   },
 
   openPreview: async (path) => {

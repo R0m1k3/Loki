@@ -34,6 +34,8 @@ DEFAULT_CONFIG: dict = {
     "top_p": 0.9,
     "top_k": 40,
     "max_tokens": 2048,
+    # Fenêtre de contexte envoyée à Ollama (0 = laisser le défaut du modèle).
+    "num_ctx": 0,
     "tools": dict(DEFAULT_TOOL_STATE),
     # Demander une validation utilisateur avant toute commande shell.
     "confirm_shell": True,
@@ -69,12 +71,16 @@ def save_config(patch: dict) -> dict:
 
 def ollama_options(cfg: dict) -> dict:
     """Traduit la config en options de génération Ollama."""
-    return {
+    opts = {
         "temperature": cfg["temperature"],
         "top_p": cfg["top_p"],
         "top_k": cfg["top_k"],
         "num_predict": cfg["max_tokens"],
     }
+    # num_ctx n'est envoyé que s'il est défini (> 0), sinon défaut du modèle.
+    if cfg.get("num_ctx"):
+        opts["num_ctx"] = cfg["num_ctx"]
+    return opts
 
 
 def enabled_tool_names(cfg: dict) -> list[str]:

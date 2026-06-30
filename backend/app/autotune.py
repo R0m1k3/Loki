@@ -210,6 +210,31 @@ async def recommend(model: str) -> dict:
     }
 
 
+async def placement(model: str) -> dict:
+    """Lit /api/ps : le modèle est-il chargé sur GPU, CPU, ou un mix ?"""
+    try:
+        loaded = await ollama.ps()
+    except (httpx.HTTPError, OSError):
+        return {"loaded": False}
+
+    for m in loaded:
+        if m.get("name") == model or m.get("model") == model:
+            size = m.get("size", 0) or 0
+            size_vram = m.get("size_vram", 0) or 0
+            if size <= 0:
+                where = "inconnu"
+            elif size_vram >= size * 0.99:
+                where = "gpu"
+            elif size_vram <= size * 0.01:
+                where = "cpu"
+            else:
+                where = "mixte"
+            pct = int(size_vram / size * 100) if size else 0
+            return {"loaded": True, "where": where, "gpu_percent": pct,
+                    "size_mb": size // (1024 * 1024)}
+    return {"loaded": False}
+
+
 def _fallback_model_mb(prof: dict) -> int:
     """Estime la taille des poids si /api/tags n'a rien donné."""
     ps = (prof.get("parameter_size") or "").upper().replace("B", "")
