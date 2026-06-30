@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from ..config import settings
 from ..tools import ToolError, _safe_path
@@ -47,3 +48,19 @@ async def file_content(path: str) -> dict:
         raise HTTPException(404, "fichier introuvable")
     with open(target, "r", encoding="utf-8", errors="replace") as f:
         return {"path": path, "content": f.read()}
+
+
+@router.get("/download")
+async def download_file(path: str) -> FileResponse:
+    """Télécharge un fichier en conservant le confinement au workspace."""
+    try:
+        target = _safe_path(path)
+    except ToolError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not os.path.isfile(target):
+        raise HTTPException(404, "fichier introuvable")
+    return FileResponse(
+        target,
+        filename=os.path.basename(target),
+        media_type="application/octet-stream",
+    )

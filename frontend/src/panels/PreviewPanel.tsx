@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../store/useStore";
-import type { ToolCall } from "../api/client";
+import { downloadFile, type ToolCall } from "../api/client";
+import { DownloadIcon } from "../components/Icon";
 
 type TabId = "preview" | "code" | "logs";
 
@@ -8,6 +9,30 @@ type TabId = "preview" | "code" | "logs";
 export function PreviewPanel() {
   const { previewPath, previewContent, messages, streamTools } = useStore();
   const [tab, setTab] = useState<TabId>("preview");
+  const [width, setWidth] = useState(() => {
+    const saved = Number(window.localStorage.getItem("loki.preview.width"));
+    return Number.isFinite(saved) && saved >= 300 ? saved : 452;
+  });
+
+  const updateWidth = (next: number) => {
+    const bounded = Math.max(300, Math.min(next, window.innerWidth - 520));
+    setWidth(bounded);
+    window.localStorage.setItem("loki.preview.width", String(bounded));
+  };
+
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = width;
+    const onMove = (move: PointerEvent) =>
+      updateWidth(startWidth + startX - move.clientX);
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
   const isHtml = previewPath ? /\.html?$/.test(previewPath) : false;
 
@@ -18,7 +43,23 @@ export function PreviewPanel() {
   ];
 
   return (
-    <div className="flex w-[452px] flex-none flex-col border-l-[3px] border-line bg-panel">
+    <div
+      className="relative flex flex-none flex-col border-l-[3px] border-line bg-panel"
+      style={{ width }}
+    >
+      <div
+        role="separator"
+        aria-label="Redimensionner le panneau d'aperçu"
+        aria-orientation="vertical"
+        tabIndex={0}
+        onPointerDown={startResize}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") updateWidth(width + 20);
+          if (event.key === "ArrowRight") updateWidth(width - 20);
+        }}
+        className="absolute -left-[6px] top-0 z-20 h-full w-[9px] cursor-col-resize bg-transparent hover:bg-accent/50 focus:bg-accent/50 focus:outline-none"
+        title="Glisser pour redimensionner"
+      />
       {/* Onglets */}
       <div className="flex h-[46px] flex-none items-center gap-1.5 border-b-[3px] border-line bg-base px-3">
         <Tab active={tab === "preview"} onClick={() => setTab("preview")}>
@@ -43,6 +84,16 @@ export function PreviewPanel() {
             {previewPath ? `workspace/${previewPath}` : "workspace/"}
           </span>
         </div>
+        {previewPath && (
+          <button
+            onClick={() => downloadFile(previewPath)}
+            className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-accent"
+            title={`Télécharger ${previewPath}`}
+          >
+            <DownloadIcon size={13} />
+            Télécharger
+          </button>
+        )}
       </div>
 
       {/* Onglet Logs (fond sombre) */}

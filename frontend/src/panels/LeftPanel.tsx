@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useStore } from "../store/useStore";
-import { PlusIcon } from "../components/Icon";
-import type { FileNode } from "../api/client";
+import { DownloadIcon, PlusIcon } from "../components/Icon";
+import { downloadFile, type FileNode } from "../api/client";
 
 /** Panneau gauche : historique des sessions + arborescence de fichiers. */
 export function LeftPanel() {
@@ -115,7 +115,7 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
           <div key={n.path}>
             <div
               onClick={() => n.type === "file" && openPreview(n.path)}
-              className={`mb-[3px] flex items-center gap-2 px-2 py-[5px] ${
+              className={`group mb-[3px] flex items-center gap-2 px-2 py-[5px] ${
                 n.type === "file"
                   ? active
                     ? "cursor-pointer border-2 border-line bg-card-deep text-white"
@@ -133,7 +133,19 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
                   }`}
                 />
               )}
-              <span className="truncate">{n.name}</span>
+              <span className="min-w-0 flex-1 truncate">{n.name}</span>
+              {n.type === "file" && (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    downloadFile(n.path);
+                  }}
+                  className="hidden flex-none text-muted-2 hover:text-accent group-hover:block"
+                  title={`Télécharger ${n.name}`}
+                >
+                  <DownloadIcon size={13} />
+                </button>
+              )}
             </div>
             {n.children && <FileTree nodes={n.children} depth={depth + 1} />}
           </div>

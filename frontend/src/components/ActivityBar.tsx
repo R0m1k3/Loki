@@ -8,11 +8,11 @@ import {
 
 export type View = "chat" | "history" | "files" | "tools" | "settings";
 
-const items: { id: View; icon: React.ReactNode }[] = [
-  { id: "chat", icon: <ChatIcon /> },
-  { id: "history", icon: <ClockIcon /> },
-  { id: "files", icon: <FilesIcon /> },
-  { id: "tools", icon: <NodesIcon /> },
+const items: { id: View; label: string; icon: React.ReactNode }[] = [
+  { id: "chat", label: "Chat", icon: <ChatIcon /> },
+  { id: "history", label: "Historique", icon: <ClockIcon /> },
+  { id: "files", label: "Fichiers", icon: <FilesIcon /> },
+  { id: "tools", label: "Outils", icon: <NodesIcon /> },
 ];
 
 const btn = (on: boolean) =>
@@ -37,6 +37,8 @@ export function ActivityBar({
           key={it.id}
           onClick={() => onChange(it.id)}
           className={btn(active === it.id)}
+          title={it.label}
+          aria-label={it.label}
         >
           {it.icon}
         </button>
@@ -47,6 +49,8 @@ export function ActivityBar({
       <button
         onClick={() => onChange("settings")}
         className={btn(active === "settings")}
+        title="Configuration"
+        aria-label="Configuration"
       >
         <SettingsIcon />
       </button>

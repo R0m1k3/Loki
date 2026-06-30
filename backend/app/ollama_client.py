@@ -79,6 +79,15 @@ class OllamaClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def delete_model(self, name: str) -> dict:
+        """Supprime un modèle installé (/api/delete)."""
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            resp = await client.request(
+                "DELETE", f"{self.host}/api/delete", json={"model": name}
+            )
+            resp.raise_for_status()
+            return resp.json() if resp.content else {"status": "success"}
+
     async def pull_model(self, name: str) -> AsyncIterator[dict]:
         """Télécharge un modèle en streamant la progression (/api/pull)."""
         async with httpx.AsyncClient(

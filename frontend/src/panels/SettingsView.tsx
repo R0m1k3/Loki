@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { pullModel } from "../api/client";
+import { deleteModel, pullModel } from "../api/client";
 import type { AgentConfig } from "../api/client";
 import { DownloadIcon, RefreshIcon } from "../components/Icon";
 
@@ -40,6 +40,22 @@ export function SettingsView() {
   const [pullName, setPullName] = useState("");
   const [pullStatus, setPullStatus] = useState<string | null>(null);
   const [pullPct, setPullPct] = useState(0);
+  const [deletingModel, setDeletingModel] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const doDeleteModel = async (name: string) => {
+    if (!window.confirm(`Supprimer définitivement le modèle ${name} ?`)) return;
+    setDeletingModel(name);
+    setDeleteError(null);
+    try {
+      await deleteModel(name);
+      await refreshModels();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "suppression impossible");
+    } finally {
+      setDeletingModel(null);
+    }
+  };
 
   const doPull = async () => {
     if (!pullName.trim()) return;
@@ -134,49 +150,57 @@ export function SettingsView() {
                   {models.map((m) => {
                     const on = m.name === selectedModel;
                     return (
-                      <button
+                      <div
                         key={m.name}
-                        onClick={() => setSelectedModel(m.name)}
                         className={`flex items-center gap-3 border-[3px] border-line p-3 text-left ${
                           on ? "bg-card-deep" : "bg-card-soft"
                         }`}
                       >
-                        <span
-                          className={`flex h-[18px] w-[18px] flex-none items-center justify-center border-[3px] ${
-                            on ? "border-accent" : "border-muted-3"
-                          }`}
+                        <button
+                          onClick={() => setSelectedModel(m.name)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
                         >
-                          {on && <span className="h-2 w-2 bg-accent" />}
-                        </span>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[14px] ${on ? "text-white" : "text-ink"}`}
-                            >
-                              {m.name}
-                            </span>
-                            {m.name === status?.default_model && (
-                              <span className="font-pixel border-2 border-white bg-accent px-1.5 py-0.5 text-[7px] text-white">
-                                DÉFAUT
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            className={`mt-1 text-[13px] ${on ? "text-on-dark-2" : "text-muted-2"}`}
+                          <span
+                            className={`flex h-[18px] w-[18px] flex-none items-center justify-center border-[3px] ${
+                              on ? "border-accent" : "border-muted-3"
+                            }`}
                           >
-                            {[
-                              m.size_go ? `${m.size_go} Go` : null,
-                              m.quantization,
-                              m.parameter_size,
-                              m.family,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
+                            {on && <span className="h-2 w-2 bg-accent" />}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`truncate text-[14px] ${on ? "text-white" : "text-ink"}`}>
+                                {m.name}
+                              </span>
+                              {m.name === status?.default_model && (
+                                <span className="font-pixel flex-none border-2 border-white bg-accent px-1.5 py-0.5 text-[7px] text-white">
+                                  DÉFAUT
+                                </span>
+                              )}
+                            </div>
+                            <div className={`mt-1 text-[13px] ${on ? "text-on-dark-2" : "text-muted-2"}`}>
+                              {[m.size_go ? `${m.size_go} Go` : null, m.quantization, m.parameter_size, m.family]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
+                        <button
+                          onClick={() => doDeleteModel(m.name)}
+                          disabled={deletingModel === m.name}
+                          className="flex-none border-2 border-line bg-base px-2 py-1 text-[12px] text-warn disabled:opacity-50"
+                          title={`Supprimer ${m.name}`}
+                        >
+                          {deletingModel === m.name ? "…" : "Supprimer"}
+                        </button>
+                      </div>
                     );
                   })}
+                  {deleteError && (
+                    <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+                      {deleteError}
+                    </div>
+                  )}
                 </div>
 
                 <div className="my-4 h-[3px] bg-line" />

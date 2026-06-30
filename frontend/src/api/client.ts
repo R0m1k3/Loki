@@ -29,6 +29,18 @@ export async function getModels(): Promise<{
   return res.json();
 }
 
+export async function deleteModel(name: string): Promise<void> {
+  const res = await fetch("/api/models", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.detail ?? `suppression refusée (${res.status})`);
+  }
+}
+
 export interface Session {
   id: string;
   title: string;
@@ -125,6 +137,15 @@ export async function fileContent(path: string): Promise<string> {
   const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
   if (!res.ok) return "";
   return (await res.json()).content;
+}
+
+export function downloadFile(path: string): void {
+  const link = document.createElement("a");
+  link.href = `/api/files/download?path=${encodeURIComponent(path)}`;
+  link.download = path.split(/[\\/]/).pop() ?? "fichier";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export async function listSessions(): Promise<Session[]> {

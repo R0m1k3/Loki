@@ -5,6 +5,7 @@ import { LeftPanel } from "./panels/LeftPanel";
 import { ChatPanel } from "./panels/ChatPanel";
 import { PreviewPanel } from "./panels/PreviewPanel";
 import { SettingsView } from "./panels/SettingsView";
+import { FilesView, HistoryView, ToolsView } from "./panels/ActivityViews";
 import { useStore } from "./store/useStore";
 
 export default function App() {
@@ -26,15 +27,22 @@ export default function App() {
       <div className="flex min-h-0 flex-1">
         <ActivityBar active={view} onChange={setView} />
 
-        {view === "settings" ? (
-          <SettingsView />
-        ) : (
+        {view === "chat" && (
           <>
             <LeftPanel />
             <ChatPanel />
             <PreviewPanel />
           </>
         )}
+        {view === "history" && <HistoryView onOpen={() => setView("chat")} />}
+        {view === "files" && (
+          <>
+            <FilesView />
+            <PreviewPanel />
+          </>
+        )}
+        {view === "tools" && <ToolsView onSettings={() => setView("settings")} />}
+        {view === "settings" && <SettingsView />}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -60,6 +60,25 @@ async def list_models() -> dict:
 
 class PullRequest(BaseModel):
     name: str
+
+
+class DeleteModelRequest(BaseModel):
+    name: str
+
+
+@router.delete("/models")
+async def delete_model(req: DeleteModelRequest) -> dict:
+    """Supprime explicitement un modèle de l'instance Ollama."""
+    if not req.name.strip():
+        raise HTTPException(400, "nom de modèle vide")
+    try:
+        await ollama.delete_model(req.name.strip())
+    except httpx.HTTPStatusError as exc:
+        detail = exc.response.text[:500] or str(exc)
+        raise HTTPException(502, f"Ollama : {detail}") from exc
+    except (httpx.HTTPError, OSError) as exc:
+        raise HTTPException(502, f"Ollama injoignable : {exc}") from exc
+    return {"deleted": req.name.strip()}
 
 
 @router.post("/models/pull")
