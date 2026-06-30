@@ -62,7 +62,10 @@ interface LokiState {
   openSession: (id: string) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
+  stopStreaming: () => void;
 }
+
+let activeStreamController: AbortController | null = null;
 
 export const useStore = create<LokiState>((set, get) => ({
   status: null,
@@ -207,6 +210,22 @@ export const useStore = create<LokiState>((set, get) => ({
     await get().refreshSessions();
   },
 
+  stopStreaming: () => {
+    activeStreamController?.abort();
+    activeStreamController = null;
+    set({
+      streaming: false,
+      streamingSessionId: null,
+      streamContent: "",
+      streamThinking: "",
+      streamStatus: "",
+      streamNotice: null,
+      streamTools: [],
+      pendingShell: null,
+    });
+    void get().refreshSessions();
+  },
+
   sendMessage: async (content) => {
     if (get().streaming) return;
     content = content.trim();
@@ -264,6 +283,9 @@ export const useStore = create<LokiState>((set, get) => ({
       pendingShell: null,
     });
 
+    const controller = new AbortController();
+    activeStreamController = controller;
+
     await streamChat(
       { session_id: sid, content, model: get().selectedModel || undefined },
       {
@@ -286,6 +308,7 @@ export const useStore = create<LokiState>((set, get) => ({
         },
         onToolConfirm: (command) => set({ pendingShell: command }),
         onDone: async () => {
+          activeStreamController = null;
           // Repère un fichier HTML écrit pour l'afficher automatiquement.
           const writtenHtml = [...get().streamTools]
             .reverse()
@@ -311,6 +334,7 @@ export const useStore = create<LokiState>((set, get) => ({
           if (writtenHtml) await get().openPreview(writtenHtml.args.path as string);
         },
         onError: (msg) => {
+          activeStreamController = null;
           const errMsg: Message = {
             id: `err-${Date.now()}`,
             session_id: sid!,
@@ -333,7 +357,22 @@ export const useStore = create<LokiState>((set, get) => ({
           });
           void get().refreshSessions();
         },
-      }
+        onAbort: () => {
+          activeStreamController = null;
+          set({
+            streaming: false,
+            streamingSessionId: null,
+            streamContent: "",
+            streamThinking: "",
+            streamStatus: "",
+            streamNotice: null,
+            streamTools: [],
+            pendingShell: null,
+          });
+          void get().refreshSessions();
+        },
+      },
+      controller.signal
     );
   },
 }));

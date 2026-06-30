@@ -24,6 +24,7 @@ export function ChatPanel() {
     approveShell,
     rejectShell,
     sessions,
+    stopStreaming,
   } = useStore();
 
   const activeTools = config
@@ -154,12 +155,14 @@ export function ChatPanel() {
                 </>
               )}
               <button
-                onClick={submit}
-                disabled={streaming || !draft.trim()}
-                className="flex h-[38px] items-center gap-1.5 border-[3px] border-line bg-card-deep px-4 text-[14px] text-white shadow-hard-accent disabled:opacity-40"
+                onClick={streaming ? stopStreaming : submit}
+                disabled={!streaming && !draft.trim()}
+                className={`flex h-[38px] items-center gap-1.5 border-[3px] border-line px-4 text-[14px] text-white shadow-hard-accent disabled:opacity-40 ${
+                  streaming ? "bg-warn" : "bg-card-deep"
+                }`}
                 style={{ borderRadius: 7 }}
               >
-                {streaming ? "…" : "ENVOYER"}
+                {streaming ? "ARRÊTER" : "ENVOYER"}
                 {!streaming && <SendIcon />}
               </button>
             </div>

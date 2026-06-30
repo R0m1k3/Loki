@@ -186,7 +186,9 @@ export async function streamChat(
     onNotice: (msg: string) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
-  }
+    onAbort?: () => void;
+  },
+  signal?: AbortSignal
 ): Promise<void> {
   let res: Response;
   try {
@@ -194,8 +196,13 @@ export async function streamChat(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      handlers.onAbort?.();
+      return;
+    }
     const raw = err instanceof Error ? err.message : "serveur Loki injoignable";
     handlers.onError(
       /network error|failed to fetch/i.test(raw)
@@ -280,6 +287,10 @@ export async function streamChat(
     if (buffer.trim()) dispatch(buffer);
   } catch (err) {
     if (!failed) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        handlers.onAbort?.();
+        return;
+      }
       failed = true;
       const raw = err instanceof Error ? err.message : "connexion interrompue";
       handlers.onError(

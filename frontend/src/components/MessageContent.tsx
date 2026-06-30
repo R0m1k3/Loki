@@ -3,24 +3,44 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CheckIcon, CopyIcon } from "./Icon";
 
-/**
- * Rendu Markdown des messages de l'agent (react-markdown + GFM).
- *
- * Les blocs de code sont affichés dans un cadre avec en-tête (langage + bouton
- * « Copier »). Les autres éléments (titres, listes, gras, tableaux, liens…)
- * sont stylés pour le thème sombre « atelier » de Loki.
- */
+function copyWithTextarea(value: string) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand("copy");
+  textarea.remove();
+  if (!ok) throw new Error("copy failed");
+}
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        copyWithTextarea(code);
+      }
       setCopied(true);
+      setFailed(false);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Presse-papiers indisponible (contexte non sécurisé) : on ignore.
+      try {
+        copyWithTextarea(code);
+        setCopied(true);
+        setFailed(false);
+        setTimeout(() => setCopied(false), 1500);
+      } catch {
+        setFailed(true);
+        setTimeout(() => setFailed(false), 1800);
+      }
     }
   };
 
@@ -31,11 +51,12 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
           {lang || "code"}
         </span>
         <button
+          type="button"
           onClick={copy}
           className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-on-dark-2 transition-colors hover:text-white"
         >
           {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
-          {copied ? "Copié" : "Copier"}
+          {failed ? "Erreur" : copied ? "Copié" : "Copier"}
         </button>
       </div>
       <pre className="scr m-0 overflow-auto p-3 font-mono text-[12px] leading-relaxed text-on-dark">
@@ -46,8 +67,6 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
 }
 
 const components: Components = {
-  // react-markdown emballe les blocs dans <pre><code> : on déballe le <pre>
-  // pour laisser notre CodeBlock (un <div>) se placer au niveau racine.
   pre: ({ children }) => <>{children}</>,
   code({ className, children }) {
     const text = String(children).replace(/\n$/, "");
