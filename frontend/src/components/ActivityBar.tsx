@@ -15,7 +15,14 @@ const items: { id: View; icon: React.ReactNode }[] = [
   { id: "tools", icon: <NodesIcon /> },
 ];
 
-/** Barre d'activité verticale (56px) à gauche. */
+const btn = (on: boolean) =>
+  `flex h-10 w-10 items-center justify-center border-[3px] ${
+    on
+      ? "border-white bg-accent text-white shadow-accent-soft"
+      : "border-chrome-3 text-on-dark-2 hover:text-white"
+  }`;
+
+/** Barre d'activité verticale (60px) sombre à gauche. */
 export function ActivityBar({
   active,
   onChange,
@@ -24,46 +31,27 @@ export function ActivityBar({
   onChange: (v: View) => void;
 }) {
   return (
-    <div className="flex w-14 flex-none flex-col items-center gap-1 border-r border-line-soft bg-sunken py-3">
-      {items.map((it) => {
-        const on = active === it.id;
-        return (
-          <button
-            key={it.id}
-            onClick={() => onChange(it.id)}
-            className={`relative flex h-10 w-10 items-center justify-center rounded-[10px] ${
-              on ? "text-accent" : "text-muted-3 hover:text-ink-3"
-            }`}
-            style={on ? { background: "rgba(240,161,92,.14)" } : undefined}
-          >
-            {on && (
-              <span className="absolute left-[-12px] top-[11px] h-[18px] w-[3px] rounded bg-accent" />
-            )}
-            {it.icon}
-          </button>
-        );
-      })}
+    <div className="flex w-[60px] flex-none flex-col items-center gap-2 border-r-[3px] border-line bg-bar py-3">
+      {items.map((it) => (
+        <button
+          key={it.id}
+          onClick={() => onChange(it.id)}
+          className={btn(active === it.id)}
+        >
+          {it.icon}
+        </button>
+      ))}
 
       <div className="flex-1" />
 
       <button
         onClick={() => onChange("settings")}
-        className={`relative flex h-10 w-10 items-center justify-center rounded-[10px] ${
-          active === "settings" ? "text-accent" : "text-muted-3 hover:text-ink-3"
-        }`}
-        style={
-          active === "settings"
-            ? { background: "rgba(240,161,92,.14)" }
-            : undefined
-        }
+        className={btn(active === "settings")}
       >
-        {active === "settings" && (
-          <span className="absolute left-[-12px] top-[11px] h-[18px] w-[3px] rounded bg-accent" />
-        )}
         <SettingsIcon />
       </button>
 
-      <div className="mt-1 flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[#3a332b] text-xs font-semibold text-ink-2">
+      <div className="font-pixel flex h-[34px] w-[34px] items-center justify-center border-[3px] border-white bg-white text-[11px] text-line">
         M
       </div>
     </div>

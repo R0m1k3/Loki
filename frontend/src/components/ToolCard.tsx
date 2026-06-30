@@ -18,30 +18,31 @@ export function ToolCard({ call }: { call: ToolCall }) {
       ? "(…)"
       : "()";
 
+  const write = call.name === "write_file";
+
   return (
-    <div className="mb-[9px] overflow-hidden rounded-[11px] border border-line bg-card-deep">
-      <div className="flex items-center gap-2.5 px-[13px] py-2.5">
+    <div className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
         <span
-          className="flex h-6 w-6 items-center justify-center rounded-[7px] text-accent"
-          style={{ background: "rgba(240,161,92,.13)" }}
+          className={`flex h-[26px] w-[26px] items-center justify-center border-2 border-line ${
+            write ? "bg-accent text-white" : "bg-card-deep text-white"
+          }`}
         >
           <ToolGlyph name={call.name} />
         </span>
-        <span className="font-mono text-[12.5px] font-semibold text-[#e7ddcd]">
-          {call.name}
-        </span>
-        <span className="font-mono text-xs text-muted-2">{argPreview}</span>
+        <span className="text-[14px] text-ink">{call.name}</span>
+        <span className="text-[13px] text-muted-3">{argPreview}</span>
         <div className="flex-1" />
         {running ? (
-          <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
+          <span className="flex items-center gap-1.5 text-[13px] text-muted-2">
             <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-muted-3 border-t-accent" />
             en cours
           </span>
         ) : pending ? (
-          <span className="font-mono text-[11px] text-warn">⏸ à valider</span>
+          <span className="text-[13px] text-accent">⏸ à valider</span>
         ) : (
           <span
-            className={`flex items-center gap-1.5 font-mono text-[11px] ${
+            className={`flex items-center gap-1.5 text-[13px] ${
               error ? "text-warn" : "text-ok"
             }`}
           >
@@ -50,7 +51,7 @@ export function ToolCard({ call }: { call: ToolCall }) {
         )}
       </div>
       {call.summary && !running && (
-        <div className="border-t border-line-soft px-[13px] py-2.5 font-mono text-[11.5px] text-muted-3">
+        <div className="border-t-2 border-line-soft px-3 py-2 text-[13px] text-muted-2">
           → {call.summary}
         </div>
       )}

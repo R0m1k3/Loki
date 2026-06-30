@@ -10,21 +10,27 @@ body,
 }
 
 body {
-  background: #1a1714;
-  color: #efe9df;
-  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  background: #ececef;
+  color: #18181b;
+  font-family: "DM Mono", ui-monospace, monospace;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Barres de défilement fidèles au visuel */
+/* Police pixel pour les libellés (utilitaire .font-pixel via Tailwind aussi) */
+.font-pixel {
+  font-family: "Press Start 2P", ui-monospace, monospace;
+}
+
+/* Barres de défilement néo-brutalistes */
 .scr::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  width: 12px;
+  height: 12px;
 }
 .scr::-webkit-scrollbar-thumb {
-  background: #3a342c;
-  border-radius: 6px;
+  background: #18181b;
+  border: 2px solid #ececef;
 }
 .scr::-webkit-scrollbar-track {
-  background: transparent;
+  background: #e4e4e7;
 }

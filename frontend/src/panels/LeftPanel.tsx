@@ -22,24 +22,22 @@ export function LeftPanel() {
   }, [refreshSessions, refreshFiles]);
 
   return (
-    <div className="flex w-[268px] flex-none flex-col border-r border-line-soft bg-panel">
+    <div className="flex w-[280px] flex-none flex-col border-r-[3px] border-line bg-panel">
       {/* Historique */}
       <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
-        <span className="text-[11px] font-bold uppercase tracking-[.07em] text-label">
-          Historique
-        </span>
+        <span className="font-pixel text-[10px] text-label">HISTORIQUE</span>
         <button
           onClick={newSession}
-          className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-accent"
+          className="flex cursor-pointer items-center gap-1 text-[13px] text-accent"
         >
           <PlusIcon />
           Nouvelle
         </button>
       </div>
 
-      <div className="scr flex max-h-[45%] flex-col gap-0.5 overflow-auto px-2.5">
+      <div className="scr flex max-h-[45%] flex-col gap-2 overflow-auto px-3 py-1">
         {sessions.length === 0 && (
-          <div className="px-3 py-3 text-xs text-muted-3">
+          <div className="px-1 py-2 text-xs text-muted-2">
             Aucune session. Lance une conversation ci-dessous.
           </div>
         )}
@@ -49,17 +47,15 @@ export function LeftPanel() {
             <div
               key={s.id}
               onClick={() => openSession(s.id)}
-              className={`group relative cursor-pointer rounded-[9px] px-3 py-[9px] ${
-                active ? "bg-[#252019]" : "hover:bg-[#221e18]"
+              className={`group cursor-pointer border-[3px] border-line px-3 py-2.5 ${
+                active ? "bg-card-deep shadow-hard-accent" : "bg-card"
               }`}
+              style={{ borderRadius: 7 }}
             >
-              {active && (
-                <div className="absolute bottom-[9px] left-0 top-[9px] w-[3px] rounded bg-accent" />
-              )}
               <div className="flex items-center gap-1">
                 <div
-                  className={`flex-1 truncate text-[13px] ${
-                    active ? "font-semibold text-ink" : "font-medium text-ink-3"
+                  className={`flex-1 truncate text-[14px] leading-tight ${
+                    active ? "text-white" : "text-ink-2"
                   }`}
                 >
                   {s.title}
@@ -69,13 +65,15 @@ export function LeftPanel() {
                     e.stopPropagation();
                     removeSession(s.id);
                   }}
-                  className="hidden text-muted-3 hover:text-warn group-hover:block"
+                  className={`hidden group-hover:block ${
+                    active ? "text-on-dark-2 hover:text-accent" : "text-muted-3 hover:text-warn"
+                  }`}
                   title="Supprimer"
                 >
                   ×
                 </button>
               </div>
-              <div className="mt-[3px] font-mono text-[10.5px] text-muted-3">
+              <div className="mt-1 text-[13px] text-muted-3">
                 {relTime(s.updated_at)} · {s.message_count ?? 0} message
                 {(s.message_count ?? 0) > 1 ? "s" : ""}
               </div>
@@ -84,19 +82,17 @@ export function LeftPanel() {
         })}
       </div>
 
-      <div className="mx-4 my-3.5 h-px bg-line-soft" />
+      <div className="mx-0 my-4 h-[3px] bg-line" />
 
       {/* Fichiers */}
       <div className="flex items-center justify-between px-4 pb-2">
-        <span className="text-[11px] font-bold uppercase tracking-[.07em] text-label">
-          Fichiers
-        </span>
-        <span className="font-mono text-[10.5px] text-muted-4">workspace/</span>
+        <span className="font-pixel text-[10px] text-label">FICHIERS</span>
+        <span className="text-[13px] text-muted-3">workspace/</span>
       </div>
 
-      <div className="scr flex-1 overflow-auto px-2.5 pb-3.5 font-mono text-xs">
+      <div className="scr flex-1 overflow-auto px-3 pb-3.5 text-[14px]">
         {fileTree.length === 0 ? (
-          <div className="px-2 py-4 text-center text-muted-3">
+          <div className="px-2 py-4 text-center text-muted-2">
             Aucun fichier pour l'instant.
             <br />
             L'agent créera des fichiers ici.
@@ -110,41 +106,39 @@ export function LeftPanel() {
 }
 
 function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const openPreview = useStore((s) => s.openPreview);
+  const { openPreview, previewPath } = useStore();
   return (
     <>
-      {nodes.map((n) => (
-        <div key={n.path}>
-          <div
-            onClick={() => n.type === "file" && openPreview(n.path)}
-            className={`flex items-center gap-2 rounded-[7px] px-2 py-[5px] ${
-              n.type === "file"
-                ? "cursor-pointer text-ink-2 hover:bg-[#221e18]"
-                : "text-muted"
-            }`}
-            style={{ paddingLeft: 8 + depth * 14 }}
-          >
-            {n.type === "dir" ? (
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            ) : (
-              <span className="h-1.5 w-1.5 rounded-[1.5px] bg-accent" />
-            )}
-            <span className="truncate">{n.name}</span>
+      {nodes.map((n) => {
+        const active = n.type === "file" && n.path === previewPath;
+        return (
+          <div key={n.path}>
+            <div
+              onClick={() => n.type === "file" && openPreview(n.path)}
+              className={`mb-[3px] flex items-center gap-2 px-2 py-[5px] ${
+                n.type === "file"
+                  ? active
+                    ? "cursor-pointer border-2 border-line bg-card-deep text-white"
+                    : "cursor-pointer text-ink-2 hover:bg-base"
+                  : "text-muted"
+              }`}
+              style={{ paddingLeft: 8 + depth * 14 }}
+            >
+              {n.type === "dir" ? (
+                <span className="text-muted-2">▾</span>
+              ) : (
+                <span
+                  className={`h-2 w-2 border-2 ${
+                    active ? "border-white bg-accent" : "border-line bg-muted-2"
+                  }`}
+                />
+              )}
+              <span className="truncate">{n.name}</span>
+            </div>
+            {n.children && <FileTree nodes={n.children} depth={depth + 1} />}
           </div>
-          {n.children && <FileTree nodes={n.children} depth={depth + 1} />}
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }

@@ -59,6 +59,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         final_content = ""
         tools_meta: list[dict] = []
         stats_meta: dict | None = None
+        thinking_meta = ""
         error_message = ""
 
         queue: asyncio.Queue[dict | None] = asyncio.Queue()
@@ -101,6 +102,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 etype = ev.pop("type")
                 if etype in (
                     "token",
+                    "thinking",
                     "status",
                     "notice",
                     "tool_call",
@@ -115,6 +117,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     final_content = ev["content"]
                     tools_meta = ev["tools"]
                     stats_meta = ev.get("stats")
+                    thinking_meta = ev.get("thinking", "")
         finally:
             if not producer.done():
                 producer.cancel()
@@ -127,6 +130,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 meta["tools"] = tools_meta
             if stats_meta:
                 meta["stats"] = stats_meta
+            if thinking_meta:
+                meta["thinking"] = thinking_meta
             db.add_message(
                 req.session_id,
                 "assistant",

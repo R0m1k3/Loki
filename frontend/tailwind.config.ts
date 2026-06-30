@@ -1,8 +1,9 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Système de design « Loki » — extrait fidèlement du visuel Atelier_Agent.
- * Thème sombre chaleureux (café / ambre).
+ * Système de design « Loki » — thème néo-brutaliste clair.
+ * Bordures noires épaisses, ombres dures décalées, accent orange,
+ * police pixel (Press Start 2P) pour les libellés, DM Mono pour le corps.
  */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -10,48 +11,60 @@ export default {
     extend: {
       colors: {
         // Fonds
-        base: "#1a1714",
-        bar: "#1d1a15",
-        panel: "#1c1814",
-        sunken: "#161310",
+        base: "#ececef", // contenu principal
+        bar: "#18181b", // chrome sombre (barres)
+        panel: "#fafafa", // panneaux latéraux
+        sunken: "#18181b", // encarts sombres (code, invite système)
         // Surfaces / cartes
-        card: "#211d18",
-        "card-soft": "#221e18",
-        "card-deep": "#1f1b16",
+        card: "#ffffff",
+        "card-soft": "#fafafa",
+        "card-deep": "#18181b",
         // Bordures
-        line: "#2c2720",
-        "line-soft": "#262219",
-        "line-strong": "#322d26",
-        // Accent ambre
-        accent: "#f0a15c",
-        "accent-1": "#f4ad6c",
-        "accent-2": "#df7c4c",
+        line: "#18181b", // bordure noire signature
+        "line-soft": "#e4e4e7", // séparateur clair
+        "line-strong": "#18181b",
+        // Accent orange
+        accent: "#ff5436",
+        "accent-1": "#ff6b50",
+        "accent-2": "#e23e22",
         // Statuts
-        ok: "#86c79a",
-        info: "#5b8fb0",
-        warn: "#c98b5b",
-        // Textes
-        ink: "#efe9df",
-        "ink-2": "#cfc5b6",
-        "ink-3": "#bdb3a4",
-        muted: "#9a9082",
-        "muted-2": "#8a8175",
-        "muted-3": "#766d60",
-        "muted-4": "#6a6256",
-        label: "#7a7164",
+        ok: "#22c55e",
+        info: "#3b82f6",
+        warn: "#dc2626",
+        // Textes (sombres sur fond clair)
+        ink: "#18181b",
+        "ink-2": "#27272a",
+        "ink-3": "#3f3f46",
+        muted: "#52525b",
+        "muted-2": "#71717a",
+        "muted-3": "#a1a1aa",
+        "muted-4": "#a1a1aa",
+        label: "#52525b",
+        // Teintes claires utiles sur le chrome sombre
+        "chrome-2": "#27272a",
+        "chrome-3": "#3f3f46",
+        "on-dark": "#e4e4e7",
+        "on-dark-2": "#a1a1aa",
+        "on-dark-3": "#71717a",
       },
       fontFamily: {
-        sans: ['"Hanken Grotesk"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        sans: ['"DM Mono"', "ui-monospace", "monospace"],
+        mono: ['"DM Mono"', "ui-monospace", "monospace"],
+        pixel: ['"Press Start 2P"', "ui-monospace", "monospace"],
       },
       borderRadius: {
-        card: "14px",
+        card: "9px",
       },
       boxShadow: {
-        frame: "0 24px 60px rgba(0,0,0,.35)",
+        "hard-sm": "3px 3px 0 #18181b",
+        hard: "4px 4px 0 #18181b",
+        "hard-lg": "7px 7px 0 #18181b",
+        "hard-accent": "3px 3px 0 #ff5436",
+        "accent-soft": "3px 3px 0 rgba(255,84,54,.4)",
+        frame: "4px 4px 0 #18181b",
       },
       backgroundImage: {
-        "accent-grad": "linear-gradient(140deg, #f4ad6c, #df7c4c)",
+        "accent-grad": "linear-gradient(140deg, #ff6b50, #e23e22)",
       },
     },
   },

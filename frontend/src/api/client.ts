@@ -57,7 +57,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   model?: string;
-  meta?: { tools?: ToolCall[]; stats?: MessageStats } | null;
+  meta?: { tools?: ToolCall[]; stats?: MessageStats; thinking?: string } | null;
   created_at: number;
 }
 
@@ -156,6 +156,7 @@ export async function streamChat(
   body: { session_id: string; content: string; model?: string },
   handlers: {
     onToken: (t: string) => void;
+    onThinking: (t: string) => void;
     onToolCall: (call: ToolCall) => void;
     onToolResult: (call: ToolCall) => void;
     onToolConfirm: (command: string) => void;
@@ -215,6 +216,7 @@ export async function streamChat(
     try {
       const payload = JSON.parse(dataLines.join("\n"));
       if (event === "token") handlers.onToken(payload.content);
+      else if (event === "thinking") handlers.onThinking(payload.content);
       else if (event === "status") handlers.onStatus(payload.message);
       else if (event === "notice") handlers.onNotice(payload.message);
       else if (event === "tool_call")

@@ -2,50 +2,41 @@ import { useStore } from "../store/useStore";
 import { ChevronDown, LokiMark } from "./Icon";
 import { ModelSelector } from "./ModelSelector";
 
-/** Barre supérieure : logo, fil d'Ariane, statut Ollama, sélecteur de modèle. */
+/** Barre supérieure sombre : logo, fil d'Ariane, statut Ollama, sélecteur. */
 export function TopBar() {
   const status = useStore((s) => s.status);
   const connected = status?.connected ?? false;
 
   return (
-    <div className="flex h-12 flex-none items-center gap-3.5 border-b border-line-strong bg-bar px-4">
+    <div className="flex h-[54px] flex-none items-center gap-3.5 border-b-[3px] border-line bg-bar px-4">
       <div className="flex items-center gap-2.5">
         <LokiMark />
-        <div className="text-[15px] font-bold tracking-tight">Loki</div>
-        <div className="pt-px font-mono text-[11px] text-muted-3">
-          agent local
-        </div>
+        <div className="font-pixel text-[14px] text-white">LOKI</div>
+        <div className="text-[13px] leading-none text-on-dark-2">agent local</div>
       </div>
 
-      <div className="h-5 w-px bg-line-strong" />
+      <div className="h-6 w-[3px] bg-chrome-3" />
 
-      <div className="flex items-center gap-2 text-[13px] font-medium text-ink-2">
+      <div className="flex items-center gap-2 text-[13px] text-on-dark">
         <span>Nouvelle session</span>
-        <ChevronDown className="text-muted-3" />
+        <ChevronDown className="text-on-dark-3" />
       </div>
 
       <div className="flex-1" />
 
       {/* Statut Ollama */}
       <div
-        className="flex h-7 items-center gap-2 rounded-lg border border-line-strong bg-card-soft px-[11px]"
+        className="flex h-8 items-center gap-2 border-[3px] border-chrome-3 bg-chrome-2 px-[11px]"
         title={connected ? status?.host : status?.error}
       >
         <span
-          className={`h-[7px] w-[7px] rounded-full ${
+          className={`h-[11px] w-[11px] border-2 border-line ${
             connected ? "bg-ok" : "bg-warn"
           }`}
-          style={
-            connected
-              ? { boxShadow: "0 0 0 3px rgba(134,199,154,.16)" }
-              : undefined
-          }
         />
-        <span className="text-xs font-medium text-ink-3">Ollama</span>
-        <span className="font-mono text-[11px] text-muted-3">
-          {connected
-            ? status?.host.replace(/^https?:\/\//, "")
-            : "déconnecté"}
+        <span className="text-[13px] text-on-dark">Ollama</span>
+        <span className="text-[13px] text-on-dark-3">
+          {connected ? status?.host.replace(/^https?:\/\//, "") : "déconnecté"}
         </span>
       </div>
 

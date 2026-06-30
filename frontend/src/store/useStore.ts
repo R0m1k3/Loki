@@ -32,6 +32,7 @@ interface LokiState {
   messages: Message[];
   streaming: boolean;
   streamContent: string; // réponse de l'agent en cours de frappe
+  streamThinking: string; // raisonnement de l'agent en cours
   streamStatus: string;
   streamNotice: string | null;
   streamTools: ToolCall[]; // appels d'outils de la réponse en cours
@@ -73,6 +74,7 @@ export const useStore = create<LokiState>((set, get) => ({
   messages: [],
   streaming: false,
   streamContent: "",
+  streamThinking: "",
   streamStatus: "",
   streamNotice: null,
   streamTools: [],
@@ -250,6 +252,7 @@ export const useStore = create<LokiState>((set, get) => ({
       messages: [...get().messages, userMsg],
       streaming: true,
       streamContent: "",
+      streamThinking: "",
       streamStatus: "Connexion à Ollama…",
       streamNotice: null,
       streamTools: [],
@@ -260,6 +263,7 @@ export const useStore = create<LokiState>((set, get) => ({
       { session_id: sid, content, model: get().selectedModel || undefined },
       {
         onToken: (t) => set({ streamContent: get().streamContent + t }),
+        onThinking: (t) => set({ streamThinking: get().streamThinking + t }),
         onStatus: (message) => set({ streamStatus: message }),
         onNotice: (message) => set({ streamNotice: message }),
         onToolCall: (call) =>
@@ -289,6 +293,7 @@ export const useStore = create<LokiState>((set, get) => ({
           set({
             streaming: false,
             streamContent: "",
+            streamThinking: "",
             streamStatus: "",
             streamNotice: null,
             streamTools: [],
@@ -310,6 +315,7 @@ export const useStore = create<LokiState>((set, get) => ({
           set({
             streaming: false,
             streamContent: "",
+            streamThinking: "",
             streamStatus: "",
             streamNotice: null,
             streamTools: [],

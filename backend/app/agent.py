@@ -26,9 +26,22 @@ MAX_TOOL_REPAIR_ATTEMPTS = 2
 
 
 def _tools_not_supported(exc: OllamaError) -> bool:
-    """Détecte l'erreur Ollama renvoyée par un modèle sans function calling."""
+    """Détecte un modèle incapable de function calling.
+
+    Deux cas :
+      - Ollama refuse explicitement (« does not support tools ») ;
+      - Ollama n'arrive pas à dériver un parseur d'appels d'outils du template
+        du modèle (« Unable to generate parser for this template ») — fréquent
+        sur des modèles exotiques dont le template Jinja lève une exception.
+    Dans les deux cas, on retombe sur une conversation simple, sans outils.
+    """
     message = str(exc).lower()
-    return "does not support tools" in message or "does not support tool" in message
+    return (
+        "does not support tools" in message
+        or "does not support tool" in message
+        or "unable to generate parser for this template" in message
+        or "automatic parser generation failed" in message
+    )
 
 
 def _invalid_tool_arguments(exc: OllamaError) -> bool:
@@ -70,6 +83,7 @@ async def run_agent(
         tools = None
     collected: list[dict] = []
     text_parts: list[str] = []
+    thinking_parts: list[str] = []
     active_tools = tools
     tool_fallback_used = False
     tool_repair_attempts = 0
@@ -107,6 +121,9 @@ async def run_agent(
                         thinking = msg.get("thinking", "")
                         if thinking:
                             thinking_buf += thinking
+                            # Diffuse le raisonnement en direct pour l'afficher
+                            # dans le panneau repliable du chat.
+                            yield {"type": "thinking", "content": thinking}
                             if not thinking_status_sent:
                                 thinking_status_sent = True
                                 yield {"type": "status", "message": "Réflexion…"}
@@ -179,6 +196,7 @@ async def run_agent(
             assistant_turn: dict = {"role": "assistant", "content": content_buf}
             if thinking_buf:
                 assistant_turn["thinking"] = thinking_buf
+                thinking_parts.append(thinking_buf)
             if tool_calls:
                 assistant_turn["tool_calls"] = tool_calls
             convo.append(assistant_turn)
@@ -300,4 +318,5 @@ async def run_agent(
         "content": final_content,
         "tools": collected,
         "stats": final_stats,
+        "thinking": "\n\n".join(thinking_parts).strip(),
     }

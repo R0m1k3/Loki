@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
-import { ClipIcon, LokiMark, SendIcon } from "../components/Icon";
+import { ChevronDown, ClipIcon, LokiMark, SendIcon } from "../components/Icon";
 import { ToolCard } from "../components/ToolCard";
 import { MessageContent } from "../components/MessageContent";
 import type { Message, ToolCall } from "../api/client";
@@ -12,6 +12,7 @@ export function ChatPanel() {
     messages,
     streaming,
     streamContent,
+    streamThinking,
     streamStatus,
     streamNotice,
     streamTools,
@@ -33,7 +34,7 @@ export function ChatPanel() {
   // Auto-scroll vers le bas à chaque token / message.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, streamContent, streamTools]);
+  }, [messages, streamContent, streamThinking, streamTools]);
 
   const submit = () => {
     if (!draft.trim() || streaming) return;
@@ -53,21 +54,18 @@ export function ChatPanel() {
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-base">
       {/* Barre de contexte */}
-      <div className="flex h-[42px] flex-none items-center gap-2 border-b border-line-soft px-[18px]">
-        <Chip>Invite système</Chip>
+      <div className="flex h-[46px] flex-none items-center gap-2 border-b-[3px] border-line bg-panel px-4">
+        <Chip>⚑ Invite système</Chip>
         <Chip>
-          <span className="h-1.5 w-1.5 rounded-full bg-ok" />
-          {activeTools} outil{activeTools > 1 ? "s" : ""} actif
-          {activeTools > 1 ? "s" : ""}
+          <span className="h-2 w-2 border-2 border-line bg-ok" />
+          {activeTools} outil{activeTools > 1 ? "s" : ""}
         </Chip>
         <Chip>
-          Température{" "}
-          <b className="font-semibold text-[#e7ddcd]">
-            {config ? config.temperature.toFixed(2) : "—"}
-          </b>
+          Temp{" "}
+          <b className="text-accent">{config ? config.temperature.toFixed(1) : "—"}</b>
         </Chip>
         <div className="flex-1" />
-        <span className="font-mono text-[11px] text-muted-4">
+        <span className="text-[13px] text-muted-3">
           {currentSessionId
             ? `${messages.length} message${messages.length > 1 ? "s" : ""}`
             : "aucune session"}
@@ -78,17 +76,15 @@ export function ChatPanel() {
       <div ref={scrollRef} className="scr flex-1 overflow-auto px-7 py-6">
         {empty ? (
           <div className="mx-auto flex max-w-[680px] flex-col items-center justify-center gap-4 pt-24 text-center">
-            <LokiMark size={44} />
-            <div className="text-lg font-semibold text-ink">
-              Prêt à travailler.
-            </div>
-            <div className="max-w-[360px] text-sm leading-relaxed text-muted">
-              Décris une tâche à l'agent. Les outils fichiers et l'aperçu en
-              direct arrivent à la prochaine étape.
+            <LokiMark size={48} />
+            <div className="font-pixel text-[15px] text-ink">PRÊT À TRAVAILLER</div>
+            <div className="max-w-[380px] text-[14px] leading-relaxed text-muted">
+              Décris une tâche à l'agent. Outils fichiers et aperçu en direct
+              disponibles.
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex max-w-[680px] flex-col gap-[22px]">
+          <div className="mx-auto flex max-w-[680px] flex-col gap-5">
             {messages.map((m) => (
               <Bubble key={m.id} msg={m} />
             ))}
@@ -106,6 +102,7 @@ export function ChatPanel() {
                 pending
                 pendingStatus={streamStatus}
                 notice={streamNotice}
+                thinking={streamThinking}
               />
             )}
             {pendingShell && (
@@ -120,35 +117,34 @@ export function ChatPanel() {
       </div>
 
       {/* Composer */}
-      <div className="flex-none border-t border-line-soft px-7 pb-[18px] pt-3.5">
+      <div className="flex-none border-t-[3px] border-line bg-panel px-7 pb-[18px] pt-3.5">
         <div className="mx-auto max-w-[680px]">
-          <div className="rounded-[14px] border border-line-strong bg-card-soft p-[13px]">
+          <div className="border-[3px] border-line bg-card p-3 shadow-hard" style={{ borderRadius: 8 }}>
             <textarea
               rows={1}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Envoyer un message à l'agent…"
-              className="min-h-[42px] w-full resize-none bg-transparent text-sm leading-relaxed text-ink outline-none placeholder:text-muted-3"
+              className="min-h-[40px] w-full resize-none bg-transparent text-[14px] leading-relaxed text-ink outline-none placeholder:text-muted-3"
             />
             <div className="mt-1.5 flex items-center gap-2">
-              <button className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-line-strong text-muted-2">
+              <button className="flex h-8 w-8 items-center justify-center border-2 border-line text-ink-2">
                 <ClipIcon />
               </button>
-              <div className="flex h-[30px] items-center gap-1.5 rounded-lg border border-line-strong px-2.5 font-mono text-[11.5px] text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              <div className="flex h-8 items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2">
+                <span className="h-2 w-2 border-2 border-line bg-accent" />
                 {selectedModel || "—"}
               </div>
               <div className="flex-1" />
-              <span className="font-mono text-[10.5px] text-muted-4">
-                ⏎ envoyer · ⇧⏎ ligne
-              </span>
+              <span className="text-[13px] text-muted-3">⏎ envoyer · ⇧⏎ ligne</span>
               <button
                 onClick={submit}
                 disabled={streaming || !draft.trim()}
-                className="flex h-[34px] items-center gap-1.5 rounded-[9px] bg-accent px-4 text-[13px] font-bold text-[#1f1b16] disabled:opacity-50"
+                className="flex h-[38px] items-center gap-1.5 border-[3px] border-line bg-card-deep px-4 text-[14px] text-white shadow-hard-accent disabled:opacity-40"
+                style={{ borderRadius: 7 }}
               >
-                {streaming ? "…" : "Envoyer"}
+                {streaming ? "…" : "ENVOYER"}
                 {!streaming && <SendIcon />}
               </button>
             </div>
@@ -164,11 +160,13 @@ function Bubble({
   pending,
   pendingStatus,
   notice,
+  thinking,
 }: {
   msg: Message;
   pending?: boolean;
   pendingStatus?: string;
   notice?: string | null;
+  thinking?: string;
 }) {
   const time = new Date(msg.created_at * 1000).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
@@ -178,15 +176,15 @@ function Bubble({
   if (msg.role === "user") {
     return (
       <div className="flex gap-3">
-        <div className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] bg-[#3a332b] text-xs font-semibold text-ink-2">
+        <div className="font-pixel flex h-[34px] w-[34px] flex-none items-center justify-center border-[3px] border-line bg-card-deep text-[11px] text-white">
           M
         </div>
         <div className="flex-1">
           <div className="mb-1.5 flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold">Vous</span>
-            <span className="font-mono text-[10.5px] text-muted-4">{time}</span>
+            <span className="text-[14px] text-ink">VOUS</span>
+            <span className="text-[13px] text-muted-3">{time}</span>
           </div>
-          <div className="rounded-xl rounded-tl-[4px] border border-line bg-card-soft px-[15px] py-3 text-sm leading-relaxed text-ink-2 whitespace-pre-wrap">
+          <div className="border-[3px] border-line bg-card px-[14px] py-3 text-[14px] leading-snug text-ink shadow-hard-sm whitespace-pre-wrap" style={{ borderRadius: 7 }}>
             {msg.content}
           </div>
         </div>
@@ -196,30 +194,31 @@ function Bubble({
 
   return (
     <div className="flex gap-3">
-      <div className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] bg-accent-grad">
-        <div
-          className="bg-base"
-          style={{ width: 8, height: 8, borderRadius: 2, transform: "rotate(45deg)" }}
-        />
+      <div className="flex h-[34px] w-[34px] flex-none items-center justify-center border-[3px] border-line bg-accent">
+        <div style={{ width: 10, height: 10, background: "#fff" }} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-baseline gap-2">
-          <span className="text-[13px] font-semibold">Agent</span>
-          <span className="font-mono text-[10.5px] text-muted-4">
+          <span className="text-[14px] text-ink">LOKI</span>
+          <span className="text-[13px] text-muted-3">
             {msg.model ? `${msg.model} · ` : ""}
             {time}
           </span>
         </div>
+        <ReasoningPanel
+          text={thinking ?? msg.meta?.thinking ?? ""}
+          live={!!pending}
+        />
         {(msg.meta?.tools ?? []).map((t: ToolCall, i: number) => (
           <ToolCard key={i} call={t} />
         ))}
         {notice && (
-          <div className="mb-2 rounded-lg border border-[#4a3a2a] bg-card-deep px-3 py-2 text-xs text-warn">
+          <div className="mb-2 border-[3px] border-line bg-card px-3 py-2 text-[13px] text-warn">
             {notice}
           </div>
         )}
         {(msg.content || pending) && (
-          <div className="text-sm leading-[1.65] text-ink-2">
+          <div className="text-[14px] leading-[1.5] text-ink-2">
             {msg.content ? (
               <MessageContent text={msg.content} />
             ) : (
@@ -231,9 +230,9 @@ function Bubble({
           </div>
         )}
         {!pending && msg.meta?.stats && (
-          <div className="mt-2 flex items-center gap-2.5 font-mono text-[10.5px] text-muted-4">
+          <div className="mt-2 flex items-center gap-2.5 text-[12px] text-muted-3">
             {msg.meta.stats.tokens_per_sec != null && (
-              <span className="text-muted-3">
+              <span className="text-accent-2">
                 {msg.meta.stats.tokens_per_sec} tok/s
               </span>
             )}
@@ -248,6 +247,56 @@ function Bubble({
   );
 }
 
+/** Panneau « Raisonnement » : repliable et redimensionnable (poignée en bas). */
+function ReasoningPanel({ text, live }: { text: string; live: boolean }) {
+  const [open, setOpen] = useState(live);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (live) setOpen(true);
+  }, [live]);
+
+  useEffect(() => {
+    if (open && live) {
+      bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
+    }
+  }, [text, open, live]);
+
+  if (!text) return null;
+
+  return (
+    <div className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        <ChevronDown
+          size={12}
+          className={`text-ink-2 transition-transform ${open ? "" : "-rotate-90"}`}
+        />
+        <span className="text-[13px] font-medium text-ink">Raisonnement</span>
+        {live && (
+          <span className="flex items-center gap-1 text-[12px] text-accent">
+            <span className="h-2 w-2 animate-pulse border-2 border-line bg-accent" />
+            en cours…
+          </span>
+        )}
+        <span className="ml-auto text-[12px] text-muted-3">
+          {open ? "réduire" : "afficher"}
+        </span>
+      </button>
+      {open && (
+        <div
+          ref={bodyRef}
+          className="scr max-h-[200px] min-h-[60px] resize-y overflow-auto whitespace-pre-wrap border-t-2 border-line-soft bg-card-deep px-3 py-2 text-[12.5px] leading-relaxed text-on-dark-2"
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ShellConfirm({
   command,
   onApprove,
@@ -258,27 +307,27 @@ function ShellConfirm({
   onReject: () => void;
 }) {
   return (
-    <div className="ml-[43px] overflow-hidden rounded-[11px] border border-[#4a3a2a] bg-card-deep">
-      <div className="flex items-center gap-2 border-b border-line-soft px-[13px] py-2.5">
-        <span className="font-mono text-[12.5px] font-semibold text-warn">
-          run_shell
-        </span>
-        <span className="text-xs text-muted-2">· commande sensible à valider</span>
+    <div className="ml-[46px] overflow-hidden border-[3px] border-line bg-card shadow-hard" style={{ borderRadius: 7 }}>
+      <div className="flex items-center gap-2 border-b-2 border-line px-3 py-2.5">
+        <span className="text-[14px] text-accent">run_shell</span>
+        <span className="text-[13px] text-muted-2">· commande sensible à valider</span>
       </div>
-      <div className="px-[13px] py-3">
-        <pre className="m-0 mb-3 overflow-auto whitespace-pre-wrap rounded-lg bg-sunken px-3 py-2.5 font-mono text-[12px] text-ink-2">
+      <div className="px-3 py-3">
+        <pre className="m-0 mb-3 overflow-auto whitespace-pre-wrap border-2 border-line bg-card-deep px-3 py-2.5 text-[12.5px] text-on-dark">
           $ {command}
         </pre>
         <div className="flex items-center gap-2">
           <button
             onClick={onApprove}
-            className="flex h-[30px] items-center gap-1.5 rounded-lg bg-accent px-3.5 text-[12.5px] font-bold text-[#1f1b16]"
+            className="flex h-[32px] items-center gap-1.5 border-[3px] border-line bg-card-deep px-3.5 text-[13px] text-white shadow-hard-accent"
+            style={{ borderRadius: 7 }}
           >
             Approuver &amp; exécuter
           </button>
           <button
             onClick={onReject}
-            className="flex h-[30px] items-center rounded-lg border border-line-strong px-3.5 text-[12.5px] font-semibold text-ink-3"
+            className="flex h-[32px] items-center border-[3px] border-line bg-card px-3.5 text-[13px] text-ink-2"
+            style={{ borderRadius: 7 }}
           >
             Refuser
           </button>
@@ -290,7 +339,7 @@ function ShellConfirm({
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-[25px] items-center gap-1.5 rounded-[7px] border border-line-strong bg-card-soft px-[9px] text-[11.5px] text-ink-3">
+    <div className="flex h-7 items-center gap-1.5 border-2 border-line bg-card px-2.5 text-[13px] text-ink-2">
       {children}
     </div>
   );

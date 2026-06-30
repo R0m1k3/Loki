@@ -18,29 +18,28 @@ export function PreviewPanel() {
   ];
 
   return (
-    <div className="flex w-[452px] flex-none flex-col border-l border-line-soft bg-panel">
+    <div className="flex w-[452px] flex-none flex-col border-l-[3px] border-line bg-panel">
       {/* Onglets */}
-      <div className="flex h-[42px] flex-none items-center gap-1 border-b border-line-soft px-3.5 pr-2">
-        <div className="flex gap-0.5">
-          <Tab active={tab === "preview"} onClick={() => setTab("preview")}>
-            Aperçu
-          </Tab>
-          <Tab active={tab === "code"} onClick={() => setTab("code")}>
-            Code
-          </Tab>
-          <Tab active={tab === "logs"} onClick={() => setTab("logs")}>
-            Logs
-            <span className="ml-1.5 rounded-[5px] bg-line-strong px-1.5 py-px font-mono text-[10px] text-muted">
-              {logs.length}
-            </span>
-          </Tab>
-        </div>
+      <div className="flex h-[46px] flex-none items-center gap-1.5 border-b-[3px] border-line bg-base px-3">
+        <Tab active={tab === "preview"} onClick={() => setTab("preview")}>
+          Aperçu
+        </Tab>
+        <Tab active={tab === "code"} onClick={() => setTab("code")}>
+          Code
+        </Tab>
+        <Tab active={tab === "logs"} onClick={() => setTab("logs")}>
+          Logs
+          <span className="font-pixel ml-1.5 border-2 border-line bg-accent px-1 py-0.5 text-[8px] text-white">
+            {logs.length}
+          </span>
+        </Tab>
       </div>
 
       {/* URL bar */}
-      <div className="flex flex-none items-center gap-2 px-3.5 py-[9px]">
-        <div className="flex h-[30px] flex-1 items-center gap-2 rounded-lg border border-line bg-sunken px-[11px]">
-          <span className="truncate font-mono text-[11.5px] text-muted-3">
+      <div className="flex flex-none items-center gap-2 px-3 py-2.5">
+        <div className="flex h-8 flex-1 items-center gap-2 border-[3px] border-line bg-card px-[11px]">
+          <span className="text-[13px]">🔒</span>
+          <span className="truncate text-[13px] text-muted-2">
             {previewPath ? `workspace/${previewPath}` : "workspace/"}
           </span>
         </div>
@@ -48,25 +47,23 @@ export function PreviewPanel() {
 
       {/* Onglet Logs (fond sombre) */}
       {tab === "logs" ? (
-        <div className="scr mx-3.5 mb-3.5 flex-1 overflow-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[11.5px]">
+        <div className="scr mx-3 mb-3 flex-1 overflow-auto border-[3px] border-line bg-card-deep p-3 text-[12.5px]">
           {logs.length === 0 ? (
-            <div className="py-10 text-center text-muted-3">
+            <div className="py-10 text-center text-on-dark-3">
               Aucune activité d'outil pour cette session.
             </div>
           ) : (
             logs.map((l, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 border-b border-line-soft py-[7px] last:border-0"
+                className="flex items-center gap-2 border-b-2 border-chrome-2 py-[7px] last:border-0"
               >
                 <span
                   className={
-                    l.status === "error"
-                      ? "text-warn"
-                      : l.status === "pending"
-                      ? "text-warn"
+                    l.status === "error" || l.status === "pending"
+                      ? "text-accent"
                       : l.status === "running"
-                      ? "text-muted"
+                      ? "text-on-dark-2"
                       : "text-ok"
                   }
                 >
@@ -78,42 +75,42 @@ export function PreviewPanel() {
                     ? "…"
                     : "✓"}
                 </span>
-                <span className="text-ink-2">{l.name}</span>
-                <span className="flex-1 truncate text-muted-3">
+                <span className="text-on-dark">{l.name}</span>
+                <span className="flex-1 truncate text-on-dark-3">
                   {(l.args?.path as string) ??
                     (l.args?.query as string) ??
                     (l.args?.command as string) ??
                     ""}
                 </span>
-                <span className="text-muted-3">{l.summary}</span>
+                <span className="text-on-dark-3">{l.summary}</span>
               </div>
             ))
           )}
         </div>
       ) : (
         /* Viewport Aperçu / Code (fond clair) */
-        <div className="scr mx-3.5 mb-3.5 flex-1 overflow-auto rounded-xl border border-line bg-[#faf6ef]">
+        <div className="scr mx-3 mb-3 flex-1 overflow-auto border-[3px] border-line bg-[#faf6ef] shadow-hard">
           {!previewPath ? (
-          <Empty>
-            L'aperçu s'affichera ici dès que l'agent générera un fichier (clique
-            aussi un fichier à gauche).
-          </Empty>
-        ) : tab === "code" ? (
-          <pre className="m-0 whitespace-pre-wrap p-4 font-mono text-[11.5px] leading-relaxed text-[#2a2018]">
-            {previewContent}
-          </pre>
-        ) : isHtml ? (
-          <iframe
-            title="aperçu"
-            srcDoc={previewContent}
-            className="h-full w-full border-0 bg-white"
-            // allow-scripts : sans ça, le JS de la page générée ne s'exécute pas
-            // (animations, canvas…). On garde une origine opaque (pas
-            // d'allow-same-origin) pour que le script ne puisse pas atteindre Loki.
-            sandbox="allow-scripts"
-          />
+            <Empty>
+              L'aperçu s'affichera ici dès que l'agent générera un fichier (clique
+              aussi un fichier à gauche).
+            </Empty>
+          ) : tab === "code" ? (
+            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-[#2a2018]">
+              {previewContent}
+            </pre>
+          ) : isHtml ? (
+            <iframe
+              title="aperçu"
+              srcDoc={previewContent}
+              className="h-full w-full border-0 bg-white"
+              // allow-scripts : sans ça, le JS de la page générée ne s'exécute pas
+              // (animations, canvas…). On garde une origine opaque (pas
+              // d'allow-same-origin) pour que le script ne puisse pas atteindre Loki.
+              sandbox="allow-scripts"
+            />
           ) : (
-            <pre className="m-0 whitespace-pre-wrap p-4 font-mono text-[11.5px] leading-relaxed text-[#2a2018]">
+            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-[#2a2018]">
               {previewContent}
             </pre>
           )}
@@ -126,8 +123,8 @@ export function PreviewPanel() {
 function Empty({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-      <div className="font-mono text-[11px] text-[#a98b63]">[ aucun aperçu ]</div>
-      <div className="max-w-[240px] text-xs text-[#8a7a66]">{children}</div>
+      <div className="font-pixel text-[10px] text-[#a98b63]">AUCUN APERÇU</div>
+      <div className="max-w-[240px] text-[13px] text-[#8a7a66]">{children}</div>
     </div>
   );
 }
@@ -144,10 +141,8 @@ function Tab({
   return (
     <button
       onClick={onClick}
-      className={`flex h-7 items-center rounded-lg px-[13px] text-[12.5px] ${
-        active
-          ? "bg-[#252019] font-semibold text-ink"
-          : "font-medium text-muted-2"
+      className={`flex h-[30px] items-center border-[3px] border-line px-[13px] text-[13px] ${
+        active ? "bg-card-deep text-white" : "bg-card text-muted"
       }`}
     >
       {children}
