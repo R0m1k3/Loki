@@ -8,8 +8,10 @@ Flux :
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+from contextlib import suppress
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -58,14 +60,43 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         tools_meta: list[dict] = []
         error_message = ""
 
+        queue: asyncio.Queue[dict | None] = asyncio.Queue()
+
+        async def produce_events() -> None:
+            try:
+                async for event in run_agent(
+                    model,
+                    convo,
+                    options=agent_config.ollama_options(cfg),
+                    enabled_tools=agent_config.enabled_tool_names(cfg),
+                    confirm_shell=cfg.get("confirm_shell", True),
+                ):
+                    await queue.put(event)
+            except Exception as exc:
+                logger.exception("Échec inattendu du flux de chat")
+                await queue.put(
+                    {
+                        "type": "error",
+                        "message": f"Erreur interne du chat : {exc}",
+                    }
+                )
+            finally:
+                await queue.put(None)
+
+        producer = asyncio.create_task(produce_events())
         try:
-            async for ev in run_agent(
-                model,
-                convo,
-                options=agent_config.ollama_options(cfg),
-                enabled_tools=agent_config.enabled_tool_names(cfg),
-                confirm_shell=cfg.get("confirm_shell", True),
-            ):
+            while True:
+                try:
+                    ev = await asyncio.wait_for(queue.get(), timeout=15.0)
+                except TimeoutError:
+                    # Empêche OpenResty/Nginx/Cloudflare de fermer le SSE pendant
+                    # le chargement parfois long d'un modèle Ollama.
+                    yield _sse("ping", {"status": "waiting"})
+                    continue
+
+                if ev is None:
+                    break
+
                 etype = ev.pop("type")
                 if etype in (
                     "token",
@@ -82,12 +113,11 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 elif etype == "final":
                     final_content = ev["content"]
                     tools_meta = ev["tools"]
-        except Exception as exc:
-            # Après l'envoi des en-têtes SSE, une exception non gérée coupe le
-            # socket sans explication et laisse l'interface bloquée.
-            logger.exception("Échec inattendu du flux de chat")
-            error_message = f"Erreur interne du chat : {exc}"
-            yield _sse("error", {"message": error_message})
+        finally:
+            if not producer.done():
+                producer.cancel()
+            with suppress(asyncio.CancelledError):
+                await producer
 
         if final_content or tools_meta:
             db.add_message(

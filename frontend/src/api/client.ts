@@ -190,8 +190,11 @@ export async function streamChat(
       body: JSON.stringify(body),
     });
   } catch (err) {
+    const raw = err instanceof Error ? err.message : "serveur Loki injoignable";
     handlers.onError(
-      err instanceof Error ? err.message : "serveur Loki injoignable"
+      /network error|failed to fetch/i.test(raw)
+        ? "Serveur Loki injoignable. Vérifiez le reverse proxy et le conteneur."
+        : raw
     );
     return;
   }
@@ -271,8 +274,11 @@ export async function streamChat(
   } catch (err) {
     if (!failed) {
       failed = true;
+      const raw = err instanceof Error ? err.message : "connexion interrompue";
       handlers.onError(
-        err instanceof Error ? err.message : "connexion au chat interrompue"
+        /network error|failed to fetch/i.test(raw)
+          ? "Connexion interrompue pendant le chargement du modèle. Vérifiez OLLAMA_HOST et le délai du reverse proxy."
+          : raw
       );
     }
   }
