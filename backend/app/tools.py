@@ -50,14 +50,16 @@ def read_file(path: str) -> dict:
     return {"ok": True, "content": content, "summary": summary}
 
 
-def write_file(path: str, content: str) -> dict:
+def write_file(path: str, content: str, mode: str = "overwrite") -> dict:
     target = _safe_path(path)
+    if mode not in {"overwrite", "append"}:
+        raise ToolError("mode write_file invalide : utilise overwrite ou append")
     os.makedirs(os.path.dirname(target) or _workspace_root(), exist_ok=True)
     existed = os.path.isfile(target)
-    with open(target, "w", encoding="utf-8") as f:
+    with open(target, "a" if mode == "append" else "w", encoding="utf-8") as f:
         f.write(content)
     lines = len(content.splitlines())
-    verb = "modifié" if existed else "écrit"
+    verb = "complété" if mode == "append" else "modifié" if existed else "écrit"
     return {"ok": True, "summary": f"{verb} · {lines} lignes", "lines": lines}
 
 
@@ -210,7 +212,17 @@ TOOL_DEFINITIONS = [
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "Chemin relatif au workspace"},
-                    "content": {"type": "string", "description": "Contenu complet du fichier"},
+                    "content": {
+                        "type": "string",
+                        "description": "Contenu complet ou morceau court du fichier",
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["overwrite", "append"],
+                        "description": (
+                            "overwrite pour le premier morceau, append pour les suivants"
+                        ),
+                    },
                 },
                 "required": ["path", "content"],
             },

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { pullModel } from "../api/client";
-import type { AgentConfig, AutoTuneResult } from "../api/client";
+import type { AgentConfig } from "../api/client";
 import { DownloadIcon, RefreshIcon } from "../components/Icon";
 
 const TOOL_DESC: Record<string, string> = {
@@ -25,9 +25,6 @@ export function SettingsView() {
     availableTools,
     refreshConfig,
     updateConfig,
-    tuning,
-    tuneResult,
-    runAutoTune,
   } = useStore();
 
   // Brouillon local édité, synchronisé depuis la config serveur.
@@ -36,7 +33,7 @@ export function SettingsView() {
 
   useEffect(() => {
     refreshConfig();
-  }, [refreshConfig]);
+  }, [refreshConfig, selectedModel]);
   useEffect(() => {
     if (config) setDraft(config);
   }, [config]);
@@ -224,24 +221,11 @@ export function SettingsView() {
               {/* Génération + Outils */}
               <div className="flex flex-col gap-5">
                 <div className="rounded-card border border-line bg-card p-[18px]">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="text-sm font-bold">Génération</div>
-                    <button
-                      onClick={runAutoTune}
-                      disabled={tuning || !selectedModel}
-                      className="flex h-[26px] items-center gap-1.5 rounded-[7px] border border-[rgba(240,161,92,.4)] bg-[rgba(240,161,92,.10)] px-2.5 text-[11.5px] font-semibold text-accent disabled:opacity-40"
-                      title="Détecte le GPU et le modèle, puis optimise le contexte et les jetons"
-                    >
-                      {tuning ? (
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-accent/40 border-t-accent" />
-                      ) : (
-                        <span>⚡</span>
-                      )}
-                      {tuning ? "Détection…" : "Réglage auto"}
-                    </button>
+                  <div className="mb-1 text-sm font-bold">Génération</div>
+                  <div className="mb-4 text-[11.5px] text-muted-2">
+                    Profil enregistré pour <b>{selectedModel || "ce modèle"}</b>.
+                    Le contexte détermine directement la taille du cache KV.
                   </div>
-
-                  {tuneResult && <TuneBanner result={tuneResult} />}
 
                   <Slider
                     label="Température"
@@ -280,17 +264,38 @@ export function SettingsView() {
                     onChange={(v) => set("max_tokens", Math.round(v))}
                   />
                   <Slider
-                    label="Contexte (num_ctx)"
+                    label="Cache KV / contexte"
                     value={draft.num_ctx}
-                    min={0}
+                    min={2048}
                     max={32768}
                     step={1024}
-                    fmt={(v) =>
-                      v === 0 ? "auto" : v >= 1024 ? `${v / 1024}K` : String(v)
-                    }
+                    fmt={(v) => `${Math.round(v / 1024)}K`}
                     onChange={(v) => set("num_ctx", Math.round(v))}
+                  />
+                  <Slider
+                    label="Couches GPU"
+                    value={draft.num_gpu}
+                    min={-1}
+                    max={120}
+                    step={1}
+                    fmt={(v) => (v < 0 ? "auto" : String(Math.round(v)))}
+                    onChange={(v) => set("num_gpu", Math.round(v))}
+                  />
+                  <Slider
+                    label="Batch"
+                    value={draft.num_batch}
+                    min={64}
+                    max={1024}
+                    step={64}
+                    fmt={(v) => String(Math.round(v))}
+                    onChange={(v) => set("num_batch", Math.round(v))}
                     last
                   />
+                  <div className="mt-3 rounded-lg border border-line-soft bg-base px-3 py-2 text-[11px] leading-relaxed text-muted-2">
+                    La précision KV (<code>f16</code>/<code>q8_0</code>) est un
+                    réglage global du serveur Ollama et nécessite son redémarrage.
+                    Les valeurs ci-dessus sont, elles, propres à chaque modèle.
+                  </div>
                 </div>
 
                 <div className="rounded-card border border-line bg-card p-[18px]">
@@ -380,51 +385,6 @@ export function SettingsView() {
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function TuneBanner({ result }: { result: AutoTuneResult }) {
-  const { gpu, model_profile, recommended, rationale } = result.detection;
-  const place = result.placement;
-
-  const placeLabel =
-    place.loaded && place.where
-      ? place.where === "gpu"
-        ? `chargé GPU (${place.gpu_percent}%)`
-        : place.where === "cpu"
-        ? "chargé CPU ⚠️"
-        : `mixte GPU ${place.gpu_percent}%`
-      : "non chargé";
-  const placeColor =
-    place.where === "gpu" ? "text-ok" : place.where === "cpu" ? "text-warn" : "text-muted";
-
-  return (
-    <div className="mb-4 rounded-[10px] border border-[rgba(240,161,92,.35)] bg-[rgba(240,161,92,.06)] p-3 text-[11.5px]">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="font-semibold text-accent">⚡ Optimisé</span>
-        <span className={`font-mono ${placeColor}`}>{placeLabel}</span>
-      </div>
-      <div className="font-mono text-muted">
-        {gpu.available
-          ? `${gpu.name} · ${(gpu.vram_total_mb / 1024).toFixed(1)} Go VRAM`
-          : "Aucun GPU détecté"}
-        {model_profile.context_length
-          ? ` · ctx modèle ${Math.round(model_profile.context_length / 1024)}K`
-          : ""}
-      </div>
-      <div className="mt-1 text-muted-2">
-        → contexte <b className="text-ink-2">{recommended.num_ctx}</b> · jetons max{" "}
-        <b className="text-ink-2">{recommended.max_tokens}</b>
-      </div>
-      {rationale && <div className="mt-1 text-muted-3">{rationale}</div>}
-      {!gpu.available && (
-        <div className="mt-1.5 text-muted-3">
-          GPU non détecté dans le conteneur. Si Ollama tourne sur une autre
-          machine, déclare la VRAM via <code>GPU_VRAM_MB</code> (ex. 12000) dans
-          le compose pour un réglage précis.
-        </div>
-      )}
     </div>
   );
 }

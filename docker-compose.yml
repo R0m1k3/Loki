@@ -7,7 +7,7 @@ services:
       - "${PORT:-8717}:${PORT:-8717}"
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama3.1:8b}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gemma4:12b}
       - WORKSPACE_DIR=/workspace
       - DATA_DIR=/data
       - PORT=${PORT:-8717}
@@ -30,6 +30,11 @@ services:
     image: ollama/ollama:latest
     container_name: loki-ollama
     profiles: ["ollama"]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=q8_0
     ports:
       - "11434:11434"
     volumes:

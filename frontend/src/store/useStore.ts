@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import {
-  autoTune,
   createSession,
   deleteSession,
   getConfig,
@@ -14,7 +13,6 @@ import {
   saveConfig,
   streamChat,
   type AgentConfig,
-  type AutoTuneResult,
   type FileNode,
   type Message,
   type OllamaModel,
@@ -46,10 +44,6 @@ interface LokiState {
   availableTools: string[];
   refreshConfig: () => Promise<void>;
   updateConfig: (patch: Partial<AgentConfig>) => Promise<void>;
-
-  tuning: boolean;
-  tuneResult: AutoTuneResult | null;
-  runAutoTune: () => Promise<void>;
 
   pendingShell: string | null; // commande shell en attente de validation
   approveShell: () => Promise<void>;
@@ -115,28 +109,15 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   refreshConfig: async () => {
-    const { config, available_tools } = await getConfig();
+    const { config, available_tools } = await getConfig(
+      get().selectedModel || undefined
+    );
     set({ config, availableTools: available_tools });
   },
 
   updateConfig: async (patch) => {
-    const config = await saveConfig(patch);
+    const config = await saveConfig(patch, get().selectedModel || undefined);
     set({ config });
-  },
-
-  tuning: false,
-  tuneResult: null,
-
-  runAutoTune: async () => {
-    const model = get().selectedModel;
-    if (!model || get().tuning) return;
-    set({ tuning: true });
-    try {
-      const result = await autoTune(model, true);
-      set({ tuneResult: result, config: result.config });
-    } finally {
-      set({ tuning: false });
-    }
   },
 
   openPreview: async (path) => {
@@ -144,7 +125,10 @@ export const useStore = create<LokiState>((set, get) => ({
     set({ previewPath: path, previewContent: content });
   },
 
-  setSelectedModel: (name) => set({ selectedModel: name }),
+  setSelectedModel: (name) => {
+    set({ selectedModel: name });
+    void get().refreshConfig();
+  },
 
   refreshFiles: async () => {
     try {
@@ -175,6 +159,7 @@ export const useStore = create<LokiState>((set, get) => ({
           ? def
           : models[0]?.name ?? "";
       set({ models, selectedModel });
+      await get().refreshConfig();
     } finally {
       set({ loadingModels: false });
     }

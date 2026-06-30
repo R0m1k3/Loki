@@ -42,7 +42,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         raise HTTPException(404, "session introuvable")
 
     model = req.model or session.get("model") or settings.default_model
-    cfg = agent_config.get_config()
+    cfg = agent_config.get_config(model)
 
     # Premier message : titre la session avec un extrait.
     if not db.list_messages(req.session_id):

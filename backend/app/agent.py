@@ -22,12 +22,22 @@ from .ollama_client import OllamaError, ollama
 from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 
 MAX_ITERATIONS = 6
+MAX_TOOL_REPAIR_ATTEMPTS = 2
 
 
 def _tools_not_supported(exc: OllamaError) -> bool:
     """Détecte l'erreur Ollama renvoyée par un modèle sans function calling."""
     message = str(exc).lower()
     return "does not support tools" in message or "does not support tool" in message
+
+
+def _invalid_tool_arguments(exc: OllamaError) -> bool:
+    message = str(exc).lower()
+    return (
+        "invalid tool call arguments" in message
+        or "unexpected end of json" in message
+        or "failed to parse tool" in message
+    )
 
 
 def _parse_args(raw) -> dict:
@@ -62,6 +72,8 @@ async def run_agent(
     text_parts: list[str] = []
     active_tools = tools
     tool_fallback_used = False
+    tool_repair_attempts = 0
+    request_options = dict(options or {})
 
     try:
         for _ in range(MAX_ITERATIONS):
@@ -75,7 +87,11 @@ async def run_agent(
             while True:
                 try:
                     async for chunk in ollama.chat(
-                        model, convo, tools=active_tools, options=options, stream=True
+                        model,
+                        convo,
+                        tools=active_tools,
+                        options=request_options,
+                        stream=True,
                     ):
                         msg = chunk.get("message", {})
                         token = msg.get("content", "")
@@ -94,6 +110,38 @@ async def run_agent(
                             break
                     break
                 except OllamaError as exc:
+                    if (
+                        active_tools
+                        and tool_repair_attempts < MAX_TOOL_REPAIR_ATTEMPTS
+                        and not content_buf
+                        and not tool_calls
+                        and _invalid_tool_arguments(exc)
+                    ):
+                        tool_repair_attempts += 1
+                        request_options["num_predict"] = max(
+                            int(request_options.get("num_predict", 0)), 4096
+                        )
+                        thinking_buf = ""
+                        convo.append(
+                            {
+                                "role": "system",
+                                "content": (
+                                    "L'appel d'outil précédent contenait un JSON "
+                                    "tronqué. Réessaie immédiatement avec des arguments "
+                                    "JSON valides. Pour un fichier long, utilise write_file "
+                                    "en plusieurs appels : overwrite puis append, avec des "
+                                    "morceaux courts et complets."
+                                ),
+                            }
+                        )
+                        yield {
+                            "type": "notice",
+                            "message": (
+                                "Appel d'outil tronqué : nouvelle tentative "
+                                f"{tool_repair_attempts}/{MAX_TOOL_REPAIR_ATTEMPTS}."
+                            ),
+                        }
+                        continue
                     if (
                         active_tools
                         and not tool_fallback_used
@@ -188,7 +236,9 @@ async def run_agent(
             if awaiting_confirmation:
                 # Laisse le modèle conclure son tour (message d'attente).
                 final_chunk = ""
-                async for chunk in ollama.chat(model, convo, options=options, stream=True):
+                async for chunk in ollama.chat(
+                    model, convo, options=request_options, stream=True
+                ):
                     tok = chunk.get("message", {}).get("content", "")
                     if tok:
                         final_chunk += tok

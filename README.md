@@ -87,7 +87,7 @@ npm run dev        # http://localhost:5173
 | Variable        | Défaut                              | Rôle                          |
 | --------------- | ----------------------------------- | ----------------------------- |
 | `OLLAMA_HOST`   | `http://host.docker.internal:11434` | URL de l'instance Ollama      |
-| `DEFAULT_MODEL` | `llama3.1:8b`                        | Modèle sélectionné au démarrage |
+| `DEFAULT_MODEL` | `gemma4:12b`                         | Modèle sélectionné au démarrage |
 | `WORKSPACE_DIR` | `/workspace`                        | Dossier de travail de l'agent |
 | `DATA_DIR`      | `/data`                             | Base SQLite (sessions + config) |
 | `PORT`          | `8717`                              | Port de l'application (dedans = dehors) |
@@ -96,8 +96,7 @@ npm run dev        # http://localhost:5173
 ## Utilisation
 
 1. Vérifie la pastille **Ollama** (verte = connecté) en haut à droite, et choisis
-   un modèle qui supporte le *function calling* (ex. `llama3.1:8b`,
-   `qwen2.5-coder`).
+   un modèle qui supporte le *function calling* (profil fourni : `gemma4:12b`).
 2. Décris une tâche dans le tchat, p. ex. *« Crée une landing page pour un café
    nommé Café Lumière, avec menu et horaires »*.
 3. L'agent lit/écrit des fichiers dans le **workspace** ; chaque appel d'outil
@@ -116,25 +115,18 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
-## Auto-réglage GPU (« Réglage auto »)
+## Profil GPU fourni
 
-Dans **Configuration → Génération**, le bouton **⚡ Réglage auto** :
-1. détecte le GPU (VRAM) via `nvidia-smi`/`rocm-smi`, ou la valeur déclarée
-   `GPU_VRAM_MB` ;
-2. lit les métadonnées du modèle sélectionné via Ollama (contexte max,
-   architecture, taille, quantization) ;
-3. calcule la **fenêtre de contexte (`num_ctx`)** la plus grande qui tient en
-   VRAM (estimation du cache KV) et un nombre de **jetons max** cohérent, puis
-   les applique ;
-4. vérifie le **placement réel** du modèle via `/api/ps` d'Ollama (GPU / CPU).
+Loki est préconfiguré pour une **RTX 3060 12 Go** avec `gemma4:12b` en Q4 :
+contexte 8192, sortie 4096 jetons, batch 256, GPU principal 0 et les 49 couches
+du modèle sur le GPU. Les paramètres de génération et de cache/contexte sont
+enregistrés séparément pour chaque modèle.
 
-> **Ollama distant** : si Ollama tourne sur une autre machine que Loki, la
-> détection `nvidia-smi` ne voit pas ce GPU. Déclare alors la VRAM avec
-> `GPU_VRAM_MB` (ex. `12000` pour une carte 12 Go) pour un réglage précis.
->
-> **Pourquoi c'est utile** : un `num_ctx` trop grand fait déborder le modèle sur
-> le CPU (lent). En l'ajustant à ta VRAM, le modèle reste sur le GPU. Laisse
-> `num_ctx = 0` (auto) pour utiliser le défaut du modèle.
+La quantification du cache KV reste globale dans Ollama. Pour économiser environ
+la moitié de sa VRAM, démarre Ollama avec `OLLAMA_FLASH_ATTENTION=1` et
+`OLLAMA_KV_CACHE_TYPE=q8_0`. Un redémarrage d'Ollama est requis. Le conteneur
+doit également exposer le GPU (`--gpus=all`) ; Loki ne peut pas contourner une
+configuration Docker sans accès CUDA.
 
 ## Sécurité
 

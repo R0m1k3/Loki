@@ -8,12 +8,17 @@ from __future__ import annotations
 from . import db
 
 CONFIG_KEY = "agent"
+MODEL_PROFILES_KEY = "model_profiles"
+PROFILE_STATE_KEY = "model_profiles_state"
+PROFILE_VERSION = 3
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
     "d'outils pour lire, écrire et lister des fichiers dans le workspace. "
     "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
-    "concise en français. Après avoir écrit un fichier, propose un aperçu."
+    "concise en français. Pour un fichier long, appelle write_file en plusieurs "
+    "morceaux (overwrite puis append) afin de toujours produire un JSON valide. "
+    "Après avoir écrit un fichier, propose un aperçu."
 )
 
 # Outils disponibles. Les sensibles (web_search, run_shell) sont désactivés
@@ -28,24 +33,73 @@ DEFAULT_TOOL_STATE = {
     "run_shell": False,
 }
 
-DEFAULT_CONFIG: dict = {
-    "system_prompt": DEFAULT_SYSTEM_PROMPT,
+GENERATION_FIELDS = {
+    "temperature",
+    "top_p",
+    "top_k",
+    "max_tokens",
+    "num_ctx",
+    "num_gpu",
+    "num_batch",
+}
+
+DEFAULT_GENERATION: dict = {
     "temperature": 0.7,
     "top_p": 0.9,
     "top_k": 40,
     "max_tokens": 2048,
-    # Fenêtre de contexte envoyée à Ollama (0 = laisser le défaut du modèle).
-    "num_ctx": 0,
+    "num_ctx": 4096,
+    "num_gpu": -1,
+    "num_batch": 256,
+}
+
+RTX_3060_GEMMA4_PROFILE: dict = {
+    **DEFAULT_GENERATION,
+    "max_tokens": 4096,
+    "num_ctx": 8192,
+    "num_gpu": 49,
+}
+
+DEFAULT_CONFIG: dict = {
+    "system_prompt": DEFAULT_SYSTEM_PROMPT,
+    **DEFAULT_GENERATION,
     "tools": dict(DEFAULT_TOOL_STATE),
     # Demander une validation utilisateur avant toute commande shell.
     "confirm_shell": True,
 }
 
 
-def get_config() -> dict:
-    """Config courante = défauts fusionnés avec le stockage."""
+def _default_generation(model: str | None) -> dict:
+    if model and model.split(":", 1)[0].lower() == "gemma4":
+        return dict(RTX_3060_GEMMA4_PROFILE)
+    return dict(DEFAULT_GENERATION)
+
+
+def _migrate_profiles() -> None:
+    state = db.get_config_value(PROFILE_STATE_KEY) or {}
+    if state.get("version", 0) >= PROFILE_VERSION:
+        return
+    profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
+    gemma_profile = {
+        **RTX_3060_GEMMA4_PROFILE,
+        **profiles.get("gemma4:12b", {}),
+    }
+    if gemma_profile.get("max_tokens", 0) <= 2048:
+        gemma_profile["max_tokens"] = 4096
+    profiles["gemma4:12b"] = gemma_profile
+    db.set_config_value(MODEL_PROFILES_KEY, profiles)
+    db.set_config_value(PROFILE_STATE_KEY, {"version": PROFILE_VERSION})
+
+
+def get_config(model: str | None = None) -> dict:
+    """Configuration globale complétée par le profil du modèle demandé."""
+    _migrate_profiles()
     stored = db.get_config_value(CONFIG_KEY) or {}
-    cfg = {**DEFAULT_CONFIG, **stored}
+    global_stored = {k: v for k, v in stored.items() if k not in GENERATION_FIELDS}
+    cfg = {**DEFAULT_CONFIG, **global_stored}
+    if model:
+        profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
+        cfg.update({**_default_generation(model), **profiles.get(model, {})})
     cfg["tools"] = {
         name: bool(stored.get("tools", {}).get(name, DEFAULT_TOOL_STATE[name]))
         for name in AVAILABLE_TOOLS
@@ -53,9 +107,10 @@ def get_config() -> dict:
     return cfg
 
 
-def save_config(patch: dict) -> dict:
-    """Applique une mise à jour partielle et renvoie la config complète."""
-    cfg = {**get_config(), **{k: v for k, v in patch.items() if v is not None}}
+def save_config(patch: dict, model: str | None = None) -> dict:
+    """Sauvegarde le comportement global et la génération par modèle."""
+    clean = {k: v for k, v in patch.items() if v is not None}
+    cfg = {**get_config(model), **clean}
     if "tools" in patch and patch["tools"]:
         cfg["tools"] = {
             name: bool(
@@ -65,8 +120,14 @@ def save_config(patch: dict) -> dict:
             )
             for name in AVAILABLE_TOOLS
         }
-    db.set_config_value(CONFIG_KEY, cfg)
-    return get_config()
+    global_cfg = {k: v for k, v in cfg.items() if k not in GENERATION_FIELDS}
+    db.set_config_value(CONFIG_KEY, global_cfg)
+
+    if model:
+        profiles = db.get_config_value(MODEL_PROFILES_KEY) or {}
+        profiles[model] = {field: cfg[field] for field in GENERATION_FIELDS}
+        db.set_config_value(MODEL_PROFILES_KEY, profiles)
+    return get_config(model)
 
 
 def ollama_options(cfg: dict) -> dict:
@@ -76,6 +137,9 @@ def ollama_options(cfg: dict) -> dict:
         "top_p": cfg["top_p"],
         "top_k": cfg["top_k"],
         "num_predict": cfg["max_tokens"],
+        "num_gpu": cfg["num_gpu"],
+        "main_gpu": 0,
+        "num_batch": cfg["num_batch"],
     }
     # num_ctx n'est envoyé que s'il est défini (> 0), sinon défaut du modèle.
     if cfg.get("num_ctx"):
