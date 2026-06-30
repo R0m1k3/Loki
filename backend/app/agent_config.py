@@ -10,7 +10,7 @@ from . import db
 CONFIG_KEY = "agent"
 MODEL_PROFILES_KEY = "model_profiles"
 PROFILE_STATE_KEY = "model_profiles_state"
-PROFILE_VERSION = 3
+PROFILE_VERSION = 4
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
@@ -57,7 +57,10 @@ RTX_3060_GEMMA4_PROFILE: dict = {
     **DEFAULT_GENERATION,
     "max_tokens": 4096,
     "num_ctx": 8192,
-    "num_gpu": 49,
+    # num_gpu = -1 : laisse Ollama placer le plus de couches possible sur le GPU
+    # (auto-fit, comme `ollama run`). Forcer un nombre de couches qui ne tient pas
+    # en VRAM fait basculer toute l'inférence sur le CPU.
+    "num_gpu": -1,
 }
 
 DEFAULT_CONFIG: dict = {
@@ -87,6 +90,12 @@ def _migrate_profiles() -> None:
     if gemma_profile.get("max_tokens", 0) <= 2048:
         gemma_profile["max_tokens"] = 4096
     profiles["gemma4:12b"] = gemma_profile
+    # v4 : un ancien profil pouvait forcer num_gpu sur un nombre de couches codé
+    # en dur (ex. 49), ce qui basculait l'inférence sur le CPU quand ça ne tenait
+    # pas en VRAM. On repasse en auto (-1) pour laisser Ollama placer les couches.
+    for prof in profiles.values():
+        if prof.get("num_gpu", -1) is not None and prof.get("num_gpu", -1) > 0:
+            prof["num_gpu"] = -1
     db.set_config_value(MODEL_PROFILES_KEY, profiles)
     db.set_config_value(PROFILE_STATE_KEY, {"version": PROFILE_VERSION})
 
@@ -137,10 +146,14 @@ def ollama_options(cfg: dict) -> dict:
         "top_p": cfg["top_p"],
         "top_k": cfg["top_k"],
         "num_predict": cfg["max_tokens"],
-        "num_gpu": cfg["num_gpu"],
-        "main_gpu": 0,
         "num_batch": cfg["num_batch"],
     }
+    # num_gpu n'est transmis que si l'utilisateur force explicitement un nombre
+    # de couches (≥ 0). En -1 (défaut), on laisse Ollama auto-ajuster l'offload
+    # GPU comme `ollama run` ; lui imposer une valeur peut le forcer sur le CPU.
+    if cfg.get("num_gpu", -1) >= 0:
+        opts["num_gpu"] = cfg["num_gpu"]
+        opts["main_gpu"] = 0
     # num_ctx n'est envoyé que s'il est défini (> 0), sinon défaut du modèle.
     if cfg.get("num_ctx"):
         opts["num_ctx"] = cfg["num_ctx"]

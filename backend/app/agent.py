@@ -122,9 +122,14 @@ async def run_agent(
                             int(request_options.get("num_predict", 0)), 4096
                         )
                         thinking_buf = ""
+                        # NB : on réinjecte ce rappel en `user`, pas en `system`.
+                        # Beaucoup de templates (Gemma, Mistral…) lèvent
+                        # « System message must be at the beginning » dès qu'un
+                        # message system apparaît ailleurs qu'en tête, ce qui
+                        # ferait échouer toute la requête en 400.
                         convo.append(
                             {
-                                "role": "system",
+                                "role": "user",
                                 "content": (
                                     "L'appel d'outil précédent contenait un JSON "
                                     "tronqué. Réessaie immédiatement avec des arguments "
