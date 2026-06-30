@@ -23,15 +23,16 @@ services:
     image: ghcr.io/r0m1k3/loki:latest
     container_name: loki
     ports:
-      # Port d'accès Unraid (gauche). Change 8717 si déjà pris sur ton serveur.
-      - "8717:8080"
+      # Un seul numéro de port, identique dedans/dehors (évite tout décalage).
+      # Pour changer de port : modifie 8717 AUX DEUX endroits + PORT ci-dessous.
+      - "8717:8717"
     environment:
       # >>> À ADAPTER : IP de ton serveur Unraid (Ollama écoute sur :11434) <<<
       - OLLAMA_HOST=http://192.168.1.10:11434
       - DEFAULT_MODEL=llama3.1:8b
       - WORKSPACE_DIR=/workspace
       - DATA_DIR=/data
-      - PORT=8080
+      - PORT=8717
       # Optionnel : instance SearxNG pour l'outil web_search (sinon DuckDuckGo)
       - SEARX_URL=
     volumes:
@@ -40,10 +41,5 @@ services:
     extra_hosts:
       # Permet aussi OLLAMA_HOST=http://host.docker.internal:11434
       - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+    # Le HEALTHCHECK est défini dans l'image (utilise automatiquement le bon port).
     restart: unless-stopped

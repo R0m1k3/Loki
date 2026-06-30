@@ -90,8 +90,7 @@ npm run dev        # http://localhost:5173
 | `DEFAULT_MODEL` | `llama3.1:8b`                        | Modèle sélectionné au démarrage |
 | `WORKSPACE_DIR` | `/workspace`                        | Dossier de travail de l'agent |
 | `DATA_DIR`      | `/data`                             | Base SQLite (sessions + config) |
-| `HOST_PORT`     | `8717`                              | Port d'accès sur l'hôte        |
-| `PORT`          | `8080`                              | Port interne du conteneur      |
+| `PORT`          | `8717`                              | Port de l'application (dedans = dehors) |
 | `SEARX_URL`     | *(vide)*                            | Instance SearxNG pour `web_search` (sinon DuckDuckGo) |
 
 ## Utilisation
