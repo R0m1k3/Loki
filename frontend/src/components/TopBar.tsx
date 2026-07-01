@@ -5,6 +5,7 @@ import { ModelSelector } from "./ModelSelector";
 /** Barre supérieure sombre : logo, fil d'Ariane, statut Ollama, sélecteur. */
 export function TopBar() {
   const status = useStore((s) => s.status);
+  const stats = useStore((s) => s.systemStats);
   const connected = status?.connected ?? false;
 
   return (
@@ -23,6 +24,25 @@ export function TopBar() {
       </div>
 
       <div className="flex-1" />
+
+      {/* Stats système temps réel : CPU, RAM, GPU/VRAM */}
+      {stats && (
+        <div className="flex h-8 items-center gap-2.5 border-[3px] border-chrome-3 bg-chrome-2 px-[11px] text-[13px] text-on-dark">
+          <span>CPU {stats.cpu_pct.toFixed(0)}%</span>
+          <span className="text-on-dark-3">·</span>
+          <span>RAM {stats.ram_pct.toFixed(0)}%</span>
+          {stats.gpu && (
+            <>
+              <span className="text-on-dark-3">·</span>
+              <span>GPU {stats.gpu.util_pct.toFixed(0)}%</span>
+              <span className="text-on-dark-3">
+                VRAM {(stats.gpu.vram_used_mb / 1024).toFixed(1)}/
+                {(stats.gpu.vram_total_mb / 1024).toFixed(1)}G
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Statut Ollama */}
       <div

@@ -10,16 +10,22 @@ import { useStore } from "./store/useStore";
 
 export default function App() {
   const [view, setView] = useState<View>("chat");
-  const { refreshStatus, refreshModels, refreshConfig } = useStore();
+  const { refreshStatus, refreshSystemStats, refreshModels, refreshConfig } =
+    useStore();
 
-  // Au démarrage : statut Ollama + modèles + config. Poll du statut.
+  // Au démarrage : statut Ollama + modèles + config. Poll du statut et des stats système.
   useEffect(() => {
     refreshStatus();
+    refreshSystemStats();
     refreshModels();
     refreshConfig();
-    const id = setInterval(refreshStatus, 10000);
-    return () => clearInterval(id);
-  }, [refreshStatus, refreshModels, refreshConfig]);
+    const statusId = setInterval(refreshStatus, 10000);
+    const statsId = setInterval(refreshSystemStats, 2000);
+    return () => {
+      clearInterval(statusId);
+      clearInterval(statsId);
+    };
+  }, [refreshStatus, refreshSystemStats, refreshModels, refreshConfig]);
 
   return (
     <div className="flex h-full flex-col bg-base text-ink">

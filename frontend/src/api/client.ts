@@ -21,6 +21,26 @@ export async function getStatus(): Promise<OllamaStatus> {
   return res.json();
 }
 
+export interface GpuStats {
+  name: string;
+  util_pct: number;
+  vram_used_mb: number;
+  vram_total_mb: number;
+}
+
+export interface SystemStats {
+  cpu_pct: number;
+  ram_used_go: number;
+  ram_total_go: number;
+  ram_pct: number;
+  gpu: GpuStats | null;
+}
+
+export async function getSystemStats(): Promise<SystemStats> {
+  const res = await fetch("/api/system/stats");
+  return res.json();
+}
+
 export async function getModels(): Promise<{
   models: OllamaModel[];
   default: string;

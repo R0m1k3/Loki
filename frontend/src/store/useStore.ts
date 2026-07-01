@@ -6,6 +6,7 @@ import {
   getModels,
   getSession,
   getStatus,
+  getSystemStats,
   fileContent,
   listFiles,
   listSessions,
@@ -18,11 +19,13 @@ import {
   type OllamaModel,
   type OllamaStatus,
   type Session,
+  type SystemStats,
   type ToolCall,
 } from "../api/client";
 
 interface LokiState {
   status: OllamaStatus | null;
+  systemStats: SystemStats | null;
   models: OllamaModel[];
   selectedModel: string;
   loadingModels: boolean;
@@ -54,6 +57,7 @@ interface LokiState {
   openPreview: (path: string) => Promise<void>;
   setSelectedModel: (name: string) => void;
   refreshStatus: () => Promise<void>;
+  refreshSystemStats: () => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshFiles: () => Promise<void>;
 
@@ -69,6 +73,7 @@ let activeStreamController: AbortController | null = null;
 
 export const useStore = create<LokiState>((set, get) => ({
   status: null,
+  systemStats: null,
   models: [],
   selectedModel: "",
   loadingModels: false,
@@ -151,6 +156,14 @@ export const useStore = create<LokiState>((set, get) => ({
       set({ status });
     } catch {
       set({ status: { connected: false, host: "", default_model: "" } });
+    }
+  },
+
+  refreshSystemStats: async () => {
+    try {
+      set({ systemStats: await getSystemStats() });
+    } catch {
+      set({ systemStats: null });
     }
   },
 
