@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import db
+from . import coder, db
 from .config import settings
 from .routes import chat, config, files, models, sessions, shell, system
 
@@ -20,6 +20,8 @@ from .routes import chat, config, files, models, sessions, shell, system
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init_db()
+    # Workspace en dépôt git : requis pour les commits du moteur code (Aider).
+    coder.ensure_git(settings.workspace_dir)
     yield
 
 

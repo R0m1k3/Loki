@@ -1,8 +1,9 @@
-"""Route de conversation agentique : boucle d'outils + streaming SSE.
+"""Route de conversation : routage automatique agent / moteur code + SSE.
 
 Flux :
   1. on enregistre le message utilisateur ;
-  2. on lance la boucle agentique (run_agent) sur l'historique de la session ;
+  2. le routeur classe la demande : tâche de code -> moteur code (Aider),
+     sinon -> boucle agentique classique (qui peut elle-même appeler code_task) ;
   3. on relaie tokens et événements d'outils au client (SSE) ;
   4. on enregistre la réponse finale de l'assistant + le récap des outils.
 """
@@ -17,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, db
+from .. import agent_config, coder, db, router as msg_router
 from ..agent import run_agent
 from ..config import settings
 
@@ -33,6 +34,56 @@ class ChatRequest(BaseModel):
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+async def _code_stream(req: ChatRequest, model: str):
+    """Chemin « moteur code » : Aider travaille, on garde le flux SSE vivant."""
+    instruction = req.content
+    yield _sse("tool_call", {"name": "code_task", "args": {"instruction": instruction}})
+
+    task = asyncio.create_task(
+        asyncio.to_thread(coder.run_code_task, instruction, model, None)
+    )
+    # Keepalive SSE pendant le travail (peut durer plusieurs minutes).
+    while not task.done():
+        await asyncio.sleep(10)
+        if not task.done():
+            yield ": keepalive\n\n"
+    result = await task
+
+    status = "ok" if result.get("ok") else "error"
+    record = {
+        "name": "code_task",
+        "args": {"instruction": instruction},
+        "summary": result.get("summary", "terminé"),
+        "status": status,
+    }
+    tools_meta = [record]
+    yield _sse("tool_result", record)
+
+    # Cartes par fichier modifié (réutilise le rendu write_file de l'UI).
+    for f in result.get("files") or []:
+        file_rec = {
+            "name": "write_file",
+            "args": {"path": f},
+            "summary": "modifié par le moteur code",
+            "status": "ok",
+        }
+        tools_meta.append(file_rec)
+        yield _sse("tool_call", {"name": "write_file", "args": {"path": f}})
+        yield _sse("tool_result", file_rec)
+
+    text = result.get("text") or (
+        "" if result.get("ok") else f"⚠️ {result.get('summary', 'échec du moteur code')}"
+    )
+    if text:
+        yield _sse("token", {"content": text})
+
+    db.add_message(
+        req.session_id, "assistant", text, model,
+        meta={"tools": tools_meta, "engine": "code"},
+    )
+    yield _sse("done", {"content": text, "tools": tools_meta})
 
 
 @router.post("/chat")
@@ -51,11 +102,26 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     db.add_message(req.session_id, "user", req.content, None)
 
+    # Routage automatique : moteur code si la demande est une tâche de code,
+    # que l'outil est actif et qu'Aider est disponible.
+    use_code = (
+        cfg["tools"].get("code_task", True)
+        and coder.available()
+        and await msg_router.is_code_task(req.content, model)
+    )
+
     convo = [{"role": "system", "content": cfg["system_prompt"]}]
     convo += db.list_messages_for_model(req.session_id)
 
     async def event_stream():
-        yield _sse("start", {"model": model})
+        yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
+
+        # Chemin « moteur code » : Aider gère la tâche de bout en bout.
+        if use_code:
+            async for chunk in _code_stream(req, model):
+                yield chunk
+            return
+
         final_content = ""
         tools_meta: list[dict] = []
         stats_meta: dict | None = None

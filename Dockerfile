@@ -16,8 +16,8 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
     PORT=8717
 
-# curl pour le HEALTHCHECK
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# curl pour le HEALTHCHECK ; git pour le moteur code (commits Aider)
+RUN apt-get update && apt-get install -y --no-install-recommends curl git \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt ./

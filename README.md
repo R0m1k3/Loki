@@ -115,6 +115,24 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
+## Moteur code (façon Claude Code) — routage automatique
+
+Loki embarque [Aider](https://aider.chat) (Apache-2.0, version figée) comme
+**moteur code** : édition multi-fichiers fiable (formats diff/search-replace,
+efficaces même avec de petits modèles), repo map, et **commits git
+automatiques** dans le workspace.
+
+**C'est invisible** : un routeur classe chaque message.
+- Tâche de code détectée (heuristique + micro-classification LLM sur les cas
+  ambigus) → le message part au **moteur code** ; le fil affiche la carte
+  `code_task`, les fichiers modifiés et le commit.
+- Sinon → **boucle agent** classique ; et l'agent peut lui-même déléguer au
+  moteur via l'outil `code_task` quand il juge qu'il faut coder.
+
+Désactivable dans Configuration → Outils (`code_task`). Le workspace est
+auto-initialisé en dépôt git : chaque modification de code = un commit
+(historique et rollback via `git log` / `git revert` dans le workspace).
+
 ## Profil GPU fourni
 
 Loki est préconfiguré pour une **RTX 3060 12 Go** avec `gemma4:12b` en Q4 :

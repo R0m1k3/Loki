@@ -14,12 +14,14 @@ PROFILE_VERSION = 5
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
-    "d'outils pour lire, écrire et lister des fichiers dans le workspace. "
-    "Utilise-les pour accomplir les tâches concrètement, puis réponds de façon "
-    "concise en français. Quand tu appelles write_file, fournis toujours "
-    "`path` et `content`. Pour un fichier long, appelle write_file en plusieurs "
-    "morceaux (overwrite puis append) afin de toujours produire un JSON valide. "
-    "Après avoir écrit un fichier, propose un aperçu. "
+    "d'outils pour lire, écrire et lister des fichiers dans le workspace, et "
+    "d'un moteur code (code_task) pour toute création ou modification de code "
+    "multi-fichiers : privilégie code_task pour les tâches de programmation. "
+    "Utilise les outils pour accomplir les tâches concrètement, puis réponds "
+    "de façon concise en français. Quand tu appelles write_file, fournis "
+    "toujours `path` et `content`. Pour un fichier long, appelle write_file en "
+    "plusieurs morceaux (overwrite puis append) afin de toujours produire un "
+    "JSON valide. Après avoir écrit un fichier, propose un aperçu. "
     "Formate TOUJOURS tes réponses en Markdown : titres, listes, gras pour les "
     "points clés, tableaux si pertinent, et surtout des blocs de code avec le "
     "langage indiqué (```python, ```html…) pour tout extrait de code ou commande."
@@ -27,12 +29,15 @@ DEFAULT_SYSTEM_PROMPT = (
 
 # Outils disponibles. Les sensibles (web_search, run_shell) sont désactivés
 # par défaut, conformément à la maquette.
-AVAILABLE_TOOLS = ["read_file", "write_file", "list_dir", "web_search", "run_shell"]
+AVAILABLE_TOOLS = [
+    "read_file", "write_file", "list_dir", "code_task", "web_search", "run_shell",
+]
 SENSITIVE_TOOLS = {"run_shell"}
 DEFAULT_TOOL_STATE = {
     "read_file": True,
     "write_file": True,
     "list_dir": True,
+    "code_task": True,
     "web_search": False,
     "run_shell": False,
 }

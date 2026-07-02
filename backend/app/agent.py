@@ -13,11 +13,13 @@ relayés tels quels au client via SSE.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import AsyncIterator
 
 import httpx
 
+from . import coder
 from .ollama_client import OllamaError, ollama
 from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 
@@ -258,6 +260,30 @@ async def run_agent(
                         }
                     )
                     awaiting_confirmation = True
+                    continue
+
+                # code_task : délégué au moteur code (Aider), long -> thread.
+                if name == "code_task":
+                    result = await asyncio.to_thread(
+                        coder.run_code_task,
+                        args.get("instruction", ""),
+                        model,
+                        args.get("files") or [],
+                    )
+                    summary = result.get("summary", "terminé")
+                    status = "ok" if result.get("ok") else "error"
+                    record = {"name": name, "args": {"instruction": args.get("instruction", "")},
+                              "summary": summary, "status": status}
+                    collected.append(record)
+                    yield {"type": "tool_result", **record}
+                    convo.append({
+                        "role": "tool",
+                        "tool_name": name,
+                        "content": json.dumps(
+                            {k: result.get(k) for k in ("ok", "summary", "files", "text")},
+                            ensure_ascii=False,
+                        ),
+                    })
                     continue
 
                 try:

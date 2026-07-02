@@ -10,7 +10,8 @@ export function ToolCard({ call }: { call: ToolCall }) {
   const mainArg =
     (call.args?.path as string) ??
     (call.args?.query as string) ??
-    (call.args?.command as string);
+    (call.args?.command as string) ??
+    (call.args?.instruction as string);
   const argPreview =
     typeof mainArg === "string"
       ? `("${mainArg.length > 48 ? mainArg.slice(0, 48) + "…" : mainArg}")`
@@ -80,6 +81,12 @@ function ToolGlyph({ name }: { name: string }) {
     return (
       <svg {...common}>
         <path d="M4 7h6l2 2h8v9H4z" />
+      </svg>
+    );
+  if (name === "code_task")
+    return (
+      <svg {...common}>
+        <path d="m8 6-5 6 5 6M16 6l5 6-5 6" />
       </svg>
     );
   if (name === "web_search")

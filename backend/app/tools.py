@@ -244,6 +244,32 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "code_task",
+            "description": (
+                "Confier une tâche de programmation au moteur code (édition "
+                "multi-fichiers fiable, commits git). À utiliser pour créer ou "
+                "modifier du code."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "instruction": {
+                        "type": "string",
+                        "description": "La tâche de code, précise et complète",
+                    },
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Fichiers concernés (optionnel)",
+                    },
+                },
+                "required": ["instruction"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "web_search",
             "description": "Rechercher sur le web et renvoyer les meilleurs résultats.",
             "parameters": {
