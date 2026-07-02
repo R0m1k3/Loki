@@ -1,9 +1,10 @@
-fastapi==0.115.6
+# Aider fige ses dépendances partagées (fastapi, pydantic, httpx…) : il est
+# listé en premier et le reste est aligné sur ses versions pour éviter tout
+# conflit de résolution pip.
+aider-chat==0.86.2
+fastapi==0.128.8
 uvicorn[standard]==0.34.0
 httpx==0.28.1
-pydantic==2.10.4
+pydantic==2.12.5
 pydantic-settings==2.7.1
-psutil==6.1.1
-# Moteur code (édition multi-fichiers façon Claude Code). Version FIGÉE :
-# l'API Python d'Aider n'est pas garantie stable entre versions.
-aider-chat==0.86.2
+psutil==7.2.2
