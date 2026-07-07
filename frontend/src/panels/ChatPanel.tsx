@@ -17,6 +17,7 @@ export function ChatPanel() {
     streamStatus,
     streamNotice,
     streamTools,
+    streamPlan,
     sendMessage,
     currentSessionId,
     config,
@@ -37,7 +38,7 @@ export function ChatPanel() {
   // Auto-scroll vers le bas à chaque token / message.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, streamContent, streamThinking, streamTools]);
+  }, [messages, streamContent, streamThinking, streamTools, streamPlan]);
 
   const submit = () => {
     if (!draft.trim() || streaming) return;
@@ -101,7 +102,7 @@ export function ChatPanel() {
                   role: "assistant",
                   content: streamContent,
                   model: selectedModel,
-                  meta: { tools: streamTools },
+                  meta: { tools: streamTools, plan: streamPlan },
                   created_at: Date.now() / 1000,
                 }}
                 pending
@@ -173,6 +174,33 @@ export function ChatPanel() {
   );
 }
 
+/** Plan d'exécution affiché avant le travail de l'agent. */
+function PlanCard({ steps }: { steps: string[] }) {
+  return (
+    <div
+      className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm"
+      style={{ borderRadius: 7 }}
+    >
+      <div className="flex items-center gap-2 border-b-2 border-line-soft px-3 py-2">
+        <span className="font-pixel text-[9px] text-accent">PLAN</span>
+        <span className="text-[12px] text-muted-2">
+          {steps.length} étape{steps.length > 1 ? "s" : ""}
+        </span>
+      </div>
+      <ol className="m-0 list-none px-3 py-2">
+        {steps.map((s, i) => (
+          <li key={i} className="flex gap-2 py-[3px] text-[13px] text-ink-2">
+            <span className="flex h-[18px] w-[18px] flex-none items-center justify-center border-2 border-line bg-base text-[11px] text-ink">
+              {i + 1}
+            </span>
+            <span className="min-w-0">{s}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function Bubble({
   msg,
   pending,
@@ -227,6 +255,9 @@ function Bubble({
           text={thinking ?? msg.meta?.thinking ?? ""}
           live={!!pending}
         />
+        {(msg.meta?.plan?.length ?? 0) > 0 && (
+          <PlanCard steps={msg.meta!.plan!} />
+        )}
         {(msg.meta?.tools ?? []).map((t: ToolCall, i: number) => (
           <ToolCard key={i} call={t} />
         ))}

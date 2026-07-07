@@ -60,6 +60,10 @@ PROFILE_FIELDS = {
     "confirm_shell",
     "think",
     "code_model",
+    "plan_mode",
+    "self_review",
+    "rag_enabled",
+    "embed_model",
     *GENERATION_FIELDS,
 }
 
@@ -95,6 +99,13 @@ DEFAULT_CONFIG: dict = {
     # Modèle utilisé par le moteur code : "auto" = meilleur modèle code installé
     # (qwen-coder, deepseek-coder…), sinon le modèle de chat courant.
     "code_model": "auto",
+    # Plan-puis-exécute : décompose les demandes complexes en étapes.
+    "plan_mode": True,
+    # Auto-critique : une passe de relecture/révision avant la réponse finale.
+    "self_review": False,
+    # Mémoire long-terme (RAG) entre sessions, via un modèle d'embedding.
+    "rag_enabled": True,
+    "embed_model": "auto",
 }
 
 

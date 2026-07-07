@@ -18,7 +18,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, coder, db, memory, router as msg_router
+from .. import agent_config, coder, db, enhance, memory, rag, router as msg_router
+from ..tools import check_html, _safe_path
 from ..agent import run_agent
 from ..config import settings
 
@@ -36,33 +37,92 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _code_stream(req: ChatRequest, model: str):
-    """Chemin « moteur code » : Aider travaille, on garde le flux SSE vivant."""
-    instruction = req.content
-    yield _sse("tool_call", {"name": "code_task", "args": {"instruction": instruction}})
-
+async def _run_aider_keepalive(instruction: str, model: str):
+    """Lance Aider dans un thread en gardant le flux SSE vivant."""
     task = asyncio.create_task(
         asyncio.to_thread(coder.run_code_task, instruction, model, None)
     )
-    # Keepalive SSE pendant le travail (peut durer plusieurs minutes).
     while not task.done():
         await asyncio.sleep(10)
         if not task.done():
+            yield None  # signal keepalive
+    yield await task
+
+
+async def _code_stream(
+    req: ChatRequest, model: str, *, extra: str = "", plan: list[str] | None = None
+):
+    """Chemin « moteur code » : Aider + vérification HTML avec auto-correction."""
+    instruction = req.content + (extra or "")
+    yield _sse("tool_call", {"name": "code_task", "args": {"instruction": req.content}})
+
+    result = None
+    async for item in _run_aider_keepalive(instruction, model):
+        if item is None:
             yield ": keepalive\n\n"
-    result = await task
+        else:
+            result = item
 
     status = "ok" if result.get("ok") else "error"
     record = {
         "name": "code_task",
-        "args": {"instruction": instruction},
+        "args": {"instruction": req.content},
         "summary": result.get("summary", "terminé"),
         "status": status,
     }
     tools_meta = [record]
     yield _sse("tool_result", record)
 
+    all_files = list(result.get("files") or [])
+
+    # Vérification des pages HTML produites + une passe d'auto-correction.
+    html_issues: list[str] = []
+    for f in all_files:
+        if f.lower().endswith((".html", ".htm")):
+            try:
+                issues = check_html(_safe_path(f))
+            except Exception:
+                issues = []
+            if issues:
+                html_issues.append(f"{f} : " + " ; ".join(issues))
+
+    if html_issues and result.get("ok"):
+        yield _sse("tool_call", {"name": "html_check", "args": {"path": "vérification"}})
+        yield _sse("tool_result", {
+            "name": "html_check", "args": {"path": "vérification"},
+            "summary": " | ".join(html_issues)[:200], "status": "error",
+        })
+        tools_meta.append({
+            "name": "html_check", "args": {},
+            "summary": " | ".join(html_issues)[:200], "status": "error",
+        })
+        fix_instruction = (
+            "Corrige ces problèmes détectés dans les fichiers HTML, sans rien "
+            "casser d'autre :\n" + "\n".join(html_issues)
+        )
+        fix = None
+        async for item in _run_aider_keepalive(fix_instruction, model):
+            if item is None:
+                yield ": keepalive\n\n"
+            else:
+                fix = item
+        fix_rec = {
+            "name": "code_task",
+            "args": {"instruction": "auto-correction HTML"},
+            "summary": fix.get("summary", "terminé"),
+            "status": "ok" if fix.get("ok") else "error",
+        }
+        tools_meta.append(fix_rec)
+        yield _sse("tool_call", {"name": "code_task", "args": fix_rec["args"]})
+        yield _sse("tool_result", fix_rec)
+        for f in fix.get("files") or []:
+            if f not in all_files:
+                all_files.append(f)
+        if fix.get("text"):
+            result["text"] = (result.get("text") or "") + "\n\n" + fix["text"]
+
     # Cartes par fichier modifié (réutilise le rendu write_file de l'UI).
-    for f in result.get("files") or []:
+    for f in all_files:
         file_rec = {
             "name": "write_file",
             "args": {"path": f},
@@ -79,10 +139,10 @@ async def _code_stream(req: ChatRequest, model: str):
     if text:
         yield _sse("token", {"content": text})
 
-    db.add_message(
-        req.session_id, "assistant", text, model,
-        meta={"tools": tools_meta, "engine": "code"},
-    )
+    meta: dict = {"tools": tools_meta, "engine": "code"}
+    if plan:
+        meta["plan"] = plan
+    db.add_message(req.session_id, "assistant", text, model, meta=meta)
     yield _sse("done", {"content": text, "tools": tools_meta})
 
 
@@ -113,21 +173,60 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     # Mémoire compressée : système + résumé des anciens tours + messages récents.
     convo = memory.build_convo(req.session_id, cfg["system_prompt"])
 
+    # Mémoire long-terme (RAG) : souvenirs pertinents des autres sessions.
+    if cfg.get("rag_enabled", True):
+        memories = await rag.recall(
+            req.session_id, req.content, embed_model=cfg.get("embed_model")
+        )
+        if memories:
+            convo.insert(1, {
+                "role": "system",
+                "content": "Souvenirs pertinents d'anciennes sessions :\n"
+                + "\n---\n".join(memories),
+            })
+
     # Moteur code : choisit le meilleur modèle code installé (config "auto").
     code_model = (
         await coder.pick_code_model(model, cfg.get("code_model"))
         if use_code else model
     )
 
+    # Plan-puis-exécute : les demandes complexes sont décomposées d'abord.
+    plan: list[str] = []
+    if cfg.get("plan_mode", True) and (use_code or enhance.needs_plan(req.content)):
+        plan = await enhance.make_plan(model, req.content)
+
     async def event_stream():
         yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
 
+        if plan:
+            yield _sse("plan", {"steps": plan})
+
         # Chemin « moteur code » : Aider gère la tâche de bout en bout.
         if use_code:
-            async for chunk in _code_stream(req, code_model):
+            instruction_plan = (
+                "\n\nPlan à suivre :\n"
+                + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
+                if plan else ""
+            )
+            async for chunk in _code_stream(req, code_model, extra=instruction_plan, plan=plan):
                 yield chunk
             asyncio.create_task(memory.maybe_summarize(req.session_id, model))
+            if cfg.get("rag_enabled", True):
+                last = db.list_messages(req.session_id)
+                answer = last[-1]["content"] if last else ""
+                asyncio.create_task(rag.index_exchange(
+                    req.session_id, req.content, answer,
+                    embed_model=cfg.get("embed_model"),
+                ))
             return
+
+        if plan:
+            convo.append({
+                "role": "system",
+                "content": "Plan à suivre pour cette demande :\n"
+                + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan)),
+            })
 
         final_content = ""
         tools_meta: list[dict] = []
@@ -198,6 +297,20 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             with suppress(asyncio.CancelledError):
                 await producer
 
+        # Auto-critique : relecture éclair puis révision (option « Qualité + »).
+        if (
+            cfg.get("self_review", False)
+            and final_content
+            and not error_message
+            and not tools_meta
+        ):
+            yield _sse("status", {"message": "Relecture de la réponse…"})
+            revised = await enhance.self_review(model, req.content, final_content)
+            if revised:
+                final_content = revised
+                yield _sse("revision", {"content": revised})
+                yield _sse("notice", {"message": "Réponse révisée après auto-critique ✓"})
+
         if final_content or tools_meta:
             meta: dict = {}
             if tools_meta:
@@ -206,6 +319,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 meta["stats"] = stats_meta
             if thinking_meta:
                 meta["thinking"] = thinking_meta
+            if plan:
+                meta["plan"] = plan
             db.add_message(
                 req.session_id,
                 "assistant",
@@ -222,8 +337,13 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 "error": error_message or None,
             },
         )
-        # Compression de l'historique en arrière-plan (sans bloquer la réponse).
+        # Tâches d'arrière-plan : compression de l'historique + mémoire RAG.
         asyncio.create_task(memory.maybe_summarize(req.session_id, model))
+        if cfg.get("rag_enabled", True) and final_content:
+            asyncio.create_task(rag.index_exchange(
+                req.session_id, req.content, final_content,
+                embed_model=cfg.get("embed_model"),
+            ))
 
     return StreamingResponse(
         event_stream(),

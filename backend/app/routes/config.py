@@ -22,6 +22,10 @@ class ConfigPatch(BaseModel):
     confirm_shell: bool | None = None
     think: bool | None = None
     code_model: str | None = None
+    plan_mode: bool | None = None
+    self_review: bool | None = None
+    rag_enabled: bool | None = None
+    embed_model: str | None = None
 
 
 @router.get("")

@@ -50,8 +50,40 @@ def read_file(path: str) -> dict:
     return {"ok": True, "content": content, "summary": summary}
 
 
+def check_html(target: str) -> list[str]:
+    """Contrôles rapides d'une page HTML : références locales et balises.
+
+    Renvoie une liste de problèmes (vide = OK).
+    """
+    issues: list[str] = []
+    try:
+        with open(target, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except OSError:
+        return issues
+
+    base_dir = os.path.dirname(target)
+
+    # Références locales cassées (href/src vers un fichier absent).
+    for _, ref in re.findall(r"""(href|src)=["']([^"'#]+)["']""", content, re.I):
+        if re.match(r"^(https?:|data:|mailto:|tel:|//|javascript:)", ref, re.I):
+            continue
+        ref_path = os.path.normpath(os.path.join(base_dir, ref.split("?")[0]))
+        if not os.path.exists(ref_path):
+            issues.append(f"référence cassée : {ref}")
+
+    # Équilibre des balises structurantes.
+    for tag in ("html", "head", "body", "div", "section", "script", "style"):
+        opened = len(re.findall(rf"<{tag}[\s>]", content, re.I))
+        closed = len(re.findall(rf"</{tag}>", content, re.I))
+        if opened != closed:
+            issues.append(f"balise <{tag}> : {opened} ouverte(s) / {closed} fermée(s)")
+
+    return issues[:6]
+
+
 def _verify_written(target: str) -> str | None:
-    """Vérification syntaxique immédiate après écriture (py/json).
+    """Vérification immédiate après écriture (py/json/html).
 
     Renvoyer l'erreur au modèle tout de suite lui permet de se corriger dans
     le même tour, au lieu de livrer un fichier cassé.
@@ -65,6 +97,10 @@ def _verify_written(target: str) -> str | None:
             _json.loads(content)
         elif ext == ".py":
             compile(content, target, "exec")
+        elif ext in (".html", ".htm"):
+            problems = check_html(target)
+            if problems:
+                return " ; ".join(problems)
     except SyntaxError as exc:
         return f"SyntaxError ligne {exc.lineno}: {exc.msg}"
     except ValueError as exc:

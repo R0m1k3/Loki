@@ -89,7 +89,13 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   model?: string;
-  meta?: { tools?: ToolCall[]; stats?: MessageStats; thinking?: string } | null;
+  meta?: {
+    tools?: ToolCall[];
+    stats?: MessageStats;
+    thinking?: string;
+    plan?: string[];
+    engine?: string;
+  } | null;
   created_at: number;
 }
 
@@ -105,6 +111,75 @@ export interface AgentConfig {
   tools: Record<string, boolean>;
   confirm_shell: boolean;
   think: boolean;
+  code_model: string;
+  plan_mode: boolean;
+  self_review: boolean;
+  rag_enabled: boolean;
+  embed_model: string;
+}
+
+// ── Benchmark de modèles ─────────────────────────────────────────────────
+export interface BenchDetail {
+  task: string;
+  score: number;
+  detail: string;
+}
+
+export interface BenchResult {
+  score: number;
+  details: BenchDetail[];
+  at: number;
+}
+
+export async function getBenchScores(): Promise<Record<string, BenchResult>> {
+  const res = await fetch("/api/bench");
+  return (await res.json()).scores;
+}
+
+/** Lance le benchmark d'un modèle en streamant la progression. */
+export async function runBench(
+  model: string,
+  onProgress: (task: string, score: number | null, detail?: string) => void
+): Promise<BenchResult | null> {
+  const res = await fetch("/api/bench", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+  if (!res.body) return null;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let final: BenchResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+    for (const block of events) {
+      let event = "";
+      let data = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7).trim();
+        else if (line.startsWith("data: ")) data += line.slice(6);
+      }
+      if (!data) continue;
+      try {
+        const payload = JSON.parse(data);
+        if (event === "task_start") onProgress(payload.task, null);
+        else if (event === "task_done")
+          onProgress(payload.task, payload.score, payload.detail);
+        else if (event === "done")
+          final = { score: payload.score, details: payload.details, at: Date.now() / 1000 };
+      } catch {
+        /* bloc partiel */
+      }
+    }
+  }
+  return final;
 }
 
 export async function runShell(
@@ -204,6 +279,8 @@ export async function streamChat(
     onToolConfirm: (command: string) => void;
     onStatus: (msg: string) => void;
     onNotice: (msg: string) => void;
+    onPlan?: (steps: string[]) => void;
+    onRevision?: (content: string) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
     onAbort?: () => void;
@@ -265,6 +342,8 @@ export async function streamChat(
     try {
       const payload = JSON.parse(dataLines.join("\n"));
       if (event === "token") handlers.onToken(payload.content);
+      else if (event === "plan") handlers.onPlan?.(payload.steps);
+      else if (event === "revision") handlers.onRevision?.(payload.content);
       else if (event === "thinking") handlers.onThinking(payload.content);
       else if (event === "status") handlers.onStatus(payload.message);
       else if (event === "notice") handlers.onNotice(payload.message);

@@ -40,6 +40,7 @@ interface LokiState {
   streamStatus: string;
   streamNotice: string | null;
   streamTools: ToolCall[]; // appels d'outils de la réponse en cours
+  streamPlan: string[]; // plan de la réponse en cours
 
   fileTree: FileNode[];
   previewPath: string | null;
@@ -88,6 +89,7 @@ export const useStore = create<LokiState>((set, get) => ({
   streamStatus: "",
   streamNotice: null,
   streamTools: [],
+  streamPlan: [],
   fileTree: [],
   previewPath: null,
   previewContent: "",
@@ -234,6 +236,7 @@ export const useStore = create<LokiState>((set, get) => ({
       streamStatus: "",
       streamNotice: null,
       streamTools: [],
+      streamPlan: [],
       pendingShell: null,
     });
     void get().refreshSessions();
@@ -305,6 +308,8 @@ export const useStore = create<LokiState>((set, get) => ({
         onToken: (t) => set({ streamContent: get().streamContent + t }),
         onThinking: (t) => set({ streamThinking: get().streamThinking + t }),
         onStatus: (message) => set({ streamStatus: message }),
+        onPlan: (steps) => set({ streamPlan: steps }),
+        onRevision: (content) => set({ streamContent: content }),
         onNotice: (message) => set({ streamNotice: message }),
         onToolCall: (call) =>
           set({ streamTools: [...get().streamTools, call] }),

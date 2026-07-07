@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { deleteModel, pullModel } from "../api/client";
-import type { AgentConfig } from "../api/client";
+import { deleteModel, getBenchScores, pullModel, runBench } from "../api/client";
+import type { AgentConfig, BenchResult } from "../api/client";
 import { DownloadIcon, RefreshIcon } from "../components/Icon";
 
 const TOOL_DESC: Record<string, string> = {
@@ -376,6 +376,38 @@ export function SettingsView() {
                     </div>
                   )}
                 </Card>
+
+                <Card>
+                  <div className="mb-3.5 font-pixel text-[11px] text-ink">
+                    INTELLIGENCE
+                  </div>
+                  {[
+                    ["plan_mode", "Plan-puis-exécute",
+                     "Décompose les demandes complexes en étapes"] as const,
+                    ["self_review", "Auto-critique (Qualité +)",
+                     "Relit et révise la réponse avant de la donner"] as const,
+                    ["rag_enabled", "Mémoire long-terme (RAG)",
+                     "Se souvient des anciennes sessions (modèle d'embedding requis)"] as const,
+                  ].map(([key, label, desc], i) => (
+                    <div
+                      key={key}
+                      className={`flex items-center gap-3 py-2 ${
+                        i > 0 ? "border-t-2 border-line-soft" : ""
+                      }`}
+                    >
+                      <span className="flex-1">
+                        <span className="block text-[14px] text-ink">{label}</span>
+                        <span className="block text-[12px] text-muted-2">{desc}</span>
+                      </span>
+                      <Toggle
+                        on={Boolean(draft[key])}
+                        onClick={() => set(key, !draft[key])}
+                      />
+                    </div>
+                  ))}
+                </Card>
+
+                <BenchCard />
               </div>
             </div>
 
@@ -400,6 +432,108 @@ export function SettingsView() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Benchmark : évalue le modèle sélectionné sur 5 mini-épreuves. */
+function BenchCard() {
+  const selectedModel = useStore((s) => s.selectedModel);
+  const [scores, setScores] = useState<Record<string, BenchResult>>({});
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<
+    { task: string; score: number | null; detail?: string }[]
+  >([]);
+
+  useEffect(() => {
+    getBenchScores().then(setScores).catch(() => {});
+  }, []);
+
+  const launch = async () => {
+    if (!selectedModel || running) return;
+    setRunning(true);
+    setProgress([]);
+    try {
+      const result = await runBench(selectedModel, (task, score, detail) => {
+        setProgress((p) => {
+          const rest = p.filter((x) => x.task !== task);
+          return [...rest, { task, score, detail }];
+        });
+      });
+      if (result) setScores((s) => ({ ...s, [selectedModel]: result }));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const current = scores[selectedModel];
+
+  return (
+    <Card>
+      <div className="mb-3.5 flex items-center justify-between">
+        <div className="font-pixel text-[11px] text-ink">BENCHMARK</div>
+        <button
+          onClick={launch}
+          disabled={running || !selectedModel}
+          className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-accent px-3 text-[13px] text-white shadow-accent-soft disabled:opacity-40"
+          style={{ borderRadius: 7 }}
+        >
+          {running ? "ÉVALUATION…" : "TESTER CE MODÈLE"}
+        </button>
+      </div>
+
+      <div className="mb-2 text-[13px] text-muted-2">
+        5 mini-épreuves (outils, code, consignes, JSON, format) — score /100
+        pour <b className="text-ink">{selectedModel || "—"}</b>.
+      </div>
+
+      {running && (
+        <div className="border-2 border-line bg-base px-3 py-2">
+          {progress.map((p) => (
+            <div key={p.task} className="flex items-center gap-2 py-[2px] text-[13px]">
+              <span className="flex-1 text-ink-2">{p.task}</span>
+              {p.score === null ? (
+                <span className="text-muted-3">…</span>
+              ) : (
+                <span className={p.score >= 14 ? "text-ok" : p.score >= 8 ? "text-ink" : "text-warn"}>
+                  {p.score}/20
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!running && current && (
+        <div className="border-2 border-line bg-base px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[13px] text-ink">Score</span>
+            <span
+              className={`font-pixel text-[13px] ${
+                current.score >= 70 ? "text-ok" : current.score >= 45 ? "text-ink" : "text-warn"
+              }`}
+            >
+              {current.score}/100
+            </span>
+          </div>
+          {current.details.map((d) => (
+            <div key={d.task} className="flex items-center gap-2 py-[2px] text-[12px]">
+              <span className="flex-1 text-muted-2">{d.task}</span>
+              <span className="text-muted" title={d.detail}>{d.score}/20</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {Object.keys(scores).length > 1 && (
+        <div className="mt-2 text-[12px] text-muted-2">
+          Autres :{" "}
+          {Object.entries(scores)
+            .filter(([m]) => m !== selectedModel)
+            .map(([m, r]) => `${m} (${r.score})`)
+            .join(" · ")}
+        </div>
+      )}
+    </Card>
   );
 }
 

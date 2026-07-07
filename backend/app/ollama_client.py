@@ -65,6 +65,15 @@ class OllamaClient:
             resp.raise_for_status()
             return resp.json().get("models", [])
 
+    async def embed(self, model: str, texts: list[str]) -> list[list[float]]:
+        """Vecteurs d'embedding pour une liste de textes (/api/embed)."""
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            resp = await client.post(
+                f"{self.host}/api/embed", json={"model": model, "input": texts}
+            )
+            resp.raise_for_status()
+            return resp.json().get("embeddings", [])
+
     async def ps(self) -> list[dict]:
         """Modèles actuellement chargés et leur répartition VRAM/CPU (/api/ps)."""
         async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:

@@ -115,6 +115,23 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
+## Intelligence augmentée
+
+- **Plan-puis-exécute** : les demandes complexes sont décomposées en 3-5 étapes
+  affichées dans le fil ; l'agent (ou le moteur code) suit le plan.
+- **Auto-critique « Qualité + »** (Configuration → Intelligence) : la réponse
+  est relue et révisée avant d'être finalisée.
+- **Mémoire long-terme (RAG)** : chaque échange est vectorisé (`/api/embed`)
+  et les souvenirs pertinents des anciennes sessions sont réinjectés en
+  contexte. Nécessite un modèle d'embedding installé (ex.
+  `ollama pull nomic-embed-text`) — sinon désactivé silencieusement.
+- **Vérification HTML** : liens locaux cassés et balises déséquilibrées sont
+  détectés après chaque génération ; le moteur code fait une passe
+  d'auto-correction.
+- **Benchmark intégré** (Configuration → Benchmark) : 5 mini-épreuves notées
+  /100 (appel d'outil, code exécutable, consignes, extraction JSON, format)
+  pour comparer objectivement tes modèles installés.
+
 ## Tirer le meilleur des petits modèles
 
 Loki est conçu pour qu'un modèle local modeste se comporte comme un bon agent :
