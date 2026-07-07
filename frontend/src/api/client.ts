@@ -205,11 +205,21 @@ export async function runBench(
   model: string,
   onProgress: (task: string, score: number | null, detail?: string) => void
 ): Promise<BenchResult | null> {
-  const res = await fetch("/api/bench", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/bench", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : "connexion impossible";
+    throw new Error(
+      /network error|failed to fetch|load failed/i.test(raw)
+        ? "connexion au benchmark interrompue par le réseau ou le reverse proxy"
+        : raw
+    );
+  }
   if (!res.ok) {
     throw await apiError(res, `benchmark refusé (${res.status})`);
   }
@@ -238,18 +248,26 @@ export async function runBench(
       final = { score: payload.score, details: payload.details, at: Date.now() / 1000 };
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const block of events) {
-      if (block.trim()) dispatch(block);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+      for (const block of events) {
+        if (block.trim()) dispatch(block);
+      }
     }
+    buffer += decoder.decode();
+    if (buffer.trim()) dispatch(buffer);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : "connexion interrompue";
+    if (/network error|failed to fetch|load failed/i.test(raw)) {
+      throw new Error("flux du benchmark interrompu par le reverse proxy");
+    }
+    throw err;
   }
-  buffer += decoder.decode();
-  if (buffer.trim()) dispatch(buffer);
   if (!final) throw new Error("le benchmark s'est interrompu avant le résultat");
   return final;
 }

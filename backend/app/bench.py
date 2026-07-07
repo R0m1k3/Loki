@@ -6,6 +6,7 @@ respect d'un format. Score /100, stocké en base et affiché dans l'UI.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import subprocess
@@ -189,14 +190,24 @@ async def run_bench(model: str) -> AsyncIterator[dict]:
     details = []
     for name, fn in TASKS:
         yield {"type": "task_start", "task": name}
+        task = asyncio.create_task(fn(model))
         try:
-            score, detail = await fn(model)
+            while not task.done():
+                done, _ = await asyncio.wait({task}, timeout=10)
+                if not done:
+                    # Empêche OpenResty/Nginx de fermer le SSE pendant une longue
+                    # génération d'un gros modèle.
+                    yield {"type": "heartbeat", "task": name}
+            score, detail = await task
         except (OllamaError, httpx.HTTPError, OSError) as exc:
             score, detail = 0, f"erreur : {str(exc)[:80]}"
         except Exception as exc:
             # Une épreuve défaillante ne doit pas couper silencieusement le SSE :
             # elle vaut zéro et les autres épreuves continuent.
             score, detail = 0, f"épreuve interrompue : {str(exc)[:80]}"
+        finally:
+            if not task.done():
+                task.cancel()
         total += score
         details.append({"task": name, "score": score, "detail": detail})
         yield {"type": "task_done", "task": name, "score": score, "detail": detail}

@@ -5,6 +5,7 @@ total sur le streaming et n'embarquer aucune dépendance superflue.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import AsyncIterator
 
@@ -126,12 +127,22 @@ class OllamaClient:
         # laisse jusqu'à dix minutes pour les gros modèles ou un stockage lent.
         timeout = httpx.Timeout(connect=10.0, read=600.0, write=30.0, pool=10.0)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            resp = await client.post(
-                f"{self.host}/api/generate",
-                json={"model": model, "keep_alive": keep_alive, "stream": False},
-            )
-            resp.raise_for_status()
-            return resp.json()
+            for attempt in range(2):
+                resp = await client.post(
+                    f"{self.host}/api/generate",
+                    json={"model": model, "keep_alive": keep_alive, "stream": False},
+                )
+                try:
+                    # Inclut le corps JSON d'Ollama dans l'erreur (OOM, runner…),
+                    # contrairement à raise_for_status qui ne montrait que « 500 ».
+                    await _raise_for_stream_status(resp)
+                except OllamaError:
+                    if resp.status_code >= 500 and attempt == 0:
+                        await asyncio.sleep(2)
+                        continue
+                    raise
+                return resp.json()
+        raise OllamaError("préchargement interrompu sans réponse")
 
     async def chat(
         self,
