@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, coder, db, router as msg_router
+from .. import agent_config, coder, db, memory, router as msg_router
 from ..agent import run_agent
 from ..config import settings
 
@@ -110,16 +110,23 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         and await msg_router.is_code_task(req.content, model)
     )
 
-    convo = [{"role": "system", "content": cfg["system_prompt"]}]
-    convo += db.list_messages_for_model(req.session_id)
+    # Mémoire compressée : système + résumé des anciens tours + messages récents.
+    convo = memory.build_convo(req.session_id, cfg["system_prompt"])
+
+    # Moteur code : choisit le meilleur modèle code installé (config "auto").
+    code_model = (
+        await coder.pick_code_model(model, cfg.get("code_model"))
+        if use_code else model
+    )
 
     async def event_stream():
         yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
 
         # Chemin « moteur code » : Aider gère la tâche de bout en bout.
         if use_code:
-            async for chunk in _code_stream(req, model):
+            async for chunk in _code_stream(req, code_model):
                 yield chunk
+            asyncio.create_task(memory.maybe_summarize(req.session_id, model))
             return
 
         final_content = ""
@@ -215,6 +222,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 "error": error_message or None,
             },
         )
+        # Compression de l'historique en arrière-plan (sans bloquer la réponse).
+        asyncio.create_task(memory.maybe_summarize(req.session_id, model))
 
     return StreamingResponse(
         event_stream(),

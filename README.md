@@ -115,6 +115,25 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
+## Tirer le meilleur des petits modèles
+
+Loki est conçu pour qu'un modèle local modeste se comporte comme un bon agent :
+
+- **Mémoire compressée** : au-delà d'un seuil, les anciens tours sont résumés
+  en arrière-plan et le modèle ne reçoit que « invite + résumé + 10 derniers
+  messages ». Contexte court = modèle concentré, et qui reste sur le GPU.
+- **Outils chirurgicaux** : `edit_file` (recherche/remplacement exact — pas de
+  réécriture intégrale ratée), `grep_search` (trouver avant de modifier), et
+  `write_file` par morceaux (overwrite/append).
+- **Auto-vérification** : après chaque écriture, la syntaxe (`.py`, `.json`)
+  est contrôlée ; l'erreur est renvoyée immédiatement au modèle, qui se
+  corrige dans le même tour.
+- **Bon modèle au bon poste** : les tâches de code sont confiées au meilleur
+  modèle code installé (`qwen-coder`, `deepseek-coder`…), automatiquement
+  (config `code_model: auto`), même si tu discutes avec un généraliste.
+- **Récupération d'appels d'outils malformés** : arguments réparés ou
+  redemandés, modèles sans function-calling détectés et gérés.
+
 ## Moteur code (façon Claude Code) — routage automatique
 
 Loki embarque [Aider](https://aider.chat) (Apache-2.0, version figée) comme

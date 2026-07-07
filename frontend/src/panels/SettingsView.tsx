@@ -7,7 +7,9 @@ import { DownloadIcon, RefreshIcon } from "../components/Icon";
 const TOOL_DESC: Record<string, string> = {
   read_file: "Lire un fichier du projet",
   write_file: "Créer / modifier un fichier",
+  edit_file: "Modification chirurgicale (recherche/remplacement)",
   list_dir: "Lister un répertoire",
+  grep_search: "Chercher dans les fichiers",
   code_task: "Moteur code (multi-fichiers, git)",
   web_search: "Recherche web",
   run_shell: "Exécuter une commande",

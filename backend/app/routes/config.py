@@ -21,6 +21,7 @@ class ConfigPatch(BaseModel):
     tools: dict[str, bool] | None = None
     confirm_shell: bool | None = None
     think: bool | None = None
+    code_model: str | None = None
 
 
 @router.get("")

@@ -264,10 +264,11 @@ async def run_agent(
 
                 # code_task : délégué au moteur code (Aider), long -> thread.
                 if name == "code_task":
+                    code_model = await coder.pick_code_model(model)
                     result = await asyncio.to_thread(
                         coder.run_code_task,
                         args.get("instruction", ""),
-                        model,
+                        code_model,
                         args.get("files") or [],
                     )
                     summary = result.get("summary", "terminé")

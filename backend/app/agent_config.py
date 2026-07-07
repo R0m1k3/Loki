@@ -30,13 +30,16 @@ DEFAULT_SYSTEM_PROMPT = (
 # Outils disponibles. Les sensibles (web_search, run_shell) sont désactivés
 # par défaut, conformément à la maquette.
 AVAILABLE_TOOLS = [
-    "read_file", "write_file", "list_dir", "code_task", "web_search", "run_shell",
+    "read_file", "write_file", "edit_file", "list_dir", "grep_search",
+    "code_task", "web_search", "run_shell",
 ]
 SENSITIVE_TOOLS = {"run_shell"}
 DEFAULT_TOOL_STATE = {
     "read_file": True,
     "write_file": True,
+    "edit_file": True,
     "list_dir": True,
+    "grep_search": True,
     "code_task": True,
     "web_search": False,
     "run_shell": False,
@@ -56,6 +59,7 @@ PROFILE_FIELDS = {
     "tools",
     "confirm_shell",
     "think",
+    "code_model",
     *GENERATION_FIELDS,
 }
 
@@ -88,6 +92,9 @@ DEFAULT_CONFIG: dict = {
     # Mode réflexion des modèles « thinking ». Désactiver (False) évite qu'un
     # modèle ne renvoie que du raisonnement sans réponse finale.
     "think": True,
+    # Modèle utilisé par le moteur code : "auto" = meilleur modèle code installé
+    # (qwen-coder, deepseek-coder…), sinon le modèle de chat courant.
+    "code_model": "auto",
 }
 
 

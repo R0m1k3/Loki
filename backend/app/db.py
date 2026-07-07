@@ -54,6 +54,10 @@ def init_db() -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
         if "meta" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN meta TEXT")
+        # Migration douce : résumé de conversation (mémoire compressée).
+        scols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
+        if "summary" not in scols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN summary TEXT")
         # Table clé/valeur pour la configuration de l'agent.
         conn.execute(
             "CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)"
@@ -164,6 +168,13 @@ def list_messages_for_model(sid: str) -> list[dict]:
         {"role": m["role"], "content": m["content"]}
         for m in list_messages(sid)
     ]
+
+
+def set_session_summary(sid: str, summary: str) -> None:
+    with _LOCK, _connect() as conn:
+        conn.execute(
+            "UPDATE sessions SET summary = ? WHERE id = ?", (summary, sid)
+        )
 
 
 # ── Configuration (clé/valeur JSON) ──────────────────────────────────────

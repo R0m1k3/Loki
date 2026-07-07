@@ -10,6 +10,7 @@ export function ToolCard({ call }: { call: ToolCall }) {
   const mainArg =
     (call.args?.path as string) ??
     (call.args?.query as string) ??
+    (call.args?.pattern as string) ??
     (call.args?.command as string) ??
     (call.args?.instruction as string);
   const argPreview =
@@ -19,7 +20,7 @@ export function ToolCard({ call }: { call: ToolCall }) {
       ? "(…)"
       : "()";
 
-  const write = call.name === "write_file";
+  const write = call.name === "write_file" || call.name === "edit_file";
 
   return (
     <div className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
@@ -71,7 +72,7 @@ function ToolGlyph({ name }: { name: string }) {
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
-  if (name === "write_file")
+  if (name === "write_file" || name === "edit_file")
     return (
       <svg {...common}>
         <path d="M5 19h14M7 14l9-9 3 3-9 9-4 1z" />
@@ -89,7 +90,7 @@ function ToolGlyph({ name }: { name: string }) {
         <path d="m8 6-5 6 5 6M16 6l5 6-5 6" />
       </svg>
     );
-  if (name === "web_search")
+  if (name === "web_search" || name === "grep_search")
     return (
       <svg {...common}>
         <circle cx="11" cy="11" r="7" />

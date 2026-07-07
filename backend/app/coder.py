@@ -39,6 +39,44 @@ def available() -> bool:
         return False
 
 
+# Familles spécialisées code, par ordre de préférence.
+_CODE_MODEL_HINTS = (
+    "qwen3-coder", "qwen2.5-coder", "deepseek-coder", "codestral", "devstral",
+    "codegemma", "codellama", "starcoder", "coder",
+)
+
+
+async def pick_code_model(current: str, preference: str | None = None) -> str:
+    """Choisit le modèle pour les tâches de code.
+
+    - préférence explicite (config code_model != "auto") -> respectée ;
+    - sinon, si un modèle spécialisé code est installé, on le prend (le plus
+      gros d'abord) : un petit modèle code bat un généraliste sur ce terrain ;
+    - sinon, on garde le modèle courant.
+    """
+    if preference and preference != "auto":
+        return preference
+
+    from .ollama_client import ollama
+    try:
+        installed = await ollama.list_models()
+    except Exception:
+        return current
+
+    candidates: list[tuple[int, int, str]] = []  # (rang_hint, -taille, nom)
+    for m in installed:
+        name = (m.get("name") or "").lower()
+        for rank, hint in enumerate(_CODE_MODEL_HINTS):
+            if hint in name:
+                candidates.append((rank, -(m.get("size") or 0), m["name"]))
+                break
+
+    if not candidates:
+        return current
+    candidates.sort()
+    return candidates[0][2]
+
+
 def run_code_task(
     instruction: str,
     model: str,

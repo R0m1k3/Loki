@@ -50,6 +50,30 @@ def read_file(path: str) -> dict:
     return {"ok": True, "content": content, "summary": summary}
 
 
+def _verify_written(target: str) -> str | None:
+    """Vérification syntaxique immédiate après écriture (py/json).
+
+    Renvoyer l'erreur au modèle tout de suite lui permet de se corriger dans
+    le même tour, au lieu de livrer un fichier cassé.
+    """
+    ext = os.path.splitext(target)[1].lower()
+    try:
+        with open(target, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        if ext == ".json":
+            import json as _json
+            _json.loads(content)
+        elif ext == ".py":
+            compile(content, target, "exec")
+    except SyntaxError as exc:
+        return f"SyntaxError ligne {exc.lineno}: {exc.msg}"
+    except ValueError as exc:
+        return f"JSON invalide : {exc}"
+    except OSError:
+        return None
+    return None
+
+
 def write_file(path: str, content: str, mode: str = "overwrite") -> dict:
     target = _safe_path(path)
     if mode not in {"overwrite", "append"}:
@@ -60,7 +84,96 @@ def write_file(path: str, content: str, mode: str = "overwrite") -> dict:
         f.write(content)
     lines = len(content.splitlines())
     verb = "complété" if mode == "append" else "modifié" if existed else "écrit"
-    return {"ok": True, "summary": f"{verb} · {lines} lignes", "lines": lines}
+    result = {"ok": True, "summary": f"{verb} · {lines} lignes", "lines": lines}
+    problem = _verify_written(target)
+    if problem:
+        result["verification"] = problem
+        result["summary"] += f" · ⚠ {problem}"
+    return result
+
+
+def edit_file(path: str, search: str, replace: str) -> dict:
+    """Modification chirurgicale : remplace un extrait exact du fichier.
+
+    Bien plus fiable que réécrire tout le fichier avec un petit modèle :
+    seul le fragment visé change, le reste est garanti intact.
+    """
+    target = _safe_path(path)
+    if not os.path.isfile(target):
+        raise ToolError(f"fichier introuvable : {path}")
+    if not search:
+        raise ToolError("search vide : fournis l'extrait exact à remplacer")
+    with open(target, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+
+    count = content.count(search)
+    if count == 0:
+        preview = search.strip().splitlines()[0][:60] if search.strip() else ""
+        raise ToolError(
+            f"extrait introuvable dans {path} (cherché : « {preview}… »). "
+            "Relis le fichier avec read_file et copie l'extrait EXACT."
+        )
+    if count > 1:
+        raise ToolError(
+            f"extrait présent {count} fois dans {path} : ajoute du contexte "
+            "autour pour le rendre unique."
+        )
+
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(content.replace(search, replace, 1))
+
+    delta = len(replace.splitlines()) - len(search.splitlines())
+    result = {"ok": True, "summary": f"remplacé · {delta:+d} ligne(s)"}
+    problem = _verify_written(target)
+    if problem:
+        result["verification"] = problem
+        result["summary"] += f" · ⚠ {problem}"
+    return result
+
+
+_GREP_SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "dist"}
+_MAX_GREP_MATCHES = 50
+
+
+def grep_search(pattern: str, path: str = ".") -> dict:
+    """Recherche un motif (regex) dans les fichiers du workspace."""
+    if not pattern:
+        raise ToolError("pattern vide")
+    try:
+        rx = re.compile(pattern, re.I)
+    except re.error as exc:
+        raise ToolError(f"regex invalide : {exc}")
+
+    root = _safe_path(path)
+    matches: list[str] = []
+    files_hit: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _GREP_SKIP_DIRS]
+        for fname in sorted(filenames):
+            full = os.path.join(dirpath, fname)
+            if os.path.getsize(full) > 1_000_000:
+                continue
+            rel = os.path.relpath(full, _workspace_root())
+            try:
+                with open(full, "r", encoding="utf-8", errors="replace") as f:
+                    for lineno, line in enumerate(f, 1):
+                        if rx.search(line):
+                            matches.append(f"{rel}:{lineno}: {line.strip()[:160]}")
+                            files_hit.add(rel)
+                            if len(matches) >= _MAX_GREP_MATCHES:
+                                break
+            except OSError:
+                continue
+            if len(matches) >= _MAX_GREP_MATCHES:
+                break
+        if len(matches) >= _MAX_GREP_MATCHES:
+            break
+
+    summary = (
+        f"{len(matches)} correspondance(s) dans {len(files_hit)} fichier(s)"
+        if matches else "aucune correspondance"
+    )
+    return {"ok": True, "matches": matches, "summary": summary}
 
 
 def list_dir(path: str = ".") -> dict:
@@ -183,7 +296,9 @@ def run_shell(command: str, timeout: int = 60) -> dict:
 TOOL_IMPL = {
     "read_file": read_file,
     "write_file": write_file,
+    "edit_file": edit_file,
     "list_dir": list_dir,
+    "grep_search": grep_search,
     "web_search": web_search,
     "run_shell": run_shell,
 }
@@ -231,6 +346,29 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "edit_file",
+            "description": (
+                "Modifier UN extrait précis d'un fichier existant (recherche/"
+                "remplacement exact). Préférable à write_file pour toute "
+                "modification partielle : le reste du fichier reste intact."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Chemin relatif au workspace"},
+                    "search": {
+                        "type": "string",
+                        "description": "Extrait EXACT à remplacer (copie fidèle, unique dans le fichier)",
+                    },
+                    "replace": {"type": "string", "description": "Nouveau texte"},
+                },
+                "required": ["path", "search", "replace"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_dir",
             "description": "Lister le contenu d'un répertoire du workspace.",
             "parameters": {
@@ -238,6 +376,24 @@ TOOL_DEFINITIONS = [
                 "properties": {
                     "path": {"type": "string", "description": "Répertoire (défaut : racine)"}
                 },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "grep_search",
+            "description": (
+                "Chercher un motif (regex, insensible à la casse) dans tous les "
+                "fichiers du workspace. Renvoie fichier:ligne:texte."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string", "description": "Motif à chercher"},
+                    "path": {"type": "string", "description": "Sous-répertoire (défaut : racine)"},
+                },
+                "required": ["pattern"],
             },
         },
     },
@@ -314,10 +470,20 @@ def _normalize_args(name: str, args: dict | None) -> dict:
                 if alias in args:
                     args["content"] = args[alias]
                     break
-    elif name in {"read_file", "list_dir"} and "path" not in args:
+    elif name in {"read_file", "list_dir", "edit_file"} and "path" not in args:
         for alias in ("file_path", "filepath", "filename", "file", "dir", "directory"):
             if args.get(alias):
                 args["path"] = args[alias]
+                break
+    if name == "edit_file":
+        if "search" not in args and "old" in args:
+            args["search"] = args.pop("old")
+        if "replace" not in args and "new" in args:
+            args["replace"] = args.pop("new")
+    elif name == "grep_search" and "pattern" not in args:
+        for alias in ("query", "search", "text", "regex"):
+            if args.get(alias):
+                args["pattern"] = args[alias]
                 break
     return args
 
