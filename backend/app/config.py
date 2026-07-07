@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     data_dir: str = "/data"
     port: int = 8080
 
+    # Marqueur de build injecté à la construction de l'image (git sha court).
+    # Permet de vérifier que l'image déployée est bien à jour.
+    loki_version: str = "dev"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

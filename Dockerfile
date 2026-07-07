@@ -29,6 +29,10 @@ COPY --from=frontend /app/frontend/dist ./backend/static
 
 RUN mkdir -p /workspace /data
 
+# Marqueur de version (git sha court), injecté par le workflow de build.
+ARG LOKI_VERSION=dev
+ENV LOKI_VERSION=${LOKI_VERSION}
+
 # NB : on tourne en root par défaut pour rester compatible avec les volumes
 # montés d'Unraid (/mnt/user/appdata/...), souvent détenus par root. Pour
 # durcir, surcharge l'utilisateur côté compose (ex. user: "99:100").

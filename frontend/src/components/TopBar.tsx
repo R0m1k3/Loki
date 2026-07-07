@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
+import { getVersion } from "../api/client";
 import { ChevronDown, LokiMark } from "./Icon";
 import { ModelSelector } from "./ModelSelector";
 
@@ -7,13 +9,26 @@ export function TopBar() {
   const status = useStore((s) => s.status);
   const stats = useStore((s) => s.systemStats);
   const connected = status?.connected ?? false;
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+  }, []);
 
   return (
     <div className="flex h-[54px] flex-none items-center gap-3.5 border-b-[3px] border-line bg-bar px-4">
       <div className="flex items-center gap-2.5">
         <LokiMark />
         <div className="font-pixel text-[14px] text-white">LOKI</div>
-        <div className="text-[13px] leading-none text-on-dark-2">agent local</div>
+        <div
+          className="text-[13px] leading-none text-on-dark-2"
+          title={version ? `build ${version}` : undefined}
+        >
+          agent local
+          {version && version !== "dev" && (
+            <span className="ml-1.5 text-on-dark-3">· {version.slice(0, 7)}</span>
+          )}
+        </div>
       </div>
 
       <div className="h-6 w-[3px] bg-chrome-3" />

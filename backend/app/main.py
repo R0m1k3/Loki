@@ -75,7 +75,13 @@ app.include_router(benchmark.router)
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "loki"}
+    return {"status": "ok", "service": "loki", "version": settings.loki_version}
+
+
+@app.get("/api/version")
+async def version() -> dict:
+    """Marqueur de build — pour vérifier que l'image déployée est à jour."""
+    return {"version": settings.loki_version}
 
 
 # ── Service du frontend compilé (présent uniquement en image Docker) ─────

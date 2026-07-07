@@ -41,6 +41,15 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.json();
 }
 
+export async function getVersion(): Promise<string> {
+  try {
+    const res = await fetch("/api/version");
+    return (await res.json()).version ?? "?";
+  } catch {
+    return "?";
+  }
+}
+
 export interface LoadedModel {
   name: string;
   on_gpu: boolean;
