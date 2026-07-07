@@ -7,6 +7,8 @@ import {
   getSession,
   getStatus,
   getSystemStats,
+  getLoadedModels,
+  warmModel,
   fileContent,
   listFiles,
   listSessions,
@@ -19,6 +21,7 @@ import {
   type OllamaModel,
   type OllamaStatus,
   type Session,
+  type LoadedModel,
   type SystemStats,
   type ToolCall,
 } from "../api/client";
@@ -26,6 +29,7 @@ import {
 interface LokiState {
   status: OllamaStatus | null;
   systemStats: SystemStats | null;
+  loadedModels: LoadedModel[];
   models: OllamaModel[];
   selectedModel: string;
   loadingModels: boolean;
@@ -59,6 +63,7 @@ interface LokiState {
   setSelectedModel: (name: string) => void;
   refreshStatus: () => Promise<void>;
   refreshSystemStats: () => Promise<void>;
+  refreshLoadedModels: () => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshFiles: () => Promise<void>;
 
@@ -75,6 +80,7 @@ let activeStreamController: AbortController | null = null;
 export const useStore = create<LokiState>((set, get) => ({
   status: null,
   systemStats: null,
+  loadedModels: [],
   models: [],
   selectedModel: "",
   loadingModels: false,
@@ -142,6 +148,9 @@ export const useStore = create<LokiState>((set, get) => ({
   setSelectedModel: (name) => {
     set({ selectedModel: name });
     void get().refreshConfig();
+    // Préchargement : le modèle est chargé en VRAM dès la sélection.
+    const ka = get().config?.keep_alive ?? "30m";
+    void warmModel(name, ka).then(() => get().refreshLoadedModels());
   },
 
   refreshFiles: async () => {
@@ -167,6 +176,10 @@ export const useStore = create<LokiState>((set, get) => ({
     } catch {
       set({ systemStats: null });
     }
+  },
+
+  refreshLoadedModels: async () => {
+    set({ loadedModels: await getLoadedModels() });
   },
 
   refreshModels: async () => {

@@ -80,6 +80,7 @@ async def run_agent(
     enabled_tools: list[str] | None = None,
     confirm_shell: bool = True,
     think: bool = True,
+    keep_alive: str | None = None,
 ) -> AsyncIterator[dict]:
     # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
     if enabled_tools is None:
@@ -127,6 +128,7 @@ async def run_agent(
                         tools=active_tools,
                         options=request_options,
                         think=request_think,
+                        keep_alive=keep_alive,
                         stream=True,
                     ):
                         msg = chunk.get("message", {})
@@ -314,7 +316,7 @@ async def run_agent(
                 final_chunk = ""
                 async for chunk in ollama.chat(
                     model, convo, options=request_options,
-                    think=request_think, stream=True
+                    think=request_think, keep_alive=keep_alive, stream=True
                 ):
                     tok = chunk.get("message", {}).get("content", "")
                     if tok:

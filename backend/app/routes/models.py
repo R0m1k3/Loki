@@ -58,6 +58,42 @@ async def list_models() -> dict:
     return {"models": models, "default": settings.default_model}
 
 
+class WarmRequest(BaseModel):
+    name: str
+    keep_alive: str = "30m"
+
+
+@router.post("/models/warm")
+async def warm_model(req: WarmRequest) -> dict:
+    """Précharge un modèle en VRAM (préchargement)."""
+    if not req.name.strip():
+        raise HTTPException(400, "nom de modèle vide")
+    try:
+        await ollama.warm(req.name.strip(), req.keep_alive)
+    except (httpx.HTTPError, OSError) as exc:
+        raise HTTPException(502, f"préchargement impossible : {exc}") from exc
+    return {"warmed": req.name.strip()}
+
+
+@router.get("/models/loaded")
+async def loaded_models() -> dict:
+    """Modèles actuellement chargés en mémoire + placement GPU/CPU (/api/ps)."""
+    try:
+        loaded = await ollama.ps()
+    except (httpx.HTTPError, OSError):
+        return {"loaded": []}
+    result = []
+    for m in loaded:
+        size = m.get("size", 0) or 0
+        vram = m.get("size_vram", 0) or 0
+        result.append({
+            "name": m.get("name") or m.get("model"),
+            "on_gpu": bool(size and vram >= size * 0.99),
+            "gpu_percent": int(vram / size * 100) if size else 0,
+        })
+    return {"loaded": result}
+
+
 class PullRequest(BaseModel):
     name: str
 

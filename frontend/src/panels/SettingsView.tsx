@@ -405,6 +405,27 @@ export function SettingsView() {
                       />
                     </div>
                   ))}
+                  <div className="mt-2 flex items-center gap-3 border-t-2 border-line-soft pt-3">
+                    <span className="flex-1">
+                      <span className="block text-[14px] text-ink">
+                        Maintien en VRAM (préchargement)
+                      </span>
+                      <span className="block text-[12px] text-muted-2">
+                        Garde le modèle chargé pour des réponses instantanées
+                      </span>
+                    </span>
+                    <select
+                      value={draft.keep_alive}
+                      onChange={(e) => set("keep_alive", e.target.value)}
+                      className="h-8 border-[3px] border-line bg-card px-2 text-[13px] text-ink"
+                    >
+                      <option value="0">Décharger aussitôt</option>
+                      <option value="5m">5 min</option>
+                      <option value="30m">30 min</option>
+                      <option value="2h">2 heures</option>
+                      <option value="-1">Toujours</option>
+                    </select>
+                  </div>
                 </Card>
 
                 <BenchCard />

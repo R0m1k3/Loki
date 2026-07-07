@@ -117,6 +117,19 @@ class OllamaClient:
                         raise OllamaError(str(chunk["error"]))
                     yield chunk
 
+    async def warm(self, model: str, keep_alive: str = "30m") -> dict:
+        """Précharge un modèle en VRAM sans générer (/api/generate sans prompt).
+
+        Le paramètre keep_alive fixe la durée de rétention en mémoire.
+        """
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+            resp = await client.post(
+                f"{self.host}/api/generate",
+                json={"model": model, "keep_alive": keep_alive},
+            )
+            resp.raise_for_status()
+            return resp.json()
+
     async def chat(
         self,
         model: str,
@@ -125,6 +138,7 @@ class OllamaClient:
         tools: list[dict] | None = None,
         options: dict | None = None,
         think: bool | None = None,
+        keep_alive: str | None = None,
         stream: bool = True,
     ) -> AsyncIterator[dict]:
         """Conversation avec le modèle, en streaming token par token."""
@@ -136,6 +150,9 @@ class OllamaClient:
         # think=False désactive le raisonnement des modèles « thinking ».
         if think is not None:
             payload["think"] = think
+        # keep_alive : durée de maintien du modèle en VRAM après la réponse.
+        if keep_alive is not None:
+            payload["keep_alive"] = keep_alive
 
         async with httpx.AsyncClient(
             timeout=_STREAM_TIMEOUT, follow_redirects=True

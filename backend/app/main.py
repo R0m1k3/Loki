@@ -12,17 +12,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import coder, db, rag
+from . import agent_config, coder, db, rag
 from .config import settings
 from .routes import benchmark, chat, config, files, models, sessions, shell, system
 
 
+async def _warm_default_model() -> None:
+    """Précharge le modèle par défaut en VRAM au démarrage (best-effort)."""
+    import asyncio
+    import logging
+
+    from .ollama_client import OllamaError, ollama
+
+    await asyncio.sleep(2)  # laisse le service démarrer
+    try:
+        cfg = agent_config.get_config(settings.default_model)
+        await ollama.warm(settings.default_model, cfg.get("keep_alive", "30m"))
+        logging.getLogger(__name__).info(
+            "Modèle %s préchargé en VRAM", settings.default_model
+        )
+    except (OllamaError, OSError, Exception) as exc:  # best-effort
+        logging.getLogger(__name__).info(
+            "Préchargement au démarrage ignoré : %s", exc
+        )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    import asyncio
+
     db.init_db()
     rag.init_table()
     # Workspace en dépôt git : requis pour les commits du moteur code (Aider).
     coder.ensure_git(settings.workspace_dir)
+    # Préchargement du modèle par défaut, sans bloquer le démarrage.
+    asyncio.create_task(_warm_default_model())
     yield
 
 

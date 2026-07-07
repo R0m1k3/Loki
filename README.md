@@ -115,6 +115,20 @@ npm run dev        # http://localhost:5173
 | `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
 | `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
 
+## Préchargement des modèles (réponses instantanées)
+
+Ollama décharge un modèle de la VRAM après quelques minutes d'inactivité : le
+message suivant paie alors un rechargement complet (lent). Loki évite ça :
+
+- **Préchargement à la sélection** : choisir un modèle le charge immédiatement
+  en VRAM (`/api/models/warm`).
+- **Maintien au chaud** : chaque requête envoie un `keep_alive` (défaut 30 min,
+  réglable dans Configuration → Intelligence : de « décharger aussitôt » à
+  « toujours »).
+- **Préchargement au démarrage** du modèle par défaut (en arrière-plan).
+- **Indicateur d'état** : la pastille du sélecteur de modèle est verte quand le
+  modèle est chargé sur GPU, orange sur CPU, blanche s'il reste à charger.
+
 ## Intelligence augmentée
 
 - **Plan-puis-exécute** : les demandes complexes sont décomposées en 3-5 étapes

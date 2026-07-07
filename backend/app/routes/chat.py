@@ -245,6 +245,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     enabled_tools=agent_config.enabled_tool_names(cfg),
                     confirm_shell=cfg.get("confirm_shell", True),
                     think=cfg.get("think", True),
+                    keep_alive=cfg.get("keep_alive", "30m"),
                 ):
                     await queue.put(event)
             except Exception as exc:

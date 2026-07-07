@@ -10,22 +10,31 @@ import { useStore } from "./store/useStore";
 
 export default function App() {
   const [view, setView] = useState<View>("chat");
-  const { refreshStatus, refreshSystemStats, refreshModels, refreshConfig } =
-    useStore();
+  const {
+    refreshStatus,
+    refreshSystemStats,
+    refreshModels,
+    refreshConfig,
+    refreshLoadedModels,
+  } = useStore();
 
-  // Au démarrage : statut Ollama + modèles + config. Poll du statut et des stats système.
+  // Au démarrage : statut Ollama + modèles + config. Poll du statut, des stats
+  // système et des modèles chargés en VRAM (indicateur de préchargement).
   useEffect(() => {
     refreshStatus();
     refreshSystemStats();
     refreshModels();
     refreshConfig();
+    refreshLoadedModels();
     const statusId = setInterval(refreshStatus, 10000);
     const statsId = setInterval(refreshSystemStats, 2000);
+    const loadedId = setInterval(refreshLoadedModels, 8000);
     return () => {
       clearInterval(statusId);
       clearInterval(statsId);
+      clearInterval(loadedId);
     };
-  }, [refreshStatus, refreshSystemStats, refreshModels, refreshConfig]);
+  }, [refreshStatus, refreshSystemStats, refreshModels, refreshConfig, refreshLoadedModels]);
 
   return (
     <div className="flex h-full flex-col bg-base text-ink">

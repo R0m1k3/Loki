@@ -4,9 +4,13 @@ import { ChevronDown } from "./Icon";
 
 /** Sélecteur de modèle Ollama (chip orange de la barre supérieure). */
 export function ModelSelector() {
-  const { models, selectedModel, setSelectedModel } = useStore();
+  const { models, selectedModel, setSelectedModel, loadedModels } = useStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const loadedInfo = (name: string) =>
+    loadedModels.find((m) => m.name === name);
+  const selectedLoaded = loadedInfo(selectedModel);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -24,7 +28,22 @@ export function ModelSelector() {
         title={selectedModel || undefined}
         style={{ borderRadius: 7 }}
       >
-        <span className="h-2.5 w-2.5 border-2 border-line bg-white" />
+        <span
+          className={`h-2.5 w-2.5 border-2 border-line ${
+            selectedLoaded
+              ? selectedLoaded.on_gpu
+                ? "bg-ok"
+                : "bg-warn"
+              : "bg-white"
+          }`}
+          title={
+            selectedLoaded
+              ? selectedLoaded.on_gpu
+                ? "chargé sur GPU"
+                : `chargé (${selectedLoaded.gpu_percent}% GPU)`
+              : "à charger"
+          }
+        />
         <span className="min-w-0 truncate text-[14px] leading-none">{selectedModel || "—"}</span>
         <ChevronDown size={12} className="flex-none" />
       </button>
@@ -55,6 +74,14 @@ export function ModelSelector() {
               <span className="min-w-0 flex-1 truncate text-xs text-ink-2" title={m.name}>
                 {m.name}
               </span>
+              {loadedInfo(m.name) && (
+                <span
+                  className={`h-1.5 w-1.5 border border-line ${
+                    loadedInfo(m.name)!.on_gpu ? "bg-ok" : "bg-warn"
+                  }`}
+                  title={loadedInfo(m.name)!.on_gpu ? "chargé GPU" : "chargé CPU"}
+                />
+              )}
               {m.size_go > 0 && (
                 <span className="text-[10px] text-muted-2">{m.size_go} Go</span>
               )}

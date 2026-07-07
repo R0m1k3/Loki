@@ -41,6 +41,34 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.json();
 }
 
+export interface LoadedModel {
+  name: string;
+  on_gpu: boolean;
+  gpu_percent: number;
+}
+
+/** Précharge un modèle en VRAM (best-effort, ne lève jamais). */
+export async function warmModel(name: string, keepAlive = "30m"): Promise<void> {
+  try {
+    await fetch("/api/models/warm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, keep_alive: keepAlive }),
+    });
+  } catch {
+    /* préchargement best-effort */
+  }
+}
+
+export async function getLoadedModels(): Promise<LoadedModel[]> {
+  try {
+    const res = await fetch("/api/models/loaded");
+    return (await res.json()).loaded;
+  } catch {
+    return [];
+  }
+}
+
 export async function getModels(): Promise<{
   models: OllamaModel[];
   default: string;
@@ -116,6 +144,7 @@ export interface AgentConfig {
   self_review: boolean;
   rag_enabled: boolean;
   embed_model: string;
+  keep_alive: string;
 }
 
 // ── Benchmark de modèles ─────────────────────────────────────────────────
