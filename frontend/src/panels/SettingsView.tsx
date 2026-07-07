@@ -23,6 +23,9 @@ export function SettingsView() {
     selectedModel,
     setSelectedModel,
     refreshModels,
+    loadedModels,
+    warmingModel,
+    warmError,
     status,
     config,
     availableTools,
@@ -153,6 +156,8 @@ export function SettingsView() {
                   )}
                   {models.map((m) => {
                     const on = m.name === selectedModel;
+                    const loaded = loadedModels.find((item) => item.name === m.name);
+                    const warming = warmingModel === m.name;
                     return (
                       <div
                         key={m.name}
@@ -187,6 +192,28 @@ export function SettingsView() {
                                 .filter(Boolean)
                                 .join(" · ")}
                             </div>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                              <span
+                                className={`h-2 w-2 border border-line ${
+                                  warming
+                                    ? "bg-accent animate-pulse"
+                                    : loaded?.on_gpu
+                                      ? "bg-ok"
+                                      : loaded
+                                        ? "bg-warn"
+                                        : "bg-card"
+                                }`}
+                              />
+                              <span className={on ? "text-on-dark-2" : "text-muted-2"}>
+                                {warming
+                                  ? "Préchargement en cours…"
+                                  : loaded?.on_gpu
+                                    ? "Chargé sur GPU"
+                                    : loaded
+                                      ? `Chargé · ${loaded.gpu_percent}% GPU`
+                                      : "Non chargé"}
+                              </span>
+                            </div>
                           </div>
                         </button>
                         <button
@@ -203,6 +230,11 @@ export function SettingsView() {
                   {deleteError && (
                     <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
                       {deleteError}
+                    </div>
+                  )}
+                  {warmError && (
+                    <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+                      Préchargement : {warmError}
                     </div>
                   )}
                 </div>
@@ -461,6 +493,7 @@ function BenchCard() {
   const selectedModel = useStore((s) => s.selectedModel);
   const [scores, setScores] = useState<Record<string, BenchResult>>({});
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<
     { task: string; score: number | null; detail?: string }[]
   >([]);
@@ -472,6 +505,7 @@ function BenchCard() {
   const launch = async () => {
     if (!selectedModel || running) return;
     setRunning(true);
+    setError(null);
     setProgress([]);
     try {
       const result = await runBench(selectedModel, (task, score, detail) => {
@@ -481,6 +515,8 @@ function BenchCard() {
         });
       });
       if (result) setScores((s) => ({ ...s, [selectedModel]: result }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "benchmark impossible");
     } finally {
       setRunning(false);
     }
@@ -521,6 +557,12 @@ function BenchCard() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+          Échec du test : {error}
         </div>
       )}
 

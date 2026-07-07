@@ -17,7 +17,7 @@ from typing import AsyncIterator
 import httpx
 
 from . import db
-from .ollama_client import ollama
+from .ollama_client import OllamaError, ollama
 
 BENCH_KEY = "bench"  # config[bench] = {model: {score, details, at}}
 
@@ -155,8 +155,9 @@ async def _task_json(model: str) -> tuple[int, str]:
         return 5, "JSON invalide"
     ok_nom = "marie" in str(data.get("nom", "")).lower()
     ok_ville = "lyon" in str(data.get("ville", "")).lower()
-    return 10 + 5 * ok_nom + 5 * ok_ville, "extraction correcte" \
-        if ok_nom and ok_ville else (10 + 5 * ok_nom + 5 * ok_ville, "extraction partielle")
+    score = 10 + 5 * ok_nom + 5 * ok_ville
+    detail = "extraction correcte" if ok_nom and ok_ville else "extraction partielle"
+    return score, detail
 
 
 async def _task_format(model: str) -> tuple[int, str]:
@@ -190,8 +191,12 @@ async def run_bench(model: str) -> AsyncIterator[dict]:
         yield {"type": "task_start", "task": name}
         try:
             score, detail = await fn(model)
-        except (httpx.HTTPError, OSError) as exc:
+        except (OllamaError, httpx.HTTPError, OSError) as exc:
             score, detail = 0, f"erreur : {str(exc)[:80]}"
+        except Exception as exc:
+            # Une épreuve défaillante ne doit pas couper silencieusement le SSE :
+            # elle vaut zéro et les autres épreuves continuent.
+            score, detail = 0, f"épreuve interrompue : {str(exc)[:80]}"
         total += score
         details.append({"task": name, "score": score, "detail": detail})
         yield {"type": "task_done", "task": name, "score": score, "detail": detail}

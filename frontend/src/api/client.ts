@@ -47,16 +47,24 @@ export interface LoadedModel {
   gpu_percent: number;
 }
 
-/** Précharge un modèle en VRAM (best-effort, ne lève jamais). */
-export async function warmModel(name: string, keepAlive = "30m"): Promise<void> {
+async function apiError(res: Response, fallback: string): Promise<Error> {
   try {
-    await fetch("/api/models/warm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, keep_alive: keepAlive }),
-    });
+    const payload = await res.json();
+    return new Error(payload?.detail ?? payload?.error ?? fallback);
   } catch {
-    /* préchargement best-effort */
+    return new Error(fallback);
+  }
+}
+
+/** Précharge un modèle en mémoire et remonte toute erreur à l'interface. */
+export async function warmModel(name: string, keepAlive = "30m"): Promise<void> {
+  const res = await fetch("/api/models/warm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, keep_alive: keepAlive }),
+  });
+  if (!res.ok) {
+    throw await apiError(res, `préchargement refusé (${res.status})`);
   }
 }
 
@@ -175,39 +183,47 @@ export async function runBench(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model }),
   });
-  if (!res.body) return null;
+  if (!res.ok) {
+    throw await apiError(res, `benchmark refusé (${res.status})`);
+  }
+  if (!res.body) throw new Error("le serveur n'a pas renvoyé de progression");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let final: BenchResult | null = null;
 
+  const dispatch = (block: string) => {
+    let event = "message";
+    const dataLines: string[] = [];
+    for (const line of block.replace(/\r\n/g, "\n").split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    if (dataLines.length === 0) return;
+    const payload = JSON.parse(dataLines.join("\n"));
+    if (event === "task_start") onProgress(payload.task, null);
+    else if (event === "task_done")
+      onProgress(payload.task, payload.score, payload.detail);
+    else if (event === "error")
+      throw new Error(payload.message ?? "le benchmark a échoué");
+    else if (event === "done")
+      final = { score: payload.score, details: payload.details, at: Date.now() / 1000 };
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
     for (const block of events) {
-      let event = "";
-      let data = "";
-      for (const line of block.split("\n")) {
-        if (line.startsWith("event: ")) event = line.slice(7).trim();
-        else if (line.startsWith("data: ")) data += line.slice(6);
-      }
-      if (!data) continue;
-      try {
-        const payload = JSON.parse(data);
-        if (event === "task_start") onProgress(payload.task, null);
-        else if (event === "task_done")
-          onProgress(payload.task, payload.score, payload.detail);
-        else if (event === "done")
-          final = { score: payload.score, details: payload.details, at: Date.now() / 1000 };
-      } catch {
-        /* bloc partiel */
-      }
+      if (block.trim()) dispatch(block);
     }
   }
+  buffer += decoder.decode();
+  if (buffer.trim()) dispatch(buffer);
+  if (!final) throw new Error("le benchmark s'est interrompu avant le résultat");
   return final;
 }
 

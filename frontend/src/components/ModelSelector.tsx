@@ -4,7 +4,14 @@ import { ChevronDown } from "./Icon";
 
 /** Sélecteur de modèle Ollama (chip orange de la barre supérieure). */
 export function ModelSelector() {
-  const { models, selectedModel, setSelectedModel, loadedModels } = useStore();
+  const {
+    models,
+    selectedModel,
+    setSelectedModel,
+    loadedModels,
+    warmingModel,
+    warmError,
+  } = useStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,14 +37,20 @@ export function ModelSelector() {
       >
         <span
           className={`h-2.5 w-2.5 border-2 border-line ${
-            selectedLoaded
+            warmingModel === selectedModel
+              ? "bg-accent animate-pulse"
+              : selectedLoaded
               ? selectedLoaded.on_gpu
                 ? "bg-ok"
                 : "bg-warn"
               : "bg-white"
           }`}
           title={
-            selectedLoaded
+            warmError
+              ? warmError
+              : warmingModel === selectedModel
+                ? "préchargement en cours…"
+                : selectedLoaded
               ? selectedLoaded.on_gpu
                 ? "chargé sur GPU"
                 : `chargé (${selectedLoaded.gpu_percent}% GPU)`

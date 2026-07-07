@@ -30,6 +30,8 @@ interface LokiState {
   status: OllamaStatus | null;
   systemStats: SystemStats | null;
   loadedModels: LoadedModel[];
+  warmingModel: string | null;
+  warmError: string | null;
   models: OllamaModel[];
   selectedModel: string;
   loadingModels: boolean;
@@ -81,6 +83,8 @@ export const useStore = create<LokiState>((set, get) => ({
   status: null,
   systemStats: null,
   loadedModels: [],
+  warmingModel: null,
+  warmError: null,
   models: [],
   selectedModel: "",
   loadingModels: false,
@@ -129,10 +133,11 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   refreshConfig: async () => {
-    const { config, available_tools } = await getConfig(
-      get().selectedModel || undefined
-    );
-    set({ config, availableTools: available_tools });
+    const model = get().selectedModel;
+    const { config, available_tools } = await getConfig(model || undefined);
+    if (get().selectedModel === model) {
+      set({ config, availableTools: available_tools });
+    }
   },
 
   updateConfig: async (patch) => {
@@ -146,11 +151,26 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   setSelectedModel: (name) => {
-    set({ selectedModel: name });
-    void get().refreshConfig();
-    // Préchargement : le modèle est chargé en VRAM dès la sélection.
-    const ka = get().config?.keep_alive ?? "30m";
-    void warmModel(name, ka).then(() => get().refreshLoadedModels());
+    set({ selectedModel: name, warmingModel: name || null, warmError: null });
+    void (async () => {
+      try {
+        await get().refreshConfig();
+        if (!name || get().selectedModel !== name) return;
+        // La configuration est propre au modèle : on attend son chargement avant
+        // d'utiliser keep_alive, sinon la valeur du modèle précédent est envoyée.
+        const ka = get().config?.keep_alive ?? "30m";
+        await warmModel(name, ka);
+        await get().refreshLoadedModels();
+      } catch (err) {
+        if (get().selectedModel === name) {
+          set({
+            warmError: err instanceof Error ? err.message : "préchargement impossible",
+          });
+        }
+      } finally {
+        if (get().warmingModel === name) set({ warmingModel: null });
+      }
+    })();
   },
 
   refreshFiles: async () => {
@@ -193,8 +213,10 @@ export const useStore = create<LokiState>((set, get) => ({
         : installed.has(def)
           ? def
           : models[0]?.name ?? "";
-      set({ models, selectedModel });
-      await get().refreshConfig();
+      set({ models });
+      // Passe par l'action de sélection afin de précharger aussi le modèle choisi
+      // automatiquement au démarrage (défaut ou premier modèle installé).
+      get().setSelectedModel(selectedModel);
     } finally {
       set({ loadingModels: false });
     }

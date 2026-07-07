@@ -24,9 +24,16 @@ async def scores() -> dict:
 @router.post("")
 async def run(req: BenchRequest) -> StreamingResponse:
     async def event_stream():
-        async for ev in bench.run_bench(req.model):
-            etype = ev.pop("type")
-            yield f"event: {etype}\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        try:
+            async for ev in bench.run_bench(req.model):
+                etype = ev.pop("type")
+                yield f"event: {etype}\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            payload = json.dumps(
+                {"message": f"benchmark interrompu : {str(exc)[:200]}"},
+                ensure_ascii=False,
+            )
+            yield f"event: error\ndata: {payload}\n\n"
 
     return StreamingResponse(
         event_stream(),
