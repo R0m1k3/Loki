@@ -122,7 +122,10 @@ class OllamaClient:
 
         Le paramètre keep_alive fixe la durée de rétention en mémoire.
         """
-        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+        # Le chargement se fait désormais en tâche de fond côté API Loki. On lui
+        # laisse jusqu'à dix minutes pour les gros modèles ou un stockage lent.
+        timeout = httpx.Timeout(connect=10.0, read=600.0, write=30.0, pool=10.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             resp = await client.post(
                 f"{self.host}/api/generate",
                 json={"model": model, "keep_alive": keep_alive, "stream": False},

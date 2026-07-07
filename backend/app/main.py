@@ -22,16 +22,16 @@ async def _warm_default_model() -> None:
     import asyncio
     import logging
 
-    from .ollama_client import OllamaError, ollama
-
     await asyncio.sleep(2)  # laisse le service démarrer
     try:
         cfg = agent_config.get_config(settings.default_model)
-        await ollama.warm(settings.default_model, cfg.get("keep_alive", "30m"))
-        logging.getLogger(__name__).info(
-            "Modèle %s préchargé en VRAM", settings.default_model
+        models.start_model_warm(
+            settings.default_model, cfg.get("keep_alive", "30m")
         )
-    except (OllamaError, OSError, Exception) as exc:  # best-effort
+        logging.getLogger(__name__).info(
+            "Préchargement du modèle %s lancé", settings.default_model
+        )
+    except Exception as exc:  # best-effort
         logging.getLogger(__name__).info(
             "Préchargement au démarrage ignoré : %s", exc
         )

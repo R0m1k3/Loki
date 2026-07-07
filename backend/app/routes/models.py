@@ -1,10 +1,11 @@
 """Routes liées à Ollama : statut de connexion, modèles, téléchargement."""
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -12,6 +13,12 @@ from ..config import settings
 from ..ollama_client import ollama
 
 router = APIRouter(prefix="/api", tags=["ollama"])
+
+# État en mémoire des préchargements. Loki est lancé avec un worker unique ; ce
+# suivi permet au navigateur d'interroger une route courte pendant que le long
+# chargement Ollama continue sans maintenir la requête HTTP initiale ouverte.
+_warm_states: dict[str, dict[str, str]] = {}
+_warm_tasks: dict[str, asyncio.Task[None]] = {}
 
 
 @router.get("/status")
@@ -63,16 +70,47 @@ class WarmRequest(BaseModel):
     keep_alive: str = "30m"
 
 
-@router.post("/models/warm")
-async def warm_model(req: WarmRequest) -> dict:
-    """Précharge un modèle en VRAM (préchargement)."""
-    if not req.name.strip():
-        raise HTTPException(400, "nom de modèle vide")
+async def _warm_in_background(name: str, keep_alive: str) -> None:
     try:
-        await ollama.warm(req.name.strip(), req.keep_alive)
-    except (httpx.HTTPError, OSError) as exc:
-        raise HTTPException(502, f"préchargement impossible : {exc}") from exc
-    return {"warmed": req.name.strip()}
+        await ollama.warm(name, keep_alive)
+        _warm_states[name] = {"state": "loaded"}
+    except Exception as exc:
+        _warm_states[name] = {
+            "state": "error",
+            "error": f"préchargement impossible : {str(exc)[:500]}",
+        }
+
+
+def start_model_warm(name: str, keep_alive: str) -> None:
+    """Démarre au plus une tâche de préchargement par modèle."""
+    current = _warm_tasks.get(name)
+    if current and not current.done():
+        return
+    _warm_states[name] = {"state": "loading"}
+    task = asyncio.create_task(_warm_in_background(name, keep_alive))
+    _warm_tasks[name] = task
+
+    def forget(done: asyncio.Task[None]) -> None:
+        if _warm_tasks.get(name) is done:
+            _warm_tasks.pop(name, None)
+
+    task.add_done_callback(forget)
+
+
+@router.post("/models/warm", status_code=202)
+async def warm_model(req: WarmRequest) -> dict:
+    """Démarre le préchargement sans exposer sa durée au reverse proxy."""
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(400, "nom de modèle vide")
+    start_model_warm(name, req.keep_alive)
+    return {"warming": name, "state": _warm_states[name]["state"]}
+
+
+@router.get("/models/warm/status")
+async def warm_status(name: str = Query(min_length=1)) -> dict:
+    """État court du préchargement : idle, loading, loaded ou error."""
+    return _warm_states.get(name.strip(), {"state": "idle"})
 
 
 @router.get("/models/loaded")

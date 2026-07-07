@@ -56,7 +56,17 @@ async function apiError(res: Response, fallback: string): Promise<Error> {
   }
 }
 
-/** Précharge un modèle en mémoire et remonte toute erreur à l'interface. */
+interface WarmStatus {
+  state: "idle" | "loading" | "loaded" | "error";
+  error?: string;
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Lance le préchargement en arrière-plan puis suit son état. Chaque requête
+ * reste courte afin qu'un reverse proxy ne puisse plus interrompre le warm-up.
+ */
 export async function warmModel(name: string, keepAlive = "30m"): Promise<void> {
   const res = await fetch("/api/models/warm", {
     method: "POST",
@@ -66,6 +76,23 @@ export async function warmModel(name: string, keepAlive = "30m"): Promise<void> 
   if (!res.ok) {
     throw await apiError(res, `préchargement refusé (${res.status})`);
   }
+
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const statusRes = await fetch(
+      `/api/models/warm/status?name=${encodeURIComponent(name)}`,
+      { cache: "no-store" }
+    );
+    if (!statusRes.ok) {
+      throw await apiError(statusRes, `suivi du préchargement refusé (${statusRes.status})`);
+    }
+    const status = (await statusRes.json()) as WarmStatus;
+    if (status.state === "loaded") return;
+    if (status.state === "error") {
+      throw new Error(status.error ?? "préchargement impossible");
+    }
+    await wait(2000);
+  }
+  throw new Error("préchargement toujours en cours après 10 minutes");
 }
 
 export async function getLoadedModels(): Promise<LoadedModel[]> {
