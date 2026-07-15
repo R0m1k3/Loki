@@ -159,8 +159,20 @@ export const useStore = create<LokiState>((set, get) => ({
         // La configuration est propre au modèle : on attend son chargement avant
         // d'utiliser keep_alive, sinon la valeur du modèle précédent est envoyée.
         const ka = get().config?.keep_alive ?? "30m";
-        await warmModel(name, ka);
+        const st = await warmModel(name, ka);
         await get().refreshLoadedModels();
+        // Modèle chargé hors GPU : prévenir (souvent trop gros pour la VRAM).
+        if (
+          (st.processor === "cpu" || st.processor === "mixte") &&
+          get().selectedModel === name
+        ) {
+          set({
+            warmError:
+              st.processor === "cpu"
+                ? "Modèle chargé sur le CPU (trop gros pour la VRAM) — lent. Choisis un modèle plus petit ou une quantization plus légère."
+                : `Modèle en partie sur GPU (${st.gpu_percent ?? "?"}%) : dépasse la VRAM, chargement plus lent.`,
+          });
+        }
       } catch (err) {
         if (get().selectedModel === name) {
           set({

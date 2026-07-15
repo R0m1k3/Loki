@@ -118,19 +118,27 @@ class OllamaClient:
                         raise OllamaError(str(chunk["error"]))
                     yield chunk
 
-    async def warm(self, model: str, keep_alive: str = "30m") -> dict:
+    async def warm(
+        self, model: str, keep_alive: str = "30m", options: dict | None = None
+    ) -> dict:
         """Précharge un modèle en VRAM sans générer (/api/generate sans prompt).
 
-        Le paramètre keep_alive fixe la durée de rétention en mémoire.
+        Le paramètre keep_alive fixe la durée de rétention en mémoire. Les
+        `options` (num_ctx, num_batch, num_gpu…) DOIVENT correspondre à celles du
+        chat : sinon Ollama chargerait un runner distinct puis en rechargerait un
+        autre au premier message — un double chargement très coûteux pour un gros
+        modèle.
         """
+        payload: dict = {"model": model, "keep_alive": keep_alive, "stream": False}
+        if options:
+            payload["options"] = options
         # Le chargement se fait désormais en tâche de fond côté API Loki. On lui
         # laisse jusqu'à dix minutes pour les gros modèles ou un stockage lent.
         timeout = httpx.Timeout(connect=10.0, read=600.0, write=30.0, pool=10.0)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             for attempt in range(2):
                 resp = await client.post(
-                    f"{self.host}/api/generate",
-                    json={"model": model, "keep_alive": keep_alive, "stream": False},
+                    f"{self.host}/api/generate", json=payload
                 )
                 try:
                     # Inclut le corps JSON d'Ollama dans l'erreur (OOM, runner…),

@@ -99,6 +99,8 @@ async function apiError(res: Response, fallback: string): Promise<Error> {
 interface WarmStatus {
   state: "idle" | "loading" | "loaded" | "error";
   error?: string;
+  processor?: "gpu" | "cpu" | "mixte";
+  gpu_percent?: string;
 }
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,7 +109,10 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Lance le préchargement en arrière-plan puis suit son état. Chaque requête
  * reste courte afin qu'un reverse proxy ne puisse plus interrompre le warm-up.
  */
-export async function warmModel(name: string, keepAlive = "30m"): Promise<void> {
+export async function warmModel(
+  name: string,
+  keepAlive = "30m"
+): Promise<WarmStatus> {
   const res = await fetch("/api/models/warm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -126,7 +131,7 @@ export async function warmModel(name: string, keepAlive = "30m"): Promise<void> 
       throw await apiError(statusRes, `suivi du préchargement refusé (${statusRes.status})`);
     }
     const status = (await statusRes.json()) as WarmStatus;
-    if (status.state === "loaded") return;
+    if (status.state === "loaded") return status;
     if (status.state === "error") {
       throw new Error(status.error ?? "préchargement impossible");
     }

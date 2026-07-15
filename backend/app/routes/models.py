@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from .. import agent_config
 from ..config import settings
 from ..ollama_client import ollama
 
@@ -70,10 +71,29 @@ class WarmRequest(BaseModel):
     keep_alive: str = "30m"
 
 
-async def _warm_in_background(name: str, keep_alive: str) -> None:
+async def _placement_of(name: str) -> dict:
+    """Où le modèle vient-il d'être chargé ? (GPU / CPU / mixte), via /api/ps."""
     try:
-        await ollama.warm(name, keep_alive)
-        _warm_states[name] = {"state": "loaded"}
+        for m in await ollama.ps():
+            if m.get("name") == name or m.get("model") == name:
+                size = m.get("size", 0) or 0
+                vram = m.get("size_vram", 0) or 0
+                if size <= 0:
+                    return {}
+                pct = int(vram / size * 100)
+                where = "gpu" if pct >= 99 else "cpu" if pct <= 1 else "mixte"
+                return {"processor": where, "gpu_percent": str(pct)}
+    except (httpx.HTTPError, OSError):
+        pass
+    return {}
+
+
+async def _warm_in_background(name: str, keep_alive: str, options: dict | None) -> None:
+    try:
+        await ollama.warm(name, keep_alive, options)
+        state = {"state": "loaded"}
+        state.update(await _placement_of(name))
+        _warm_states[name] = state
     except Exception as exc:
         _warm_states[name] = {
             "state": "error",
@@ -82,12 +102,19 @@ async def _warm_in_background(name: str, keep_alive: str) -> None:
 
 
 def start_model_warm(name: str, keep_alive: str) -> None:
-    """Démarre au plus une tâche de préchargement par modèle."""
+    """Démarre au plus une tâche de préchargement par modèle.
+
+    Les options de génération du modèle (num_ctx, num_batch, num_gpu…) sont
+    envoyées au préchargement pour qu'Ollama charge exactement le runner que le
+    chat utilisera — évite un rechargement complet au premier message.
+    """
     current = _warm_tasks.get(name)
     if current and not current.done():
         return
+    cfg = agent_config.get_config(name)
+    options = agent_config.ollama_options(cfg)
     _warm_states[name] = {"state": "loading"}
-    task = asyncio.create_task(_warm_in_background(name, keep_alive))
+    task = asyncio.create_task(_warm_in_background(name, keep_alive, options))
     _warm_tasks[name] = task
 
     def forget(done: asyncio.Task[None]) -> None:
