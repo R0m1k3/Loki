@@ -75,6 +75,9 @@ interface LokiState {
   removeSession: (id: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopStreaming: () => void;
+
+  mode: "plan" | "build" | "yolo";
+  setMode: (m: "plan" | "build" | "yolo") => void;
 }
 
 let activeStreamController: AbortController | null = null;
@@ -106,6 +109,9 @@ export const useStore = create<LokiState>((set, get) => ({
   config: null,
   availableTools: [],
   pendingShell: null,
+  mode: "build",
+
+  setMode: (m) => set({ mode: m }),
 
   approveShell: async () => {
     const cmd = get().pendingShell;
@@ -350,7 +356,12 @@ export const useStore = create<LokiState>((set, get) => ({
     activeStreamController = controller;
 
     await streamChat(
-      { session_id: sid, content, model: get().selectedModel || undefined },
+      {
+        session_id: sid,
+        content,
+        model: get().selectedModel || undefined,
+        mode: get().mode,
+      },
       {
         onToken: (t) => set({ streamContent: get().streamContent + t }),
         onThinking: (t) => set({ streamThinking: get().streamThinking + t }),

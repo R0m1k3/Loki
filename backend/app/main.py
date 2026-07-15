@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import agent_config, coder, db, rag
 from .config import settings
-from .routes import benchmark, chat, config, files, models, sessions, shell, system
+from .routes import benchmark, chat, config, files, git, models, sessions, shell, system
 
 
 async def _warm_default_model() -> None:
@@ -71,6 +71,7 @@ app.include_router(config.router)
 app.include_router(shell.router)
 app.include_router(system.router)
 app.include_router(benchmark.router)
+app.include_router(git.router)
 
 
 @app.get("/api/health")

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
-import { ChevronDown, ClipIcon, LokiMark, SendIcon } from "../components/Icon";
+import { ChevronDown, LokiMark, SendIcon } from "../components/Icon";
 import { ToolCard } from "../components/ToolCard";
 import { MessageContent } from "../components/MessageContent";
 import type { Message, ToolCall } from "../api/client";
@@ -135,11 +135,9 @@ export function ChatPanel() {
               className="min-h-[40px] w-full resize-none bg-transparent text-[14px] leading-relaxed text-ink outline-none placeholder:text-muted-3"
             />
             <div className="mt-1.5 flex items-center gap-2">
-              <button className="flex h-8 w-8 items-center justify-center border-2 border-line text-ink-2">
-                <ClipIcon />
-              </button>
+              <ModeSelector />
               <div
-                className="flex h-8 min-w-0 max-w-[220px] items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2"
+                className="flex h-8 min-w-0 max-w-[180px] items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2"
                 title={selectedModel || undefined}
               >
                 <span className="h-2 w-2 border-2 border-line bg-accent" />
@@ -175,6 +173,70 @@ export function ChatPanel() {
 }
 
 /** Plan d'exécution affiché avant le travail de l'agent. */
+const MODES = [
+  { id: "plan", label: "Plan", icon: "🔍", desc: "Lecture seule : analyse et propose, sans rien modifier" },
+  { id: "build", label: "Build", icon: "🔨", desc: "Normal : écrit les fichiers, confirme les commandes shell" },
+  { id: "yolo", label: "Yolo", icon: "⚡", desc: "Auto : approuve tout, y compris le shell" },
+] as const;
+
+/** Sélecteur de mode d'exécution (Plan / Build / Yolo) dans le composer. */
+function ModeSelector() {
+  const { mode, setMode } = useStore();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const current = MODES.find((m) => m.id === mode) ?? MODES[1];
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-8 items-center gap-1.5 border-2 border-line px-2.5 text-[13px] ${
+          mode === "plan"
+            ? "bg-info text-white"
+            : mode === "yolo"
+              ? "bg-accent text-white"
+              : "bg-card text-ink-2"
+        }`}
+        title={current.desc}
+      >
+        <span>{current.icon}</span>
+        <span>{current.label}</span>
+        <ChevronDown size={11} />
+      </button>
+      {open && (
+        <div className="absolute bottom-10 left-0 z-20 w-64 border-[3px] border-line bg-card p-1 shadow-hard">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => {
+                setMode(m.id);
+                setOpen(false);
+              }}
+              className={`flex w-full flex-col items-start gap-0.5 px-2 py-2 text-left hover:bg-base ${
+                m.id === mode ? "bg-base" : ""
+              }`}
+            >
+              <span className="text-[13px] text-ink">
+                {m.icon} {m.label}
+              </span>
+              <span className="text-[11px] leading-tight text-muted-2">{m.desc}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlanCard({ steps }: { steps: string[] }) {
   return (
     <div

@@ -41,6 +41,42 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.json();
 }
 
+// ── Git du workspace ─────────────────────────────────────────────────────
+export interface GitCommit {
+  hash: string;
+  full_hash: string;
+  subject: string;
+  author: string;
+  when: string;
+  files_changed: number;
+}
+
+export async function getGitLog(): Promise<GitCommit[]> {
+  try {
+    const res = await fetch("/api/git/log");
+    return (await res.json()).commits;
+  } catch {
+    return [];
+  }
+}
+
+export async function getGitDiff(hash?: string): Promise<string> {
+  const url = hash ? `/api/git/diff?hash=${encodeURIComponent(hash)}` : "/api/git/diff";
+  const res = await fetch(url);
+  if (!res.ok) return "";
+  return (await res.json()).diff;
+}
+
+export async function revertCommit(hash: string): Promise<{ message: string }> {
+  const res = await fetch("/api/git/revert", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hash }),
+  });
+  if (!res.ok) throw await apiError(res, "revert impossible");
+  return res.json();
+}
+
 export interface HardwareInfo {
   loki_gpus: {
     index: number;
@@ -405,7 +441,7 @@ export async function deleteSession(id: string): Promise<void> {
 
 /** Envoie un message et streame la réponse de l'agent via SSE. */
 export async function streamChat(
-  body: { session_id: string; content: string; model?: string },
+  body: { session_id: string; content: string; model?: string; mode?: string },
   handlers: {
     onToken: (t: string) => void;
     onThinking: (t: string) => void;

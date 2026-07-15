@@ -129,6 +129,21 @@ message suivant paie alors un rechargement complet (lent). Loki évite ça :
 - **Indicateur d'état** : la pastille du sélecteur de modèle est verte quand le
   modèle est chargé sur GPU, orange sur CPU, blanche s'il reste à charger.
 
+## Modes d'exécution (Plan / Build / Yolo)
+
+Un sélecteur dans le composer contrôle le niveau d'autonomie de l'agent :
+- **Plan** 🔍 — lecture seule (`read_file`, `list_dir`, `grep_search`) : l'agent
+  analyse et propose sans jamais modifier de fichier ni exécuter de commande.
+- **Build** 🔨 — normal : écrit les fichiers, `run_shell` demande confirmation.
+- **Yolo** ⚡ — autonomie maximale : approuve tout, y compris le shell.
+
+## Panneau Git & Diff
+
+Le workspace étant un dépôt git (chaque action de l'agent = un commit), l'onglet
+**Git** du panneau de droite montre l'historique des commits, le **diff coloré**
+de chacun, et un bouton **↶ Annuler** (revert) pour défaire une modification en
+un clic.
+
 ## Intelligence augmentée
 
 - **Plan-puis-exécute** : les demandes complexes sont décomposées en 3-5 étapes

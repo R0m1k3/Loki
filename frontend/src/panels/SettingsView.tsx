@@ -541,7 +541,11 @@ function HardwareCard() {
         <div className="border-2 border-line bg-base px-3 py-2 text-[13px] text-ink">
           {hw.gpu_override.name} ·{" "}
           {(hw.gpu_override.vram_total_mb / 1024).toFixed(0)} Go{" "}
-          <span className="text-muted-2">(déclaré)</span>
+          <span className="text-muted-2">(valeur déclarée)</span>
+          <div className="mt-1 text-[11px] text-muted-2">
+            C'est la valeur de <code>GPU_VRAM_MB</code> que tu as fixée, pas une
+            détection réelle. Corrige-la (ex. 16000 pour 16 Go) ou mets 0.
+          </div>
         </div>
       ) : (
         <div className="border-2 border-line bg-base px-3 py-2 text-[12px] text-muted-2">

@@ -31,6 +31,29 @@ class ChatRequest(BaseModel):
     session_id: str
     content: str
     model: str | None = None
+    # Mode d'exécution : "plan" (lecture seule), "build" (normal), "yolo" (auto).
+    mode: str = "build"
+
+
+# Outils autorisés en mode Plan : lecture/analyse uniquement.
+_READONLY_TOOLS = {"read_file", "list_dir", "grep_search"}
+
+
+def _apply_mode(cfg: dict, mode: str) -> dict:
+    """Adapte la config au mode d'exécution choisi dans le composer."""
+    cfg = dict(cfg)
+    if mode == "plan":
+        # Lecture seule : aucune écriture, aucun shell, aucun moteur code.
+        cfg["tools"] = {
+            name: (on and name in _READONLY_TOOLS)
+            for name, on in cfg["tools"].items()
+        }
+        cfg["plan_mode"] = True
+    elif mode == "yolo":
+        # Autonomie maximale : plus de validation shell.
+        cfg["confirm_shell"] = False
+    # "build" : comportement par défaut (inchangé).
+    return cfg
 
 
 def _sse(event: str, data: dict) -> str:
@@ -153,7 +176,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         raise HTTPException(404, "session introuvable")
 
     model = req.model or session.get("model") or settings.default_model
-    cfg = agent_config.get_config(model)
+    cfg = _apply_mode(agent_config.get_config(model), req.mode)
 
     # Premier message : titre la session avec un extrait.
     if not db.list_messages(req.session_id):

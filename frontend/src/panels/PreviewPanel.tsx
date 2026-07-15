@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { downloadFile, type ToolCall } from "../api/client";
+import {
+  downloadFile,
+  getGitDiff,
+  getGitLog,
+  revertCommit,
+  type GitCommit,
+  type ToolCall,
+} from "../api/client";
 import { DownloadIcon } from "../components/Icon";
 
-type TabId = "preview" | "code" | "logs";
+type TabId = "preview" | "code" | "logs" | "git";
 
 /** Panneau droit : onglets Aperçu / Code / Logs. */
 export function PreviewPanel() {
@@ -74,6 +81,9 @@ export function PreviewPanel() {
             {logs.length}
           </span>
         </Tab>
+        <Tab active={tab === "git"} onClick={() => setTab("git")}>
+          Git
+        </Tab>
       </div>
 
       {/* URL bar */}
@@ -96,8 +106,11 @@ export function PreviewPanel() {
         )}
       </div>
 
-      {/* Onglet Logs (fond sombre) */}
-      {tab === "logs" ? (
+      {/* Onglet Git */}
+      {tab === "git" ? (
+        <GitPanel />
+      ) : /* Onglet Logs (fond sombre) */
+      tab === "logs" ? (
         <div className="scr mx-3 mb-3 flex-1 overflow-auto border-[3px] border-line bg-card-deep p-3 text-[12.5px]">
           {logs.length === 0 ? (
             <div className="py-10 text-center text-on-dark-3">
@@ -168,6 +181,122 @@ export function PreviewPanel() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Onglet Git : historique des commits, diff colorisé, retour arrière. */
+function GitPanel() {
+  const refreshFiles = useStore((s) => s.refreshFiles);
+  const [commits, setCommits] = useState<GitCommit[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [diff, setDiff] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => getGitLog().then(setCommits).catch(() => {});
+  useEffect(() => {
+    load();
+  }, []);
+
+  const openDiff = async (hash: string) => {
+    setSelected(hash);
+    setDiff("Chargement…");
+    setDiff((await getGitDiff(hash)) || "(diff vide)");
+  };
+
+  const doRevert = async (hash: string) => {
+    if (!window.confirm(`Annuler le commit ${hash.slice(0, 7)} ? (crée un commit inverse)`))
+      return;
+    setBusy(hash);
+    setError(null);
+    try {
+      await revertCommit(hash);
+      await load();
+      await refreshFiles();
+      if (selected === hash) setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "revert impossible");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="scr mx-3 mb-3 flex flex-1 flex-col overflow-hidden border-[3px] border-line bg-card">
+      {error && (
+        <div className="border-b-2 border-line bg-warn/10 px-3 py-2 text-[12px] text-warn">
+          {error}
+        </div>
+      )}
+      {/* Liste des commits */}
+      <div className="scr max-h-[45%] overflow-auto border-b-2 border-line">
+        {commits.length === 0 ? (
+          <div className="p-4 text-center text-[12px] text-muted-2">
+            Aucun commit. L'agent commitera chaque modification de code ici.
+          </div>
+        ) : (
+          commits.map((c) => (
+            <div
+              key={c.full_hash}
+              className={`flex items-center gap-2 border-b border-line-soft px-3 py-2 last:border-0 ${
+                selected === c.hash ? "bg-base" : ""
+              }`}
+            >
+              <button
+                onClick={() => openDiff(c.hash)}
+                className="min-w-0 flex-1 text-left"
+                title={c.subject}
+              >
+                <div className="truncate text-[13px] text-ink">{c.subject}</div>
+                <div className="text-[11px] text-muted-2">
+                  {c.hash} · {c.when} · {c.files_changed} fichier
+                  {c.files_changed > 1 ? "s" : ""}
+                </div>
+              </button>
+              <button
+                onClick={() => doRevert(c.hash)}
+                disabled={busy === c.hash}
+                className="flex-none border-2 border-line bg-card px-2 py-1 text-[11px] text-warn disabled:opacity-40"
+                title="Annuler ce commit (revert)"
+              >
+                {busy === c.hash ? "…" : "↶ Annuler"}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      {/* Diff du commit sélectionné */}
+      <div className="scr flex-1 overflow-auto bg-card-deep p-3">
+        {selected ? (
+          <DiffView diff={diff} />
+        ) : (
+          <div className="py-8 text-center text-[12px] text-on-dark-3">
+            Clique un commit pour voir ses modifications.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Rendu coloré d'un diff unifié. */
+function DiffView({ diff }: { diff: string }) {
+  return (
+    <pre className="m-0 whitespace-pre-wrap text-[11.5px] leading-relaxed">
+      {diff.split("\n").map((line, i) => {
+        let color = "text-on-dark-2";
+        if (line.startsWith("+") && !line.startsWith("+++")) color = "text-ok";
+        else if (line.startsWith("-") && !line.startsWith("---")) color = "text-accent";
+        else if (line.startsWith("@@")) color = "text-info";
+        else if (/^(commit|Author|Date|diff|index)/.test(line))
+          color = "text-on-dark-3";
+        return (
+          <div key={i} className={color}>
+            {line || " "}
+          </div>
+        );
+      })}
+    </pre>
   );
 }
 
