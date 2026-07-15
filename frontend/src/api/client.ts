@@ -41,6 +41,37 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.json();
 }
 
+export interface HardwareInfo {
+  loki_gpus: {
+    index: number;
+    name: string;
+    vram_total_mb: number;
+    vram_used_mb: number;
+    util_pct: number;
+  }[];
+  gpu_override: { name: string; vram_total_mb: number } | null;
+  ollama: {
+    host: string;
+    connected: boolean;
+    version?: string;
+    error?: string;
+    running: {
+      name: string;
+      processor: string;
+      gpu_percent: number;
+      size_mb: number;
+      vram_mb: number;
+    }[];
+  };
+  ollama_is_local: boolean;
+  note: string;
+}
+
+export async function getHardware(): Promise<HardwareInfo> {
+  const res = await fetch("/api/system/hardware");
+  return res.json();
+}
+
 export async function getVersion(): Promise<string> {
   try {
     const res = await fetch("/api/version");

@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Permet de vérifier que l'image déployée est bien à jour.
     loki_version: str = "dev"
 
+    # Override manuel de la VRAM (Mo) si la détection GPU échoue dans le
+    # conteneur (utile quand Ollama tourne sur une autre machine).
+    gpu_vram_mb: int = 0
+    gpu_name: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

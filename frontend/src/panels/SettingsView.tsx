@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { deleteModel, getBenchScores, pullModel, runBench } from "../api/client";
-import type { AgentConfig, BenchResult } from "../api/client";
+import {
+  deleteModel,
+  getBenchScores,
+  getHardware,
+  pullModel,
+  runBench,
+} from "../api/client";
+import type { AgentConfig, BenchResult, HardwareInfo } from "../api/client";
 import { DownloadIcon, RefreshIcon } from "../components/Icon";
 
 const TOOL_DESC: Record<string, string> = {
@@ -460,6 +466,8 @@ export function SettingsView() {
                   </div>
                 </Card>
 
+                <HardwareCard />
+
                 <BenchCard />
               </div>
             </div>
@@ -489,6 +497,112 @@ export function SettingsView() {
 }
 
 /** Benchmark : évalue le modèle sélectionné sur 5 mini-épreuves. */
+/** Panneau Matériel : GPU vu par Loki vs GPU réellement utilisé par Ollama. */
+function HardwareCard() {
+  const [hw, setHw] = useState<HardwareInfo | null>(null);
+
+  const refresh = () => getHardware().then(setHw).catch(() => {});
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Card>
+      <div className="mb-3.5 flex items-center justify-between">
+        <div className="font-pixel text-[11px] text-ink">MATÉRIEL</div>
+        <button
+          onClick={refresh}
+          className="flex h-7 items-center gap-1.5 border-2 border-line bg-card-soft px-2.5 text-[13px] text-muted-2"
+        >
+          <RefreshIcon size={12} />
+          Rafraîchir
+        </button>
+      </div>
+
+      {/* GPU vu par le conteneur Loki */}
+      <div className="mb-1 text-[12px] font-bold uppercase tracking-wide text-label">
+        GPU vu par Loki (conteneur)
+      </div>
+      {hw?.loki_gpus.length ? (
+        hw.loki_gpus.map((g) => (
+          <div key={g.index} className="border-2 border-line bg-base px-3 py-2 text-[13px]">
+            <div className="flex items-center justify-between">
+              <span className="text-ink">{g.name}</span>
+              <span className="text-muted-2">
+                {(g.vram_used_mb / 1024).toFixed(1)}/
+                {(g.vram_total_mb / 1024).toFixed(1)} Go · {g.util_pct.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+        ))
+      ) : hw?.gpu_override ? (
+        <div className="border-2 border-line bg-base px-3 py-2 text-[13px] text-ink">
+          {hw.gpu_override.name} ·{" "}
+          {(hw.gpu_override.vram_total_mb / 1024).toFixed(0)} Go{" "}
+          <span className="text-muted-2">(déclaré)</span>
+        </div>
+      ) : (
+        <div className="border-2 border-line bg-base px-3 py-2 text-[12px] text-muted-2">
+          Aucun GPU visible depuis le conteneur — normal si Ollama tourne sur une
+          autre machine. Déclare <code>GPU_VRAM_MB</code> pour l'auto-réglage.
+        </div>
+      )}
+
+      {/* GPU utilisé par Ollama */}
+      <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-label">
+        Ollama {hw?.ollama_is_local ? "(local)" : "(distant)"}
+      </div>
+      <div className="border-2 border-line bg-base px-3 py-2 text-[13px]">
+        <div className="mb-1 flex items-center gap-2">
+          <span
+            className={`h-2 w-2 border-2 border-line ${
+              hw?.ollama.connected ? "bg-ok" : "bg-warn"
+            }`}
+          />
+          <span className="min-w-0 flex-1 truncate text-muted-2" title={hw?.ollama.host}>
+            {hw?.ollama.host}
+          </span>
+          {hw?.ollama.version && (
+            <span className="text-[11px] text-muted-3">v{hw.ollama.version}</span>
+          )}
+        </div>
+        {hw?.ollama.running.length ? (
+          hw.ollama.running.map((m) => (
+            <div key={m.name} className="flex items-center gap-2 py-[2px]">
+              <span className="min-w-0 flex-1 truncate text-ink" title={m.name}>
+                {m.name}
+              </span>
+              <span
+                className={
+                  m.processor === "GPU"
+                    ? "text-ok"
+                    : m.processor === "CPU"
+                      ? "text-warn"
+                      : "text-ink"
+                }
+              >
+                {m.processor}
+                {m.processor === "mixte" ? ` ${m.gpu_percent}%` : ""}
+              </span>
+              <span className="text-[11px] text-muted-3">
+                {(m.vram_mb / 1024).toFixed(1)}G VRAM
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="text-[12px] text-muted-2">
+            Aucun modèle chargé actuellement.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2 text-[11px] leading-relaxed text-muted-3">{hw?.note}</div>
+    </Card>
+  );
+}
+
 function BenchCard() {
   const selectedModel = useStore((s) => s.selectedModel);
   const [scores, setScores] = useState<Record<string, BenchResult>>({});
