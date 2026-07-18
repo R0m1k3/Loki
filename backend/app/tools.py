@@ -103,6 +103,15 @@ def _verify_written(target: str) -> str | None:
             problems = check_html(target)
             if problems:
                 return " ; ".join(problems)
+        elif ext in (".js", ".mjs"):
+            node = shutil.which("node")
+            if node:
+                proc = subprocess.run(
+                    [node, "--check", target], capture_output=True, text=True,
+                    timeout=15,
+                )
+                if proc.returncode != 0:
+                    return (proc.stderr or proc.stdout)[:300]
     except SyntaxError as exc:
         return f"SyntaxError ligne {exc.lineno}: {exc.msg}"
     except ValueError as exc:
