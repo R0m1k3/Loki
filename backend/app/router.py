@@ -46,3 +46,24 @@ def score_code_task(message: str) -> int:
 def is_code_task(message: str) -> bool:
     """Décision : heuristique pure, aucune requête modèle."""
     return score_code_task(message) >= 3
+
+
+# Formulations de « suite de travail » : courtes, sans vocabulaire code
+# explicite, mais qui prolongent clairement la tâche en cours.
+_FOLLOWUP = re.compile(
+    r"\b(continue[rs]?|reprend[s]?|poursui[st]|termine[rs]?|finis|"
+    r"rajoute[rs]?|enl[èe]ve[rs]?|retire[rs]?|supprime[rs]?|d[ée]place[rs]?|"
+    r"agrandi[st]|r[ée]dui[st]|remet[s]?|remplace[rs]?|inverse[rs]?|"
+    r"plut[ôo]t|aussi|encore|pareil|m[êe]me chose|comme avant)\b",
+    re.I,
+)
+
+
+def is_code_followup(message: str) -> bool:
+    """Reprise probable d'un travail de code en cours.
+
+    À n'utiliser que si le tour précédent de la session était du code : un
+    « ajoute un bouton rouge » isolé n'est pas du code, mais après un
+    code_task, si.
+    """
+    return bool(_FOLLOWUP.search(message)) or score_code_task(message) >= 1

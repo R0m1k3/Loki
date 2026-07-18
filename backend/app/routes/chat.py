@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import re
 from contextlib import suppress
 
 from fastapi import APIRouter, HTTPException
@@ -61,10 +63,46 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _run_aider_keepalive(instruction: str, model: str):
+def _prev_was_code(history: list[dict]) -> bool:
+    """Le dernier tour assistant de la session était-il un travail de code ?"""
+    for m in reversed(history):
+        if m["role"] != "assistant":
+            continue
+        meta = m.get("meta") or {}
+        if meta.get("engine") == "code":
+            return True
+        tools = meta.get("tools") or []
+        return any(
+            t.get("name") in ("code_task", "write_file", "edit_file")
+            for t in tools
+        )
+    return False
+
+
+_FILE_MENTION = re.compile(r"[\w][\w./\\-]*\.[a-z0-9]{1,5}\b", re.I)
+
+
+def _mentioned_files(text: str) -> list[str]:
+    """Fichiers du workspace explicitement cités dans le message.
+
+    Transmis au moteur code pour qu'Aider travaille directement sur les bons
+    fichiers au lieu de deviner via la repo map.
+    """
+    root = os.path.abspath(settings.workspace_dir)
+    out: list[str] = []
+    for raw in _FILE_MENTION.findall(text):
+        rel = raw.replace("\\", "/").lstrip("./")
+        if os.path.isfile(os.path.join(root, rel)) and rel not in out:
+            out.append(rel)
+    return out[:8]
+
+
+async def _run_aider_keepalive(
+    instruction: str, model: str, files: list[str] | None = None
+):
     """Lance Aider dans un thread en gardant le flux SSE vivant."""
     task = asyncio.create_task(
-        asyncio.to_thread(coder.run_code_task, instruction, model, None)
+        asyncio.to_thread(coder.run_code_task, instruction, model, files)
     )
     while not task.done():
         await asyncio.sleep(10)
@@ -74,14 +112,19 @@ async def _run_aider_keepalive(instruction: str, model: str):
 
 
 async def _code_stream(
-    req: ChatRequest, model: str, *, extra: str = "", plan: list[str] | None = None
+    req: ChatRequest,
+    model: str,
+    *,
+    extra: str = "",
+    plan: list[str] | None = None,
+    files: list[str] | None = None,
 ):
     """Chemin « moteur code » : Aider + vérification HTML avec auto-correction."""
     instruction = req.content + (extra or "")
     yield _sse("tool_call", {"name": "code_task", "args": {"instruction": req.content}})
 
     result = None
-    async for item in _run_aider_keepalive(instruction, model):
+    async for item in _run_aider_keepalive(instruction, model, files):
         if item is None:
             yield ": keepalive\n\n"
         else:
@@ -179,19 +222,26 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     model = req.model or session.get("model") or settings.default_model
     cfg = _apply_mode(agent_config.get_config(model), req.mode)
 
+    history = db.list_messages(req.session_id)
+
     # Premier message : titre la session avec un extrait.
-    if not db.list_messages(req.session_id):
+    if not history:
         title = req.content.strip().split("\n")[0][:60] or "Nouvelle session"
         db.rename_session(req.session_id, title)
 
     db.add_message(req.session_id, "user", req.content, None)
 
-    # Routage automatique : moteur code si la demande est une tâche de code,
-    # que l'outil est actif et qu'Aider est disponible. Heuristique instantanée.
+    # Routage automatique : moteur code si la demande est une tâche de code —
+    # ou la SUITE d'un travail de code (« ajoute un bouton », « continue »…),
+    # que l'heuristique seule classerait à tort en discussion.
+    prev_code = _prev_was_code(history)
     use_code = (
         cfg["tools"].get("code_task", True)
         and coder.available()
-        and msg_router.is_code_task(req.content)
+        and (
+            msg_router.is_code_task(req.content)
+            or (prev_code and msg_router.is_code_followup(req.content))
+        )
     )
 
     # Mémoire compressée : système + résumé des anciens tours + messages récents.
@@ -238,6 +288,23 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 + "\n---\n".join(memories),
             })
 
+        # Session code restée en chemin agent : pousse le modèle à AGIR sur
+        # les fichiers au lieu de décrire les changements — cause fréquente de
+        # « l'agent s'arrête sans rien modifier » sur une reprise de code.
+        if prev_code and not use_code:
+            convo.insert(1, {
+                "role": "system",
+                "content": (
+                    "Cette session travaille sur du code existant du workspace. "
+                    "Pour toute demande de modification ou d'ajout : AGIS avec "
+                    "les outils — code_task pour un changement multi-fichiers, "
+                    "edit_file pour un changement ciblé, write_file pour un "
+                    "nouveau fichier. Lis le fichier concerné avant de le "
+                    "modifier. Ne réponds JAMAIS par une simple description "
+                    "des changements sans les appliquer."
+                ),
+            })
+
         # Skill : méthode experte injectée pour ce tour (jamais persistée).
         if cfg.get("skills_enabled", True):
             skill = skills.pick_skill(req.content)
@@ -260,7 +327,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
                 if plan else ""
             )
-            async for chunk in _code_stream(req, code_model, extra=instruction_plan, plan=plan):
+            async for chunk in _code_stream(
+                req, code_model, extra=instruction_plan, plan=plan,
+                files=_mentioned_files(req.content),
+            ):
                 yield chunk
             asyncio.create_task(memory.maybe_summarize(
                 req.session_id, model, options=run_opts, keep_alive=keep,
