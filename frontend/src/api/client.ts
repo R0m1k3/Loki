@@ -158,7 +158,11 @@ export async function warmModel(
     throw await apiError(res, `préchargement refusé (${res.status})`);
   }
 
-  for (let attempt = 0; attempt < 300; attempt++) {
+  // Backoff progressif : réactif au début (modèle déjà chargé), espacé ensuite
+  // pour ne pas marteler l'API pendant un long chargement.
+  const deadline = Date.now() + 10 * 60 * 1000;
+  let delay = 1000;
+  while (Date.now() < deadline) {
     const statusRes = await fetch(
       `/api/models/warm/status?name=${encodeURIComponent(name)}`,
       { cache: "no-store" }
@@ -171,7 +175,8 @@ export async function warmModel(
     if (status.state === "error") {
       throw new Error(status.error ?? "préchargement impossible");
     }
-    await wait(2000);
+    await wait(delay);
+    delay = Math.min(delay * 1.5, 5000);
   }
   throw new Error("préchargement toujours en cours après 10 minutes");
 }
@@ -405,6 +410,15 @@ export async function fileContent(path: string): Promise<string> {
   return (await res.json()).content;
 }
 
+export async function deleteFile(path: string): Promise<void> {
+  const res = await fetch(`/api/files?path=${encodeURIComponent(path)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw await apiError(res, `suppression impossible (${res.status})`);
+  }
+}
+
 export function downloadFile(path: string): void {
   const link = document.createElement("a");
   link.href = `/api/files/download?path=${encodeURIComponent(path)}`;
@@ -437,6 +451,17 @@ export async function getSession(
 
 export async function deleteSession(id: string): Promise<void> {
   await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+}
+
+export async function renameSession(id: string, title: string): Promise<void> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) {
+    throw await apiError(res, `renommage impossible (${res.status})`);
+  }
 }
 
 /** Envoie un message et streame la réponse de l'agent via SSE. */

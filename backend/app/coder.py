@@ -59,7 +59,7 @@ async def pick_code_model(current: str, preference: str | None = None) -> str:
 
     from .ollama_client import ollama
     try:
-        installed = await ollama.list_models()
+        installed = await ollama.list_models_cached()
     except Exception:
         return current
 

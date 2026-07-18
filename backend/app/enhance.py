@@ -46,13 +46,28 @@ def needs_plan(message: str) -> bool:
     return len(message) > 240 or connectors >= 2
 
 
-async def _ask(model: str, system: str, user: str, *, num_predict: int) -> str:
+async def _ask(
+    model: str,
+    system: str,
+    user: str,
+    *,
+    num_predict: int,
+    options: dict | None = None,
+    keep_alive: str | None = None,
+) -> str:
+    """Appel court au modèle.
+
+    ``options`` doit contenir les options runner (num_ctx, num_batch…) du chat
+    principal : un appel avec des options divergentes force Ollama à recharger
+    le modèle en plein message.
+    """
     text = ""
     async for chunk in ollama.chat(
         model,
         [{"role": "system", "content": system},
          {"role": "user", "content": user}],
-        options={"temperature": 0.2, "num_predict": num_predict},
+        options={**(options or {}), "temperature": 0.2, "num_predict": num_predict},
+        keep_alive=keep_alive,
         stream=True,
     ):
         text += chunk.get("message", {}).get("content", "")
@@ -61,10 +76,19 @@ async def _ask(model: str, system: str, user: str, *, num_predict: int) -> str:
     return text.strip()
 
 
-async def make_plan(model: str, message: str) -> list[str]:
+async def make_plan(
+    model: str,
+    message: str,
+    *,
+    options: dict | None = None,
+    keep_alive: str | None = None,
+) -> list[str]:
     """Renvoie la liste des étapes (vide si échec — jamais bloquant)."""
     try:
-        raw = await _ask(model, _PLAN_PROMPT, message[:1200], num_predict=220)
+        raw = await _ask(
+            model, _PLAN_PROMPT, message[:1200], num_predict=220,
+            options=options, keep_alive=keep_alive,
+        )
     except (httpx.HTTPError, OSError) as exc:
         logger.warning("Plan impossible : %s", exc)
         return []
@@ -77,7 +101,14 @@ async def make_plan(model: str, message: str) -> list[str]:
     return steps[:5] if len(steps) >= 2 else []
 
 
-async def self_review(model: str, request: str, answer: str) -> str | None:
+async def self_review(
+    model: str,
+    request: str,
+    answer: str,
+    *,
+    options: dict | None = None,
+    keep_alive: str | None = None,
+) -> str | None:
     """Critique puis révise la réponse. None si rien à corriger / échec."""
     if len(answer) < 80:
         return None
@@ -87,6 +118,7 @@ async def self_review(model: str, request: str, answer: str) -> str | None:
             _CRITIQUE_PROMPT,
             f"Demande :\n{request[:800]}\n\nRéponse :\n{answer[:2500]}",
             num_predict=180,
+            options=options, keep_alive=keep_alive,
         )
         if not critique or "PARFAIT" in critique.upper()[:40]:
             return None
@@ -97,6 +129,7 @@ async def self_review(model: str, request: str, answer: str) -> str | None:
             f"Demande :\n{request[:800]}\n\nRéponse initiale :\n{answer[:2500]}"
             f"\n\nDéfauts :\n{critique[:600]}",
             num_predict=1500,
+            options=options, keep_alive=keep_alive,
         )
         # Garde-fou : une révision vide ou minuscule ne remplace rien.
         return revised if len(revised) > len(answer) // 3 else None

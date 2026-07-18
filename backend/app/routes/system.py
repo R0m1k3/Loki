@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import shutil
+import time
 
 import httpx
 import psutil
@@ -15,11 +16,21 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 _NVIDIA_SMI = shutil.which("nvidia-smi")
 
+# Cache court : le front interroge /stats en continu ; relancer un sous-processus
+# nvidia-smi à chaque tick charge la machine qui héberge aussi Ollama.
+_GPU_CACHE_TTL = 5.0
+_gpu_cache: dict = {"at": 0.0, "value": None}
+
 
 async def _gpu_stats() -> dict | None:
-    """Utilisation GPU/VRAM via nvidia-smi ; None si absent (pas de GPU NVIDIA)."""
+    """Utilisation GPU/VRAM via nvidia-smi ; None si absent (pas de GPU NVIDIA).
+
+    Résultat mis en cache ~5 s pour limiter les sous-processus.
+    """
     if not _NVIDIA_SMI:
         return None
+    if time.monotonic() - _gpu_cache["at"] < _GPU_CACHE_TTL:
+        return _gpu_cache["value"]
     try:
         proc = await asyncio.create_subprocess_exec(
             _NVIDIA_SMI,
@@ -31,14 +42,16 @@ async def _gpu_stats() -> dict | None:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout=3)
         line = out.decode().strip().splitlines()[0]
         util, used, total, name = (p.strip() for p in line.split(","))
-        return {
+        value = {
             "name": name,
             "util_pct": float(util),
             "vram_used_mb": float(used),
             "vram_total_mb": float(total),
         }
     except Exception:
-        return None
+        value = None
+    _gpu_cache.update(at=time.monotonic(), value=value)
+    return value
 
 
 @router.get("/stats")

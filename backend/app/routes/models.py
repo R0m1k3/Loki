@@ -46,7 +46,7 @@ async def status() -> dict:
 async def list_models() -> dict:
     """Modèles installés localement, formatés pour le sélecteur de l'UI."""
     try:
-        raw = await ollama.list_models()
+        raw = await ollama.list_models_cached()
     except (httpx.HTTPError, OSError):
         return {"models": []}
 

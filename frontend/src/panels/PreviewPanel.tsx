@@ -8,13 +8,14 @@ import {
   type GitCommit,
   type ToolCall,
 } from "../api/client";
-import { DownloadIcon } from "../components/Icon";
+import { DownloadIcon, TrashIcon } from "../components/Icon";
 
 type TabId = "preview" | "code" | "logs" | "git";
 
 /** Panneau droit : onglets Aperçu / Code / Logs. */
 export function PreviewPanel() {
-  const { previewPath, previewContent, messages, streamTools } = useStore();
+  const { previewPath, previewContent, messages, streamTools, removeFile } =
+    useStore();
   const [tab, setTab] = useState<TabId>("preview");
   const [width, setWidth] = useState(() => {
     const saved = Number(window.localStorage.getItem("loki.preview.width"));
@@ -95,14 +96,28 @@ export function PreviewPanel() {
           </span>
         </div>
         {previewPath && (
-          <button
-            onClick={() => downloadFile(previewPath)}
-            className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-accent"
-            title={`Télécharger ${previewPath}`}
-          >
-            <DownloadIcon size={13} />
-            Télécharger
-          </button>
+          <>
+            <button
+              onClick={() => downloadFile(previewPath)}
+              className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-accent"
+              title={`Télécharger ${previewPath}`}
+            >
+              <DownloadIcon size={13} />
+              Télécharger
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Supprimer ${previewPath} ?`)) {
+                  void removeFile(previewPath);
+                }
+              }}
+              className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-warn"
+              title={`Supprimer ${previewPath}`}
+            >
+              <TrashIcon size={13} />
+              Supprimer
+            </button>
+          </>
         )}
       </div>
 

@@ -1,7 +1,8 @@
-"""Routes de lecture du workspace (arborescence + contenu d'un fichier)."""
+"""Routes du workspace : arborescence, contenu, téléchargement, suppression."""
 from __future__ import annotations
 
 import os
+import shutil
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -64,3 +65,27 @@ async def download_file(path: str) -> FileResponse:
         filename=os.path.basename(target),
         media_type="application/octet-stream",
     )
+
+
+@router.delete("")
+async def delete_file(path: str) -> dict:
+    """Supprime un fichier ou un dossier (récursif) du workspace.
+
+    Même confinement que le téléchargement (`_safe_path`) ; la racine du
+    workspace est refusée. Les dotfiles (.git…) ne sont jamais listés par
+    l'arborescence, donc inaccessibles depuis l'UI.
+    """
+    try:
+        target = _safe_path(path)
+    except ToolError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    root = os.path.abspath(settings.workspace_dir)
+    if os.path.abspath(target) == root:
+        raise HTTPException(400, "suppression de la racine du workspace refusée")
+    if os.path.isdir(target):
+        shutil.rmtree(target)
+    elif os.path.isfile(target):
+        os.remove(target)
+    else:
+        raise HTTPException(404, "fichier introuvable")
+    return {"deleted": path}

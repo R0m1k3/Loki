@@ -14,27 +14,29 @@ export default function App() {
     refreshStatus,
     refreshSystemStats,
     refreshModels,
-    refreshConfig,
     refreshLoadedModels,
+    refreshSessions,
   } = useStore();
 
-  // Au démarrage : statut Ollama + modèles + config. Poll du statut, des stats
-  // système et des modèles chargés en VRAM (indicateur de préchargement).
+  // Au démarrage : statut Ollama + modèles + sessions. La config est chargée
+  // par setSelectedModel (via refreshModels) — pas de double fetch. Poll du
+  // statut, des stats système (5 s, apparié au cache GPU serveur) et des
+  // modèles chargés en VRAM (indicateur de préchargement).
   useEffect(() => {
     refreshStatus();
     refreshSystemStats();
     refreshModels();
-    refreshConfig();
     refreshLoadedModels();
+    refreshSessions();
     const statusId = setInterval(refreshStatus, 10000);
-    const statsId = setInterval(refreshSystemStats, 2000);
+    const statsId = setInterval(refreshSystemStats, 5000);
     const loadedId = setInterval(refreshLoadedModels, 8000);
     return () => {
       clearInterval(statusId);
       clearInterval(statsId);
       clearInterval(loadedId);
     };
-  }, [refreshStatus, refreshSystemStats, refreshModels, refreshConfig, refreshLoadedModels]);
+  }, [refreshStatus, refreshSystemStats, refreshModels, refreshLoadedModels, refreshSessions]);
 
   return (
     <div className="flex h-full flex-col bg-base text-ink">

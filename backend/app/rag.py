@@ -9,6 +9,7 @@ silencieusement (aucun impact sur le chat).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -60,7 +61,7 @@ async def resolve_embed_model(preference: str | None = None) -> str | None:
 
     value = None
     try:
-        for m in await ollama.list_models():
+        for m in await ollama.list_models_cached():
             name = (m.get("name") or "").lower()
             if any(h in name for h in _EMBED_HINTS):
                 value = m["name"]
@@ -77,6 +78,24 @@ def _cosine(a: list[float], b: list[float]) -> float:
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(x * x for x in b))
     return dot / (na * nb) if na and nb else 0.0
+
+
+def _score_rows(qvec: list[float], rows: list) -> list[str]:
+    """Scoring cosinus sur toutes les mémoires — CPU pur, à lancer via to_thread.
+
+    Jusqu'à _MAX_MEMORIES vecteurs : la boucle Python bloquerait l'event loop
+    (et donc tous les SSE en cours) pendant plusieurs dizaines de ms.
+    """
+    scored: list[tuple[float, str]] = []
+    for row in rows:
+        try:
+            score = _cosine(qvec, json.loads(row["embedding"]))
+        except (ValueError, TypeError):
+            continue
+        if score >= _MIN_SCORE:
+            scored.append((score, row["content"]))
+    scored.sort(reverse=True)
+    return [c for _, c in scored[:_TOP_K]]
 
 
 async def index_exchange(
@@ -127,16 +146,7 @@ async def recall(
                 (sid,),
             ).fetchall()
 
-        scored = []
-        for row in rows:
-            try:
-                score = _cosine(qvec, json.loads(row["embedding"]))
-            except (ValueError, TypeError):
-                continue
-            if score >= _MIN_SCORE:
-                scored.append((score, row["content"]))
-        scored.sort(reverse=True)
-        return [c for _, c in scored[:_TOP_K]]
+        return await asyncio.to_thread(_score_rows, qvec, rows)
     except (httpx.HTTPError, OSError) as exc:
         logger.warning("Rappel RAG impossible : %s", exc)
         return []

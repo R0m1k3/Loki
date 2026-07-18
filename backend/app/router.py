@@ -1,16 +1,14 @@
 """Routeur automatique : moteur code (Aider) ou boucle agent classique ?
 
-Invisible pour l'utilisateur : chaque message est classé.
-  1. Heuristique lexicale rapide (gratuite) — tranche les cas évidents.
-  2. Cas ambigus : micro-classification par le modèle lui-même (3 jetons).
+Invisible pour l'utilisateur : chaque message est classé par une heuristique
+lexicale instantanée. Les cas ambigus partent vers la boucle agent, qui garde
+l'outil `code_task` en secours — plus d'appel LLM bloquant avant le premier
+token (l'ancien micro-classifieur coûtait un aller-retour modèle complet et
+chargeait un runner divergent).
 """
 from __future__ import annotations
 
 import re
-
-import httpx
-
-from .ollama_client import ollama
 
 # Vocabulaire fortement lié au code / au développement.
 _STRONG = re.compile(
@@ -32,7 +30,7 @@ _ACTION = re.compile(
 
 
 def score_code_task(message: str) -> int:
-    """Score heuristique : >= 3 -> code, <= 1 -> agent, 2 -> ambigu."""
+    """Score heuristique : >= 3 -> code, <= 2 -> agent."""
     score = 0
     if _STRONG.search(message):
         score += 2
@@ -45,37 +43,6 @@ def score_code_task(message: str) -> int:
     return score
 
 
-async def is_code_task(message: str, model: str) -> bool:
-    """Décision finale : heuristique, puis LLM sur les cas ambigus."""
-    score = score_code_task(message)
-    if score >= 3:
-        return True
-    if score <= 1:
-        return False
-
-    # Ambigu : on demande au modèle (réponse d'un mot, quasi instantané).
-    try:
-        answer = ""
-        async for chunk in ollama.chat(
-            model,
-            [
-                {
-                    "role": "system",
-                    "content": (
-                        "Tu classes des demandes. Réponds UNIQUEMENT par CODE "
-                        "si la demande nécessite d'écrire ou modifier du code "
-                        "ou des fichiers de projet, sinon CHAT."
-                    ),
-                },
-                {"role": "user", "content": message[:500]},
-            ],
-            options={"num_predict": 4, "temperature": 0},
-            stream=True,
-        ):
-            answer += chunk.get("message", {}).get("content", "")
-            if chunk.get("done"):
-                break
-        return "CODE" in answer.upper()
-    except (httpx.HTTPError, OSError):
-        # Ollama indisponible : la boucle agent gérera l'erreur proprement.
-        return False
+def is_code_task(message: str) -> bool:
+    """Décision : heuristique pure, aucune requête modèle."""
+    return score_code_task(message) >= 3

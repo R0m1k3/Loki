@@ -52,8 +52,18 @@ def build_convo(sid: str, system_prompt: str) -> list[dict]:
     return convo
 
 
-async def maybe_summarize(sid: str, model: str) -> None:
-    """Compresse les anciens tours dans le résumé (tâche d'arrière-plan)."""
+async def maybe_summarize(
+    sid: str,
+    model: str,
+    *,
+    options: dict | None = None,
+    keep_alive: str | None = None,
+) -> None:
+    """Compresse les anciens tours dans le résumé (tâche d'arrière-plan).
+
+    ``options`` doit reprendre les options runner du chat (num_ctx…) pour ne
+    pas déclencher un rechargement du modèle après chaque réponse.
+    """
     try:
         messages = db.list_messages_for_model(sid)
         if len(messages) <= SUMMARIZE_AFTER:
@@ -76,7 +86,8 @@ async def maybe_summarize(sid: str, model: str) -> None:
                 {"role": "system", "content": _SUMMARY_PROMPT},
                 {"role": "user", "content": transcript},
             ],
-            options={"temperature": 0.2, "num_predict": 350},
+            options={**(options or {}), "temperature": 0.2, "num_predict": 350},
+            keep_alive=keep_alive,
             stream=True,
         ):
             text += chunk.get("message", {}).get("content", "")

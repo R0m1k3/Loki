@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { getVersion } from "../api/client";
-import { ChevronDown, LokiMark } from "./Icon";
+import { LokiMark } from "./Icon";
 import { ModelSelector } from "./ModelSelector";
+import { SessionMenu } from "./SessionMenu";
 
 /** Barre supérieure sombre : logo, fil d'Ariane, statut Ollama, sélecteur. */
 export function TopBar() {
@@ -33,10 +34,7 @@ export function TopBar() {
 
       <div className="h-6 w-[3px] bg-chrome-3" />
 
-      <div className="flex items-center gap-2 text-[13px] text-on-dark">
-        <span>Nouvelle session</span>
-        <ChevronDown className="text-on-dark-3" />
-      </div>
+      <SessionMenu />
 
       <div className="flex-1" />
 

@@ -186,41 +186,49 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     db.add_message(req.session_id, "user", req.content, None)
 
     # Routage automatique : moteur code si la demande est une tâche de code,
-    # que l'outil est actif et qu'Aider est disponible.
+    # que l'outil est actif et qu'Aider est disponible. Heuristique instantanée.
     use_code = (
         cfg["tools"].get("code_task", True)
         and coder.available()
-        and await msg_router.is_code_task(req.content, model)
+        and msg_router.is_code_task(req.content)
     )
 
     # Mémoire compressée : système + résumé des anciens tours + messages récents.
     convo = memory.build_convo(req.session_id, cfg["system_prompt"])
 
-    # Mémoire long-terme (RAG) : souvenirs pertinents des autres sessions.
-    if cfg.get("rag_enabled", True):
-        memories = await rag.recall(
-            req.session_id, req.content, embed_model=cfg.get("embed_model")
+    # Options runner partagées par TOUS les appels au modèle de chat (plan,
+    # résumé, agent) : indispensables pour qu'Ollama garde le même runner.
+    run_opts = agent_config.runner_options(cfg)
+    keep = cfg.get("keep_alive", "30m")
+
+    async def event_stream():
+        yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
+
+        # Préparation du contexte APRÈS le start SSE et en PARALLÈLE : rappel
+        # RAG, plan et choix du modèle code partent ensemble au lieu de
+        # s'enchaîner en bloquant le premier token.
+        want_rag = cfg.get("rag_enabled", True)
+        want_plan = cfg.get("plan_mode", True) and (
+            use_code or enhance.needs_plan(req.content)
         )
+        if want_rag or want_plan or use_code:
+            yield _sse("status", {"message": "Préparation du contexte…"})
+
+        memories, plan, code_model = await asyncio.gather(
+            rag.recall(req.session_id, req.content, embed_model=cfg.get("embed_model"))
+            if want_rag else asyncio.sleep(0, result=[]),
+            enhance.make_plan(model, req.content, options=run_opts, keep_alive=keep)
+            if want_plan else asyncio.sleep(0, result=[]),
+            coder.pick_code_model(model, cfg.get("code_model"))
+            if use_code else asyncio.sleep(0, result=model),
+        )
+
         if memories:
             convo.insert(1, {
                 "role": "system",
                 "content": "Souvenirs pertinents d'anciennes sessions :\n"
                 + "\n---\n".join(memories),
             })
-
-    # Moteur code : choisit le meilleur modèle code installé (config "auto").
-    code_model = (
-        await coder.pick_code_model(model, cfg.get("code_model"))
-        if use_code else model
-    )
-
-    # Plan-puis-exécute : les demandes complexes sont décomposées d'abord.
-    plan: list[str] = []
-    if cfg.get("plan_mode", True) and (use_code or enhance.needs_plan(req.content)):
-        plan = await enhance.make_plan(model, req.content)
-
-    async def event_stream():
-        yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
 
         if plan:
             yield _sse("plan", {"steps": plan})
@@ -234,7 +242,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             )
             async for chunk in _code_stream(req, code_model, extra=instruction_plan, plan=plan):
                 yield chunk
-            asyncio.create_task(memory.maybe_summarize(req.session_id, model))
+            asyncio.create_task(memory.maybe_summarize(
+                req.session_id, model, options=run_opts, keep_alive=keep,
+            ))
             if cfg.get("rag_enabled", True):
                 last = db.list_messages(req.session_id)
                 answer = last[-1]["content"] if last else ""
@@ -329,7 +339,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             and not tools_meta
         ):
             yield _sse("status", {"message": "Relecture de la réponse…"})
-            revised = await enhance.self_review(model, req.content, final_content)
+            revised = await enhance.self_review(
+                model, req.content, final_content,
+                options=run_opts, keep_alive=keep,
+            )
             if revised:
                 final_content = revised
                 yield _sse("revision", {"content": revised})
@@ -362,7 +375,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             },
         )
         # Tâches d'arrière-plan : compression de l'historique + mémoire RAG.
-        asyncio.create_task(memory.maybe_summarize(req.session_id, model))
+        asyncio.create_task(memory.maybe_summarize(
+            req.session_id, model, options=run_opts, keep_alive=keep,
+        ))
         if cfg.get("rag_enabled", True) and final_content:
             asyncio.create_task(rag.index_exchange(
                 req.session_id, req.content, final_content,

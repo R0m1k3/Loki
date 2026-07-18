@@ -85,6 +85,12 @@ export const DownloadIcon = ({ size = 14, className }: Props) => (
   </svg>
 );
 
+export const TrashIcon = ({ size = 14, className }: Props) => (
+  <svg {...base(size, className)} strokeWidth={1.9}>
+    <path d="M4 7h16M10 7V5h4v2M9 7l.8 13h4.4L15 7M6.5 7l.7 13h9.6l.7-13" />
+  </svg>
+);
+
 export const CopyIcon = ({ size = 14, className }: Props) => (
   <svg {...base(size, className)} strokeWidth={1.7}>
     <rect x="9" y="9" width="11" height="11" rx="2" />

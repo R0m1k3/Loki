@@ -129,6 +129,38 @@ message suivant paie alors un rechargement complet (lent). Loki évite ça :
 - **Indicateur d'état** : la pastille du sélecteur de modèle est verte quand le
   modèle est chargé sur GPU, orange sur CPU, blanche s'il reste à charger.
 
+## Performance Ollama (recommandé)
+
+Réglages **côté serveur Ollama** qui rendent Loki nettement plus fluide
+(variables d'environnement du service/conteneur Ollama, redémarrage requis) :
+
+| Variable | Valeur conseillée | Effet |
+| -------- | ----------------- | ----- |
+| `OLLAMA_KEEP_ALIVE` | `30m` (ou `-1`) | Durée de rétention par défaut d'un modèle en VRAM. `-1` = jamais déchargé (machine dédiée). Doit être ≥ au `keep_alive` configuré dans Loki. |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` | Autorise le modèle de chat **et** le modèle d'embedding (RAG) à résider ensemble en VRAM — supprime les allers-retours de chargement à chaque message. |
+| `OLLAMA_NUM_PARALLEL` | `1` | Loki est mono-utilisateur ; chaque slot parallèle multiplie la VRAM du cache KV. |
+| `OLLAMA_FLASH_ATTENTION` | `1` | Attention plus rapide et plus sobre en VRAM. |
+| `OLLAMA_KV_CACHE_TYPE` | `q8_0` | Cache KV quantifié : ~moitié de VRAM en moins, marge pour un 12B sur 12 Go. |
+
+Exemple pour un Ollama en Docker (service `ollama` du compose) :
+
+```yaml
+  ollama:
+    image: ollama/ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=30m
+      - OLLAMA_MAX_LOADED_MODELS=2
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=q8_0
+```
+
+Côté Loki, tout est déjà optimisé : pool HTTP keep-alive partagé vers Ollama,
+options runner identiques sur tous les appels (pas de rechargement du modèle en
+plein message), `keep_alive` systématique (chat **et** embeddings), préparation
+du contexte (RAG + plan) en parallèle après l'ouverture du flux, et caches
+courts (`/api/tags`, stats GPU).
+
 ## Modes d'exécution (Plan / Build / Yolo)
 
 Un sélecteur dans le composer contrôle le niveau d'autonomie de l'agent :
@@ -188,9 +220,9 @@ efficaces même avec de petits modèles), repo map, et **commits git
 automatiques** dans le workspace.
 
 **C'est invisible** : un routeur classe chaque message.
-- Tâche de code détectée (heuristique + micro-classification LLM sur les cas
-  ambigus) → le message part au **moteur code** ; le fil affiche la carte
-  `code_task`, les fichiers modifiés et le commit.
+- Tâche de code détectée (heuristique lexicale instantanée) → le message part
+  au **moteur code** ; le fil affiche la carte `code_task`, les fichiers
+  modifiés et le commit.
 - Sinon → **boucle agent** classique ; et l'agent peut lui-même déléguer au
   moteur via l'outil `code_task` quand il juge qu'il faut coder.
 

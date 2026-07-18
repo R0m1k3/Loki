@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useStore } from "../store/useStore";
-import { DownloadIcon, PlusIcon } from "../components/Icon";
+import { DownloadIcon, PlusIcon, TrashIcon } from "../components/Icon";
 import { downloadFile, type FileNode } from "../api/client";
+import { relTime } from "../lib/time";
 
 /** Panneau gauche : historique des sessions + arborescence de fichiers. */
 export function LeftPanel() {
@@ -116,7 +117,14 @@ export function LeftPanel() {
 }
 
 function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const { openPreview, previewPath } = useStore();
+  const { openPreview, previewPath, removeFile } = useStore();
+  const confirmDelete = (n: FileNode) => {
+    const msg =
+      n.type === "dir"
+        ? `Supprimer le dossier ${n.path} et tout son contenu ?`
+        : `Supprimer ${n.path} ?`;
+    if (window.confirm(msg)) void removeFile(n.path);
+  };
   return (
     <>
       {nodes.map((n) => {
@@ -156,6 +164,16 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
                   <DownloadIcon size={13} />
                 </button>
               )}
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  confirmDelete(n);
+                }}
+                className="hidden flex-none text-muted-2 hover:text-warn group-hover:block"
+                title={`Supprimer ${n.name}`}
+              >
+                <TrashIcon size={13} />
+              </button>
             </div>
             {n.children && <FileTree nodes={n.children} depth={depth + 1} />}
           </div>
@@ -165,10 +183,3 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
   );
 }
 
-function relTime(ts: number): string {
-  const diff = Date.now() / 1000 - ts;
-  if (diff < 60) return "à l'instant";
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
-  return `il y a ${Math.floor(diff / 86400)} j`;
-}

@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import agent_config, coder, db, rag
 from .config import settings
+from .ollama_client import ollama
 from .routes import benchmark, chat, config, files, git, models, sessions, shell, system
 
 
@@ -48,6 +49,8 @@ async def lifespan(_: FastAPI):
     # Préchargement du modèle par défaut, sans bloquer le démarrage.
     asyncio.create_task(_warm_default_model())
     yield
+    # Ferme le pool HTTP partagé vers Ollama.
+    await ollama.aclose()
 
 
 app = FastAPI(

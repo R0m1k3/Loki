@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   createSession,
+  deleteFile,
   deleteSession,
   getConfig,
   getModels,
@@ -12,6 +13,7 @@ import {
   fileContent,
   listFiles,
   listSessions,
+  renameSession as apiRenameSession,
   runShell,
   saveConfig,
   streamChat,
@@ -73,6 +75,8 @@ interface LokiState {
   newSession: () => Promise<void>;
   openSession: (id: string) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
+  renameSession: (id: string, title: string) => Promise<void>;
+  removeFile: (path: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopStreaming: () => void;
 
@@ -278,6 +282,23 @@ export const useStore = create<LokiState>((set, get) => ({
     await get().refreshSessions();
   },
 
+  renameSession: async (id, title) => {
+    const clean = title.trim();
+    if (!clean) return;
+    await apiRenameSession(id, clean);
+    await get().refreshSessions();
+  },
+
+  removeFile: async (path) => {
+    await deleteFile(path);
+    // Ferme l'aperçu si le fichier supprimé (ou son dossier) y est affiché.
+    const preview = get().previewPath;
+    if (preview && (preview === path || preview.startsWith(path + "/"))) {
+      set({ previewPath: null, previewContent: "" });
+    }
+    await get().refreshFiles();
+  },
+
   stopStreaming: () => {
     activeStreamController?.abort();
     activeStreamController = null;
@@ -403,10 +424,15 @@ export const useStore = create<LokiState>((set, get) => ({
             streamNotice: null,
             streamTools: [],
           });
-          // Recharge depuis la base + l'arborescence (fichiers créés par l'agent).
-          if (get().currentSessionId === sid) await get().openSession(sid!);
-          await get().refreshSessions();
-          await get().refreshFiles();
+          // Recharge depuis la base + l'arborescence (fichiers créés par
+          // l'agent) — trois requêtes indépendantes, en parallèle.
+          await Promise.all([
+            get().currentSessionId === sid
+              ? get().openSession(sid!)
+              : Promise.resolve(),
+            get().refreshSessions(),
+            get().refreshFiles(),
+          ]);
           if (writtenHtml) await get().openPreview(writtenHtml.args.path as string);
         },
         onError: (msg) => {

@@ -179,15 +179,15 @@ def save_config(patch: dict, model: str | None = None) -> dict:
     return get_config(model)
 
 
-def ollama_options(cfg: dict) -> dict:
-    """Traduit la config en options de génération Ollama."""
-    opts = {
-        "temperature": cfg["temperature"],
-        "top_p": cfg["top_p"],
-        "top_k": cfg["top_k"],
-        "num_predict": cfg["max_tokens"],
-        "num_batch": cfg["num_batch"],
-    }
+def runner_options(cfg: dict) -> dict:
+    """Sous-ensemble d'options qui détermine l'identité du runner Ollama.
+
+    Ollama choisit son runner (processus de chargement du modèle) d'après
+    num_ctx / num_batch / num_gpu. TOUT appel au même modèle (plan, résumé,
+    agent…) doit envoyer ces mêmes valeurs, sinon Ollama recharge le modèle en
+    plein milieu d'un message — la cause principale des lenteurs observées.
+    """
+    opts: dict = {"num_batch": cfg["num_batch"]}
     # num_gpu n'est transmis que si l'utilisateur force explicitement un nombre
     # de couches (≥ 0). En -1 (défaut), on laisse Ollama auto-ajuster l'offload
     # GPU comme `ollama run` ; lui imposer une valeur peut le forcer sur le CPU.
@@ -198,6 +198,17 @@ def ollama_options(cfg: dict) -> dict:
     if cfg.get("num_ctx"):
         opts["num_ctx"] = cfg["num_ctx"]
     return opts
+
+
+def ollama_options(cfg: dict) -> dict:
+    """Traduit la config en options de génération Ollama."""
+    return {
+        **runner_options(cfg),
+        "temperature": cfg["temperature"],
+        "top_p": cfg["top_p"],
+        "top_k": cfg["top_k"],
+        "num_predict": cfg["max_tokens"],
+    }
 
 
 def enabled_tool_names(cfg: dict) -> list[str]:

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { downloadFile, type FileNode } from "../api/client";
-import { DownloadIcon } from "../components/Icon";
+import { DownloadIcon, TrashIcon } from "../components/Icon";
 import { useStore } from "../store/useStore";
 
 export function HistoryView({ onOpen }: { onOpen: () => void }) {
@@ -61,7 +61,14 @@ export function FilesView() {
 }
 
 function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const { openPreview, previewPath } = useStore();
+  const { openPreview, previewPath, removeFile } = useStore();
+  const confirmDelete = (node: FileNode) => {
+    const msg =
+      node.type === "dir"
+        ? `Supprimer le dossier ${node.path} et tout son contenu ?`
+        : `Supprimer ${node.path} ?`;
+    if (window.confirm(msg)) void removeFile(node.path);
+  };
   return (
     <>
       {nodes.map((node) => (
@@ -93,6 +100,13 @@ function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
                 <DownloadIcon size={12} /> Télécharger
               </button>
             )}
+            <button
+              onClick={() => confirmDelete(node)}
+              className="flex items-center gap-1 border-2 border-line bg-base px-2 py-1 text-[11px] text-warn"
+              title={`Supprimer ${node.name}`}
+            >
+              <TrashIcon size={12} /> Supprimer
+            </button>
           </div>
           {node.children && <WorkspaceTree nodes={node.children} depth={depth + 1} />}
         </div>

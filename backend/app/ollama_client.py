@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import AsyncIterator
 
 import httpx
@@ -27,6 +28,12 @@ class OllamaError(RuntimeError):
 # Connexion rapide à échouer si Ollama est injoignable, mais lecture sans limite :
 # une génération longue (ou un chargement de modèle sur CPU) ne doit pas couper.
 _STREAM_TIMEOUT = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=10.0)
+
+# Un chat déclenche plusieurs appels Ollama (routage, embed, plan, agent…) :
+# un pool keep-alive partagé évite un handshake TCP à chaque appel.
+_LIMITS = httpx.Limits(
+    max_connections=20, max_keepalive_connections=10, keepalive_expiry=30.0
+)
 
 
 async def _raise_for_stream_status(resp: httpx.Response) -> None:
@@ -51,72 +58,118 @@ class OllamaClient:
 
     def __init__(self, host: str | None = None) -> None:
         self.host = (host or settings.ollama_host).rstrip("/")
+        self._client: httpx.AsyncClient | None = None
+        # Cache court de /api/tags : la liste des modèles installés change
+        # rarement mais est consultée par plusieurs modules à chaque message.
+        self._tags_at = 0.0
+        self._tags: list[dict] = []
+
+    def _http(self) -> httpx.AsyncClient:
+        """Client partagé (pool keep-alive), créé paresseusement.
+
+        Un seul worker uvicorn / une seule boucle : la création lazy est sûre.
+        Le garde ``is_closed`` recrée le client si un arrêt l'a fermé.
+        """
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=_STREAM_TIMEOUT, follow_redirects=True, limits=_LIMITS
+            )
+        return self._client
+
+    async def aclose(self) -> None:
+        """Ferme le pool partagé (appelé au shutdown de l'app)."""
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
 
     async def ping(self) -> dict:
         """Vérifie la connexion et renvoie la version d'Ollama."""
-        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-            resp = await client.get(f"{self.host}/api/version")
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self._http().get(f"{self.host}/api/version", timeout=5.0)
+        resp.raise_for_status()
+        return resp.json()
 
     async def list_models(self) -> list[dict]:
-        """Liste les modèles installés localement (/api/tags)."""
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(f"{self.host}/api/tags")
-            resp.raise_for_status()
-            return resp.json().get("models", [])
+        """Liste les modèles installés localement (/api/tags), sans cache."""
+        resp = await self._http().get(f"{self.host}/api/tags", timeout=10.0)
+        resp.raise_for_status()
+        models = resp.json().get("models", [])
+        self._tags, self._tags_at = models, time.monotonic()
+        return models
 
-    async def embed(self, model: str, texts: list[str]) -> list[list[float]]:
-        """Vecteurs d'embedding pour une liste de textes (/api/embed)."""
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            resp = await client.post(
-                f"{self.host}/api/embed", json={"model": model, "input": texts}
-            )
-            resp.raise_for_status()
-            return resp.json().get("embeddings", [])
+    async def list_models_cached(self, ttl: float = 30.0) -> list[dict]:
+        """Comme ``list_models`` mais avec un cache court partagé.
+
+        Utilisé par les chemins chauds (routage code, résolution embed, route
+        /api/models) pour ne pas marteler /api/tags à chaque message.
+        """
+        if self._tags and time.monotonic() - self._tags_at < ttl:
+            return self._tags
+        return await self.list_models()
+
+    def invalidate_tags_cache(self) -> None:
+        """Force un rafraîchissement après un pull ou une suppression de modèle."""
+        self._tags_at = 0.0
+        self._tags = []
+
+    async def embed(
+        self, model: str, texts: list[str], keep_alive: str = "30m"
+    ) -> list[list[float]]:
+        """Vecteurs d'embedding pour une liste de textes (/api/embed).
+
+        ``keep_alive`` long : le modèle d'embedding est minuscule (<0,5 Go) et
+        sollicité à chaque message (recall + indexation) — le laisser chargé
+        évite un aller-retour VRAM permanent avec le modèle de chat.
+        """
+        resp = await self._http().post(
+            f"{self.host}/api/embed",
+            json={"model": model, "input": texts, "keep_alive": keep_alive},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        return resp.json().get("embeddings", [])
 
     async def ps(self) -> list[dict]:
         """Modèles actuellement chargés et leur répartition VRAM/CPU (/api/ps)."""
-        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-            resp = await client.get(f"{self.host}/api/ps")
-            resp.raise_for_status()
-            return resp.json().get("models", [])
+        resp = await self._http().get(f"{self.host}/api/ps", timeout=5.0)
+        resp.raise_for_status()
+        return resp.json().get("models", [])
 
     async def show(self, name: str) -> dict:
         """Métadonnées détaillées d'un modèle (/api/show)."""
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            resp = await client.post(f"{self.host}/api/show", json={"name": name})
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self._http().post(
+            f"{self.host}/api/show", json={"name": name}, timeout=15.0
+        )
+        resp.raise_for_status()
+        return resp.json()
 
     async def delete_model(self, name: str) -> dict:
         """Supprime un modèle installé (/api/delete)."""
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            resp = await client.request(
-                "DELETE", f"{self.host}/api/delete", json={"model": name}
-            )
-            resp.raise_for_status()
-            return resp.json() if resp.content else {"status": "success"}
+        resp = await self._http().request(
+            "DELETE", f"{self.host}/api/delete", json={"model": name}, timeout=30.0
+        )
+        resp.raise_for_status()
+        self.invalidate_tags_cache()
+        return resp.json() if resp.content else {"status": "success"}
 
     async def pull_model(self, name: str) -> AsyncIterator[dict]:
         """Télécharge un modèle en streamant la progression (/api/pull)."""
-        async with httpx.AsyncClient(
-            timeout=_STREAM_TIMEOUT, follow_redirects=True
-        ) as client:
-            async with client.stream(
-                "POST", f"{self.host}/api/pull", json={"name": name}
-            ) as resp:
-                await _raise_for_stream_status(resp)
-                async for line in resp.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if isinstance(chunk, dict) and chunk.get("error"):
-                        raise OllamaError(str(chunk["error"]))
-                    yield chunk
+        async with self._http().stream(
+            "POST",
+            f"{self.host}/api/pull",
+            json={"name": name},
+            timeout=_STREAM_TIMEOUT,
+        ) as resp:
+            await _raise_for_stream_status(resp)
+            async for line in resp.aiter_lines():
+                if not line.strip():
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(chunk, dict) and chunk.get("error"):
+                    raise OllamaError(str(chunk["error"]))
+                yield chunk
+        self.invalidate_tags_cache()
 
     async def warm(
         self, model: str, keep_alive: str = "30m", options: dict | None = None
@@ -135,21 +188,20 @@ class OllamaClient:
         # Le chargement se fait désormais en tâche de fond côté API Loki. On lui
         # laisse jusqu'à dix minutes pour les gros modèles ou un stockage lent.
         timeout = httpx.Timeout(connect=10.0, read=600.0, write=30.0, pool=10.0)
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            for attempt in range(2):
-                resp = await client.post(
-                    f"{self.host}/api/generate", json=payload
-                )
-                try:
-                    # Inclut le corps JSON d'Ollama dans l'erreur (OOM, runner…),
-                    # contrairement à raise_for_status qui ne montrait que « 500 ».
-                    await _raise_for_stream_status(resp)
-                except OllamaError:
-                    if resp.status_code >= 500 and attempt == 0:
-                        await asyncio.sleep(2)
-                        continue
-                    raise
-                return resp.json()
+        for attempt in range(2):
+            resp = await self._http().post(
+                f"{self.host}/api/generate", json=payload, timeout=timeout
+            )
+            try:
+                # Inclut le corps JSON d'Ollama dans l'erreur (OOM, runner…),
+                # contrairement à raise_for_status qui ne montrait que « 500 ».
+                await _raise_for_stream_status(resp)
+            except OllamaError:
+                if resp.status_code >= 500 and attempt == 0:
+                    await asyncio.sleep(2)
+                    continue
+                raise
+            return resp.json()
         raise OllamaError("préchargement interrompu sans réponse")
 
     async def chat(
@@ -176,27 +228,24 @@ class OllamaClient:
         if keep_alive is not None:
             payload["keep_alive"] = keep_alive
 
-        async with httpx.AsyncClient(
-            timeout=_STREAM_TIMEOUT, follow_redirects=True
-        ) as client:
-            async with client.stream(
-                "POST", f"{self.host}/api/chat", json=payload
-            ) as resp:
-                await _raise_for_stream_status(resp)
-                async for line in resp.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        # Ligne partielle / non-JSON : on l'ignore plutôt que de
-                        # faire planter tout le flux.
-                        continue
-                    # Échec en cours de génération (OOM, contexte trop grand…) :
-                    # Ollama l'émet dans le flux avec HTTP 200. On le remonte.
-                    if isinstance(chunk, dict) and chunk.get("error"):
-                        raise OllamaError(str(chunk["error"]))
-                    yield chunk
+        async with self._http().stream(
+            "POST", f"{self.host}/api/chat", json=payload, timeout=_STREAM_TIMEOUT
+        ) as resp:
+            await _raise_for_stream_status(resp)
+            async for line in resp.aiter_lines():
+                if not line.strip():
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    # Ligne partielle / non-JSON : on l'ignore plutôt que de
+                    # faire planter tout le flux.
+                    continue
+                # Échec en cours de génération (OOM, contexte trop grand…) :
+                # Ollama l'émet dans le flux avec HTTP 200. On le remonte.
+                if isinstance(chunk, dict) and chunk.get("error"):
+                    raise OllamaError(str(chunk["error"]))
+                yield chunk
 
 
 ollama = OllamaClient()
