@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from . import agent_config, coder, db, rag
 from .config import settings
 from .ollama_client import ollama
-from .routes import benchmark, chat, config, files, git, models, sessions, shell, system
+from .routes import benchmark, chat, config, files, git, mcp, models, sessions, shell, system
 
 
 async def _warm_default_model() -> None:
@@ -77,6 +77,7 @@ app.include_router(shell.router)
 app.include_router(system.router)
 app.include_router(benchmark.router)
 app.include_router(git.router)
+app.include_router(mcp.router)
 
 
 @app.get("/api/health")
