@@ -18,7 +18,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, coder, db, enhance, memory, rag, router as msg_router
+from .. import agent_config, coder, db, enhance, memory, rag, skills
+from .. import router as msg_router
 from ..tools import check_html, _safe_path
 from ..agent import run_agent
 from ..config import settings
@@ -236,6 +237,18 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 "content": "Souvenirs pertinents d'anciennes sessions :\n"
                 + "\n---\n".join(memories),
             })
+
+        # Skill : méthode experte injectée pour ce tour (jamais persistée).
+        if cfg.get("skills_enabled", True):
+            skill = skills.pick_skill(req.content)
+            if skill:
+                convo.insert(1, {
+                    "role": "system",
+                    "content": (
+                        "Méthode à suivre pour cette tâche :\n" + skill["body"]
+                    ),
+                })
+                yield _sse("notice", {"message": f"📘 Méthode : {skill['title']}"})
 
         if plan:
             yield _sse("plan", {"steps": plan})

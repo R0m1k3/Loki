@@ -64,6 +64,7 @@ PROFILE_FIELDS = {
     "self_review",
     "rag_enabled",
     "embed_model",
+    "skills_enabled",
     "keep_alive",
     *GENERATION_FIELDS,
 }
@@ -107,6 +108,8 @@ DEFAULT_CONFIG: dict = {
     # Mémoire long-terme (RAG) entre sessions, via un modèle d'embedding.
     "rag_enabled": True,
     "embed_model": "auto",
+    # Skills : méthodes expertes injectées automatiquement selon la tâche.
+    "skills_enabled": True,
     # Durée de maintien du modèle en VRAM (préchargement). "0" = décharge
     # aussitôt, "-1" = jamais, "30m" = 30 minutes.
     "keep_alive": "30m",
