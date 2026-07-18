@@ -128,6 +128,14 @@ async def run_agent(
     # On n'envoie ``think`` que pour le DÉSACTIVER (False) ; laissé à None, le
     # modèle garde son comportement par défaut. Repli si le modèle le refuse.
     request_think: bool | None = None if think else False
+    # Mode réflexion : la pensée consomme le budget num_predict. Sans marge,
+    # le modèle « pense » tout son quota et s'arrête sans agir ni répondre.
+    if request_think is None and think:
+        request_options["num_predict"] = max(
+            int(request_options.get("num_predict") or 0), 6144
+        )
+    # Compteur d'itérations où le modèle n'a produit QUE du raisonnement.
+    thinking_only_strikes = 0
 
     # Métriques cumulées sur tous les appels Ollama du tour agentique : Ollama
     # les renvoie dans le chunk final (done=true) de chaque génération.
@@ -248,9 +256,40 @@ async def run_agent(
                         continue
                     raise
 
+            # Itération « réflexion seule » : ni contenu, ni appel d'outil —
+            # le modèle a brûlé sa génération à penser. Sans relance, la
+            # boucle s'arrêtait là et la tâche restait inachevée.
+            if thinking_buf and not content_buf.strip() and not tool_calls:
+                thinking_parts.append(thinking_buf)
+                thinking_only_strikes += 1
+                if thinking_only_strikes == 1:
+                    convo.append({
+                        "role": "user",
+                        "content": (
+                            "Tu n'as produit que du raisonnement, sans réponse "
+                            "ni action. Continue la tâche MAINTENANT : appelle "
+                            "l'outil suivant ou donne ta réponse finale, sans "
+                            "réfléchir davantage."
+                        ),
+                    })
+                    yield {"type": "status", "message": "Relance après réflexion…"}
+                    continue
+                # Deuxième fois : la réflexion est coupée pour finir la tâche.
+                request_think = False
+                yield {
+                    "type": "notice",
+                    "message": (
+                        "Réflexion désactivée pour ce tour : le modèle "
+                        "n'avançait plus."
+                    ),
+                }
+                continue
+
             assistant_turn: dict = {"role": "assistant", "content": content_buf}
             if thinking_buf:
-                assistant_turn["thinking"] = thinking_buf
+                # Gardée pour l'affichage (panneau repliable), mais JAMAIS
+                # renvoyée au modèle : la re-soumettre gonflait le contexte à
+                # chaque itération des longues tâches.
                 thinking_parts.append(thinking_buf)
             if tool_calls:
                 assistant_turn["tool_calls"] = tool_calls
