@@ -81,15 +81,20 @@ async def run_agent(
     confirm_shell: bool = True,
     think: bool = True,
     keep_alive: str | None = None,
+    mcp_tools: list[dict] | None = None,
 ) -> AsyncIterator[dict]:
     # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
     if enabled_tools is None:
-        tools = TOOL_DEFINITIONS
+        tools = list(TOOL_DEFINITIONS)
     elif enabled_tools:
         tools = [
             t for t in TOOL_DEFINITIONS if t["function"]["name"] in enabled_tools
         ]
     else:
+        tools = []
+    # Outils MCP des serveurs activés (déjà résolus par l'appelant).
+    tools.extend(mcp_tools or [])
+    if not tools:
         tools = None
     collected: list[dict] = []
     text_parts: list[str] = []
@@ -284,6 +289,25 @@ async def run_agent(
                         "tool_name": name,
                         "content": json.dumps(
                             {k: result.get(k) for k in ("ok", "summary", "files", "text")},
+                            ensure_ascii=False,
+                        ),
+                    })
+                    continue
+
+                # Outils MCP : dispatch asynchrone vers le serveur concerné.
+                if name.startswith("mcp_"):
+                    from .mcp_client import manager as mcp_manager
+                    mcp_res = await mcp_manager.call_tool(name, args)
+                    status = "ok" if mcp_res["ok"] else "error"
+                    record = {"name": name, "args": args,
+                              "summary": mcp_res["summary"], "status": status}
+                    collected.append(record)
+                    yield {"type": "tool_result", **record}
+                    convo.append({
+                        "role": "tool",
+                        "tool_name": name,
+                        "content": json.dumps(
+                            {"ok": mcp_res["ok"], "content": mcp_res["content"]},
                             ensure_ascii=False,
                         ),
                     })

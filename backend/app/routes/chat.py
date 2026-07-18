@@ -214,14 +214,21 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if want_rag or want_plan or use_code:
             yield _sse("status", {"message": "Préparation du contexte…"})
 
-        memories, plan, code_model = await asyncio.gather(
+        from ..mcp_client import manager as mcp_manager
+
+        memories, plan, code_model, mcp_tools = await asyncio.gather(
             rag.recall(req.session_id, req.content, embed_model=cfg.get("embed_model"))
             if want_rag else asyncio.sleep(0, result=[]),
             enhance.make_plan(model, req.content, options=run_opts, keep_alive=keep)
             if want_plan else asyncio.sleep(0, result=[]),
             coder.pick_code_model(model, cfg.get("code_model"))
             if use_code else asyncio.sleep(0, result=model),
+            mcp_manager.tool_definitions(),
         )
+
+        # Pannes MCP éventuelles : notice non bloquante dans le fil.
+        for mcp_notice in mcp_manager.notices():
+            yield _sse("notice", {"message": mcp_notice})
 
         if memories:
             convo.insert(1, {
@@ -279,6 +286,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     confirm_shell=cfg.get("confirm_shell", True),
                     think=cfg.get("think", True),
                     keep_alive=cfg.get("keep_alive", "30m"),
+                    mcp_tools=mcp_tools,
                 ):
                     await queue.put(event)
             except Exception as exc:
