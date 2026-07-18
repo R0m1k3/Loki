@@ -49,8 +49,10 @@ async def lifespan(_: FastAPI):
     # Préchargement du modèle par défaut, sans bloquer le démarrage.
     asyncio.create_task(_warm_default_model())
     yield
-    # Ferme le pool HTTP partagé vers Ollama.
+    # Ferme le pool HTTP partagé vers Ollama et les sessions MCP.
     await ollama.aclose()
+    from .mcp_client import manager as mcp_manager
+    await mcp_manager.aclose()
 
 
 app = FastAPI(
