@@ -96,7 +96,10 @@ def set_mcp_state(sid: str, *, enabled: bool, params: dict) -> dict:
 
 
 _CALL_TIMEOUT = 30.0
-_CONNECT_TIMEOUT = 20.0
+# Généreux : le premier lancement d'un serveur npx (Playwright, Context7…)
+# télécharge le paquet — souvent bien plus de 20 s. Les démarrages suivants
+# sont instantanés (cache npm).
+_CONNECT_TIMEOUT = 90.0
 _MAX_RESULT_CHARS = 8000
 
 
@@ -185,7 +188,14 @@ class McpManager:
             conn = _ServerConn(sid)
             await conn.start()
         except Exception as exc:
-            msg = str(exc)[:300] or exc.__class__.__name__
+            if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+                msg = (
+                    "délai de démarrage dépassé — premier lancement d'un "
+                    "serveur npx (téléchargement) ou paquet absent de l'image. "
+                    "Réessaie au prochain message."
+                )
+            else:
+                msg = str(exc)[:300] or exc.__class__.__name__
             logger.warning("Serveur MCP %s indisponible : %s", sid, msg)
             self._errors[sid] = msg
             self._notices.append(
