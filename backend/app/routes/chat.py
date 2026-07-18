@@ -79,6 +79,63 @@ def _prev_was_code(history: list[dict]) -> bool:
     return False
 
 
+def _session_code_context(history: list[dict]) -> tuple[str, list[str]]:
+    """Récap compact du travail en cours + fichiers touchés dans la session.
+
+    Le moteur code ne reçoit que le message courant : sur une reprise
+    (« corrige les bugs »), sans ce récap il ignore quel fichier, quel projet
+    et quelle demande d'origine. Les fichiers touchés servent aussi de cible
+    par défaut pour Aider.
+    """
+    root = os.path.abspath(settings.workspace_dir)
+    files: list[str] = []
+    for m in history:
+        if m["role"] != "assistant":
+            continue
+        for t in (m.get("meta") or {}).get("tools") or []:
+            candidates: list[str] = []
+            path = (t.get("args") or {}).get("path")
+            if t.get("name") in ("write_file", "edit_file") and path:
+                candidates.append(str(path))
+            for f in t.get("files") or []:
+                candidates.append(str(f))
+            for c in candidates:
+                rel = c.replace("\\", "/").lstrip("./")
+                if rel not in files and os.path.isfile(os.path.join(root, rel)):
+                    files.append(rel)
+
+    user_msgs = [m["content"].strip() for m in history if m["role"] == "user"]
+    lines: list[str] = []
+    if user_msgs:
+        lines.append(f"- Demande initiale : {user_msgs[0][:200]}")
+        for prev in user_msgs[-2:]:
+            if prev != user_msgs[0]:
+                lines.append(f"- Puis : {prev[:200]}")
+    if files:
+        lines.append(f"- Fichiers déjà créés/modifiés : {', '.join(files[:8])}")
+    recap = (
+        "Contexte de la session (travail en cours) :\n" + "\n".join(lines)
+        if lines else ""
+    )
+    return recap, files
+
+
+def _workspace_listing(limit: int = 40) -> list[str]:
+    """Chemins relatifs des fichiers du workspace (aperçu compact)."""
+    root = os.path.abspath(settings.workspace_dir)
+    out: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in sorted(filenames):
+            if name.startswith("."):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, name), root)
+            out.append(rel.replace("\\", "/"))
+            if len(out) >= limit:
+                return out
+    return out
+
+
 _FILE_MENTION = re.compile(r"[\w][\w./\\-]*\.[a-z0-9]{1,5}\b", re.I)
 
 
@@ -288,6 +345,19 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 + "\n---\n".join(memories),
             })
 
+        # État du workspace injecté chaque tour : sans ça le modèle ignore
+        # quels fichiers existent et régurgite du code en chat au lieu de
+        # modifier le bon fichier.
+        listing = _workspace_listing()
+        if listing:
+            recap, session_files = _session_code_context(history)
+            parts = ["Fichiers du workspace : " + ", ".join(listing)]
+            if session_files:
+                parts.append(
+                    "Fichiers de la tâche en cours : " + ", ".join(session_files[:8])
+                )
+            convo.insert(1, {"role": "system", "content": "\n".join(parts)})
+
         # Session code restée en chemin agent : pousse le modèle à AGIR sur
         # les fichiers au lieu de décrire les changements — cause fréquente de
         # « l'agent s'arrête sans rien modifier » sur une reprise de code.
@@ -300,8 +370,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     "les outils — code_task pour un changement multi-fichiers, "
                     "edit_file pour un changement ciblé, write_file pour un "
                     "nouveau fichier. Lis le fichier concerné avant de le "
-                    "modifier. Ne réponds JAMAIS par une simple description "
-                    "des changements sans les appliquer."
+                    "modifier, puis modifie-le RÉELLEMENT. Ne colle JAMAIS le "
+                    "code corrigé dans ta réponse sans l'avoir écrit dans le "
+                    "fichier."
                 ),
             })
 
@@ -327,9 +398,16 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
                 if plan else ""
             )
+            # Reprise : Aider ne voit que le message courant — on lui donne le
+            # récap de session et, à défaut de fichiers cités, ceux déjà
+            # touchés (« corrige les bugs » => il ouvre le bon fichier).
+            recap, session_files = _session_code_context(history)
+            extra = instruction_plan
+            if recap:
+                extra = f"\n\n{recap}" + extra
+            code_files = _mentioned_files(req.content) or session_files[:8]
             async for chunk in _code_stream(
-                req, code_model, extra=instruction_plan, plan=plan,
-                files=_mentioned_files(req.content),
+                req, code_model, extra=extra, plan=plan, files=code_files,
             ):
                 yield chunk
             asyncio.create_task(memory.maybe_summarize(

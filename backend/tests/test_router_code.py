@@ -5,7 +5,12 @@ os.environ.setdefault("DATA_DIR", tempfile.mkdtemp())
 os.environ.setdefault("WORKSPACE_DIR", tempfile.mkdtemp())
 
 from app import router  # noqa: E402
-from app.routes.chat import _mentioned_files, _prev_was_code  # noqa: E402
+from app.routes.chat import (  # noqa: E402
+    _mentioned_files,
+    _prev_was_code,
+    _session_code_context,
+    _workspace_listing,
+)
 from app.config import settings  # noqa: E402
 
 
@@ -55,3 +60,37 @@ def test_mentioned_files_existants_seulement():
         f.write("<html></html>")
     found = _mentioned_files("modifie index.html et style.css")
     assert found == ["index.html"]  # style.css n'existe pas
+
+
+def test_session_code_context_recap_et_fichiers():
+    root = os.path.abspath(settings.workspace_dir)
+    os.makedirs(root, exist_ok=True)
+    with open(os.path.join(root, "jeu.html"), "w", encoding="utf-8") as f:
+        f.write("<html>jeu</html>")
+    history = [
+        {"role": "user", "content": "crée un jeu snake dans jeu.html",
+         "meta": None},
+        {"role": "assistant", "content": "fait",
+         "meta": {"engine": "code",
+                  "tools": [{"name": "write_file",
+                             "args": {"path": "jeu.html"}}]}},
+        {"role": "user", "content": "il y a des bugs", "meta": None},
+    ]
+    recap, files = _session_code_context(history)
+    assert "crée un jeu snake" in recap
+    assert files == ["jeu.html"]
+
+
+def test_session_code_context_vide_sans_historique():
+    recap, files = _session_code_context([])
+    assert recap == ""
+    assert files == []
+
+
+def test_workspace_listing_contient_fichiers():
+    root = os.path.abspath(settings.workspace_dir)
+    os.makedirs(root, exist_ok=True)
+    with open(os.path.join(root, "jeu.html"), "w", encoding="utf-8") as f:
+        f.write("x")
+    listing = _workspace_listing()
+    assert "jeu.html" in listing
