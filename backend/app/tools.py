@@ -41,15 +41,45 @@ def _safe_path(rel: str) -> str:
 
 
 # ── Implémentations ──────────────────────────────────────────────────────
-def read_file(path: str) -> dict:
+# Fenêtrage de lecture : un gros fichier entier engloutit le contexte du
+# modèle. Au-delà du seuil, on renvoie une fenêtre + la marche à suivre.
+_READ_WINDOW_LINES = 200
+_READ_MAX_CHARS = 12_000
+
+
+def read_file(path: str, start_line: int = 1) -> dict:
     target = _safe_path(path)
     if not os.path.isfile(target):
         raise ToolError(f"fichier introuvable : {path}")
     with open(target, "r", encoding="utf-8", errors="replace") as f:
-        content = f.read()
-    size = os.path.getsize(target)
-    summary = "fichier vide (0 octet)" if size == 0 else f"{len(content.splitlines())} lignes lues"
-    return {"ok": True, "content": content, "summary": summary}
+        lines = f.read().splitlines()
+    total = len(lines)
+    if total == 0:
+        return {"ok": True, "content": "", "summary": "fichier vide (0 octet)"}
+
+    start = max(1, int(start_line or 1))
+    window = lines[start - 1 : start - 1 + _READ_WINDOW_LINES]
+    content = "\n".join(window)
+    truncated_by_chars = False
+    if len(content) > _READ_MAX_CHARS:
+        content = content[:_READ_MAX_CHARS]
+        truncated_by_chars = True
+
+    end = start + len(window) - 1
+    if start == 1 and end >= total and not truncated_by_chars:
+        return {"ok": True, "content": content, "summary": f"{total} lignes lues"}
+
+    # Fenêtre partielle : le modèle sait où il en est et comment continuer.
+    note = (
+        f"[fichier {path} : {total} lignes — fenêtre {start}-{end}. "
+        f"Pour la suite : read_file(path, start_line={end + 1}). "
+        "Pour cibler un passage précis : grep_search puis edit_file.]"
+    )
+    return {
+        "ok": True,
+        "content": content + "\n" + note,
+        "summary": f"lignes {start}-{end} sur {total}",
+    }
 
 
 def check_html(target: str) -> list[str]:
@@ -306,6 +336,53 @@ def _search_duckduckgo(query: str, n: int) -> list[dict]:
     return results
 
 
+# Lignes porteuses de signal dans une sortie de commande en échec.
+_ERROR_LINE = re.compile(
+    r"error|erreur|fail|except|traceback|fatal|warn|undefined|cannot|"
+    r"not found|introuvable|refus|denied|invalid|missing|panic",
+    re.I,
+)
+
+
+def _dedupe_lines(lines: list[str]) -> list[str]:
+    """Compacte les répétitions consécutives (« ligne ×N »)."""
+    out: list[str] = []
+    for line in lines:
+        if out:
+            base, _, count = out[-1].partition(" ×")
+            if base == line:
+                n = int(count) if count.isdigit() else 1
+                out[-1] = f"{line} ×{n + 1}"
+                continue
+        out.append(line)
+    return out
+
+
+def _compact_output(output: str, exit_code: int) -> str:
+    """Filtre la sortie shell façon rtk : le signal, pas le déroulé.
+
+    - succès : dernières lignes seulement (le détail n'apporte rien) ;
+    - échec : lignes d'erreur + fin de sortie, dédupliquées.
+    Tronquer bêtement à N caractères gardait le bruit et coupait l'erreur.
+    """
+    lines = [l.rstrip() for l in output.splitlines() if l.strip()]
+    lines = _dedupe_lines(lines)
+    if exit_code == 0:
+        kept = lines[-12:]
+        text = "\n".join(kept)
+        if len(lines) > 12:
+            text = f"[…{len(lines) - 12} lignes omises]\n" + text
+        return text[:1200]
+
+    error_lines = [l for l in lines if _ERROR_LINE.search(l)]
+    tail = lines[-10:]
+    kept = error_lines[:20] + [l for l in tail if l not in error_lines[:20]]
+    text = "\n".join(kept)
+    if len(lines) > len(kept):
+        text = f"[…sortie filtrée : {len(kept)}/{len(lines)} lignes]\n" + text
+    return text[:2500]
+
+
 def run_shell(command: str, timeout: int = 60) -> dict:
     """Exécute une commande shell dans le workspace (outil sensible).
 
@@ -328,7 +405,8 @@ def run_shell(command: str, timeout: int = 60) -> dict:
         raise ToolError(f"délai dépassé ({timeout}s)") from exc
 
     out = (proc.stdout or "") + (proc.stderr or "")
-    out = out[:4000]  # borne la taille renvoyée au modèle
+    # Filtrage signal/bruit (façon rtk) plutôt que troncature aveugle.
+    out = _compact_output(out, proc.returncode)
     status = "ok" if proc.returncode == 0 else "error"
     return {
         "ok": proc.returncode == 0,
@@ -401,11 +479,19 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Lire le contenu d'un fichier du workspace.",
+            "description": (
+                "Lire le contenu d'un fichier du workspace. Les gros fichiers "
+                "sont renvoyés par fenêtres de 200 lignes : utilise start_line "
+                "pour lire la suite, ou grep_search pour cibler un passage."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Chemin relatif au workspace"}
+                    "path": {"type": "string", "description": "Chemin relatif au workspace"},
+                    "start_line": {
+                        "type": "integer",
+                        "description": "Première ligne de la fenêtre (défaut 1)",
+                    },
                 },
                 "required": ["path"],
             },
