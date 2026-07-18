@@ -26,6 +26,28 @@ from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 MAX_ITERATIONS = 6
 MAX_TOOL_REPAIR_ATTEMPTS = 2
 
+# Élagage : au-delà de cette taille, un résultat d'outil des itérations
+# passées est tronqué. Les gros payloads (MCP 8 Ko, shell 4 Ko) saturaient le
+# contexte en un seul tour long — Ollama tronquait alors silencieusement le
+# DÉBUT de la conversation, faisant « oublier » la consigne au modèle.
+_PRUNE_KEEP_CHARS = 350
+
+
+def _prune_old_tool_results(convo: list[dict], before_index: int) -> None:
+    """Compacte les résultats d'outils déjà consommés par le modèle.
+
+    Seuls les messages ``tool`` antérieurs à ``before_index`` (donc traités
+    lors d'une itération précédente) sont tronqués ; le dernier lot reste
+    intact, c'est celui auquel le modèle répond.
+    """
+    for msg in convo[:before_index]:
+        content = msg.get("content", "")
+        if msg.get("role") == "tool" and len(content) > _PRUNE_KEEP_CHARS:
+            msg["content"] = (
+                content[:_PRUNE_KEEP_CHARS]
+                + "… [résultat archivé — déjà traité, ne pas redemander]"
+            )
+
 
 def _tools_not_supported(exc: OllamaError) -> bool:
     """Détecte un modèle incapable de function calling.
@@ -116,12 +138,20 @@ async def run_agent(
         stats["eval_duration"] += chunk.get("eval_duration") or 0
         stats["prompt_eval_count"] += chunk.get("prompt_eval_count") or 0
 
+    # Index du début du dernier lot de résultats d'outils (à préserver).
+    last_batch_start = 0
+
     try:
         for _ in range(MAX_ITERATIONS):
             content_buf = ""
             thinking_buf = ""
             thinking_status_sent = False
             tool_calls: list[dict] = []
+
+            # Compacte les résultats d'outils des itérations antérieures :
+            # garde le contexte court, la consigne système jamais tronquée.
+            if last_batch_start:
+                _prune_old_tool_results(convo, last_batch_start)
 
             # Un modèle peut savoir discuter sans supporter les outils. Ollama
             # refuse alors la requête entière : on retente une fois en chat simple.
@@ -230,6 +260,10 @@ async def run_agent(
 
             if not tool_calls:
                 break
+
+            # Les résultats du lot qui suit commencent ici : ils restent
+            # intacts au prochain tour, les précédents seront compactés.
+            last_batch_start = len(convo)
 
             # Exécution des outils demandés, puis réinjection des résultats.
             awaiting_confirmation = False

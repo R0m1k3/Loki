@@ -10,7 +10,7 @@ from . import db
 CONFIG_KEY = "agent"
 MODEL_PROFILES_KEY = "model_profiles"
 PROFILE_STATE_KEY = "model_profiles_state"
-PROFILE_VERSION = 5
+PROFILE_VERSION = 6
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
@@ -75,7 +75,11 @@ DEFAULT_GENERATION: dict = {
     "top_p": 0.9,
     "top_k": 40,
     "max_tokens": 2048,
-    "num_ctx": 4096,
+    # 16k : les tâches longues (recherche, multi-fichiers) saturaient 4-8k en
+    # un seul tour et Ollama tronquait la consigne. Le cache KV d'un 16k reste
+    # raisonnable (~1-3 Go selon modèle) ; réduis num_ctx dans Configuration
+    # si la VRAM déborde, ou active OLLAMA_KV_CACHE_TYPE=q8_0 côté Ollama.
+    "num_ctx": 16384,
     "num_gpu": -1,
     "num_batch": 256,
 }
@@ -83,7 +87,7 @@ DEFAULT_GENERATION: dict = {
 RTX_3060_GEMMA4_PROFILE: dict = {
     **DEFAULT_GENERATION,
     "max_tokens": 4096,
-    "num_ctx": 8192,
+    "num_ctx": 16384,
     # num_gpu = -1 : laisse Ollama placer le plus de couches possible sur le GPU
     # (auto-fit, comme `ollama run`). Forcer un nombre de couches qui ne tient pas
     # en VRAM fait basculer toute l'inférence sur le CPU.
@@ -141,6 +145,11 @@ def _migrate_profiles() -> None:
     for prof in profiles.values():
         if prof.get("num_gpu", -1) is not None and prof.get("num_gpu", -1) > 0:
             prof["num_gpu"] = -1
+    # v6 : contexte 16k par défaut. On ne touche qu'aux profils restés sur un
+    # ancien défaut (4096/8192) — une valeur personnalisée est respectée.
+    for prof in profiles.values():
+        if prof.get("num_ctx") in (4096, 8192):
+            prof["num_ctx"] = 16384
     db.set_config_value(MODEL_PROFILES_KEY, profiles)
     db.set_config_value(PROFILE_STATE_KEY, {"version": PROFILE_VERSION})
 

@@ -127,6 +127,14 @@ class _ServerConn:
                     raise ValueError("commande du serveur personnalisé vide")
             else:
                 command = list(entry["command"])
+            # Paramètres obligatoires (ex. SEARXNG_URL) : refus clair AVANT le
+            # lancement, plutôt qu'un échec cryptique à chaque appel d'outil.
+            missing = [k for k in entry["env_params"] if not params.get(k)]
+            if missing:
+                raise ValueError(
+                    f"{', '.join(missing)} requis — renseigne ce champ dans la "
+                    "carte du serveur (Configuration → Serveurs MCP)"
+                )
             env = {k: params[k] for k in entry["env_params"] if params.get(k)}
             server = StdioServerParameters(
                 command=command[0], args=command[1:], env=env or None
