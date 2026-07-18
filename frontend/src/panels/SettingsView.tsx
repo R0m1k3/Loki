@@ -4,10 +4,18 @@ import {
   deleteModel,
   getBenchScores,
   getHardware,
+  listMcp,
   pullModel,
   runBench,
+  testMcp,
+  updateMcp,
 } from "../api/client";
-import type { AgentConfig, BenchResult, HardwareInfo } from "../api/client";
+import type {
+  AgentConfig,
+  BenchResult,
+  HardwareInfo,
+  McpServer,
+} from "../api/client";
 import { DownloadIcon, RefreshIcon } from "../components/Icon";
 
 const TOOL_DESC: Record<string, string> = {
@@ -466,6 +474,8 @@ export function SettingsView() {
                   </div>
                 </Card>
 
+                <McpCard />
+
                 <HardwareCard />
 
                 <BenchCard />
@@ -498,6 +508,117 @@ export function SettingsView() {
 
 /** Benchmark : évalue le modèle sélectionné sur 5 mini-épreuves. */
 /** Panneau Matériel : GPU vu par Loki vs GPU réellement utilisé par Ollama. */
+function McpCard() {
+  const [servers, setServers] = useState<McpServer[]>([]);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    listMcp().then(setServers).catch(() => {});
+  }, []);
+
+  const toggle = async (s: McpServer) => {
+    setServers(await updateMcp(s.id, !s.enabled, s.params));
+  };
+
+  const setParam = async (s: McpServer, key: string, value: string) => {
+    setServers(await updateMcp(s.id, s.enabled, { ...s.params, [key]: value }));
+  };
+
+  const doTest = async (s: McpServer) => {
+    setTesting(s.id);
+    try {
+      const r = await testMcp(s.id);
+      setTestResult((m) => ({
+        ...m,
+        [s.id]: r.ok
+          ? `✓ ${r.tools.length} outil(s) : ${r.tools.join(", ").slice(0, 120)}`
+          : `✗ ${r.error ?? "échec"}`,
+      }));
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="mb-1 font-pixel text-[11px] text-ink">SERVEURS MCP</div>
+      <div className="mb-3.5 text-[12px] text-muted-2">
+        Outils professionnels pour l'agent (navigateur, docs, web). Désactivé =
+        zéro coût.
+      </div>
+      <div className="flex flex-col gap-3">
+        {servers.map((s) => (
+          <div key={s.id} className="border-[3px] border-line bg-base p-3">
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-[11px] w-[11px] flex-none border-2 border-line ${
+                  s.state === "connected"
+                    ? "bg-ok"
+                    : s.state === "error"
+                      ? "bg-warn"
+                      : "bg-muted-2"
+                }`}
+                title={s.error ?? s.state}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-semibold text-ink">
+                  {s.label}
+                  {s.tools > 0 && (
+                    <span className="ml-2 text-[11px] text-muted-2">
+                      {s.tools} outil(s)
+                    </span>
+                  )}
+                </div>
+                <div className="truncate text-[12px] text-muted-2">
+                  {s.description}
+                </div>
+              </div>
+              <button
+                onClick={() => doTest(s)}
+                disabled={testing === s.id}
+                className="border-2 border-line bg-card px-2 py-1 text-[11px] text-ink-2"
+              >
+                {testing === s.id ? "test…" : "Tester"}
+              </button>
+              <Toggle on={s.enabled} onClick={() => toggle(s)} />
+            </div>
+            {(s.url_param || s.env_params.length > 0) && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                {s.url_param && (
+                  <input
+                    defaultValue={s.params.command ?? ""}
+                    onBlur={(e) => setParam(s, "command", e.target.value)}
+                    placeholder="commande stdio (ex. npx -y mon-mcp) ou URL"
+                    className="border-2 border-line bg-card px-2 py-1 text-[12px] text-ink"
+                  />
+                )}
+                {s.env_params.map((k) => (
+                  <input
+                    key={k}
+                    defaultValue={s.params[k] ?? ""}
+                    onBlur={(e) => setParam(s, k, e.target.value)}
+                    placeholder={k}
+                    className="border-2 border-line bg-card px-2 py-1 text-[12px] text-ink"
+                  />
+                ))}
+              </div>
+            )}
+            {s.error && (
+              <div className="mt-1.5 text-[12px] text-warn">{s.error}</div>
+            )}
+            {testResult[s.id] && (
+              <div className="mt-1.5 text-[12px] text-muted-2">
+                {testResult[s.id]}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function HardwareCard() {
   const [hw, setHw] = useState<HardwareInfo | null>(null);
 

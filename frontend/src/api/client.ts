@@ -428,6 +428,45 @@ export function downloadFile(path: string): void {
   link.remove();
 }
 
+export interface McpServer {
+  id: string;
+  label: string;
+  description: string;
+  url_param: boolean;
+  env_params: string[];
+  enabled: boolean;
+  params: Record<string, string>;
+  state: "inactive" | "connected" | "error";
+  error: string | null;
+  tools: number;
+}
+
+export async function listMcp(): Promise<McpServer[]> {
+  const res = await fetch("/api/mcp");
+  return (await res.json()).servers;
+}
+
+export async function updateMcp(
+  id: string,
+  enabled: boolean,
+  params: Record<string, string>
+): Promise<McpServer[]> {
+  const res = await fetch(`/api/mcp/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled, params }),
+  });
+  if (!res.ok) throw await apiError(res, "mise à jour MCP impossible");
+  return (await res.json()).servers;
+}
+
+export async function testMcp(
+  id: string
+): Promise<{ ok: boolean; tools: string[]; error: string | null }> {
+  const res = await fetch(`/api/mcp/${id}/test`, { method: "POST" });
+  return res.json();
+}
+
 export async function listSessions(): Promise<Session[]> {
   const res = await fetch("/api/sessions");
   return (await res.json()).sessions;
