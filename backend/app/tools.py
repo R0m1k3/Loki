@@ -10,8 +10,10 @@ toute tentative de sortie (../, chemin absolu hors workspace) est rejetée.
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
+import shutil
 import subprocess
 
 import httpx
@@ -328,6 +330,51 @@ def run_shell(command: str, timeout: int = 60) -> dict:
     }
 
 
+def run_check(path: str) -> dict:
+    """Vérification STATIQUE d'un fichier de code — n'exécute jamais rien.
+
+    .py -> py_compile ; .js/.mjs -> node --check (si node présent) ;
+    .html -> check_html ; .json -> parse. Autres types : ok sans contrôle.
+    """
+    target = _safe_path(path)
+    if not os.path.isfile(target):
+        raise ToolError(f"fichier introuvable : {path}")
+    ext = os.path.splitext(target)[1].lower()
+    issues: list[str] = []
+
+    if ext == ".py":
+        import py_compile
+        try:
+            py_compile.compile(target, doraise=True)
+        except py_compile.PyCompileError as exc:
+            issues.append(str(exc.msg)[:500])
+    elif ext in (".js", ".mjs"):
+        node = shutil.which("node")
+        if node:
+            proc = subprocess.run(
+                [node, "--check", target], capture_output=True, text=True,
+                timeout=15,
+            )
+            if proc.returncode != 0:
+                issues.append((proc.stderr or proc.stdout)[:500])
+    elif ext in (".html", ".htm"):
+        issues.extend(check_html(target))
+    elif ext == ".json":
+        try:
+            with open(target, encoding="utf-8") as f:
+                json.load(f)
+        except json.JSONDecodeError as exc:
+            issues.append(f"JSON invalide : {exc}")
+
+    ok = not issues
+    return {
+        "ok": ok,
+        "issues": issues,
+        "summary": "aucun problème" if ok else f"{len(issues)} problème(s)",
+        "_status": "ok" if ok else "error",
+    }
+
+
 # ── Registre & définitions exposées au modèle ────────────────────────────
 TOOL_IMPL = {
     "read_file": read_file,
@@ -337,6 +384,7 @@ TOOL_IMPL = {
     "grep_search": grep_search,
     "web_search": web_search,
     "run_shell": run_shell,
+    "run_check": run_check,
 }
 
 TOOL_DEFINITIONS = [
@@ -487,6 +535,23 @@ TOOL_DEFINITIONS = [
                     "command": {"type": "string", "description": "Commande à exécuter"}
                 },
                 "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_check",
+            "description": (
+                "Vérifier statiquement un fichier de code du workspace "
+                "(syntaxe Python/JS/JSON, structure HTML). N'exécute rien."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Chemin relatif au workspace"}
+                },
+                "required": ["path"],
             },
         },
     },

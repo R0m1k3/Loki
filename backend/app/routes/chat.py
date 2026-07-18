@@ -37,7 +37,7 @@ class ChatRequest(BaseModel):
 
 
 # Outils autorisés en mode Plan : lecture/analyse uniquement.
-_READONLY_TOOLS = {"read_file", "list_dir", "grep_search"}
+_READONLY_TOOLS = {"read_file", "list_dir", "grep_search", "run_check"}
 
 
 def _apply_mode(cfg: dict, mode: str) -> dict:

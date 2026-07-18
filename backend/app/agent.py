@@ -334,6 +334,36 @@ async def run_agent(
                     }
                 )
 
+                # Vérification statique automatique après toute écriture de
+                # code : l'erreur revient au modèle dans le même tour
+                # (1 passe de correction max, bornée par MAX_ITERATIONS).
+                if (
+                    name in ("write_file", "edit_file")
+                    and status == "ok"
+                    and str(args.get("path", "")).lower().endswith(
+                        (".py", ".js", ".mjs", ".html", ".htm", ".json")
+                    )
+                ):
+                    try:
+                        from .tools import run_check
+                        check = run_check(args["path"])
+                    except ToolError:
+                        check = None
+                    if check and not check["ok"]:
+                        record = {
+                            "name": "run_check",
+                            "args": {"path": args["path"]},
+                            "summary": check["summary"],
+                            "status": "error",
+                        }
+                        collected.append(record)
+                        yield {"type": "tool_result", **record}
+                        convo.append({
+                            "role": "tool",
+                            "tool_name": "run_check",
+                            "content": json.dumps(check, ensure_ascii=False),
+                        })
+
             # Une commande shell attend une validation : on interrompt la boucle.
             if awaiting_confirmation:
                 # Laisse le modèle conclure son tour (message d'attente).

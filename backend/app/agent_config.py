@@ -31,7 +31,7 @@ DEFAULT_SYSTEM_PROMPT = (
 # par défaut, conformément à la maquette.
 AVAILABLE_TOOLS = [
     "read_file", "write_file", "edit_file", "list_dir", "grep_search",
-    "code_task", "web_search", "run_shell",
+    "run_check", "code_task", "web_search", "run_shell",
 ]
 SENSITIVE_TOOLS = {"run_shell"}
 DEFAULT_TOOL_STATE = {
@@ -40,6 +40,7 @@ DEFAULT_TOOL_STATE = {
     "edit_file": True,
     "list_dir": True,
     "grep_search": True,
+    "run_check": True,
     "code_task": True,
     "web_search": False,
     "run_shell": False,
