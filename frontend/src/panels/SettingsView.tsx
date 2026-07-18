@@ -434,6 +434,8 @@ export function SettingsView() {
                      "Relit et révise la réponse avant de la donner"] as const,
                     ["rag_enabled", "Mémoire long-terme (RAG)",
                      "Se souvient des anciennes sessions (modèle d'embedding requis)"] as const,
+                    ["skills_enabled", "Skills automatiques",
+                     "Méthodes expertes injectées selon la tâche (débogage, web, refactor…)"] as const,
                   ].map(([key, label, desc], i) => (
                     <div
                       key={key}

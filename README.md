@@ -193,6 +193,31 @@ un clic.
   /100 (appel d'outil, code exécutable, consignes, extraction JSON, format)
   pour comparer objectivement tes modèles installés.
 
+## Serveurs MCP (outils professionnels)
+
+Configuration → **Serveurs MCP** : catalogue préconfiguré, tout désactivé par
+défaut (un serveur inactif ne coûte rien — aucun process, aucun outil dans le
+prompt du modèle).
+
+| Serveur | Apport |
+| ------- | ------ |
+| Playwright | l'agent pilote un vrai navigateur : teste ses pages, lit la console |
+| Context7 | documentation à jour de n'importe quelle librairie |
+| Fetch | lecture propre d'URL (markdown) |
+| SearxNG | vraie recherche web (URL d'instance requise) |
+| Personnalisé | n'importe quel serveur MCP (commande stdio ou URL) |
+
+Chaque carte a un bouton **Tester** (connexion d'essai + liste des outils
+découverts). Un serveur en panne n'interrompt jamais le chat : notice dans le
+fil, nouvelle tentative au message suivant.
+
+## Skills automatiques
+
+Cinq méthodes expertes (débogage systématique, création web, refactor sûr,
+analyse de données, rédaction structurée) sont injectées automatiquement selon
+la tâche détectée — sélection lexicale instantanée, une seule à la fois, badge
+« 📘 Méthode : … » dans le fil. Désactivable dans Configuration → Intelligence.
+
 ## Tirer le meilleur des petits modèles
 
 Loki est conçu pour qu'un modèle local modeste se comporte comme un bon agent :

@@ -16,12 +16,13 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
     PORT=8717
 
-# curl pour le HEALTHCHECK ; git pour le moteur code (commits Aider)
-RUN apt-get update && apt-get install -y --no-install-recommends curl git \
+# curl pour le HEALTHCHECK ; git pour le moteur code (commits Aider) ;
+# nodejs/npm pour les serveurs MCP lancés via npx (Playwright, Context7…)
+RUN apt-get update && apt-get install -y --no-install-recommends curl git nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt mcp-server-fetch
 
 COPY backend/ ./backend/
 # Frontend compilé servi en statique par FastAPI

@@ -265,6 +265,7 @@ export interface AgentConfig {
   self_review: boolean;
   rag_enabled: boolean;
   embed_model: string;
+  skills_enabled: boolean;
   keep_alive: string;
 }
 
