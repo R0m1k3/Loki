@@ -12,7 +12,7 @@ import re
 
 import httpx
 
-from .ollama_client import ollama
+from .ollama_client import OllamaError, ollama
 
 logger = logging.getLogger(__name__)
 
@@ -61,19 +61,29 @@ async def _ask(
     principal : un appel avec des options divergentes force Ollama à recharger
     le modèle en plein message.
     """
-    text = ""
-    async for chunk in ollama.chat(
-        model,
-        [{"role": "system", "content": system},
-         {"role": "user", "content": user}],
-        options={**(options or {}), "temperature": 0.2, "num_predict": num_predict},
-        keep_alive=keep_alive,
-        stream=True,
-    ):
-        text += chunk.get("message", {}).get("content", "")
-        if chunk.get("done"):
-            break
-    return text.strip()
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": user}]
+    opts = {**(options or {}), "temperature": 0.2, "num_predict": num_predict}
+    # think=False : un appel utilitaire (plan, critique) ne doit jamais
+    # « réfléchir » — sur un modèle thinking, la pensée dévore le budget et
+    # multiplie la latence. Repli sans le paramètre si le modèle le refuse.
+    think: bool | None = False
+    while True:
+        text = ""
+        try:
+            async for chunk in ollama.chat(
+                model, messages, options=opts, think=think,
+                keep_alive=keep_alive, stream=True,
+            ):
+                text += chunk.get("message", {}).get("content", "")
+                if chunk.get("done"):
+                    break
+            return text.strip()
+        except OllamaError as exc:
+            if think is False and "think" in str(exc).lower():
+                think = None
+                continue
+            raise
 
 
 async def make_plan(

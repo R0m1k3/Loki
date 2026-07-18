@@ -324,7 +324,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         from ..mcp_client import manager as mcp_manager
 
-        memories, plan, code_model, mcp_tools = await asyncio.gather(
+        # La préparation peut déclencher un CHARGEMENT de modèle (plan, embed)
+        # qui dure plusieurs minutes sur un gros modèle. Sans battement de
+        # cœur, le silence SSE fait couper la connexion par le reverse proxy.
+        prep = asyncio.ensure_future(asyncio.gather(
             rag.recall(req.session_id, req.content, embed_model=cfg.get("embed_model"))
             if want_rag else asyncio.sleep(0, result=[]),
             enhance.make_plan(model, req.content, options=run_opts, keep_alive=keep)
@@ -332,7 +335,15 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             coder.pick_code_model(model, cfg.get("code_model"))
             if use_code else asyncio.sleep(0, result=model),
             mcp_manager.tool_definitions(),
-        )
+        ))
+        while True:
+            try:
+                memories, plan, code_model, mcp_tools = await asyncio.wait_for(
+                    asyncio.shield(prep), timeout=10.0
+                )
+                break
+            except TimeoutError:
+                yield _sse("ping", {"status": "waiting"})
 
         # Pannes MCP éventuelles : notice non bloquante dans le fil.
         for mcp_notice in mcp_manager.notices():

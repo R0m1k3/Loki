@@ -14,7 +14,7 @@ import logging
 import httpx
 
 from . import db
-from .ollama_client import ollama
+from .ollama_client import OllamaError, ollama
 
 logger = logging.getLogger(__name__)
 
@@ -79,20 +79,30 @@ async def maybe_summarize(
         if previous:
             transcript = f"[résumé existant] {previous}\n{transcript}"
 
-        text = ""
-        async for chunk in ollama.chat(
-            model,
-            [
-                {"role": "system", "content": _SUMMARY_PROMPT},
-                {"role": "user", "content": transcript},
-            ],
-            options={**(options or {}), "temperature": 0.2, "num_predict": 350},
-            keep_alive=keep_alive,
-            stream=True,
-        ):
-            text += chunk.get("message", {}).get("content", "")
-            if chunk.get("done"):
+        messages = [
+            {"role": "system", "content": _SUMMARY_PROMPT},
+            {"role": "user", "content": transcript},
+        ]
+        opts = {**(options or {}), "temperature": 0.2, "num_predict": 350}
+        # think=False : le résumé d'arrière-plan ne doit pas « réfléchir »
+        # (latence ×3 sur un modèle thinking). Repli si paramètre refusé.
+        think: bool | None = False
+        while True:
+            text = ""
+            try:
+                async for chunk in ollama.chat(
+                    model, messages, options=opts, think=think,
+                    keep_alive=keep_alive, stream=True,
+                ):
+                    text += chunk.get("message", {}).get("content", "")
+                    if chunk.get("done"):
+                        break
                 break
+            except OllamaError as exc:
+                if think is False and "think" in str(exc).lower():
+                    think = None
+                    continue
+                raise
 
         if text.strip():
             db.set_session_summary(sid, text.strip())
