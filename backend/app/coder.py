@@ -20,6 +20,21 @@ from .config import settings
 _RUN_LOCK = threading.Lock()
 
 
+def _confine(root: str, files: list[str] | None) -> list[str]:
+    """Résout les fichiers demandés en restant confiné au workspace.
+
+    Écarte silencieusement tout chemin absolu ou toute remontée `../` qui
+    sortirait du workspace : le moteur code ne doit jamais toucher au disque
+    hors du workspace de la discussion.
+    """
+    confined: list[str] = []
+    for f in files or []:
+        target = os.path.abspath(os.path.join(root, f))
+        if target == root or target.startswith(root + os.sep):
+            confined.append(target)
+    return confined
+
+
 def ensure_git(root: str) -> None:
     """Initialise un dépôt git dans le workspace (requis pour les commits Aider)."""
     os.makedirs(root, exist_ok=True)
@@ -112,7 +127,7 @@ def run_code_task(
             coder = Coder.create(
                 main_model=Model(f"ollama_chat/{model}"),
                 io=io,
-                fnames=[os.path.join(root, f) for f in (files or [])],
+                fnames=_confine(root, files),
                 auto_commits=True,
                 stream=False,
                 use_git=True,

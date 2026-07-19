@@ -196,38 +196,125 @@ def write_file(path: str, content: str, mode: str = "overwrite") -> dict:
     return result
 
 
-def edit_file(path: str, search: str, replace: str) -> dict:
-    """Modification chirurgicale : remplace un extrait exact du fichier.
+def _leading_ws(line: str) -> str:
+    """Renvoie l'indentation (blancs de gauche) d'une ligne."""
+    return line[: len(line) - len(line.lstrip())]
 
-    Bien plus fiable que réécrire tout le fichier avec un petit modèle :
-    seul le fragment visé change, le reste est garanti intact.
+
+def _reindent(search_lines: list[str], window: list[str], replace: str) -> list[str]:
+    """Réaligne le texte de remplacement sur l'indentation réelle du fichier.
+
+    Quand la correspondance a été trouvée en tolérant l'indentation (le modèle
+    a copié l'extrait « à plat »), on réapplique au remplacement le décalage
+    d'indentation observé entre le fichier et la recherche, pour ne pas casser
+    la mise en forme (Python surtout).
+    """
+    src_indent = next((_leading_ws(s) for s in search_lines if s.strip()), "")
+    file_indent = next((_leading_ws(w) for w in window if w.strip()), "")
+    replace_lines = replace.splitlines()
+    if file_indent == src_indent:
+        return replace_lines
+    out: list[str] = []
+    for line in replace_lines:
+        if not line.strip():
+            out.append(line)
+        elif src_indent and line.startswith(src_indent):
+            out.append(file_indent + line[len(src_indent):])
+        elif not src_indent:
+            out.append(file_indent + line)
+        else:
+            out.append(line)
+    return out
+
+
+def _apply_edit(content: str, search: str, replace: str) -> tuple[str, str]:
+    """Applique un remplacement search→replace, du plus strict au plus tolérant.
+
+    1. correspondance exacte (unique) ;
+    2. correspondance ligne à ligne en ignorant les espaces de fin / de début
+       (indentation) — cas le plus fréquent où un petit modèle recopie l'extrait
+       sans reproduire fidèlement les blancs.
+
+    Renvoie (nouveau_contenu, note). Lève ToolError si introuvable ou ambigu.
+    """
+    # 1. Correspondance exacte.
+    count = content.count(search)
+    if count == 1:
+        return content.replace(search, replace, 1), ""
+    if count > 1:
+        raise ToolError(
+            f"extrait présent {count} fois : ajoute du contexte "
+            "autour pour le rendre unique."
+        )
+
+    # 2. Correspondance tolérante (ligne à ligne, espaces normalisés).
+    file_lines = content.splitlines(keepends=True)
+    search_lines = search.splitlines()
+    if not any(s.strip() for s in search_lines):
+        raise ToolError("extrait vide après normalisation")
+    norm_search = [s.strip() for s in search_lines]
+    n = len(search_lines)
+    hits = [
+        i
+        for i in range(len(file_lines) - n + 1)
+        if [w.strip() for w in file_lines[i:i + n]] == norm_search
+    ]
+    if not hits:
+        raise ToolError("introuvable")
+    if len(hits) > 1:
+        raise ToolError(
+            f"extrait présent {len(hits)} fois : ajoute du contexte "
+            "autour pour le rendre unique."
+        )
+
+    i = hits[0]
+    window = file_lines[i:i + n]
+    newline = "\r\n" if window and window[0].endswith("\r\n") else "\n"
+    adjusted = _reindent(search_lines, window, replace)
+    rep_text = newline.join(adjusted)
+    if window and window[-1].endswith("\n"):
+        rep_text += newline
+    new_content = "".join(file_lines[:i]) + rep_text + "".join(file_lines[i + n:])
+    return new_content, "correspondance tolérante (indentation/espaces ignorés)"
+
+
+def edit_file(path: str, search: str, replace: str) -> dict:
+    """Modification chirurgicale : remplace un extrait du fichier.
+
+    Bien plus fiable que réécrire tout le fichier avec un petit modèle : seul le
+    fragment visé change, le reste est garanti intact. La correspondance tolère
+    les différences d'espaces / d'indentation, pour ne pas bloquer quand le
+    modèle recopie l'extrait de façon approximative.
     """
     target = _safe_path(path)
     if not os.path.isfile(target):
         raise ToolError(f"fichier introuvable : {path}")
     if not search:
-        raise ToolError("search vide : fournis l'extrait exact à remplacer")
+        raise ToolError("search vide : fournis l'extrait à remplacer")
     with open(target, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
 
-    count = content.count(search)
-    if count == 0:
-        preview = search.strip().splitlines()[0][:60] if search.strip() else ""
-        raise ToolError(
-            f"extrait introuvable dans {path} (cherché : « {preview}… »). "
-            "Relis le fichier avec read_file et copie l'extrait EXACT."
-        )
-    if count > 1:
-        raise ToolError(
-            f"extrait présent {count} fois dans {path} : ajoute du contexte "
-            "autour pour le rendre unique."
-        )
+    try:
+        new_content, note = _apply_edit(content, search, replace)
+    except ToolError as exc:
+        reason = str(exc)
+        if reason == "introuvable":
+            preview = search.strip().splitlines()[0][:60] if search.strip() else ""
+            raise ToolError(
+                f"extrait introuvable dans {path} (cherché : « {preview}… »). "
+                "Relis le fichier avec read_file et copie l'extrait EXACT, "
+                "ou utilise write_file pour réécrire le fichier."
+            ) from exc
+        raise ToolError(f"{reason.rstrip('.')} dans {path}.") from exc
 
     with open(target, "w", encoding="utf-8") as f:
-        f.write(content.replace(search, replace, 1))
+        f.write(new_content)
 
     delta = len(replace.splitlines()) - len(search.splitlines())
-    result = {"ok": True, "summary": f"remplacé · {delta:+d} ligne(s)"}
+    summary = f"remplacé · {delta:+d} ligne(s)"
+    if note:
+        summary += f" · {note}"
+    result = {"ok": True, "summary": summary}
     problem = _verify_written(target)
     if problem:
         result["verification"] = problem
@@ -410,6 +497,49 @@ def _compact_output(output: str, exit_code: int) -> str:
     return text[:2500]
 
 
+# Pseudo-fichiers absolus inoffensifs, tolérés dans les commandes shell.
+_ALLOWED_ABS = ("/dev/null", "/dev/stdout", "/dev/stderr", "/dev/zero", "/dev/tty")
+# Jetons ressemblant à un chemin (absolu, ~ ou contenant ../).
+_PATH_TOKEN = re.compile(r"""(?:^|[\s=:><|&(])((?:~|/)[^\s'"|&;><)]*|[^\s'"|&;><)]*\.\.[^\s'"|&;><)]*)""")
+
+
+def _guard_shell(command: str) -> None:
+    """Refuse toute commande qui référence un chemin hors du workspace.
+
+    Barrière de confinement (best-effort) : le shell est trop puissant pour être
+    totalement bridé, mais on bloque les cas concrets d'évasion — chemins
+    absolus hors workspace (`/config/...`, `~/...`) et remontées `../` qui
+    sortent du workspace. Combiné à la validation utilisateur, ça empêche le
+    modèle d'écrire ailleurs que dans son workspace.
+    """
+    root = _workspace_root()
+    for token in _PATH_TOKEN.findall(command):
+        token = token.strip()
+        if not token:
+            continue
+        if token.startswith("~"):
+            raise ToolError(
+                f"chemin hors du workspace refusé : {token}. "
+                "Utilise uniquement des chemins relatifs au workspace."
+            )
+        if token.startswith("/"):
+            if any(token == a or token.startswith(a + "/") for a in _ALLOWED_ABS):
+                continue
+            resolved = os.path.abspath(token)
+            if resolved != root and not resolved.startswith(root + os.sep):
+                raise ToolError(
+                    f"chemin absolu hors du workspace refusé : {token}. "
+                    "Utilise uniquement des chemins relatifs au workspace."
+                )
+        elif ".." in token.split("/"):
+            resolved = os.path.abspath(os.path.join(root, token))
+            if resolved != root and not resolved.startswith(root + os.sep):
+                raise ToolError(
+                    f"remontée hors du workspace refusée : {token}. "
+                    "Reste dans le workspace."
+                )
+
+
 def run_shell(command: str, timeout: int = 60) -> dict:
     """Exécute une commande shell dans le workspace (outil sensible).
 
@@ -419,6 +549,7 @@ def run_shell(command: str, timeout: int = 60) -> dict:
     command = (command or "").strip()
     if not command:
         raise ToolError("commande vide")
+    _guard_shell(command)
     try:
         proc = subprocess.run(
             command,
