@@ -4,6 +4,8 @@ import {
   deleteFile,
   deleteSession,
   getConfig,
+  listProjects,
+  setSessionProject,
   getModels,
   getSession,
   getStatus,
@@ -77,6 +79,11 @@ interface LokiState {
   removeSession: (id: string) => Promise<void>;
   renameSession: (id: string, title: string) => Promise<void>;
   removeFile: (path: string) => Promise<void>;
+
+  projects: { name: string; files: number }[];
+  refreshProjects: () => Promise<void>;
+  currentProject: () => string | null;
+  setProject: (name: string | null) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopStreaming: () => void;
 
@@ -110,6 +117,7 @@ export const useStore = create<LokiState>((set, get) => ({
   fileTree: [],
   previewPath: null,
   previewContent: "",
+  projects: [],
   config: null,
   availableTools: [],
   pendingShell: null,
@@ -156,7 +164,7 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   openPreview: async (path) => {
-    const content = await fileContent(path);
+    const content = await fileContent(path, get().currentProject());
     set({ previewPath: path, previewContent: content });
   },
 
@@ -197,10 +205,37 @@ export const useStore = create<LokiState>((set, get) => ({
 
   refreshFiles: async () => {
     try {
-      set({ fileTree: await listFiles() });
+      set({ fileTree: await listFiles(get().currentProject()) });
     } catch {
       /* workspace indisponible */
     }
+  },
+
+  refreshProjects: async () => {
+    try {
+      const { projects } = await listProjects();
+      set({ projects });
+    } catch {
+      /* backend indisponible */
+    }
+  },
+
+  currentProject: () => {
+    const s = get().sessions.find((x) => x.id === get().currentSessionId);
+    return s?.project ?? null;
+  },
+
+  setProject: async (name) => {
+    const sid = get().currentSessionId;
+    if (!sid) {
+      const s = await createSession(get().selectedModel || undefined, name);
+      set({ currentSessionId: s.id, messages: [] });
+    } else {
+      await setSessionProject(sid, name);
+    }
+    await get().refreshSessions();
+    set({ previewPath: null, previewContent: "" });
+    await get().refreshFiles();
   },
 
   refreshStatus: async () => {
@@ -250,7 +285,10 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   newSession: async () => {
-    const s = await createSession(get().selectedModel || undefined);
+    // La nouvelle session hérite du projet de la session courante.
+    const s = await createSession(
+      get().selectedModel || undefined, get().currentProject()
+    );
     const streaming = get().streaming;
     set({
       currentSessionId: s.id,
@@ -272,6 +310,8 @@ export const useStore = create<LokiState>((set, get) => ({
         ? {}
         : { streamContent: "", streamStatus: "", streamNotice: null }),
     });
+    // L'arborescence suit le projet de la session ouverte.
+    await get().refreshFiles();
   },
 
   removeSession: async (id) => {
@@ -290,7 +330,7 @@ export const useStore = create<LokiState>((set, get) => ({
   },
 
   removeFile: async (path) => {
-    await deleteFile(path);
+    await deleteFile(path, get().currentProject());
     // Ferme l'aperçu si le fichier supprimé (ou son dossier) y est affiché.
     const preview = get().previewPath;
     if (preview && (preview === path || preview.startsWith(path + "/"))) {

@@ -51,27 +51,39 @@ export interface GitCommit {
   files_changed: number;
 }
 
-export async function getGitLog(): Promise<GitCommit[]> {
+const projQuery = (project?: string | null) =>
+  project ? `&project=${encodeURIComponent(project)}` : "";
+
+export async function getGitLog(project?: string | null): Promise<GitCommit[]> {
   try {
-    const res = await fetch("/api/git/log");
+    const res = await fetch(`/api/git/log?limit=40${projQuery(project)}`);
     return (await res.json()).commits;
   } catch {
     return [];
   }
 }
 
-export async function getGitDiff(hash?: string): Promise<string> {
-  const url = hash ? `/api/git/diff?hash=${encodeURIComponent(hash)}` : "/api/git/diff";
-  const res = await fetch(url);
+export async function getGitDiff(
+  hash?: string,
+  project?: string | null
+): Promise<string> {
+  const params = new URLSearchParams();
+  if (hash) params.set("hash", hash);
+  if (project) params.set("project", project);
+  const qs = params.toString();
+  const res = await fetch(`/api/git/diff${qs ? `?${qs}` : ""}`);
   if (!res.ok) return "";
   return (await res.json()).diff;
 }
 
-export async function revertCommit(hash: string): Promise<{ message: string }> {
+export async function revertCommit(
+  hash: string,
+  project?: string | null
+): Promise<{ message: string }> {
   const res = await fetch("/api/git/revert", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ hash }),
+    body: JSON.stringify({ hash, project: project ?? null }),
   });
   if (!res.ok) throw await apiError(res, "revert impossible");
   return res.json();
@@ -214,6 +226,7 @@ export interface Session {
   id: string;
   title: string;
   model?: string;
+  project?: string | null;
   created_at: number;
   updated_at: number;
   message_count?: number;
@@ -400,29 +413,39 @@ export interface FileNode {
   children?: FileNode[];
 }
 
-export async function listFiles(): Promise<FileNode[]> {
-  const res = await fetch("/api/files");
+export async function listFiles(project?: string | null): Promise<FileNode[]> {
+  const query = project ? `?project=${encodeURIComponent(project)}` : "";
+  const res = await fetch(`/api/files${query}`);
   return (await res.json()).tree;
 }
 
-export async function fileContent(path: string): Promise<string> {
-  const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+export async function fileContent(
+  path: string,
+  project?: string | null
+): Promise<string> {
+  const res = await fetch(
+    `/api/files/content?path=${encodeURIComponent(path)}${projQuery(project)}`
+  );
   if (!res.ok) return "";
   return (await res.json()).content;
 }
 
-export async function deleteFile(path: string): Promise<void> {
-  const res = await fetch(`/api/files?path=${encodeURIComponent(path)}`, {
-    method: "DELETE",
-  });
+export async function deleteFile(
+  path: string,
+  project?: string | null
+): Promise<void> {
+  const res = await fetch(
+    `/api/files?path=${encodeURIComponent(path)}${projQuery(project)}`,
+    { method: "DELETE" }
+  );
   if (!res.ok) {
     throw await apiError(res, `suppression impossible (${res.status})`);
   }
 }
 
-export function downloadFile(path: string): void {
+export function downloadFile(path: string, project?: string | null): void {
   const link = document.createElement("a");
-  link.href = `/api/files/download?path=${encodeURIComponent(path)}`;
+  link.href = `/api/files/download?path=${encodeURIComponent(path)}${projQuery(project)}`;
   link.download = path.split(/[\\/]/).pop() ?? "fichier";
   document.body.appendChild(link);
   link.click();
@@ -473,13 +496,49 @@ export async function listSessions(): Promise<Session[]> {
   return (await res.json()).sessions;
 }
 
-export async function createSession(model?: string): Promise<Session> {
+export async function createSession(
+  model?: string,
+  project?: string | null
+): Promise<Session> {
   const res = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: "Nouvelle session", model }),
+    body: JSON.stringify({
+      title: "Nouvelle session",
+      model,
+      project: project ?? null,
+    }),
   });
   return res.json();
+}
+
+export async function listProjects(): Promise<{
+  projects: { name: string; files: number }[];
+  root_files: number;
+}> {
+  const res = await fetch("/api/projects");
+  return res.json();
+}
+
+export async function createProject(name: string): Promise<void> {
+  const res = await fetch("/api/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw await apiError(res, "création du projet impossible");
+}
+
+export async function setSessionProject(
+  id: string,
+  project: string | null
+): Promise<void> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: project ?? "" }),
+  });
+  if (!res.ok) throw await apiError(res, "changement de projet impossible");
 }
 
 export async function getSession(

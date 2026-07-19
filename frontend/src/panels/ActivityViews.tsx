@@ -61,7 +61,7 @@ export function FilesView() {
 }
 
 function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const { openPreview, previewPath, removeFile } = useStore();
+  const { openPreview, previewPath, removeFile, currentProject } = useStore();
   const confirmDelete = (node: FileNode) => {
     const msg =
       node.type === "dir"
@@ -93,7 +93,7 @@ function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
             </button>
             {node.type === "file" && (
               <button
-                onClick={() => downloadFile(node.path)}
+                onClick={() => downloadFile(node.path, currentProject())}
                 className="flex items-center gap-1 border-2 border-line bg-base px-2 py-1 text-[11px] text-accent"
                 title={`Télécharger ${node.name}`}
               >

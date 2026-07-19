@@ -117,7 +117,7 @@ export function LeftPanel() {
 }
 
 function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const { openPreview, previewPath, removeFile } = useStore();
+  const { openPreview, previewPath, removeFile, currentProject } = useStore();
   const confirmDelete = (n: FileNode) => {
     const msg =
       n.type === "dir"
@@ -156,7 +156,7 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
                 <button
                   onClick={(event) => {
                     event.stopPropagation();
-                    downloadFile(n.path);
+                    downloadFile(n.path, currentProject());
                   }}
                   className="hidden flex-none text-muted-2 hover:text-accent group-hover:block"
                   title={`Télécharger ${n.name}`}

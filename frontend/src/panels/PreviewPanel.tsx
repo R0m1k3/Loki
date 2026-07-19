@@ -98,7 +98,7 @@ export function PreviewPanel() {
         {previewPath && (
           <>
             <button
-              onClick={() => downloadFile(previewPath)}
+              onClick={() => downloadFile(previewPath, useStore.getState().currentProject())}
               className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-accent"
               title={`Télécharger ${previewPath}`}
             >
@@ -202,21 +202,24 @@ export function PreviewPanel() {
 /** Onglet Git : historique des commits, diff colorisé, retour arrière. */
 function GitPanel() {
   const refreshFiles = useStore((s) => s.refreshFiles);
+  const currentProject = useStore((s) => s.currentProject);
+  const project = currentProject();
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [diff, setDiff] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => getGitLog().then(setCommits).catch(() => {});
+  const load = () => getGitLog(project).then(setCommits).catch(() => {});
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
 
   const openDiff = async (hash: string) => {
     setSelected(hash);
     setDiff("Chargement…");
-    setDiff((await getGitDiff(hash)) || "(diff vide)");
+    setDiff((await getGitDiff(hash, project)) || "(diff vide)");
   };
 
   const doRevert = async (hash: string) => {
@@ -225,7 +228,7 @@ function GitPanel() {
     setBusy(hash);
     setError(null);
     try {
-      await revertCommit(hash);
+      await revertCommit(hash, project);
       await load();
       await refreshFiles();
       if (selected === hash) setSelected(null);
