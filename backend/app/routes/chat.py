@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, coder, db, enhance, memory, rag, skills
+from .. import agent_config, coder, db, enhance, memory, rag, skills, tools
 from .. import router as msg_router
 from ..tools import check_html, _safe_path
 from ..agent import run_agent
@@ -87,7 +87,7 @@ def _session_code_context(history: list[dict]) -> tuple[str, list[str]]:
     et quelle demande d'origine. Les fichiers touchés servent aussi de cible
     par défaut pour Aider.
     """
-    root = os.path.abspath(settings.workspace_dir)
+    root = tools.active_root()
     files: list[str] = []
     for m in history:
         if m["role"] != "assistant":
@@ -121,8 +121,8 @@ def _session_code_context(history: list[dict]) -> tuple[str, list[str]]:
 
 
 def _workspace_listing(limit: int = 40) -> list[str]:
-    """Chemins relatifs des fichiers du workspace (aperçu compact)."""
-    root = os.path.abspath(settings.workspace_dir)
+    """Chemins relatifs des fichiers de la racine active (aperçu compact)."""
+    root = tools.active_root()
     out: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -145,7 +145,7 @@ def _mentioned_files(text: str) -> list[str]:
     Transmis au moteur code pour qu'Aider travaille directement sur les bons
     fichiers au lieu de deviner via la repo map.
     """
-    root = os.path.abspath(settings.workspace_dir)
+    root = tools.active_root()
     out: list[str] = []
     for raw in _FILE_MENTION.findall(text):
         rel = raw.replace("\\", "/").lstrip("./")

@@ -58,6 +58,9 @@ def init_db() -> None:
         scols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
         if "summary" not in scols:
             conn.execute("ALTER TABLE sessions ADD COLUMN summary TEXT")
+        # Migration douce : projet (sous-dossier de travail) de la session.
+        if "project" not in scols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN project TEXT")
         # Table clé/valeur pour la configuration de l'agent.
         conn.execute(
             "CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)"
@@ -69,17 +72,26 @@ def _now() -> float:
 
 
 # ── Sessions ─────────────────────────────────────────────────────────────
-def create_session(title: str, model: str | None) -> dict:
+def create_session(
+    title: str, model: str | None, project: str | None = None
+) -> dict:
     sid = uuid.uuid4().hex
     now = _now()
     with _LOCK, _connect() as conn:
         conn.execute(
-            "INSERT INTO sessions (id, title, model, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (sid, title, model, now, now),
+            "INSERT INTO sessions (id, title, model, project, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (sid, title, model, project, now, now),
         )
-    return {"id": sid, "title": title, "model": model,
+    return {"id": sid, "title": title, "model": model, "project": project,
             "created_at": now, "updated_at": now, "message_count": 0}
+
+
+def set_session_project(sid: str, project: str | None) -> None:
+    with _LOCK, _connect() as conn:
+        conn.execute(
+            "UPDATE sessions SET project = ? WHERE id = ?", (project, sid)
+        )
 
 
 def list_sessions() -> list[dict]:

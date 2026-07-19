@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import subprocess
+from contextvars import ContextVar
 
 import httpx
 
@@ -25,8 +26,30 @@ class ToolError(Exception):
     """Erreur d'exécution d'un outil (message destiné au modèle)."""
 
 
+# Projet actif pour la requête en cours : re-racine tous les outils sur
+# workspace/<projet>. None = racine du workspace (comportement historique).
+_ACTIVE_PROJECT: ContextVar[str | None] = ContextVar("loki_project", default=None)
+
+PROJECT_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
+
+
+def set_project(name: str | None) -> None:
+    """Fixe le projet actif de la requête (None = racine)."""
+    if name is not None and not PROJECT_NAME.match(name):
+        raise ToolError(f"nom de projet invalide : {name!r}")
+    _ACTIVE_PROJECT.set(name)
+
+
+def active_root() -> str:
+    """Racine effective (workspace ou projet), créée si nécessaire."""
+    return _workspace_root()
+
+
 def _workspace_root() -> str:
     root = os.path.abspath(settings.workspace_dir)
+    project = _ACTIVE_PROJECT.get()
+    if project:
+        root = os.path.join(root, project)
     os.makedirs(root, exist_ok=True)
     return root
 
