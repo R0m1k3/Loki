@@ -44,11 +44,39 @@ export function PreviewPanel() {
 
   const isHtml = previewPath ? /\.html?$/.test(previewPath) : false;
 
+  const [collapsed, setCollapsed] = useState(
+    () => window.localStorage.getItem("loki.preview.collapsed") === "1"
+  );
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      window.localStorage.setItem("loki.preview.collapsed", c ? "0" : "1");
+      return !c;
+    });
+  };
+
   // Journal d'activité : tous les appels d'outils de la session + en cours.
   const logs: ToolCall[] = [
     ...messages.flatMap((m) => m.meta?.tools ?? []),
     ...streamTools,
   ];
+
+  // Replié : barre fine, aucun contenu monté (pas d'iframe vivante).
+  if (collapsed) {
+    return (
+      <div className="flex w-9 flex-none flex-col items-center border-l-[3px] border-line bg-panel pt-3">
+        <button
+          onClick={toggleCollapsed}
+          title="Déplier l'aperçu"
+          className="text-[15px] text-muted-2 hover:text-accent"
+        >
+          ⇤
+        </button>
+        <div className="mt-3 rotate-90 whitespace-nowrap text-[10px] font-bold tracking-wide text-muted-3">
+          APERÇU
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -85,6 +113,14 @@ export function PreviewPanel() {
         <Tab active={tab === "git"} onClick={() => setTab("git")}>
           Git
         </Tab>
+        <div className="flex-1" />
+        <button
+          onClick={toggleCollapsed}
+          title="Replier l'aperçu"
+          className="px-2 text-[15px] text-muted-2 hover:text-accent"
+        >
+          ⇥
+        </button>
       </div>
 
       {/* URL bar */}
