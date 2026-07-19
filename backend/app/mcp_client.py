@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import shlex
 from contextlib import AsyncExitStack
 
@@ -103,6 +104,17 @@ _CONNECT_TIMEOUT = 90.0
 _MAX_RESULT_CHARS = 8000
 
 
+def _safe_tool_name(name: str) -> str:
+    """Nom d'outil compatible function-calling (lettres/chiffres/underscore).
+
+    Les noms MCP peuvent contenir des tirets (« resolve-library-id ») que les
+    grammaires de tool-calling et les modèles mélangent avec des underscores —
+    source de « Tool not found ». On expose une version assainie et on garde
+    la correspondance vers le vrai nom.
+    """
+    return re.sub(r"[^a-zA-Z0-9_]", "_", name)
+
+
 class _ServerConn:
     """Session vivante vers un serveur MCP (process stdio + handshake)."""
 
@@ -111,6 +123,8 @@ class _ServerConn:
         self.stack = AsyncExitStack()
         self.session: ClientSession | None = None
         self.tools: list[dict] = []  # définitions format Ollama
+        # nom exposé au modèle -> vrai nom d'outil MCP
+        self.name_map: dict[str, str] = {}
 
     async def start(self) -> None:
         entry = CATALOG[self.sid]
@@ -151,19 +165,22 @@ class _ServerConn:
         await asyncio.wait_for(self.session.initialize(), _CONNECT_TIMEOUT)
         listed = await asyncio.wait_for(self.session.list_tools(), _CONNECT_TIMEOUT)
         expose = entry.get("expose")
-        self.tools = [
-            {
+        self.tools = []
+        self.name_map = {}
+        for t in listed.tools:
+            if expose is not None and t.name not in expose:
+                continue
+            exposed = f"mcp_{self.sid}_{_safe_tool_name(t.name)}"
+            self.name_map[exposed] = t.name
+            self.tools.append({
                 "type": "function",
                 "function": {
-                    "name": f"mcp_{self.sid}_{t.name}",
+                    "name": exposed,
                     "description": (t.description or t.name)[:400],
                     "parameters": t.inputSchema
                     or {"type": "object", "properties": {}},
                 },
-            }
-            for t in listed.tools
-            if expose is None or t.name in expose
-        ]
+            })
 
     async def close(self) -> None:
         try:
@@ -222,17 +239,39 @@ class McpManager:
                     defs.extend(conn.tools)
         return defs
 
-    async def call_tool(self, prefixed_name: str, args: dict) -> dict:
-        # mcp_<sid>_<tool> ; sid ne contient pas de "_", le nom d'outil peut.
+    def _resolve(self, prefixed_name: str) -> tuple[str, str] | None:
+        """(sid, vrai nom d'outil) depuis le nom exposé au modèle.
+
+        Résolution par table de correspondance, avec tolérance : les modèles
+        confondent parfois tirets et underscores dans les noms d'outils.
+        """
+        wanted = _safe_tool_name(prefixed_name)
+        for sid, conn in self._conns.items():
+            for exposed, real in conn.name_map.items():
+                if exposed == prefixed_name or exposed == wanted:
+                    return sid, real
+        # Repli : découpage mcp_<sid>_<outil> (serveur pas encore connecté).
         try:
             _, sid, tool = prefixed_name.split("_", 2)
+            return sid, tool
         except ValueError:
+            return None
+
+    async def call_tool(self, prefixed_name: str, args: dict) -> dict:
+        resolved = self._resolve(prefixed_name)
+        if resolved is None:
             return {"ok": False, "content": "", "summary": "nom d'outil invalide"}
+        sid, tool = resolved
         async with self._lock:
             conn = self._conns.get(sid) or await self._ensure(sid)
         if conn is None or conn.session is None:
             return {"ok": False, "content": "",
                     "summary": f"serveur MCP {sid} indisponible"}
+        # Serveur (re)connecté après le repli : re-résout via sa table.
+        if conn.name_map:
+            tool = conn.name_map.get(prefixed_name) or conn.name_map.get(
+                _safe_tool_name(prefixed_name), tool
+            )
         try:
             result = await asyncio.wait_for(
                 conn.session.call_tool(tool, args or {}), _CALL_TIMEOUT

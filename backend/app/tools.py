@@ -72,6 +72,10 @@ _READ_MAX_CHARS = 12_000
 
 def read_file(path: str, start_line: int = 1) -> dict:
     target = _safe_path(path)
+    if os.path.isdir(target):
+        raise ToolError(
+            f"{path} est un dossier — utilise list_dir pour voir son contenu"
+        )
     if not os.path.isfile(target):
         raise ToolError(f"fichier introuvable : {path}")
     with open(target, "r", encoding="utf-8", errors="replace") as f:
