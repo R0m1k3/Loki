@@ -81,6 +81,7 @@ def run_code_task(
     instruction: str,
     model: str,
     files: list[str] | None = None,
+    root: str | None = None,
 ) -> dict:
     """Exécute une tâche de code via Aider (synchrone — lancer dans un thread).
 
@@ -97,7 +98,7 @@ def run_code_task(
     from aider.io import InputOutput
     from aider.models import Model
 
-    root = os.path.abspath(settings.workspace_dir)
+    root = os.path.abspath(root or settings.workspace_dir)
     ensure_git(root)
 
     # Aider parle à Ollama via litellm : on pointe vers notre instance.

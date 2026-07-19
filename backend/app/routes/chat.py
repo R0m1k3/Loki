@@ -158,8 +158,11 @@ async def _run_aider_keepalive(
     instruction: str, model: str, files: list[str] | None = None
 ):
     """Lance Aider dans un thread en gardant le flux SSE vivant."""
+    # Racine résolue AVANT le thread : la contextvar projet ne suit pas
+    # dans asyncio.to_thread.
+    root = tools.active_root()
     task = asyncio.create_task(
-        asyncio.to_thread(coder.run_code_task, instruction, model, files)
+        asyncio.to_thread(coder.run_code_task, instruction, model, files, root)
     )
     while not task.done():
         await asyncio.sleep(10)
@@ -279,6 +282,16 @@ async def chat(req: ChatRequest) -> StreamingResponse:
     model = req.model or session.get("model") or settings.default_model
     cfg = _apply_mode(agent_config.get_config(model), req.mode)
 
+    # Projet de la session : re-racine outils, shell, Aider et aides de
+    # contexte pour tout le tour. Projet disparu -> retour racine + notice.
+    project = session.get("project") or None
+    project_missing = False
+    if project:
+        proj_dir = os.path.join(os.path.abspath(settings.workspace_dir), project)
+        if not os.path.isdir(proj_dir):
+            project_missing, project = True, None
+    tools.set_project(project)
+
     history = db.list_messages(req.session_id)
 
     # Premier message : titre la session avec un extrait.
@@ -311,6 +324,12 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     async def event_stream():
         yield _sse("start", {"model": model, "engine": "code" if use_code else "agent"})
+
+        if project_missing:
+            yield _sse("notice", {"message": (
+                "Projet de la session introuvable sur le disque — retour au "
+                "workspace."
+            )})
 
         # Préparation du contexte APRÈS le start SSE et en PARALLÈLE : rappel
         # RAG, plan et choix du modèle code partent ensemble au lieu de
