@@ -176,6 +176,14 @@ Le workspace étant un dépôt git (chaque action de l'agent = un commit), l'ong
 de chacun, et un bouton **↶ Annuler** (revert) pour défaire une modification en
 un clic.
 
+## Projets (répertoires de travail)
+
+Chaque session peut travailler dans un **projet** : un sous-dossier du
+workspace choisi via le chip 📁 du composer (« + Nouveau projet » pour en
+créer un). L'agent, le shell, le moteur code et l'arborescence sont confinés
+au projet ; chaque projet a son propre dépôt git (historique et revert
+indépendants). Session sans projet = racine du workspace.
+
 ## Intelligence augmentée
 
 - **Plan-puis-exécute** : les demandes complexes sont décomposées en 3-5 étapes
