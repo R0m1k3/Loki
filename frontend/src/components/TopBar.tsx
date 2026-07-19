@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { getVersion } from "../api/client";
 import { LokiMark } from "./Icon";
-import { ModelSelector } from "./ModelSelector";
 import { SessionMenu } from "./SessionMenu";
 
 /** Barre supérieure sombre : logo, fil d'Ariane, statut Ollama, sélecteur. */
@@ -72,8 +71,6 @@ export function TopBar() {
           {connected ? status?.host.replace(/^https?:\/\//, "") : "déconnecté"}
         </span>
       </div>
-
-      <ModelSelector />
     </div>
   );
 }

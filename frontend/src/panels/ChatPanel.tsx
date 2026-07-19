@@ -4,6 +4,7 @@ import { ChevronDown, LokiMark, SendIcon } from "../components/Icon";
 import { ToolCard } from "../components/ToolCard";
 import { MessageContent } from "../components/MessageContent";
 import { ProjectChip } from "../components/ProjectChip";
+import { ModelSelector } from "../components/ModelSelector";
 import type { Message, ToolCall } from "../api/client";
 
 /** Panneau central : barre de contexte, fil de conversation, composer. */
@@ -138,13 +139,7 @@ export function ChatPanel() {
             <div className="mt-1.5 flex items-center gap-2">
               <ModeSelector />
               <ProjectChip />
-              <div
-                className="flex h-8 min-w-0 max-w-[180px] items-center gap-1.5 border-2 border-line px-2.5 text-[13px] text-ink-2"
-                title={selectedModel || undefined}
-              >
-                <span className="h-2 w-2 border-2 border-line bg-accent" />
-                <span className="min-w-0 truncate">{selectedModel || "—"}</span>
-              </div>
+              <ModelSelector variant="composer" />
               {streaming && !showingStreaming ? (
                 <span className="min-w-0 flex-1 truncate text-[13px] text-accent">
                   Travail en cours : {workingSession?.title ?? "session ouverte"}

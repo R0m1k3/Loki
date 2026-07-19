@@ -2,8 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ChevronDown } from "./Icon";
 
-/** Sélecteur de modèle Ollama (chip orange de la barre supérieure). */
-export function ModelSelector() {
+/** Sélecteur de modèle Ollama (chip orange, pastille = état de chargement).
+
+    variant "composer" : taille alignée sur les chips du composer, menu vers
+    le haut. */
+export function ModelSelector({
+  variant = "top",
+}: {
+  variant?: "top" | "composer";
+}) {
   const {
     models,
     selectedModel,
@@ -31,7 +38,11 @@ export function ModelSelector() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[34px] min-w-0 max-w-[260px] items-center gap-2 border-[3px] border-white bg-accent px-3 text-white shadow-accent-soft"
+        className={
+          variant === "composer"
+            ? "flex h-8 min-w-0 max-w-[220px] items-center gap-1.5 border-2 border-line bg-accent px-2.5 text-[13px] text-white"
+            : "flex h-[34px] min-w-0 max-w-[260px] items-center gap-2 border-[3px] border-white bg-accent px-3 text-white shadow-accent-soft"
+        }
         title={selectedModel || undefined}
         style={{ borderRadius: 7 }}
       >
@@ -62,7 +73,13 @@ export function ModelSelector() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-20 w-64 border-[3px] border-line bg-card p-1 shadow-hard">
+        <div
+          className={`absolute z-20 w-64 border-[3px] border-line bg-card p-1 shadow-hard ${
+            variant === "composer"
+              ? "bottom-[calc(100%+6px)] left-0"
+              : "right-0 top-11"
+          }`}
+        >
           {models.length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-2">
               Aucun modèle installé
