@@ -76,6 +76,30 @@ async def test_reflexion_pas_renvoyee_au_modele(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_coupe_circuit_pensee_interminable(monkeypatch):
+    """Pensée sans fin -> génération coupée en vol, puis relance qui aboutit."""
+    calls: list[int] = []
+
+    async def fake_chat(model, convo, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            # Flux de pensée « infini » : jamais de done, jamais de contenu.
+            for _ in range(10_000):
+                yield {"message": {"thinking": "x" * 200}, "done": False}
+        else:
+            yield {"message": {"content": "réponse après coupe"}, "done": True}
+
+    monkeypatch.setattr(agent.ollama, "chat", fake_chat)
+    events = [
+        e async for e in agent.run_agent("test", _convo(), enabled_tools=[])
+    ]
+
+    final = [e for e in events if e["type"] == "final"]
+    assert final and "réponse après coupe" in final[0]["content"]
+    assert len(calls) == 2  # coupé puis relancé, pas d'épuisement du flux
+
+
+@pytest.mark.asyncio
 async def test_reflexion_coupee_apres_deux_impasses(monkeypatch):
     """Deux itérations de pensée pure -> think désactivé, tâche finie."""
     seen_think: list = []

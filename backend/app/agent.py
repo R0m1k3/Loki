@@ -26,6 +26,11 @@ from .tools import TOOL_DEFINITIONS, ToolError, run_tool
 MAX_ITERATIONS = 6
 MAX_TOOL_REPAIR_ATTEMPTS = 2
 
+# Coupe-circuit de réflexion : au-delà de cette taille de pensée SANS aucun
+# contenu ni appel d'outil, on interrompt la génération en cours au lieu
+# d'attendre l'épuisement du budget num_predict (minutes sur un gros modèle).
+_MAX_THINKING_CHARS = 12_000
+
 # Élagage : au-delà de cette taille, un résultat d'outil des itérations
 # passées est tronqué. Les gros payloads (MCP 8 Ko, shell 4 Ko) saturaient le
 # contexte en un seul tour long — Ollama tronquait alors silencieusement le
@@ -185,6 +190,15 @@ async def run_agent(
                             if not thinking_status_sent:
                                 thinking_status_sent = True
                                 yield {"type": "status", "message": "Réflexion…"}
+                            # Pensée interminable sans production : on coupe la
+                            # génération maintenant — la relance (plus bas)
+                            # remet le modèle au travail immédiatement.
+                            if (
+                                len(thinking_buf) > _MAX_THINKING_CHARS
+                                and not content_buf
+                                and not tool_calls
+                            ):
+                                break
                         if token:
                             content_buf += token
                             yield {"type": "token", "content": token}
