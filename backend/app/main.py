@@ -106,6 +106,17 @@ if os.path.isdir(_STATIC_DIR):
 
     @app.get("/{full_path:path}")
     async def spa_fallback(full_path: str):
-        """Renvoie index.html pour toutes les routes (SPA React)."""
-        index = os.path.join(_STATIC_DIR, "index.html")
-        return FileResponse(index)
+        """Fichier statique racine s'il existe (favicon…), sinon index.html.
+
+        Sans ce test, /favicon.svg recevait index.html : aucun favicon ne
+        s'affichait en production.
+        """
+        static_root = os.path.abspath(_STATIC_DIR)
+        candidate = os.path.abspath(os.path.join(static_root, full_path))
+        if (
+            full_path
+            and candidate.startswith(static_root + os.sep)
+            and os.path.isfile(candidate)
+        ):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(static_root, "index.html"))
