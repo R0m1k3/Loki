@@ -6,23 +6,32 @@ modification. Toutes les commandes sont exécutées DANS le workspace.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from .. import tools
 from ..coder import ensure_git
 from ..config import settings
 
 router = APIRouter(prefix="/api/git", tags=["git"])
 
 
-def _git(*args: str, timeout: int = 15) -> subprocess.CompletedProcess:
-    """Exécute une commande git dans le workspace."""
-    ensure_git(settings.workspace_dir)
+def _git(
+    *args: str, timeout: int = 15, project: str | None = None
+) -> subprocess.CompletedProcess:
+    """Exécute une commande git dans le workspace ou le projet demandé."""
+    root = os.path.abspath(settings.workspace_dir)
+    if project:
+        if not tools.PROJECT_NAME.match(project):
+            raise HTTPException(400, "nom de projet invalide")
+        root = os.path.join(root, project)
+    ensure_git(root)
     return subprocess.run(
         ["git", *args],
-        cwd=settings.workspace_dir,
+        cwd=root,
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -30,10 +39,13 @@ def _git(*args: str, timeout: int = 15) -> subprocess.CompletedProcess:
 
 
 @router.get("/log")
-async def git_log(limit: int = 40) -> dict:
+async def git_log(limit: int = 40, project: str | None = None) -> dict:
     """Historique des commits (hash court, message, auteur, date, nb fichiers)."""
     fmt = "%h%x1f%s%x1f%an%x1f%ar%x1f%H"
-    proc = _git("log", f"-{max(1, min(limit, 200))}", f"--pretty=format:{fmt}")
+    proc = _git(
+        "log", f"-{max(1, min(limit, 200))}", f"--pretty=format:{fmt}",
+        project=project,
+    )
     if proc.returncode != 0:
         # Dépôt sans commit encore.
         return {"commits": []}
@@ -45,7 +57,8 @@ async def git_log(limit: int = 40) -> dict:
             continue
         short, subject, author, when, full = parts
         # Nombre de fichiers touchés par ce commit.
-        stat = _git("show", "--stat", "--oneline", "--format=", full)
+        stat = _git("show", "--stat", "--oneline", "--format=", full,
+                    project=project)
         files = [l for l in stat.stdout.splitlines() if "|" in l]
         commits.append({
             "hash": short,
@@ -59,14 +72,14 @@ async def git_log(limit: int = 40) -> dict:
 
 
 @router.get("/diff")
-async def git_diff(hash: str | None = None) -> dict:
+async def git_diff(hash: str | None = None, project: str | None = None) -> dict:
     """Diff d'un commit (hash) ou des modifications non commitées si absent."""
     if hash:
         if not hash.replace("-", "").isalnum():
             raise HTTPException(400, "hash invalide")
-        proc = _git("show", "--no-color", hash)
+        proc = _git("show", "--no-color", hash, project=project)
     else:
-        proc = _git("diff", "--no-color", "HEAD")
+        proc = _git("diff", "--no-color", "HEAD", project=project)
     if proc.returncode != 0:
         raise HTTPException(404, "diff introuvable")
     # Borne la taille pour ne pas noyer l'UI.
@@ -75,6 +88,7 @@ async def git_diff(hash: str | None = None) -> dict:
 
 class RevertRequest(BaseModel):
     hash: str
+    project: str | None = None
 
 
 @router.post("/revert")
@@ -83,10 +97,10 @@ async def git_revert(req: RevertRequest) -> dict:
     h = req.hash.strip()
     if not h.replace("-", "").isalnum():
         raise HTTPException(400, "hash invalide")
-    proc = _git("revert", "--no-edit", h, timeout=30)
+    proc = _git("revert", "--no-edit", h, timeout=30, project=req.project)
     if proc.returncode != 0:
         # Conflit ou commit introuvable : on nettoie un éventuel revert en cours.
-        _git("revert", "--abort")
+        _git("revert", "--abort", project=req.project)
         detail = (proc.stderr or proc.stdout).strip()[:300]
         raise HTTPException(409, f"revert impossible : {detail}")
     return {"ok": True, "message": f"commit {h[:7]} annulé"}
