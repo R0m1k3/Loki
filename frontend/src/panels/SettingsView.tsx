@@ -432,8 +432,8 @@ export function SettingsView() {
                      "Décompose les demandes complexes en étapes"] as const,
                     ["self_review", "Auto-critique (Qualité +)",
                      "Relit et révise la réponse avant de la donner"] as const,
-                    ["rag_enabled", "Mémoire long-terme (RAG)",
-                     "Se souvient des anciennes sessions (modèle d'embedding requis)"] as const,
+                    ["rag_enabled", "Mémoire entre sessions (RAG)",
+                     "Rappelle d'AUTRES discussions dans celle-ci. Désactivé par défaut : sinon une ancienne demande sans rapport ressurgit. Chaque discussion garde toujours sa propre mémoire."] as const,
                     ["skills_enabled", "Skills automatiques",
                      "Méthodes expertes injectées selon la tâche (débogage, web, refactor…)"] as const,
                   ].map(([key, label, desc], i) => (

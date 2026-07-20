@@ -28,7 +28,10 @@ _EMBED_HINTS = ("nomic-embed", "mxbai-embed", "bge-", "snowflake-arctic-embed",
                 "all-minilm", "embed")
 
 _TOP_K = 3
-_MIN_SCORE = 0.45
+# Seuil de similarité volontairement élevé : une mémoire n'est rappelée que si
+# elle est FORTEMENT proche de la demande. Trop bas (0.45), un « jeu d'échecs »
+# rappelait une « appli sport » et déroutait le modèle.
+_MIN_SCORE = 0.6
 _MAX_MEMORIES = 2000  # au-delà, on élague les plus anciens
 
 _embed_model_cache: dict = {"value": None, "checked_at": 0.0}

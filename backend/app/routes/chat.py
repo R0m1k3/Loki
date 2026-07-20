@@ -334,7 +334,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         # Préparation du contexte APRÈS le start SSE et en PARALLÈLE : rappel
         # RAG, plan et choix du modèle code partent ensemble au lieu de
         # s'enchaîner en bloquant le premier token.
-        want_rag = cfg.get("rag_enabled", True)
+        want_rag = cfg.get("rag_enabled", False)
         want_plan = cfg.get("plan_mode", True) and (
             use_code or enhance.needs_plan(req.content)
         )
@@ -443,7 +443,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             asyncio.create_task(memory.maybe_summarize(
                 req.session_id, model, options=run_opts, keep_alive=keep,
             ))
-            if cfg.get("rag_enabled", True):
+            if cfg.get("rag_enabled", False):
                 last = db.list_messages(req.session_id)
                 answer = last[-1]["content"] if last else ""
                 asyncio.create_task(rag.index_exchange(
@@ -577,7 +577,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         asyncio.create_task(memory.maybe_summarize(
             req.session_id, model, options=run_opts, keep_alive=keep,
         ))
-        if cfg.get("rag_enabled", True) and final_content:
+        if cfg.get("rag_enabled", False) and final_content:
             asyncio.create_task(rag.index_exchange(
                 req.session_id, req.content, final_content,
                 embed_model=cfg.get("embed_model"),

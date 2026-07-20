@@ -10,7 +10,7 @@ from . import db
 CONFIG_KEY = "agent"
 MODEL_PROFILES_KEY = "model_profiles"
 PROFILE_STATE_KEY = "model_profiles_state"
-PROFILE_VERSION = 6
+PROFILE_VERSION = 7
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es Loki, un assistant de développement local agentique. Tu disposes "
@@ -116,8 +116,12 @@ DEFAULT_CONFIG: dict = {
     "plan_mode": True,
     # Auto-critique : une passe de relecture/révision avant la réponse finale.
     "self_review": False,
-    # Mémoire long-terme (RAG) entre sessions, via un modèle d'embedding.
-    "rag_enabled": True,
+    # Mémoire long-terme (RAG) ENTRE sessions, via un modèle d'embedding.
+    # Désactivée par défaut : chaque discussion ne se souvient que d'elle-même
+    # (résumé + messages récents). Sinon une ancienne demande sans rapport (ex.
+    # « appli sport ») ressurgit dans une nouvelle discussion (ex. « jeu
+    # d'échecs ») et embrouille les petits modèles. Réactivable dans Réglages.
+    "rag_enabled": False,
     "embed_model": "auto",
     # Skills : méthodes expertes injectées automatiquement selon la tâche.
     "skills_enabled": True,
@@ -157,6 +161,15 @@ def _migrate_profiles() -> None:
         if prof.get("num_ctx") in (4096, 8192):
             prof["num_ctx"] = 16384
     db.set_config_value(MODEL_PROFILES_KEY, profiles)
+
+    # v7 : la mémoire inter-sessions (RAG) faisait ressurgir d'anciennes
+    # demandes sans rapport dans une nouvelle discussion. On la désactive une
+    # fois sur les installs existantes ; réactivable manuellement dans Réglages.
+    stored = db.get_config_value(CONFIG_KEY)
+    if stored and stored.get("rag_enabled"):
+        stored["rag_enabled"] = False
+        db.set_config_value(CONFIG_KEY, stored)
+
     db.set_config_value(PROFILE_STATE_KEY, {"version": PROFILE_VERSION})
 
 
