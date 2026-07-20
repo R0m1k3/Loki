@@ -308,9 +308,10 @@ export const useStore = create<LokiState>((set, get) => ({
     set({
       currentSessionId: id,
       messages,
+      // Une validation shell en attente appartient à la session quittée.
       ...(streaming
         ? {}
-        : { streamContent: "", streamStatus: "", streamNotice: null }),
+        : { streamContent: "", streamStatus: "", streamNotice: null, pendingShell: null }),
     });
     // L'arborescence suit le projet de la session ouverte.
     await get().refreshFiles();

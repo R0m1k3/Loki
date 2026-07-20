@@ -115,7 +115,10 @@ export function ChatPanel() {
                 planDone={streamPlanDone}
               />
             )}
-            {showingStreaming && pendingShell && (
+            {/* La validation shell persiste APRÈS la fin du flux : l'agent
+                termine son tour en attendant l'utilisateur, donc le streaming
+                s'arrête — la carte doit rester tant qu'on n'a pas tranché. */}
+            {pendingShell && (
               <ShellConfirm
                 command={pendingShell}
                 onApprove={approveShell}
