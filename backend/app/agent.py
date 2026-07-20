@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import AsyncIterator
 
 import httpx
@@ -99,6 +100,27 @@ def _parse_args(raw) -> dict:
     return {}
 
 
+# Marqueur d'avancement du plan émis par le modèle (« ✅ Étape 2 terminée »).
+# Tolérant : coche/croix optionnelle, mot « étape » optionnel, numéro requis.
+_STEP_DONE = re.compile(
+    r"(?:✅|✔|☑|\[x\])\s*(?:étape|etape|step)?\s*(\d{1,2})"
+    r"|(?:étape|etape|step)\s*(\d{1,2})\s*(?:terminée|terminee|faite|ok|✅|✔)",
+    re.I,
+)
+
+
+def _scan_plan_done(text: str, plan_len: int, already: set[int]) -> list[int]:
+    """Indices (0-based) de nouvelles étapes annoncées terminées dans ``text``."""
+    fresh: list[int] = []
+    for m in _STEP_DONE.finditer(text):
+        num = m.group(1) or m.group(2)
+        idx = int(num) - 1
+        if 0 <= idx < plan_len and idx not in already:
+            already.add(idx)
+            fresh.append(idx)
+    return fresh
+
+
 async def run_agent(
     model: str,
     convo: list[dict],
@@ -109,6 +131,7 @@ async def run_agent(
     think: bool = True,
     keep_alive: str | None = None,
     mcp_tools: list[dict] | None = None,
+    plan: list[str] | None = None,
 ) -> AsyncIterator[dict]:
     # enabled_tools=None -> tous les outils ; liste vide -> aucun outil.
     if enabled_tools is None:
@@ -141,6 +164,10 @@ async def run_agent(
         )
     # Compteur d'itérations où le modèle n'a produit QUE du raisonnement.
     thinking_only_strikes = 0
+
+    # Suivi de l'avancement du plan : étapes déjà annoncées terminées.
+    plan_len = len(plan or [])
+    plan_done: set[int] = set()
 
     # Métriques cumulées sur tous les appels Ollama du tour agentique : Ollama
     # les renvoie dans le chunk final (done=true) de chaque génération.
@@ -202,6 +229,14 @@ async def run_agent(
                         if token:
                             content_buf += token
                             yield {"type": "token", "content": token}
+                            # Coche les étapes du plan annoncées terminées, en
+                            # direct. Scan borné : uniquement quand le token
+                            # porte un marqueur plausible.
+                            if plan_len and any(
+                                c in token for c in ("✅", "✔", "☑", "tape", "step", "]")
+                            ):
+                                for idx in _scan_plan_done(content_buf, plan_len, plan_done):
+                                    yield {"type": "plan_step", "index": idx, "status": "done"}
                         if msg.get("tool_calls"):
                             tool_calls.extend(msg["tool_calls"])
                         if chunk.get("done"):

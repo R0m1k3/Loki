@@ -575,6 +575,7 @@ export async function streamChat(
     onStatus: (msg: string) => void;
     onNotice: (msg: string) => void;
     onPlan?: (steps: string[]) => void;
+    onPlanStep?: (index: number) => void;
     onRevision?: (content: string) => void;
     onDone: (full: string) => void;
     onError: (msg: string) => void;
@@ -638,6 +639,7 @@ export async function streamChat(
       const payload = JSON.parse(dataLines.join("\n"));
       if (event === "token") handlers.onToken(payload.content);
       else if (event === "plan") handlers.onPlan?.(payload.steps);
+      else if (event === "plan_step") handlers.onPlanStep?.(payload.index);
       else if (event === "revision") handlers.onRevision?.(payload.content);
       else if (event === "thinking") handlers.onThinking(payload.content);
       else if (event === "status") handlers.onStatus(payload.message);

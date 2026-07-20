@@ -20,6 +20,7 @@ export function ChatPanel() {
     streamNotice,
     streamTools,
     streamPlan,
+    streamPlanDone,
     sendMessage,
     currentSessionId,
     config,
@@ -40,7 +41,7 @@ export function ChatPanel() {
   // Auto-scroll vers le bas à chaque token / message.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, streamContent, streamThinking, streamTools, streamPlan]);
+  }, [messages, streamContent, streamThinking, streamTools, streamPlan, streamPlanDone]);
 
   const submit = () => {
     if (!draft.trim() || streaming) return;
@@ -111,6 +112,7 @@ export function ChatPanel() {
                 pendingStatus={streamStatus}
                 notice={streamNotice}
                 thinking={streamThinking}
+                planDone={streamPlanDone}
               />
             )}
             {showingStreaming && pendingShell && (
@@ -234,7 +236,22 @@ function ModeSelector() {
   );
 }
 
-function PlanCard({ steps }: { steps: string[] }) {
+function PlanCard({
+  steps,
+  done,
+  live,
+}: {
+  steps: string[];
+  done?: number[];
+  live?: boolean;
+}) {
+  const doneSet = new Set(done ?? []);
+  // Étape active = la première non validée, uniquement pendant le stream.
+  const activeIdx = live
+    ? steps.findIndex((_, i) => !doneSet.has(i))
+    : -1;
+  const doneCount = doneSet.size;
+
   return (
     <div
       className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm"
@@ -243,18 +260,39 @@ function PlanCard({ steps }: { steps: string[] }) {
       <div className="flex items-center gap-2 border-b-2 border-line-soft px-3 py-2">
         <span className="font-pixel text-[9px] text-accent">PLAN</span>
         <span className="text-[12px] text-muted-2">
-          {steps.length} étape{steps.length > 1 ? "s" : ""}
+          {doneCount > 0
+            ? `${doneCount}/${steps.length} validée${doneCount > 1 ? "s" : ""}`
+            : `${steps.length} étape${steps.length > 1 ? "s" : ""}`}
         </span>
       </div>
       <ol className="m-0 list-none px-3 py-2">
-        {steps.map((s, i) => (
-          <li key={i} className="flex gap-2 py-[3px] text-[13px] text-ink-2">
-            <span className="flex h-[18px] w-[18px] flex-none items-center justify-center border-2 border-line bg-base text-[11px] text-ink">
-              {i + 1}
-            </span>
-            <span className="min-w-0">{s}</span>
-          </li>
-        ))}
+        {steps.map((s, i) => {
+          const isDone = doneSet.has(i);
+          const isActive = i === activeIdx;
+          return (
+            <li
+              key={i}
+              className={`flex gap-2 py-[3px] text-[13px] ${
+                isDone ? "text-muted-2" : "text-ink-2"
+              }`}
+            >
+              <span
+                className={`flex h-[18px] w-[18px] flex-none items-center justify-center border-2 text-[11px] ${
+                  isDone
+                    ? "border-ok bg-ok text-white"
+                    : isActive
+                    ? "border-accent bg-base text-accent"
+                    : "border-line bg-base text-ink"
+                }`}
+              >
+                {isDone ? "✓" : isActive ? "…" : i + 1}
+              </span>
+              <span className={`min-w-0 ${isDone ? "line-through" : ""}`}>
+                {s}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -266,12 +304,14 @@ function Bubble({
   pendingStatus,
   notice,
   thinking,
+  planDone,
 }: {
   msg: Message;
   pending?: boolean;
   pendingStatus?: string;
   notice?: string | null;
   thinking?: string;
+  planDone?: number[];
 }) {
   const time = new Date(msg.created_at * 1000).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
@@ -315,7 +355,7 @@ function Bubble({
           live={!!pending}
         />
         {(msg.meta?.plan?.length ?? 0) > 0 && (
-          <PlanCard steps={msg.meta!.plan!} />
+          <PlanCard steps={msg.meta!.plan!} done={planDone} live={!!pending} />
         )}
         {(msg.meta?.tools ?? []).map((t: ToolCall, i: number) => (
           <ToolCard key={i} call={t} />

@@ -455,8 +455,14 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if plan:
             convo.append({
                 "role": "system",
-                "content": "Plan à suivre pour cette demande :\n"
-                + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan)),
+                "content": (
+                    "Plan à suivre pour cette demande, étape par étape :\n"
+                    + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
+                    + "\n\nTraite les étapes DANS L'ORDRE. Dès qu'une étape est "
+                    "réellement accomplie, écris sur une ligne seule "
+                    "« ✅ Étape N terminée » (N = son numéro) avant de passer à "
+                    "la suivante. N'annonce jamais une étape terminée à l'avance."
+                ),
             })
 
         final_content = ""
@@ -478,6 +484,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     think=cfg.get("think", True),
                     keep_alive=cfg.get("keep_alive", "30m"),
                     mcp_tools=mcp_tools,
+                    plan=plan,
                 ):
                     await queue.put(event)
             except Exception as exc:
@@ -514,6 +521,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     "tool_call",
                     "tool_result",
                     "tool_confirm",
+                    "plan_step",
                 ):
                     yield _sse(etype, ev)
                 elif etype == "error":

@@ -51,6 +51,7 @@ interface LokiState {
   streamNotice: string | null;
   streamTools: ToolCall[]; // appels d'outils de la réponse en cours
   streamPlan: string[]; // plan de la réponse en cours
+  streamPlanDone: number[]; // index des étapes validées en direct
 
   fileTree: FileNode[];
   previewPath: string | null;
@@ -114,6 +115,7 @@ export const useStore = create<LokiState>((set, get) => ({
   streamNotice: null,
   streamTools: [],
   streamPlan: [],
+  streamPlanDone: [],
   fileTree: [],
   previewPath: null,
   previewContent: "",
@@ -410,6 +412,8 @@ export const useStore = create<LokiState>((set, get) => ({
       streamStatus: "Connexion à Ollama…",
       streamNotice: null,
       streamTools: [],
+      streamPlan: [],
+      streamPlanDone: [],
       pendingShell: null,
     });
 
@@ -427,7 +431,13 @@ export const useStore = create<LokiState>((set, get) => ({
         onToken: (t) => set({ streamContent: get().streamContent + t }),
         onThinking: (t) => set({ streamThinking: get().streamThinking + t }),
         onStatus: (message) => set({ streamStatus: message }),
-        onPlan: (steps) => set({ streamPlan: steps }),
+        onPlan: (steps) => set({ streamPlan: steps, streamPlanDone: [] }),
+        onPlanStep: (index) =>
+          set({
+            streamPlanDone: get().streamPlanDone.includes(index)
+              ? get().streamPlanDone
+              : [...get().streamPlanDone, index],
+          }),
         onRevision: (content) => set({ streamContent: content }),
         onNotice: (message) => set({ streamNotice: message }),
         onToolCall: (call) =>
@@ -463,6 +473,8 @@ export const useStore = create<LokiState>((set, get) => ({
             streamStatus: "",
             streamNotice: null,
             streamTools: [],
+            streamPlan: [],
+            streamPlanDone: [],
           });
           // Recharge depuis la base + l'arborescence (fichiers créés par
           // l'agent) — trois requêtes indépendantes, en parallèle.
