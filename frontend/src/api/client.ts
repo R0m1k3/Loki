@@ -279,6 +279,7 @@ export interface AgentConfig {
   rag_enabled: boolean;
   embed_model: string;
   skills_enabled: boolean;
+  ponytail: boolean;
   keep_alive: string;
 }
 

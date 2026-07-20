@@ -419,6 +419,12 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 })
                 yield _sse("notice", {"message": f"📘 Méthode : {skill['title']}"})
 
+        # Ponytail : méthode « code minimal » injectée pour toute tâche de code
+        # (les deux chemins). Contre la sur-ingénierie qui casse les rendus.
+        is_code_like = use_code or msg_router.is_code_task(req.content)
+        if cfg.get("ponytail", True) and is_code_like:
+            convo.insert(1, {"role": "system", "content": skills.PONYTAIL_GUIDANCE})
+
         if plan:
             yield _sse("plan", {"steps": plan})
 
@@ -436,6 +442,10 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             extra = instruction_plan
             if recap:
                 extra = f"\n\n{recap}" + extra
+            # Le moteur code (Aider) ne voit pas convo : on lui redonne Ponytail
+            # directement dans la consigne.
+            if cfg.get("ponytail", True):
+                extra = "\n\n" + skills.PONYTAIL_GUIDANCE + extra
             code_files = _mentioned_files(req.content) or session_files[:8]
             async for chunk in _code_stream(
                 req, code_model, extra=extra, plan=plan, files=code_files,

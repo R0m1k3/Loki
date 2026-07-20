@@ -72,6 +72,7 @@ PROFILE_FIELDS = {
     "rag_enabled",
     "embed_model",
     "skills_enabled",
+    "ponytail",
     "keep_alive",
     *GENERATION_FIELDS,
 }
@@ -125,6 +126,9 @@ DEFAULT_CONFIG: dict = {
     "embed_model": "auto",
     # Skills : méthodes expertes injectées automatiquement selon la tâche.
     "skills_enabled": True,
+    # Ponytail : méthode « code minimal » (anti sur-ingénierie) injectée pour
+    # toute tâche de code. Voir github.com/DietrichGebert/ponytail.
+    "ponytail": True,
     # Durée de maintien du modèle en VRAM (préchargement). "0" = décharge
     # aussitôt, "-1" = jamais, "30m" = 30 minutes.
     "keep_alive": "30m",

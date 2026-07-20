@@ -10,6 +10,25 @@ import re
 
 _SKILLS_DIR = os.path.join(os.path.dirname(__file__), "..", "skills")
 
+# Ponytail (https://github.com/DietrichGebert/ponytail) : philosophie de code
+# « paresseux » (anti sur-ingénierie). Adaptée en méthode transverse injectée
+# pour toute tâche de code — indépendante du sélecteur de skill (mono-skill).
+PONYTAIL_TITLE = "Ponytail · code minimal"
+PONYTAIL_GUIDANCE = (
+    "Méthode Ponytail — code minimal, anti sur-ingénierie. Avant d'écrire du "
+    "code, descends l'échelle de décision et arrête-toi au premier échelon qui "
+    "suffit :\n"
+    "1. NE PAS coder ce qui n'est pas explicitement demandé (YAGNI) ;\n"
+    "2. RÉUTILISER l'existant (fichiers/fonctions déjà présents) ;\n"
+    "3. UTILISER les fonctions natives du langage / du navigateur ;\n"
+    "4. en DERNIER recours seulement, écrire le minimum de code nécessaire.\n"
+    "Livre la solution la plus simple qui fonctionne : aucune dépendance ni "
+    "bibliothèque à installer, aucune abstraction prématurée, aucune "
+    "fonctionnalité en plus non demandée (pas de « moteur IA », d'options ou de "
+    "configuration superflues). Préfère un seul fichier clair à une "
+    "architecture élaborée."
+)
+
 # Seuil : nombre minimal de mots-clés distincts trouvés dans le message.
 _MIN_HITS = 2
 

@@ -436,6 +436,8 @@ export function SettingsView() {
                      "Rappelle d'AUTRES discussions dans celle-ci. Désactivé par défaut : sinon une ancienne demande sans rapport ressurgit. Chaque discussion garde toujours sa propre mémoire."] as const,
                     ["skills_enabled", "Skills automatiques",
                      "Méthodes expertes injectées selon la tâche (débogage, web, refactor…)"] as const,
+                    ["ponytail", "Ponytail (code minimal)",
+                     "Anti sur-ingénierie : code le plus simple qui marche, sans dépendance ni fonctionnalité superflue (github.com/DietrichGebert/ponytail)"] as const,
                   ].map(([key, label, desc], i) => (
                     <div
                       key={key}
