@@ -349,7 +349,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         prep = asyncio.ensure_future(asyncio.gather(
             rag.recall(req.session_id, req.content, embed_model=cfg.get("embed_model"))
             if want_rag else asyncio.sleep(0, result=[]),
-            enhance.make_plan(model, req.content, options=run_opts, keep_alive=keep)
+            enhance.make_plan(model, req.content, code=use_code,
+                              options=run_opts, keep_alive=keep)
             if want_plan else asyncio.sleep(0, result=[]),
             coder.pick_code_model(model, cfg.get("code_model"))
             if use_code else asyncio.sleep(0, result=model),

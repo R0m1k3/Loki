@@ -22,6 +22,20 @@ _PLAN_PROMPT = (
     "UNIQUEMENT les étapes, en français."
 )
 
+_PLAN_CODE_PROMPT = (
+    "Tu es architecte logiciel. Établis un plan d'IMPLÉMENTATION concret pour "
+    "cette application, en 3 à 5 étapes courtes (une par ligne, numérotées "
+    "« 1. », « 2. »…).\n"
+    "- Étape 1 = ARCHITECTURE : quels fichiers créer et leur rôle (ex. un seul "
+    "index.html avec HTML+CSS+JS, ou séparer index.html / style.css / app.js).\n"
+    "- Étapes suivantes = construire UNE fonctionnalité concrète et testable à "
+    "la fois (structure/affichage, puis interactions, puis logique).\n"
+    "Reste RÉALISTE et réalisable en une passe : pas de dépendance externe, pas "
+    "de bibliothèque à installer, pas de « moteur IA » complexe si ce n'est pas "
+    "explicitement demandé — une logique simple en JavaScript suffit. "
+    "Pas d'introduction ni de conclusion, UNIQUEMENT les étapes, en français."
+)
+
 _CRITIQUE_PROMPT = (
     "Tu es un relecteur exigeant. Voici une demande et la réponse d'un "
     "assistant. Si la réponse est correcte et complète, réponds exactement "
@@ -90,13 +104,19 @@ async def make_plan(
     model: str,
     message: str,
     *,
+    code: bool = False,
     options: dict | None = None,
     keep_alive: str | None = None,
 ) -> list[str]:
-    """Renvoie la liste des étapes (vide si échec — jamais bloquant)."""
+    """Renvoie la liste des étapes (vide si échec — jamais bloquant).
+
+    ``code=True`` bascule sur un plan d'ARCHITECTURE/implémentation concret
+    (fichiers, structure, fonctionnalités) plutôt qu'une liste d'objectifs.
+    """
     try:
         raw = await _ask(
-            model, _PLAN_PROMPT, message[:1200], num_predict=220,
+            model, _PLAN_CODE_PROMPT if code else _PLAN_PROMPT,
+            message[:1200], num_predict=260,
             options=options, keep_alive=keep_alive,
         )
     except (httpx.HTTPError, OSError) as exc:

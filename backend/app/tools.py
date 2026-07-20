@@ -512,10 +512,16 @@ def _guard_shell(command: str) -> None:
     sortent du workspace. Combiné à la validation utilisateur, ça empêche le
     modèle d'écrire ailleurs que dans son workspace.
     """
-    root = _workspace_root()
+    # Racine autorisée = base du workspace (pas le sous-dossier projet) : ainsi
+    # `ls /workspace` reste permis même quand la session cible un projet.
+    root = os.path.abspath(settings.workspace_dir)
     for token in _PATH_TOKEN.findall(command):
         token = token.strip()
         if not token:
+            continue
+        # Jeton commençant par `//` = autorité d'URL (http://, ws://…) ou chemin
+        # réseau, jamais une évasion du système de fichiers : on l'ignore.
+        if token.startswith("//"):
             continue
         if token.startswith("~"):
             raise ToolError(
