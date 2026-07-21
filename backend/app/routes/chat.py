@@ -425,6 +425,12 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if cfg.get("ponytail", True) and is_code_like:
             convo.insert(1, {"role": "system", "content": skills.PONYTAIL_GUIDANCE})
 
+        # Appli web : contraintes dures (fichier autonome, zéro dépendance
+        # externe, rendu réel) pour que ça marche vraiment hors-ligne.
+        want_web = is_code_like and skills.is_web_task(req.content)
+        if want_web:
+            convo.insert(1, {"role": "system", "content": skills.WEBAPP_GUIDANCE})
+
         if plan:
             yield _sse("plan", {"steps": plan})
 
@@ -443,7 +449,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             if recap:
                 extra = f"\n\n{recap}" + extra
             # Le moteur code (Aider) ne voit pas convo : on lui redonne Ponytail
-            # directement dans la consigne.
+            # (et les contraintes web) directement dans la consigne.
+            if want_web:
+                extra = "\n\n" + skills.WEBAPP_GUIDANCE + extra
             if cfg.get("ponytail", True):
                 extra = "\n\n" + skills.PONYTAIL_GUIDANCE + extra
             code_files = _mentioned_files(req.content) or session_files[:8]

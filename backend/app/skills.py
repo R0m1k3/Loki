@@ -64,6 +64,43 @@ def _load() -> dict[str, dict]:
     return out
 
 
+_WEB_RE = re.compile(
+    r"\b(html|css|javascript|js|page|site|web|appli|application|interface|"
+    r"bouton|formulaire|canvas|animation|jeu|game|échiquier|echiquier|"
+    r"dashboard|landing|maquette|ui|front)\b",
+    re.I,
+)
+
+
+def is_web_task(message: str) -> bool:
+    """La demande porte-t-elle sur une page / appli web ?"""
+    return bool(_WEB_RE.search(message or ""))
+
+
+# Contraintes « appli web » : le sandbox de prévisualisation est HORS-LIGNE et
+# isolé (pas de CDN, pas de WASM téléchargé). Sans ces règles, les modèles
+# promettent des libs (Stockfish, React…) qui ne se chargent jamais, éclatent
+# le code en plusieurs fichiers incohérents, puis déclarent « ça marche ».
+WEBAPP_GUIDANCE = (
+    "Contraintes STRICTES pour une page/appli web :\n"
+    "1. UN SEUL fichier index.html AUTONOME : tout le CSS dans <style>, tout le "
+    "JS dans <script> à la fin du <body>. Pas de fichiers .css/.js séparés.\n"
+    "2. AUCUNE ressource externe : pas de CDN, pas de <script src=\"https://…\">, "
+    "pas de bibliothèque à télécharger (jQuery, React, chess.js, Stockfish, "
+    ".wasm…). Le sandbox est hors-ligne : ça ne se charge JAMAIS. Si une "
+    "fonctionnalité a besoin d'une lib, écris une version simple toi-même en "
+    "JavaScript natif.\n"
+    "3. Le rendu doit s'afficher AU CHARGEMENT : construis réellement le DOM "
+    "dans un script qui s'exécute (ex. génère les 64 cases de l'échiquier en "
+    "boucle). Pas de fonction jamais appelée, pas de conteneur laissé vide.\n"
+    "4. Ne prétends JAMAIS qu'une fonctionnalité marche sans l'avoir codée, et "
+    "ne « simule » pas un moteur en le faisant passer pour réel : dis "
+    "clairement ce qui est réel et ce qui ne l'est pas.\n"
+    "5. Design sobre, lisible et moderne — mais la priorité est que ça "
+    "FONCTIONNE vraiment."
+)
+
+
 ALL_SKILLS: dict[str, dict] = _load()
 
 

@@ -123,9 +123,18 @@ def check_html(target: str) -> list[str]:
 
     base_dir = os.path.dirname(target)
 
-    # Références locales cassées (href/src vers un fichier absent).
-    for _, ref in re.findall(r"""(href|src)=["']([^"'#]+)["']""", content, re.I):
-        if re.match(r"^(https?:|data:|mailto:|tel:|//|javascript:)", ref, re.I):
+    # Références href/src : cassées (fichier local absent) ou externes
+    # (CDN/WASM qui ne se chargeront pas dans un sandbox hors-ligne).
+    for attr, ref in re.findall(r"""(href|src)=["']([^"'#]+)["']""", content, re.I):
+        low = ref.lower()
+        if low.startswith(("data:", "mailto:", "tel:", "javascript:")):
+            continue
+        if re.match(r"^(https?:)?//", ref, re.I):
+            base = low.split("?")[0]
+            if attr.lower() == "src" and base.endswith((".js", ".mjs", ".wasm")):
+                issues.append(f"script externe (hors-ligne : ne se charge pas) : {ref}")
+            elif attr.lower() == "href" and base.endswith(".css"):
+                issues.append(f"style externe (hors-ligne : ne se charge pas) : {ref}")
             continue
         ref_path = os.path.normpath(os.path.join(base_dir, ref.split("?")[0]))
         if not os.path.exists(ref_path):
