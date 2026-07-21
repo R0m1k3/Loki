@@ -335,8 +335,14 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         # RAG, plan et choix du modèle code partent ensemble au lieu de
         # s'enchaîner en bloquant le premier token.
         want_rag = cfg.get("rag_enabled", False)
+        # Un plan « from scratch » n'a de sens que pour une NOUVELLE construction.
+        # Pour une correction ou la suite d'un travail (l'appli existe déjà,
+        # session code en cours, formulation de suivi), il est hors-sujet et
+        # perturbe : on ne replanifie pas l'architecture à chaque message.
+        is_modification = prev_code or bool(_workspace_listing())
+        new_build = use_code and not is_modification
         want_plan = cfg.get("plan_mode", True) and (
-            use_code or enhance.needs_plan(req.content)
+            new_build or (not use_code and enhance.needs_plan(req.content))
         )
         if want_rag or want_plan or use_code:
             yield _sse("status", {"message": "Préparation du contexte…"})
