@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
+  applyPreset,
   deleteModel,
   getBenchScores,
   getHardware,
   listMcp,
+  listPresets,
   pullModel,
   runBench,
+  savePreset,
   testMcp,
   updateMcp,
 } from "../api/client";
@@ -125,6 +128,7 @@ export function SettingsView() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <PresetBar model={selectedModel} onApplied={refreshConfig} />
             <div className="flex items-center gap-1.5 text-[13px] text-ok">
               <span className="h-2 w-2 border-2 border-line bg-ok" />
               {status?.connected ? "Ollama connecté" : "Ollama déconnecté"}
@@ -459,8 +463,6 @@ export function SettingsView() {
                        "Méthodes expertes selon la tâche (débogage, web…)"] as const,
                       ["self_review", "Auto-critique",
                        "Relit et révise la réponse — plus lent"] as const,
-                      ["rag_enabled", "Mémoire entre sessions",
-                       "Rappelle d'AUTRES discussions ici. Chaque discussion garde toujours sa propre mémoire."] as const,
                     ]).map(([key, label, desc], i) => (
                       <ToggleRow
                         key={key}
@@ -471,6 +473,29 @@ export function SettingsView() {
                         onClick={() => set(key, !draft[key])}
                       />
                     ))}
+                    <div className="flex items-center gap-3 border-t-2 border-line-soft py-2">
+                      <span className="flex-1">
+                        <span className="block text-[14px] text-ink">Mémoire</span>
+                        <span className="block text-[12px] text-muted-2">
+                          Notes Markdown que l'agent écrit lui-même, relisibles
+                          dans <code>/data/MEMORY</code>
+                        </span>
+                      </span>
+                      <select
+                        value={draft.memory_mode}
+                        onChange={(e) =>
+                          set(
+                            "memory_mode",
+                            e.target.value as AgentConfig["memory_mode"]
+                          )
+                        }
+                        className="h-8 border-[3px] border-line bg-card px-2 text-[13px] text-ink"
+                      >
+                        <option value="off">Désactivée</option>
+                        <option value="ondemand">Sur demande</option>
+                        <option value="always">Automatique</option>
+                      </select>
+                    </div>
                   </Advanced>
                   <div className="mt-2 flex items-center gap-3 border-t-2 border-line-soft pt-3">
                     <span className="flex-1">
@@ -895,6 +920,75 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
         }`}
       />
     </button>
+  );
+}
+
+/** Presets : jeux de réglages nommés, enregistrés et rappelés en un clic. */
+function PresetBar({
+  model,
+  onApplied,
+}: {
+  model: string;
+  onApplied: () => void;
+}) {
+  const [presets, setPresets] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    listPresets().then(setPresets).catch(() => {});
+  }, []);
+
+  const apply = async (name: string) => {
+    if (!name) return;
+    setBusy(true);
+    try {
+      await applyPreset(name, model || undefined);
+      onApplied();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const create = async () => {
+    const name = window.prompt("Nom du preset (réglages actuels) :");
+    if (!name?.trim()) return;
+    setBusy(true);
+    try {
+      setPresets(await savePreset(name.trim(), model || undefined));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "preset refusé");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value=""
+        disabled={busy || presets.length === 0}
+        onChange={(e) => apply(e.target.value)}
+        className="h-[34px] border-[3px] border-line bg-card px-2 text-[13px] text-ink disabled:opacity-40"
+        title="Appliquer un preset"
+      >
+        <option value="">
+          {presets.length ? "Preset…" : "Aucun preset"}
+        </option>
+        {presets.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <button
+        onClick={create}
+        disabled={busy}
+        className="h-[34px] border-[3px] border-line bg-card px-2.5 text-[13px] text-muted-2 disabled:opacity-40"
+        title="Enregistrer les réglages actuels comme preset"
+      >
+        + Preset
+      </button>
+    </div>
   );
 }
 

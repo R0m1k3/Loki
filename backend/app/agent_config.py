@@ -5,6 +5,8 @@ fusion avec ce qui est stocké, pour rester robuste aux montées de version.
 """
 from __future__ import annotations
 
+import re
+
 from . import db
 
 CONFIG_KEY = "agent"
@@ -71,6 +73,7 @@ PROFILE_FIELDS = {
     "self_review",
     "rag_enabled",
     "embed_model",
+    "memory_mode",
     "skills_enabled",
     "ponytail",
     "keep_alive",
@@ -124,6 +127,11 @@ DEFAULT_CONFIG: dict = {
     # d'échecs ») et embrouille les petits modèles. Réactivable dans Réglages.
     "rag_enabled": False,
     "embed_model": "auto",
+    # Mémoire en notes Markdown écrites par l'agent (voir memory_notes.py).
+    # "ondemand" : les outils existent, mais rien n'est injecté sans que le
+    # modèle le demande — aucun risque de voir ressurgir une demande sans
+    # rapport, contrairement à l'ancien RAG vectoriel.
+    "memory_mode": "ondemand",
     # Skills : méthodes expertes injectées automatiquement selon la tâche.
     "skills_enabled": True,
     # Ponytail : méthode « code minimal » (anti sur-ingénierie) injectée pour
@@ -245,6 +253,42 @@ def ollama_options(cfg: dict) -> dict:
         "top_k": cfg["top_k"],
         "num_predict": cfg["max_tokens"],
     }
+
+
+# ── Presets : jeux de réglages nommés ────────────────────────────────────
+PRESETS_KEY = "config_presets"
+_PRESET_NAME = re.compile(r"^[\w \-]{1,40}$")
+
+
+def list_presets() -> list[str]:
+    return sorted((db.get_config_value(PRESETS_KEY) or {}).keys())
+
+
+def save_preset(name: str, model: str | None = None) -> list[str]:
+    """Fige la configuration courante sous ce nom (écrase si déjà pris)."""
+    name = (name or "").strip()
+    if not _PRESET_NAME.match(name):
+        raise ValueError("nom de preset invalide (lettres, chiffres, espaces, -)")
+    presets = db.get_config_value(PRESETS_KEY) or {}
+    cfg = get_config(model)
+    presets[name] = {field: cfg[field] for field in PROFILE_FIELDS if field in cfg}
+    db.set_config_value(PRESETS_KEY, presets)
+    return sorted(presets)
+
+
+def apply_preset(name: str, model: str | None = None) -> dict | None:
+    """Applique un preset ; None s'il n'existe pas."""
+    preset = (db.get_config_value(PRESETS_KEY) or {}).get((name or "").strip())
+    if preset is None:
+        return None
+    return save_config(dict(preset), model)
+
+
+def delete_preset(name: str) -> list[str]:
+    presets = db.get_config_value(PRESETS_KEY) or {}
+    presets.pop((name or "").strip(), None)
+    db.set_config_value(PRESETS_KEY, presets)
+    return sorted(presets)
 
 
 def enabled_tool_names(cfg: dict) -> list[str]:

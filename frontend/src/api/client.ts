@@ -293,6 +293,7 @@ export interface AgentConfig {
   embed_model: string;
   skills_enabled: boolean;
   ponytail: boolean;
+  memory_mode: "off" | "ondemand" | "always";
   keep_alive: string;
 }
 
@@ -404,6 +405,44 @@ export async function getConfig(model?: string): Promise<{
   const query = model ? `?model=${encodeURIComponent(model)}` : "";
   const res = await fetch(`/api/config${query}`);
   return res.json();
+}
+
+// ── Presets de configuration ─────────────────────────────────────────────
+export async function listPresets(): Promise<string[]> {
+  const res = await fetch("/api/config/presets");
+  return (await res.json()).presets;
+}
+
+export async function savePreset(name: string, model?: string): Promise<string[]> {
+  const query = model ? `?model=${encodeURIComponent(model)}` : "";
+  const res = await fetch(`/api/config/presets${query}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw await apiError(res, "preset refusé");
+  return (await res.json()).presets;
+}
+
+export async function applyPreset(
+  name: string,
+  model?: string
+): Promise<AgentConfig> {
+  const query = model ? `?model=${encodeURIComponent(model)}` : "";
+  const res = await fetch(`/api/config/presets/apply${query}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw await apiError(res, "preset introuvable");
+  return (await res.json()).config;
+}
+
+export async function deletePreset(name: string): Promise<string[]> {
+  const res = await fetch(`/api/config/presets?name=${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  return (await res.json()).presets;
 }
 
 export async function saveConfig(

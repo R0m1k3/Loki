@@ -20,7 +20,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import agent_config, coder, db, enhance, memory, rag, skills, tools
+from .. import (
+    agent_config, coder, db, enhance, memory, memory_notes, rag, skills, tools,
+)
 from .. import router as msg_router
 from ..tools import check_html, _safe_path
 from ..agent import run_agent
@@ -437,6 +439,24 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if want_web:
             convo.insert(1, {"role": "system", "content": skills.WEBAPP_GUIDANCE})
 
+        # Mémoire en notes : en mode « always », on injecte les notes liées à la
+        # demande. Rien n'est deviné — ce sont des notes que l'agent a
+        # lui-même écrites, et le bloc dit explicitement de les ignorer si
+        # elles ne s'appliquent pas.
+        memory_mode = cfg.get("memory_mode", "ondemand")
+        # Mode off : les outils n'existent pas pour le modèle (principe AJEAN).
+        # En mode Plan (lecture seule), la consultation reste permise mais pas
+        # l'écriture d'une note.
+        memory_tools = (
+            [] if memory_mode == "off"
+            else ["memory_search"] if req.mode == "plan"
+            else ["memory_search", "memory_save"]
+        )
+        if memory_mode == "always":
+            block = memory_notes.recall_block(req.content)
+            if block:
+                convo.insert(1, {"role": "system", "content": block})
+
         if plan:
             yield _sse("plan", {"steps": plan})
 
@@ -504,7 +524,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     model,
                     convo,
                     options=agent_config.ollama_options(cfg),
-                    enabled_tools=agent_config.enabled_tool_names(cfg),
+                    enabled_tools=agent_config.enabled_tool_names(cfg) + memory_tools,
                     confirm_shell=cfg.get("confirm_shell", True),
                     think=cfg.get("think", True),
                     keep_alive=cfg.get("keep_alive", "30m"),

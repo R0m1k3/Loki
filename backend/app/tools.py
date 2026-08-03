@@ -331,6 +331,30 @@ def edit_file(path: str, search: str, replace: str) -> dict:
     return result
 
 
+def memory_search(query: str) -> dict:
+    """Cherche dans les notes que l'agent a lui-même enregistrées."""
+    from . import memory_notes
+
+    hits = memory_notes.search_notes(query, limit=3)
+    if not hits:
+        return {"ok": True, "notes": [], "summary": "aucune note correspondante"}
+    return {
+        "ok": True,
+        "notes": hits,
+        "summary": f"{len(hits)} note(s) trouvée(s)",
+    }
+
+
+def memory_save(title: str, content: str) -> dict:
+    """Enregistre une note durable (préférence, décision, fait à retenir)."""
+    from . import memory_notes
+
+    result = memory_notes.save_note(title, content)
+    if not result["ok"]:
+        raise ToolError(result["summary"])
+    return result
+
+
 _GREP_SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "dist"}
 _MAX_GREP_MATCHES = 50
 
@@ -645,6 +669,8 @@ TOOL_IMPL = {
     "web_search": web_search,
     "run_shell": run_shell,
     "run_check": run_check,
+    "memory_search": memory_search,
+    "memory_save": memory_save,
 }
 
 TOOL_DEFINITIONS = [
@@ -820,6 +846,43 @@ TOOL_DEFINITIONS = [
                     "path": {"type": "string", "description": "Chemin relatif au workspace"}
                 },
                 "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_search",
+            "description": (
+                "Chercher dans tes notes durables (préférences de l'utilisateur, "
+                "décisions, faits appris lors d'anciennes discussions)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Ce que tu cherches"}
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_save",
+            "description": (
+                "Enregistrer une note durable, réutilisable dans les prochaines "
+                "discussions. À réserver aux informations stables et utiles "
+                "(préférence, choix technique, contrainte). Jamais le détail "
+                "d'une tâche en cours."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Titre court et parlant"},
+                    "content": {"type": "string", "description": "La note, concise"},
+                },
+                "required": ["title", "content"],
             },
         },
     },
