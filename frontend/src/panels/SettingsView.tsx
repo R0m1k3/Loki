@@ -299,6 +299,7 @@ export function SettingsView() {
                     GÉNÉRATION
                   </div>
 
+                  {/* Les deux seuls réglages qui comptent au quotidien. */}
                   <Slider
                     label="Température"
                     value={draft.temperature}
@@ -308,6 +309,17 @@ export function SettingsView() {
                     fmt={(v) => v.toFixed(2)}
                     onChange={(v) => set("temperature", v)}
                   />
+                  <Slider
+                    label="Cache KV / contexte"
+                    value={draft.num_ctx}
+                    min={2048}
+                    max={32768}
+                    step={1024}
+                    fmt={(v) => `${Math.round(v / 1024)}K`}
+                    onChange={(v) => set("num_ctx", Math.round(v))}
+                  />
+
+                  <Advanced>
                   <Slider
                     label="Top-P"
                     value={draft.top_p}
@@ -336,16 +348,7 @@ export function SettingsView() {
                     onChange={(v) => set("max_tokens", Math.round(v))}
                   />
                   <Slider
-                    label="Cache KV / contexte"
-                    value={draft.num_ctx}
-                    min={2048}
-                    max={32768}
-                    step={1024}
-                    fmt={(v) => `${Math.round(v / 1024)}K`}
-                    onChange={(v) => set("num_ctx", Math.round(v))}
-                  />
-                  <Slider
-                    label="Couches GPU"
+                    label="Couches GPU (auto conseillé)"
                     value={draft.num_gpu}
                     min={-1}
                     max={120}
@@ -353,6 +356,10 @@ export function SettingsView() {
                     fmt={(v) => (v < 0 ? "auto" : String(Math.round(v)))}
                     onChange={(v) => set("num_gpu", Math.round(v))}
                   />
+                  <div className="-mt-1 mb-3 text-[12px] text-muted-2">
+                    Laisse « auto » : forcer un nombre de couches qui ne tient
+                    pas en VRAM bascule toute l'inférence sur le CPU.
+                  </div>
                   <Slider
                     label="Batch"
                     value={draft.num_batch}
@@ -363,6 +370,12 @@ export function SettingsView() {
                     onChange={(v) => set("num_batch", Math.round(v))}
                     last
                   />
+                  <div className="mt-3 border-2 border-line bg-card-soft px-3 py-2 text-[12px] leading-relaxed text-muted-2">
+                    La précision KV (<code>f16</code>/<code>q8_0</code>) est un
+                    réglage global du serveur Ollama et nécessite son redémarrage.
+                  </div>
+                  </Advanced>
+
                   <div className="mt-4 flex items-center gap-3 border-2 border-line bg-base px-3 py-2.5">
                     <div className="flex-1">
                       <div className="text-[14px] text-ink">Mode réflexion</div>
@@ -372,10 +385,6 @@ export function SettingsView() {
                       </div>
                     </div>
                     <Toggle on={draft.think} onClick={() => set("think", !draft.think)} />
-                  </div>
-                  <div className="mt-3 border-2 border-line bg-card-soft px-3 py-2 text-[12px] leading-relaxed text-muted-2">
-                    La précision KV (<code>f16</code>/<code>q8_0</code>) est un
-                    réglage global du serveur Ollama et nécessite son redémarrage.
                   </div>
                 </Card>
 
@@ -427,34 +436,42 @@ export function SettingsView() {
                   <div className="mb-3.5 font-pixel text-[11px] text-ink">
                     INTELLIGENCE
                   </div>
-                  {[
+                  {/* Au quotidien : comment il code, et s'il planifie. */}
+                  {([
+                    ["ponytail", "Code minimal",
+                     "Va au plus simple qui marche, sans dépendance ni extra"] as const,
                     ["plan_mode", "Plan-puis-exécute",
-                     "Décompose les demandes complexes en étapes"] as const,
-                    ["self_review", "Auto-critique (Qualité +)",
-                     "Relit et révise la réponse avant de la donner"] as const,
-                    ["rag_enabled", "Mémoire entre sessions (RAG)",
-                     "Rappelle d'AUTRES discussions dans celle-ci. Désactivé par défaut : sinon une ancienne demande sans rapport ressurgit. Chaque discussion garde toujours sa propre mémoire."] as const,
-                    ["skills_enabled", "Skills automatiques",
-                     "Méthodes expertes injectées selon la tâche (débogage, web, refactor…)"] as const,
-                    ["ponytail", "Ponytail (code minimal)",
-                     "Anti sur-ingénierie : code le plus simple qui marche, sans dépendance ni fonctionnalité superflue (github.com/DietrichGebert/ponytail)"] as const,
-                  ].map(([key, label, desc], i) => (
-                    <div
+                     "Découpe une nouvelle construction en étapes"] as const,
+                  ]).map(([key, label, desc], i) => (
+                    <ToggleRow
                       key={key}
-                      className={`flex items-center gap-3 py-2 ${
-                        i > 0 ? "border-t-2 border-line-soft" : ""
-                      }`}
-                    >
-                      <span className="flex-1">
-                        <span className="block text-[14px] text-ink">{label}</span>
-                        <span className="block text-[12px] text-muted-2">{desc}</span>
-                      </span>
-                      <Toggle
+                      label={label}
+                      desc={desc}
+                      first={i === 0}
+                      on={Boolean(draft[key])}
+                      onClick={() => set(key, !draft[key])}
+                    />
+                  ))}
+
+                  <Advanced label="Options avancées">
+                    {([
+                      ["skills_enabled", "Skills automatiques",
+                       "Méthodes expertes selon la tâche (débogage, web…)"] as const,
+                      ["self_review", "Auto-critique",
+                       "Relit et révise la réponse — plus lent"] as const,
+                      ["rag_enabled", "Mémoire entre sessions",
+                       "Rappelle d'AUTRES discussions ici. Chaque discussion garde toujours sa propre mémoire."] as const,
+                    ]).map(([key, label, desc], i) => (
+                      <ToggleRow
+                        key={key}
+                        label={label}
+                        desc={desc}
+                        first={i === 0}
                         on={Boolean(draft[key])}
                         onClick={() => set(key, !draft[key])}
                       />
-                    </div>
-                  ))}
+                    ))}
+                  </Advanced>
                   <div className="mt-2 flex items-center gap-3 border-t-2 border-line-soft pt-3">
                     <span className="flex-1">
                       <span className="block text-[14px] text-ink">
@@ -878,6 +895,58 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
         }`}
       />
     </button>
+  );
+}
+
+/** Repli « Avancé » : sort les réglages rares du chemin principal.
+ *
+ * <details> natif : pas d'état à gérer, repliement mémorisé par le navigateur
+ * le temps de la page, et accessible au clavier sans code supplémentaire.
+ */
+function Advanced({
+  children,
+  label = "Réglages avancés",
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
+  return (
+    <details className="group mt-3 border-t-2 border-line-soft pt-3">
+      <summary className="flex cursor-pointer select-none items-center gap-1.5 text-[13px] text-muted-2 marker:content-['']">
+        <span className="transition-transform group-open:rotate-90">▸</span>
+        {label}
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
+/** Ligne interrupteur : libellé + description + bascule. */
+function ToggleRow({
+  label,
+  desc,
+  on,
+  onClick,
+  first,
+}: {
+  label: string;
+  desc: string;
+  on: boolean;
+  onClick: () => void;
+  first?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 py-2 ${
+        first ? "" : "border-t-2 border-line-soft"
+      }`}
+    >
+      <span className="flex-1">
+        <span className="block text-[14px] text-ink">{label}</span>
+        <span className="block text-[12px] text-muted-2">{desc}</span>
+      </span>
+      <Toggle on={on} onClick={onClick} />
+    </div>
   );
 }
 
