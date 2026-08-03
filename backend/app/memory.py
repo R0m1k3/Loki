@@ -32,24 +32,23 @@ _SUMMARY_PROMPT = (
 
 
 def build_convo(sid: str, system_prompt: str) -> list[dict]:
-    """Construit le contexte : système + résumé éventuel + messages récents."""
-    convo: list[dict] = [{"role": "system", "content": system_prompt}]
+    """Construit le contexte : système + résumé éventuel + messages récents.
 
+    Le résumé est fusionné DANS l'invite système plutôt qu'ajouté comme second
+    message système : de nombreux templates (Gemma, Mistral…) rejettent tout
+    message système qui n'est pas le premier de la liste.
+    """
     session = db.get_session(sid) or {}
     summary = (session.get("summary") or "").strip()
     messages = db.list_messages_for_model(sid)
 
     if summary and len(messages) > KEEP_RECENT:
-        convo.append(
-            {
-                "role": "system",
-                "content": f"Résumé des échanges précédents :\n{summary}",
-            }
+        system_prompt = (
+            f"{system_prompt}\n\nRésumé des échanges précédents :\n{summary}"
         )
-        convo += messages[-KEEP_RECENT:]
-    else:
-        convo += messages
-    return convo
+        messages = messages[-KEEP_RECENT:]
+
+    return [{"role": "system", "content": system_prompt}, *messages]
 
 
 async def maybe_summarize(

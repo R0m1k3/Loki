@@ -61,6 +61,36 @@ def _apply_mode(cfg: dict, mode: str) -> dict:
     return cfg
 
 
+def _merge_system(convo: list[dict], extras: list[str]) -> None:
+    """Garantit UN SEUL message système, en première position.
+
+    Beaucoup de templates Ollama (Gemma, Mistral…) contiennent un garde
+    « {% if role == 'system' and not loop.first %}{{ raise_exception(...) }} » :
+    tout message système qui n'est pas le premier fait échouer la requête
+    entière en 400 (« System message must be at the beginning »), y compris
+    la génération du parseur d'outils.
+
+    On fusionne donc, dans l'ordre : l'invite système, les éventuels systèmes
+    égarés (résumé de session…) puis les consignes du tour. Modifie ``convo``
+    sur place.
+    """
+    head = ""
+    stray: list[str] = []
+    rest: list[dict] = []
+    for i, msg in enumerate(convo):
+        if msg.get("role") == "system":
+            text = (msg.get("content") or "").strip()
+            if i == 0:
+                head = text
+            elif text:
+                stray.append(text)
+        else:
+            rest.append(msg)
+
+    blocks = [b for b in (head, *stray, *(e.strip() for e in extras if e)) if b]
+    convo[:] = ([{"role": "system", "content": "\n\n".join(blocks)}] if blocks else []) + rest
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -377,12 +407,19 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         for mcp_notice in mcp_manager.notices():
             yield _sse("notice", {"message": mcp_notice})
 
+        # ── Consignes additionnelles du tour ──────────────────────────────
+        # Elles sont COLLECTÉES ici puis fusionnées dans l'UNIQUE message
+        # système (voir _merge_system plus bas). Beaucoup de templates
+        # (Gemma, Mistral…) lèvent « System message must be at the beginning »
+        # dès qu'un second message system apparaît : les empiler faisait
+        # échouer toute la requête en 400.
+        extras: list[str] = []
+
         if memories:
-            convo.insert(1, {
-                "role": "system",
-                "content": "Souvenirs pertinents d'anciennes sessions :\n"
-                + "\n---\n".join(memories),
-            })
+            extras.append(
+                "Souvenirs pertinents d'anciennes sessions :\n"
+                + "\n---\n".join(memories)
+            )
 
         # État du workspace injecté chaque tour : sans ça le modèle ignore
         # quels fichiers existent et régurgite du code en chat au lieu de
@@ -395,49 +432,41 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 parts.append(
                     "Fichiers de la tâche en cours : " + ", ".join(session_files[:8])
                 )
-            convo.insert(1, {"role": "system", "content": "\n".join(parts)})
+            extras.append("\n".join(parts))
 
         # Session code restée en chemin agent : pousse le modèle à AGIR sur
         # les fichiers au lieu de décrire les changements — cause fréquente de
         # « l'agent s'arrête sans rien modifier » sur une reprise de code.
         if prev_code and not use_code:
-            convo.insert(1, {
-                "role": "system",
-                "content": (
-                    "Cette session travaille sur du code existant du workspace. "
-                    "Pour toute demande de modification ou d'ajout : AGIS avec "
-                    "les outils — code_task pour un changement multi-fichiers, "
-                    "edit_file pour un changement ciblé, write_file pour un "
-                    "nouveau fichier. Lis le fichier concerné avant de le "
-                    "modifier, puis modifie-le RÉELLEMENT. Ne colle JAMAIS le "
-                    "code corrigé dans ta réponse sans l'avoir écrit dans le "
-                    "fichier."
-                ),
-            })
+            extras.append(
+                "Cette session travaille sur du code existant du workspace. "
+                "Pour toute demande de modification ou d'ajout : AGIS avec "
+                "les outils — code_task pour un changement multi-fichiers, "
+                "edit_file pour un changement ciblé, write_file pour un "
+                "nouveau fichier. Lis le fichier concerné avant de le "
+                "modifier, puis modifie-le RÉELLEMENT. Ne colle JAMAIS le "
+                "code corrigé dans ta réponse sans l'avoir écrit dans le "
+                "fichier."
+            )
 
         # Skill : méthode experte injectée pour ce tour (jamais persistée).
         if cfg.get("skills_enabled", True):
             skill = skills.pick_skill(req.content)
             if skill:
-                convo.insert(1, {
-                    "role": "system",
-                    "content": (
-                        "Méthode à suivre pour cette tâche :\n" + skill["body"]
-                    ),
-                })
+                extras.append("Méthode à suivre pour cette tâche :\n" + skill["body"])
                 yield _sse("notice", {"message": f"📘 Méthode : {skill['title']}"})
 
         # Ponytail : méthode « code minimal » injectée pour toute tâche de code
         # (les deux chemins). Contre la sur-ingénierie qui casse les rendus.
         is_code_like = use_code or msg_router.is_code_task(req.content)
         if cfg.get("ponytail", True) and is_code_like:
-            convo.insert(1, {"role": "system", "content": skills.PONYTAIL_GUIDANCE})
+            extras.append(skills.PONYTAIL_GUIDANCE)
 
         # Appli web : contraintes dures (fichier autonome, zéro dépendance
         # externe, rendu réel) pour que ça marche vraiment hors-ligne.
         want_web = is_code_like and skills.is_web_task(req.content)
         if want_web:
-            convo.insert(1, {"role": "system", "content": skills.WEBAPP_GUIDANCE})
+            extras.append(skills.WEBAPP_GUIDANCE)
 
         # Mémoire en notes : en mode « always », on injecte les notes liées à la
         # demande. Rien n'est deviné — ce sont des notes que l'agent a
@@ -455,7 +484,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         if memory_mode == "always":
             block = memory_notes.recall_block(req.content)
             if block:
-                convo.insert(1, {"role": "system", "content": block})
+                extras.append(block)
 
         if plan:
             yield _sse("plan", {"steps": plan})
@@ -498,17 +527,18 @@ async def chat(req: ChatRequest) -> StreamingResponse:
             return
 
         if plan:
-            convo.append({
-                "role": "system",
-                "content": (
-                    "Plan à suivre pour cette demande, étape par étape :\n"
-                    + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
-                    + "\n\nTraite les étapes DANS L'ORDRE. Dès qu'une étape est "
-                    "réellement accomplie, écris sur une ligne seule "
-                    "« ✅ Étape N terminée » (N = son numéro) avant de passer à "
-                    "la suivante. N'annonce jamais une étape terminée à l'avance."
-                ),
-            })
+            extras.append(
+                "Plan à suivre pour cette demande, étape par étape :\n"
+                + "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
+                + "\n\nTraite les étapes DANS L'ORDRE. Dès qu'une étape est "
+                "réellement accomplie, écris sur une ligne seule "
+                "« ✅ Étape N terminée » (N = son numéro) avant de passer à "
+                "la suivante. N'annonce jamais une étape terminée à l'avance."
+            )
+
+        # Fusion : un SEUL message système, en tête. Indispensable pour les
+        # templates qui refusent tout system ailleurs qu'en première position.
+        _merge_system(convo, extras)
 
         final_content = ""
         tools_meta: list[dict] = []
