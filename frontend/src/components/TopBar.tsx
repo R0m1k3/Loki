@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { getVersion } from "../api/client";
-import { LokiMark } from "./Icon";
 import { SessionMenu } from "./SessionMenu";
 
-/** Barre supérieure sombre : logo, fil d'Ariane, statut Ollama, sélecteur. */
+/** Barre supérieure : conversation courante, ressources, statut Ollama. */
 export function TopBar() {
   const status = useStore((s) => s.status);
   const stats = useStore((s) => s.systemStats);
@@ -17,23 +16,17 @@ export function TopBar() {
 
   return (
     <div className="flex h-[54px] flex-none items-center gap-3.5 border-b border-line bg-bar px-4">
-      <div className="flex items-center gap-2.5">
-        <LokiMark />
-        <div className="font-pixel text-[14px] text-ink">LOKI</div>
-        <div
-          className="text-[13px] leading-none text-on-dark-2"
-          title={version ? `build ${version}` : undefined}
-        >
-          agent local
-          {version && version !== "dev" && (
-            <span className="ml-1.5 text-on-dark-3">· {version.slice(0, 7)}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="h-6 w-[3px] bg-chrome-3" />
-
+      {/* La marque vit désormais dans la barre latérale : on ne garde ici que
+          le contexte de la conversation en cours. */}
       <SessionMenu />
+      {version && version !== "dev" && (
+        <span
+          className="text-[12px] text-muted-3"
+          title={`build ${version}`}
+        >
+          {version.slice(0, 7)}
+        </span>
+      )}
 
       <div className="flex-1" />
 

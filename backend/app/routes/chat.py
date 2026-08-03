@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import time
 from contextlib import suppress
 
 from fastapi import APIRouter, HTTPException
@@ -59,6 +60,19 @@ def _apply_mode(cfg: dict, mode: str) -> dict:
         cfg["confirm_shell"] = False
     # "build" : comportement par défaut (inchangé).
     return cfg
+
+
+def _loading_message(model: str, seconds: float) -> str:
+    """Message d'attente avant le premier jeton (chargement du modèle)."""
+    waited = int(seconds)
+    delay = f"{waited // 60} min" if waited >= 60 else f"{waited} s"
+    text = f"Chargement de {model} en mémoire… ({delay})"
+    if waited >= 90:
+        # On CONSTATE l'attente sans présumer de la cause : selon la machine,
+        # un gros modèle peut se répartir sur plusieurs GPU, ou déborder sur
+        # le CPU. Le panneau Matériel donne le placement réel.
+        text += " — placement réel visible dans Réglages › Matériel."
+    return text
 
 
 def _merge_system(convo: list[dict], extras: list[str]) -> None:
@@ -415,16 +429,22 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         # échouer toute la requête en 400.
         extras: list[str] = []
 
+        # La demande touche-t-elle au code / aux fichiers ? Calculé AVANT les
+        # injections : tout ce qui suit est conditionné à cette réponse.
+        is_code_like = use_code or msg_router.is_code_task(req.content)
+        needs_workspace = is_code_like or prev_code
+
         if memories:
             extras.append(
                 "Souvenirs pertinents d'anciennes sessions :\n"
                 + "\n---\n".join(memories)
             )
 
-        # État du workspace injecté chaque tour : sans ça le modèle ignore
-        # quels fichiers existent et régurgite du code en chat au lieu de
-        # modifier le bon fichier.
-        listing = _workspace_listing()
+        # État du workspace : indispensable pour travailler sur les fichiers,
+        # mais inutile pour une simple discussion. On l'injectait à CHAQUE
+        # message — un « bonjour » partait avec des milliers de jetons de
+        # contexte, donc une longue phase de traitement avant le 1er jeton.
+        listing = _workspace_listing() if needs_workspace else []
         if listing:
             recap, session_files = _session_code_context(history)
             parts = ["Fichiers du workspace : " + ", ".join(listing)]
@@ -458,7 +478,6 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
         # Ponytail : méthode « code minimal » injectée pour toute tâche de code
         # (les deux chemins). Contre la sur-ingénierie qui casse les rendus.
-        is_code_like = use_code or msg_router.is_code_task(req.content)
         if cfg.get("ponytail", True) and is_code_like:
             extras.append(skills.PONYTAIL_GUIDANCE)
 
@@ -574,6 +593,8 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 await queue.put(None)
 
         producer = asyncio.create_task(produce_events())
+        started = time.monotonic()
+        got_event = False
         try:
             while True:
                 try:
@@ -582,8 +603,18 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                     # Empêche OpenResty/Nginx/Cloudflare de fermer le SSE pendant
                     # le chargement parfois long d'un modèle Ollama.
                     yield _sse("ping", {"status": "waiting"})
+                    # …et DIT ce qui se passe : sans ça, l'interface restait sur
+                    # « Connexion à Ollama… » pendant tout le chargement d'un
+                    # gros modèle, sans moyen de distinguer lenteur et blocage.
+                    if not got_event:
+                        yield _sse("status", {
+                            "message": _loading_message(
+                                model, time.monotonic() - started
+                            )
+                        })
                     continue
 
+                got_event = True
                 if ev is None:
                     break
 

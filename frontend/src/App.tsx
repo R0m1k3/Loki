@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityBar, type View } from "./components/ActivityBar";
+import { Sidebar, type View } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
-import { LeftPanel } from "./panels/LeftPanel";
 import { ChatPanel } from "./panels/ChatPanel";
 import { PreviewPanel } from "./panels/PreviewPanel";
 import { SettingsView } from "./panels/SettingsView";
@@ -57,11 +56,10 @@ export default function App() {
     <div className="flex h-full flex-col bg-base text-ink">
       <TopBar />
       <div className="flex min-h-0 flex-1">
-        <ActivityBar active={view} onChange={setView} />
+        <Sidebar active={view} onChange={setView} />
 
         {view === "chat" && (
           <>
-            <LeftPanel />
             <ChatPanel />
             <PreviewPanel />
           </>
