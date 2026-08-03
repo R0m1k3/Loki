@@ -23,11 +23,11 @@ export function ToolCard({ call }: { call: ToolCall }) {
   const write = call.name === "write_file" || call.name === "edit_file";
 
   return (
-    <div className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
+    <div className="mb-[11px] overflow-hidden border border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <span
-          className={`flex h-[26px] w-[26px] items-center justify-center border-2 border-line ${
-            write ? "bg-accent text-white" : "bg-card-deep text-white"
+          className={`flex h-[26px] w-[26px] items-center justify-center border border-line ${
+            write ? "bg-accent text-white" : "bg-card-deep text-ink"
           }`}
         >
           <ToolGlyph name={call.name} />
@@ -37,7 +37,7 @@ export function ToolCard({ call }: { call: ToolCall }) {
         <div className="flex-1" />
         {running ? (
           <span className="flex items-center gap-1.5 text-[13px] text-muted-2">
-            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-muted-3 border-t-accent" />
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border border-muted-3 border-t-accent" />
             en cours
           </span>
         ) : pending ? (
@@ -53,7 +53,7 @@ export function ToolCard({ call }: { call: ToolCall }) {
         )}
       </div>
       {call.summary && !running && (
-        <div className="border-t-2 border-line-soft px-3 py-2 text-[13px] text-muted-2">
+        <div className="border-t border-line-soft px-3 py-2 text-[13px] text-muted-2">
           → {call.summary}
         </div>
       )}

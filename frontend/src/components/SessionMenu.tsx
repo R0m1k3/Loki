@@ -55,7 +55,7 @@ export function SessionMenu() {
     <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex cursor-pointer items-center gap-2 text-[13px] text-on-dark hover:text-white"
+        className="flex cursor-pointer items-center gap-2 text-[13px] text-on-dark hover:text-ink"
         title="Sessions"
       >
         <span className="max-w-[220px] truncate">
@@ -66,7 +66,7 @@ export function SessionMenu() {
 
       {open && (
         <div
-          className="absolute left-0 top-[calc(100%+9px)] z-30 w-[300px] border-[3px] border-line bg-chrome-2 shadow-hard"
+          className="absolute left-0 top-[calc(100%+9px)] z-30 w-[300px] border border-line bg-chrome-2 shadow-hard"
           style={{ borderRadius: 7 }}
         >
           <button
@@ -74,7 +74,7 @@ export function SessionMenu() {
               setOpen(false);
               await newSession();
             }}
-            className="flex w-full cursor-pointer items-center gap-2 border-b-[3px] border-chrome-3 px-3 py-2.5 text-[13px] font-bold text-accent hover:bg-chrome-3"
+            className="flex w-full cursor-pointer items-center gap-2 border-b border-chrome-3 px-3 py-2.5 text-[13px] font-bold text-accent hover:bg-chrome-3"
           >
             <PlusIcon />
             Nouvelle session
@@ -97,7 +97,7 @@ export function SessionMenu() {
                     setOpen(false);
                     void openSession(s.id);
                   }}
-                  className={`group cursor-pointer border-b-2 border-chrome-3 px-3 py-2 last:border-b-0 ${
+                  className={`group cursor-pointer border-b border-chrome-3 px-3 py-2 last:border-b-0 ${
                     active ? "bg-chrome-3" : "hover:bg-chrome-3"
                   }`}
                 >
@@ -116,12 +116,12 @@ export function SessionMenu() {
                           }
                         }}
                         onBlur={() => setEditingId(null)}
-                        className="min-w-0 flex-1 border-2 border-line bg-card-deep px-1.5 py-0.5 text-[13px] text-white outline-none"
+                        className="min-w-0 flex-1 border border-line bg-card-deep px-1.5 py-0.5 text-[13px] text-ink outline-none"
                       />
                     ) : (
                       <span
                         className={`min-w-0 flex-1 truncate text-[13px] ${
-                          active ? "text-white" : "text-on-dark"
+                          active ? "text-ink" : "text-ink-3"
                         }`}
                       >
                         {s.title}
@@ -129,7 +129,7 @@ export function SessionMenu() {
                     )}
                     {working && (
                       <span
-                        className="flex-none border-2 border-line bg-accent px-1 py-0.5 text-[9px] leading-none text-white"
+                        className="flex-none border border-line bg-accent px-1 py-0.5 text-[9px] leading-none text-white"
                         title="Session en cours de travail"
                       >
                         EN COURS
@@ -141,7 +141,7 @@ export function SessionMenu() {
                         setEditingId(s.id);
                         setDraft(s.title);
                       }}
-                      className="hidden flex-none text-[11px] text-on-dark-3 hover:text-white group-hover:block"
+                      className="hidden flex-none text-[11px] text-on-dark-3 hover:text-ink group-hover:block"
                       title="Renommer la session"
                     >
                       ✎

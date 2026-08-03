@@ -16,10 +16,10 @@ export function TopBar() {
   }, []);
 
   return (
-    <div className="flex h-[54px] flex-none items-center gap-3.5 border-b-[3px] border-line bg-bar px-4">
+    <div className="flex h-[54px] flex-none items-center gap-3.5 border-b border-line bg-bar px-4">
       <div className="flex items-center gap-2.5">
         <LokiMark />
-        <div className="font-pixel text-[14px] text-white">LOKI</div>
+        <div className="font-pixel text-[14px] text-ink">LOKI</div>
         <div
           className="text-[13px] leading-none text-on-dark-2"
           title={version ? `build ${version}` : undefined}
@@ -39,7 +39,7 @@ export function TopBar() {
 
       {/* Stats système temps réel : CPU, RAM, GPU/VRAM */}
       {stats && (
-        <div className="flex h-8 items-center gap-2.5 border-[3px] border-chrome-3 bg-chrome-2 px-[11px] text-[13px] text-on-dark">
+        <div className="flex h-8 items-center gap-2.5 border border-chrome-3 bg-chrome-2 px-[11px] text-[13px] text-on-dark">
           <span>CPU {stats.cpu_pct.toFixed(0)}%</span>
           <span className="text-on-dark-3">·</span>
           <span>RAM {stats.ram_pct.toFixed(0)}%</span>
@@ -58,11 +58,11 @@ export function TopBar() {
 
       {/* Statut Ollama */}
       <div
-        className="flex h-8 items-center gap-2 border-[3px] border-chrome-3 bg-chrome-2 px-[11px]"
+        className="flex h-8 items-center gap-2 border border-chrome-3 bg-chrome-2 px-[11px]"
         title={connected ? status?.host : status?.error}
       >
         <span
-          className={`h-[11px] w-[11px] border-2 border-line ${
+          className={`h-[11px] w-[11px] border border-line ${
             connected ? "bg-ok" : "bg-warn"
           }`}
         />

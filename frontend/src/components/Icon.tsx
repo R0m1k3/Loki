@@ -104,20 +104,23 @@ export const CheckIcon = ({ size = 14, className }: Props) => (
   </svg>
 );
 
-/** Logo Loki : carré orange à bordure blanche + carré interne (néo-brutaliste). */
+/** Logo Loki : carré teinté à filet accent + petit carré accent (maquette). */
 export const LokiMark = ({ size = 30 }: { size?: number }) => (
   <div
-    className="flex items-center justify-center bg-accent"
+    className="grid place-items-center border border-accent bg-accent-ghost"
     style={{
       width: size,
       height: size,
-      border: "3px solid #fff",
-      boxShadow: "3px 3px 0 #ff5436",
-      borderRadius: 7,
+      borderRadius: Math.round(size * 0.27),
     }}
   >
     <div
-      style={{ width: size * 0.3, height: size * 0.3, background: "#fff" }}
+      className="bg-accent"
+      style={{
+        width: size * 0.3,
+        height: size * 0.3,
+        borderRadius: 2,
+      }}
     />
   </div>
 );

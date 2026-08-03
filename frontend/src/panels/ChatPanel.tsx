@@ -63,10 +63,10 @@ export function ChatPanel() {
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-base">
       {/* Barre de contexte */}
-      <div className="flex h-[46px] flex-none items-center gap-2 border-b-[3px] border-line bg-panel px-4">
+      <div className="flex h-[46px] flex-none items-center gap-2 border-b border-line bg-panel px-4">
         <Chip>⚑ Invite système</Chip>
         <Chip>
-          <span className="h-2 w-2 border-2 border-line bg-ok" />
+          <span className="h-2 w-2 border border-line bg-ok" />
           {activeTools} outil{activeTools > 1 ? "s" : ""}
         </Chip>
         <Chip>
@@ -130,9 +130,9 @@ export function ChatPanel() {
       </div>
 
       {/* Composer */}
-      <div className="flex-none border-t-[3px] border-line bg-panel px-7 pb-[18px] pt-3.5">
+      <div className="flex-none border-t border-line bg-panel px-7 pb-[18px] pt-3.5">
         <div className="mx-auto max-w-[680px]">
-          <div className="border-[3px] border-line bg-card p-3 shadow-hard" style={{ borderRadius: 8 }}>
+          <div className="border border-line bg-card p-3 shadow-hard" style={{ borderRadius: 8 }}>
             <textarea
               rows={1}
               value={draft}
@@ -158,8 +158,8 @@ export function ChatPanel() {
               <button
                 onClick={streaming ? stopStreaming : submit}
                 disabled={!streaming && !draft.trim()}
-                className={`flex h-[38px] items-center gap-1.5 border-[3px] border-line px-4 text-[14px] text-white shadow-hard-accent disabled:opacity-40 ${
-                  streaming ? "bg-warn" : "bg-card-deep"
+                className={`flex h-[38px] items-center gap-1.5 border border-line px-4 text-[14px] text-white shadow-hard-accent disabled:opacity-40 ${
+                  streaming ? "bg-warn" : "bg-accent"
                 }`}
                 style={{ borderRadius: 7 }}
               >
@@ -201,7 +201,7 @@ function ModeSelector() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-8 items-center gap-1.5 border-2 border-line px-2.5 text-[13px] ${
+        className={`flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] ${
           mode === "plan"
             ? "bg-info text-white"
             : mode === "yolo"
@@ -215,7 +215,7 @@ function ModeSelector() {
         <ChevronDown size={11} />
       </button>
       {open && (
-        <div className="absolute bottom-10 left-0 z-20 w-64 border-[3px] border-line bg-card p-1 shadow-hard">
+        <div className="absolute bottom-10 left-0 z-20 w-64 border border-line bg-card p-1 shadow-hard">
           {MODES.map((m) => (
             <button
               key={m.id}
@@ -257,10 +257,10 @@ function PlanCard({
 
   return (
     <div
-      className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm"
+      className="mb-[11px] overflow-hidden border border-line bg-card shadow-hard-sm"
       style={{ borderRadius: 7 }}
     >
-      <div className="flex items-center gap-2 border-b-2 border-line-soft px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-line-soft px-3 py-2">
         <span className="font-pixel text-[9px] text-accent">PLAN</span>
         <span className="text-[12px] text-muted-2">
           {doneCount > 0
@@ -280,7 +280,7 @@ function PlanCard({
               }`}
             >
               <span
-                className={`flex h-[18px] w-[18px] flex-none items-center justify-center border-2 text-[11px] ${
+                className={`flex h-[18px] w-[18px] flex-none items-center justify-center border text-[11px] ${
                   isDone
                     ? "border-ok bg-ok text-white"
                     : isActive
@@ -324,7 +324,7 @@ function Bubble({
   if (msg.role === "user") {
     return (
       <div className="flex gap-3">
-        <div className="font-pixel flex h-[34px] w-[34px] flex-none items-center justify-center border-[3px] border-line bg-card-deep text-[11px] text-white">
+        <div className="font-pixel flex h-[34px] w-[34px] flex-none items-center justify-center border border-line bg-card-deep text-[11px] text-ink">
           M
         </div>
         <div className="flex-1">
@@ -332,7 +332,7 @@ function Bubble({
             <span className="text-[14px] text-ink">VOUS</span>
             <span className="text-[13px] text-muted-3">{time}</span>
           </div>
-          <div className="border-[3px] border-line bg-card px-[14px] py-3 text-[14px] leading-snug text-ink shadow-hard-sm whitespace-pre-wrap" style={{ borderRadius: 7 }}>
+          <div className="border border-line bg-card px-[14px] py-3 text-[14px] leading-snug text-ink shadow-hard-sm whitespace-pre-wrap" style={{ borderRadius: 7 }}>
             {msg.content}
           </div>
         </div>
@@ -342,8 +342,8 @@ function Bubble({
 
   return (
     <div className="flex gap-3">
-      <div className="flex h-[34px] w-[34px] flex-none items-center justify-center border-[3px] border-line bg-accent">
-        <div style={{ width: 10, height: 10, background: "#fff" }} />
+      <div className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-accent bg-accent-ghost">
+        <div className="bg-accent" style={{ width: 10, height: 10, borderRadius: 2 }} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-baseline gap-2">
@@ -364,7 +364,7 @@ function Bubble({
           <ToolCard key={i} call={t} />
         ))}
         {notice && (
-          <div className="mb-2 border-[3px] border-line bg-card px-3 py-2 text-[13px] text-warn">
+          <div className="mb-2 border border-line bg-card px-3 py-2 text-[13px] text-warn">
             {notice}
           </div>
         )}
@@ -416,7 +416,7 @@ function ReasoningPanel({ text, live }: { text: string; live: boolean }) {
   if (!text) return null;
 
   return (
-    <div className="mb-[11px] overflow-hidden border-[3px] border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
+    <div className="mb-[11px] overflow-hidden border border-line bg-card shadow-hard-sm" style={{ borderRadius: 7 }}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center gap-2 px-3 py-2 text-left"
@@ -428,7 +428,7 @@ function ReasoningPanel({ text, live }: { text: string; live: boolean }) {
         <span className="text-[13px] font-medium text-ink">Raisonnement</span>
         {live && (
           <span className="flex items-center gap-1 text-[12px] text-accent">
-            <span className="h-2 w-2 animate-pulse border-2 border-line bg-accent" />
+            <span className="h-2 w-2 animate-pulse border border-line bg-accent" />
             en cours…
           </span>
         )}
@@ -439,7 +439,7 @@ function ReasoningPanel({ text, live }: { text: string; live: boolean }) {
       {open && (
         <div
           ref={bodyRef}
-          className="scr max-h-[200px] min-h-[60px] resize-y overflow-auto whitespace-pre-wrap border-t-2 border-line-soft bg-card-deep px-3 py-2 text-[12.5px] leading-relaxed text-on-dark-2"
+          className="scr max-h-[200px] min-h-[60px] resize-y overflow-auto whitespace-pre-wrap border-t border-line-soft bg-card-deep px-3 py-2 text-[12.5px] leading-relaxed text-on-dark-2"
         >
           {text}
         </div>
@@ -458,26 +458,26 @@ function ShellConfirm({
   onReject: () => void;
 }) {
   return (
-    <div className="ml-[46px] overflow-hidden border-[3px] border-line bg-card shadow-hard" style={{ borderRadius: 7 }}>
-      <div className="flex items-center gap-2 border-b-2 border-line px-3 py-2.5">
+    <div className="ml-[46px] overflow-hidden border border-line bg-card shadow-hard" style={{ borderRadius: 7 }}>
+      <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
         <span className="text-[14px] text-accent">run_shell</span>
         <span className="text-[13px] text-muted-2">· commande sensible à valider</span>
       </div>
       <div className="px-3 py-3">
-        <pre className="m-0 mb-3 overflow-auto whitespace-pre-wrap border-2 border-line bg-card-deep px-3 py-2.5 text-[12.5px] text-on-dark">
+        <pre className="m-0 mb-3 overflow-auto whitespace-pre-wrap border border-line bg-card-deep px-3 py-2.5 text-[12.5px] text-on-dark">
           $ {command}
         </pre>
         <div className="flex items-center gap-2">
           <button
             onClick={onApprove}
-            className="flex h-[32px] items-center gap-1.5 border-[3px] border-line bg-card-deep px-3.5 text-[13px] text-white shadow-hard-accent"
+            className="flex h-[32px] items-center gap-1.5 border border-line bg-accent px-3.5 text-[13px] text-white shadow-hard-accent"
             style={{ borderRadius: 7 }}
           >
             Approuver &amp; exécuter
           </button>
           <button
             onClick={onReject}
-            className="flex h-[32px] items-center border-[3px] border-line bg-card px-3.5 text-[13px] text-ink-2"
+            className="flex h-[32px] items-center border border-line bg-card px-3.5 text-[13px] text-ink-2"
             style={{ borderRadius: 7 }}
           >
             Refuser
@@ -490,7 +490,7 @@ function ShellConfirm({
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-7 items-center gap-1.5 border-2 border-line bg-card px-2.5 text-[13px] text-ink-2">
+    <div className="flex h-7 items-center gap-1.5 border border-line bg-card px-2.5 text-[13px] text-ink-2">
       {children}
     </div>
   );

@@ -52,7 +52,7 @@ export function ProjectChip() {
     <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex h-8 items-center gap-1.5 border-2 border-line bg-base px-2.5 text-[12px] text-ink-2"
+        className="flex h-8 items-center gap-1.5 border border-line bg-base px-2.5 text-[12px] text-ink-2"
         title="Projet de travail de cette session"
       >
         📁 <span className="max-w-[140px] truncate">{active ?? "workspace"}</span>
@@ -60,7 +60,7 @@ export function ProjectChip() {
 
       {open && (
         <div
-          className="absolute bottom-[calc(100%+6px)] left-0 z-30 w-[240px] border-[3px] border-line bg-card shadow-hard"
+          className="absolute bottom-[calc(100%+6px)] left-0 z-30 w-[240px] border border-line bg-card shadow-hard"
           style={{ borderRadius: 7 }}
         >
           <button
@@ -75,7 +75,7 @@ export function ProjectChip() {
             <button
               key={p.name}
               onClick={() => choose(p.name)}
-              className={`block w-full border-t-2 border-line-soft px-3 py-2 text-left text-[13px] text-ink-2 hover:bg-base ${
+              className={`block w-full border-t border-line-soft px-3 py-2 text-left text-[13px] text-ink-2 hover:bg-base ${
                 active === p.name ? "bg-base font-bold" : ""
               }`}
             >
@@ -85,7 +85,7 @@ export function ProjectChip() {
               </span>
             </button>
           ))}
-          <div className="border-t-2 border-line-soft p-2">
+          <div className="border-t border-line-soft p-2">
             {creating ? (
               <input
                 autoFocus
@@ -99,7 +99,7 @@ export function ProjectChip() {
                   }
                 }}
                 placeholder="nom-du-projet"
-                className="w-full border-2 border-line bg-base px-2 py-1 text-[12px] text-ink outline-none"
+                className="w-full border border-line bg-base px-2 py-1 text-[12px] text-ink outline-none"
               />
             ) : (
               <button

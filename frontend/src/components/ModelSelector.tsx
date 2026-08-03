@@ -40,14 +40,14 @@ export function ModelSelector({
         onClick={() => setOpen((v) => !v)}
         className={
           variant === "composer"
-            ? "flex h-8 min-w-0 max-w-[220px] items-center gap-1.5 border-2 border-line bg-accent px-2.5 text-[13px] text-white"
-            : "flex h-[34px] min-w-0 max-w-[260px] items-center gap-2 border-[3px] border-white bg-accent px-3 text-white shadow-accent-soft"
+            ? "flex h-8 min-w-0 max-w-[220px] items-center gap-1.5 border border-line bg-accent px-2.5 text-[13px] text-white"
+            : "flex h-[34px] min-w-0 max-w-[260px] items-center gap-2 border border-white bg-accent px-3 text-white shadow-accent-soft"
         }
         title={selectedModel || undefined}
         style={{ borderRadius: 7 }}
       >
         <span
-          className={`h-2.5 w-2.5 border-2 border-line ${
+          className={`h-2.5 w-2.5 border border-line ${
             warmingModel === selectedModel
               ? "bg-accent animate-pulse"
               : selectedLoaded
@@ -74,7 +74,7 @@ export function ModelSelector({
 
       {open && (
         <div
-          className={`absolute z-20 w-64 border-[3px] border-line bg-card p-1 shadow-hard ${
+          className={`absolute z-20 w-64 border border-line bg-card p-1 shadow-hard ${
             variant === "composer"
               ? "bottom-[calc(100%+6px)] left-0"
               : "right-0 top-11"
@@ -97,7 +97,7 @@ export function ModelSelector({
               }`}
             >
               <span
-                className={`h-2 w-2 border-2 border-line ${
+                className={`h-2 w-2 border border-line ${
                   m.name === selectedModel ? "bg-accent" : "bg-card"
                 }`}
               />

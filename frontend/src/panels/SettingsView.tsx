@@ -130,13 +130,13 @@ export function SettingsView() {
           <div className="flex items-center gap-3">
             <PresetBar model={selectedModel} onApplied={refreshConfig} />
             <div className="flex items-center gap-1.5 text-[13px] text-ok">
-              <span className="h-2 w-2 border-2 border-line bg-ok" />
+              <span className="h-2 w-2 border border-line bg-ok" />
               {status?.connected ? "Ollama connecté" : "Ollama déconnecté"}
             </div>
             <button
               onClick={save}
               disabled={!dirty}
-              className="flex h-[34px] items-center gap-1.5 border-[3px] border-line bg-accent px-4 text-[14px] text-white shadow-accent-soft disabled:opacity-40"
+              className="flex h-[34px] items-center gap-1.5 border border-line bg-accent px-4 text-[14px] text-white shadow-accent-soft disabled:opacity-40"
               style={{ borderRadius: 7 }}
             >
               {saved ? "✓ ENREGISTRÉ" : dirty ? "ENREGISTRER" : "À JOUR"}
@@ -159,7 +159,7 @@ export function SettingsView() {
                   </div>
                   <button
                     onClick={refreshModels}
-                    className="flex h-7 items-center gap-1.5 border-2 border-line bg-card-soft px-2.5 text-[13px] text-muted-2"
+                    className="flex h-7 items-center gap-1.5 border border-line bg-card-soft px-2.5 text-[13px] text-muted-2"
                   >
                     <RefreshIcon size={12} />
                     Actualiser
@@ -168,7 +168,7 @@ export function SettingsView() {
 
                 <div className="flex flex-col gap-2">
                   {models.length === 0 && (
-                    <div className="border-2 border-line bg-base p-4 text-center text-[13px] text-muted-2">
+                    <div className="border border-line bg-base p-4 text-center text-[13px] text-muted-2">
                       Aucun modèle installé. Télécharge-en un ci-dessous.
                     </div>
                   )}
@@ -179,7 +179,7 @@ export function SettingsView() {
                     return (
                       <div
                         key={m.name}
-                        className={`flex items-center gap-3 border-[3px] border-line p-3 text-left ${
+                        className={`flex items-center gap-3 border border-line p-3 text-left ${
                           on ? "bg-card-deep" : "bg-card-soft"
                         }`}
                       >
@@ -188,7 +188,7 @@ export function SettingsView() {
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                         >
                           <span
-                            className={`flex h-[18px] w-[18px] flex-none items-center justify-center border-[3px] ${
+                            className={`flex h-[18px] w-[18px] flex-none items-center justify-center border ${
                               on ? "border-accent" : "border-muted-3"
                             }`}
                           >
@@ -196,11 +196,11 @@ export function SettingsView() {
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className={`truncate text-[14px] ${on ? "text-white" : "text-ink"}`}>
+                              <span className={`truncate text-[14px] ${on ? "text-ink" : "text-ink"}`}>
                                 {m.name}
                               </span>
                               {m.name === status?.default_model && (
-                                <span className="font-pixel flex-none border-2 border-white bg-accent px-1.5 py-0.5 text-[7px] text-white">
+                                <span className="font-pixel flex-none border border-white bg-accent px-1.5 py-0.5 text-[7px] text-white">
                                   DÉFAUT
                                 </span>
                               )}
@@ -237,7 +237,7 @@ export function SettingsView() {
                         <button
                           onClick={() => doDeleteModel(m.name)}
                           disabled={deletingModel === m.name}
-                          className="flex-none border-2 border-line bg-base px-2 py-1 text-[12px] text-warn disabled:opacity-50"
+                          className="flex-none border border-line bg-base px-2 py-1 text-[12px] text-warn disabled:opacity-50"
                           title={`Supprimer ${m.name}`}
                         >
                           {deletingModel === m.name ? "…" : "Supprimer"}
@@ -246,18 +246,18 @@ export function SettingsView() {
                     );
                   })}
                   {deleteError && (
-                    <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+                    <div className="border border-warn bg-base px-3 py-2 text-[12px] text-warn">
                       {deleteError}
                     </div>
                   )}
                   {warmError && (
-                    <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+                    <div className="border border-warn bg-base px-3 py-2 text-[12px] text-warn">
                       Préchargement : {warmError}
                     </div>
                   )}
                 </div>
 
-                <div className="my-4 h-[3px] bg-line" />
+                <div className="my-4 h-px bg-line" />
 
                 <div className="font-pixel mb-2.5 text-[10px] text-label">
                   TÉLÉCHARGER
@@ -267,11 +267,11 @@ export function SettingsView() {
                     value={pullName}
                     onChange={(e) => setPullName(e.target.value)}
                     placeholder="gemma2:9b"
-                    className="h-9 flex-1 border-[3px] border-line bg-card-soft px-3 text-[13px] text-ink outline-none placeholder:text-muted-3"
+                    className="h-9 flex-1 border border-line bg-card-soft px-3 text-[13px] text-ink outline-none placeholder:text-muted-3"
                   />
                   <button
                     onClick={doPull}
-                    className="flex h-9 items-center gap-1.5 border-[3px] border-line bg-card-deep px-3.5 text-[13px] text-white"
+                    className="flex h-9 items-center gap-1.5 border border-line bg-accent px-3.5 text-[13px] text-white"
                   >
                     <DownloadIcon />
                     Récupérer
@@ -279,14 +279,14 @@ export function SettingsView() {
                 </div>
 
                 {pullStatus && (
-                  <div className="border-[3px] border-line bg-card-soft p-3">
+                  <div className="border border-line bg-card-soft p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-[13px] text-ink-2">{pullName}</span>
                       <span className="text-[13px] text-accent">
                         {pullStatus} {pullPct ? `· ${pullPct}%` : ""}
                       </span>
                     </div>
-                    <div className="flex h-3.5 gap-px border-2 border-line bg-card p-px">
+                    <div className="flex h-3.5 gap-px border border-line bg-card p-px">
                       <span
                         className="bg-accent transition-all"
                         style={{ width: `${pullPct}%` }}
@@ -374,13 +374,13 @@ export function SettingsView() {
                     onChange={(v) => set("num_batch", Math.round(v))}
                     last
                   />
-                  <div className="mt-3 border-2 border-line bg-card-soft px-3 py-2 text-[12px] leading-relaxed text-muted-2">
+                  <div className="mt-3 border border-line bg-card-soft px-3 py-2 text-[12px] leading-relaxed text-muted-2">
                     La précision KV (<code>f16</code>/<code>q8_0</code>) est un
                     réglage global du serveur Ollama et nécessite son redémarrage.
                   </div>
                   </Advanced>
 
-                  <div className="mt-4 flex items-center gap-3 border-2 border-line bg-base px-3 py-2.5">
+                  <div className="mt-4 flex items-center gap-3 border border-line bg-base px-3 py-2.5">
                     <div className="flex-1">
                       <div className="text-[14px] text-ink">Mode réflexion</div>
                       <div className="text-[12px] text-muted-2">
@@ -405,7 +405,7 @@ export function SettingsView() {
                       <div
                         key={name}
                         className={`flex items-center gap-3 py-2 ${
-                          i > 0 ? "border-t-2 border-line-soft" : ""
+                          i > 0 ? "border-t border-line-soft" : ""
                         }`}
                       >
                         <span
@@ -424,7 +424,7 @@ export function SettingsView() {
                     );
                   })}
                   {draft.tools.run_shell && (
-                    <div className="mt-2 flex items-center gap-3 border-2 border-line bg-base px-3 py-2.5">
+                    <div className="mt-2 flex items-center gap-3 border border-line bg-base px-3 py-2.5">
                       <span className="flex-1 text-[13px] text-ink-2">
                         Demander une validation avant chaque commande shell
                       </span>
@@ -473,7 +473,7 @@ export function SettingsView() {
                         onClick={() => set(key, !draft[key])}
                       />
                     ))}
-                    <div className="flex items-center gap-3 border-t-2 border-line-soft py-2">
+                    <div className="flex items-center gap-3 border-t border-line-soft py-2">
                       <span className="flex-1">
                         <span className="block text-[14px] text-ink">Mémoire</span>
                         <span className="block text-[12px] text-muted-2">
@@ -489,7 +489,7 @@ export function SettingsView() {
                             e.target.value as AgentConfig["memory_mode"]
                           )
                         }
-                        className="h-8 border-[3px] border-line bg-card px-2 text-[13px] text-ink"
+                        className="h-8 border border-line bg-card px-2 text-[13px] text-ink"
                       >
                         <option value="off">Désactivée</option>
                         <option value="ondemand">Sur demande</option>
@@ -497,7 +497,7 @@ export function SettingsView() {
                       </select>
                     </div>
                   </Advanced>
-                  <div className="mt-2 flex items-center gap-3 border-t-2 border-line-soft pt-3">
+                  <div className="mt-2 flex items-center gap-3 border-t border-line-soft pt-3">
                     <span className="flex-1">
                       <span className="block text-[14px] text-ink">
                         Maintien en VRAM (préchargement)
@@ -509,7 +509,7 @@ export function SettingsView() {
                     <select
                       value={draft.keep_alive}
                       onChange={(e) => set("keep_alive", e.target.value)}
-                      className="h-8 border-[3px] border-line bg-card px-2 text-[13px] text-ink"
+                      className="h-8 border border-line bg-card px-2 text-[13px] text-ink"
                     >
                       <option value="0">Décharger aussitôt</option>
                       <option value="5m">5 min</option>
@@ -542,7 +542,7 @@ export function SettingsView() {
                 value={draft.system_prompt}
                 onChange={(e) => set("system_prompt", e.target.value)}
                 rows={6}
-                className="scr w-full resize-y border-[3px] border-line bg-card-deep p-4 text-[13px] leading-[1.6] text-on-dark outline-none"
+                className="scr w-full resize-y border border-line bg-card-deep p-4 text-[13px] leading-[1.6] text-on-dark outline-none"
               />
             </Card>
           </>
@@ -595,10 +595,10 @@ function McpCard() {
       </div>
       <div className="flex flex-col gap-3">
         {servers.map((s) => (
-          <div key={s.id} className="border-[3px] border-line bg-base p-3">
+          <div key={s.id} className="border border-line bg-base p-3">
             <div className="flex items-center gap-3">
               <span
-                className={`h-[11px] w-[11px] flex-none border-2 border-line ${
+                className={`h-[11px] w-[11px] flex-none border border-line ${
                   s.state === "connected"
                     ? "bg-ok"
                     : s.state === "error"
@@ -623,7 +623,7 @@ function McpCard() {
               <button
                 onClick={() => doTest(s)}
                 disabled={testing === s.id}
-                className="border-2 border-line bg-card px-2 py-1 text-[11px] text-ink-2"
+                className="border border-line bg-card px-2 py-1 text-[11px] text-ink-2"
               >
                 {testing === s.id ? "test…" : "Tester"}
               </button>
@@ -636,7 +636,7 @@ function McpCard() {
                     defaultValue={s.params.command ?? ""}
                     onBlur={(e) => setParam(s, "command", e.target.value)}
                     placeholder="commande stdio (ex. npx -y mon-mcp) ou URL"
-                    className="border-2 border-line bg-card px-2 py-1 text-[12px] text-ink"
+                    className="border border-line bg-card px-2 py-1 text-[12px] text-ink"
                   />
                 )}
                 {s.env_params.map((k) => (
@@ -645,7 +645,7 @@ function McpCard() {
                     defaultValue={s.params[k] ?? ""}
                     onBlur={(e) => setParam(s, k, e.target.value)}
                     placeholder={k}
-                    className="border-2 border-line bg-card px-2 py-1 text-[12px] text-ink"
+                    className="border border-line bg-card px-2 py-1 text-[12px] text-ink"
                   />
                 ))}
               </div>
@@ -685,7 +685,7 @@ function HardwareCard() {
         <div className="font-pixel text-[11px] text-ink">MATÉRIEL</div>
         <button
           onClick={refresh}
-          className="flex h-7 items-center gap-1.5 border-2 border-line bg-card-soft px-2.5 text-[13px] text-muted-2"
+          className="flex h-7 items-center gap-1.5 border border-line bg-card-soft px-2.5 text-[13px] text-muted-2"
         >
           <RefreshIcon size={12} />
           Rafraîchir
@@ -698,7 +698,7 @@ function HardwareCard() {
       </div>
       {hw?.loki_gpus.length ? (
         hw.loki_gpus.map((g) => (
-          <div key={g.index} className="border-2 border-line bg-base px-3 py-2 text-[13px]">
+          <div key={g.index} className="border border-line bg-base px-3 py-2 text-[13px]">
             <div className="flex items-center justify-between">
               <span className="text-ink">{g.name}</span>
               <span className="text-muted-2">
@@ -709,7 +709,7 @@ function HardwareCard() {
           </div>
         ))
       ) : hw?.gpu_override ? (
-        <div className="border-2 border-line bg-base px-3 py-2 text-[13px] text-ink">
+        <div className="border border-line bg-base px-3 py-2 text-[13px] text-ink">
           {hw.gpu_override.name} ·{" "}
           {(hw.gpu_override.vram_total_mb / 1024).toFixed(0)} Go{" "}
           <span className="text-muted-2">(valeur déclarée)</span>
@@ -719,7 +719,7 @@ function HardwareCard() {
           </div>
         </div>
       ) : (
-        <div className="border-2 border-line bg-base px-3 py-2 text-[12px] text-muted-2">
+        <div className="border border-line bg-base px-3 py-2 text-[12px] text-muted-2">
           Aucun GPU visible depuis le conteneur — normal si Ollama tourne sur une
           autre machine. Déclare <code>GPU_VRAM_MB</code> pour l'auto-réglage.
         </div>
@@ -729,10 +729,10 @@ function HardwareCard() {
       <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-label">
         Ollama {hw?.ollama_is_local ? "(local)" : "(distant)"}
       </div>
-      <div className="border-2 border-line bg-base px-3 py-2 text-[13px]">
+      <div className="border border-line bg-base px-3 py-2 text-[13px]">
         <div className="mb-1 flex items-center gap-2">
           <span
-            className={`h-2 w-2 border-2 border-line ${
+            className={`h-2 w-2 border border-line ${
               hw?.ollama.connected ? "bg-ok" : "bg-warn"
             }`}
           />
@@ -820,7 +820,7 @@ function BenchCard() {
         <button
           onClick={launch}
           disabled={running || !selectedModel}
-          className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-accent px-3 text-[13px] text-white shadow-accent-soft disabled:opacity-40"
+          className="flex h-8 items-center gap-1.5 border border-line bg-accent px-3 text-[13px] text-white shadow-accent-soft disabled:opacity-40"
           style={{ borderRadius: 7 }}
         >
           {running ? "ÉVALUATION…" : "TESTER CE MODÈLE"}
@@ -833,7 +833,7 @@ function BenchCard() {
       </div>
 
       {running && (
-        <div className="border-2 border-line bg-base px-3 py-2">
+        <div className="border border-line bg-base px-3 py-2">
           {progress.map((p) => (
             <div key={p.task} className="flex items-center gap-2 py-[2px] text-[13px]">
               <span className="flex-1 text-ink-2">{p.task}</span>
@@ -850,13 +850,13 @@ function BenchCard() {
       )}
 
       {error && (
-        <div className="border-2 border-warn bg-base px-3 py-2 text-[12px] text-warn">
+        <div className="border border-warn bg-base px-3 py-2 text-[12px] text-warn">
           Échec du test : {error}
         </div>
       )}
 
       {!running && current && (
-        <div className="border-2 border-line bg-base px-3 py-2">
+        <div className="border border-line bg-base px-3 py-2">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-[13px] text-ink">Score</span>
             <span
@@ -898,7 +898,7 @@ function Card({
 }) {
   return (
     <div
-      className={`border-[3px] border-line bg-card p-4 shadow-hard-lg ${className}`}
+      className={`border border-line bg-card p-4 shadow-hard-lg ${className}`}
       style={{ borderRadius: 9 }}
     >
       {children}
@@ -911,7 +911,7 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
     <button
       onClick={onClick}
       className={`relative h-5 w-[38px] flex-none ${
-        on ? "bg-card-deep" : "border-2 border-line bg-base"
+        on ? "bg-card-deep" : "border border-line bg-base"
       }`}
     >
       <span
@@ -968,7 +968,7 @@ function PresetBar({
         value=""
         disabled={busy || presets.length === 0}
         onChange={(e) => apply(e.target.value)}
-        className="h-[34px] border-[3px] border-line bg-card px-2 text-[13px] text-ink disabled:opacity-40"
+        className="h-[34px] border border-line bg-card px-2 text-[13px] text-ink disabled:opacity-40"
         title="Appliquer un preset"
       >
         <option value="">
@@ -983,7 +983,7 @@ function PresetBar({
       <button
         onClick={create}
         disabled={busy}
-        className="h-[34px] border-[3px] border-line bg-card px-2.5 text-[13px] text-muted-2 disabled:opacity-40"
+        className="h-[34px] border border-line bg-card px-2.5 text-[13px] text-muted-2 disabled:opacity-40"
         title="Enregistrer les réglages actuels comme preset"
       >
         + Preset
@@ -1005,7 +1005,7 @@ function Advanced({
   label?: string;
 }) {
   return (
-    <details className="group mt-3 border-t-2 border-line-soft pt-3">
+    <details className="group mt-3 border-t border-line-soft pt-3">
       <summary className="flex cursor-pointer select-none items-center gap-1.5 text-[13px] text-muted-2 marker:content-['']">
         <span className="transition-transform group-open:rotate-90">▸</span>
         {label}
@@ -1032,7 +1032,7 @@ function ToggleRow({
   return (
     <div
       className={`flex items-center gap-3 py-2 ${
-        first ? "" : "border-t-2 border-line-soft"
+        first ? "" : "border-t border-line-soft"
       }`}
     >
       <span className="flex-1">
@@ -1070,13 +1070,13 @@ function Slider({
         <span className="text-[13px] text-ink-2">{label}</span>
         <span className="text-[13px] text-accent">{fmt(value)}</span>
       </div>
-      <div className="relative h-[14px] border-2 border-line bg-card">
+      <div className="relative h-[14px] border border-line bg-card">
         <div
           className="absolute left-0 top-0 bottom-0 bg-line"
           style={{ width: `${pct}%` }}
         />
         <div
-          className="absolute top-1/2 h-5 w-4 -translate-x-1/2 -translate-y-1/2 border-[3px] border-line bg-accent"
+          className="absolute top-1/2 h-5 w-4 -translate-x-1/2 -translate-y-1/2 border border-line bg-accent"
           style={{ left: `${pct}%` }}
         />
         <input

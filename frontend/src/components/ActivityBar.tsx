@@ -16,10 +16,10 @@ const items: { id: View; label: string; icon: React.ReactNode }[] = [
 ];
 
 const btn = (on: boolean) =>
-  `flex h-10 w-10 items-center justify-center border-[3px] ${
+  `flex h-10 w-10 items-center justify-center border ${
     on
       ? "border-white bg-accent text-white shadow-accent-soft"
-      : "border-chrome-3 text-on-dark-2 hover:text-white"
+      : "border-chrome-3 text-on-dark-2 hover:text-ink"
   }`;
 
 /** Barre d'activité verticale (60px) sombre à gauche. */
@@ -31,7 +31,7 @@ export function ActivityBar({
   onChange: (v: View) => void;
 }) {
   return (
-    <div className="flex w-[60px] flex-none flex-col items-center gap-2 border-r-[3px] border-line bg-bar py-3">
+    <div className="flex w-[60px] flex-none flex-col items-center gap-2 border-r border-line bg-bar py-3">
       {items.map((it) => (
         <button
           key={it.id}
@@ -55,7 +55,7 @@ export function ActivityBar({
         <SettingsIcon />
       </button>
 
-      <div className="font-pixel flex h-[34px] w-[34px] items-center justify-center border-[3px] border-white bg-white text-[11px] text-line">
+      <div className="font-pixel flex h-[34px] w-[34px] items-center justify-center border border-line bg-line-soft text-[11px] text-ink-3">
         M
       </div>
     </div>

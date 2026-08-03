@@ -24,7 +24,7 @@ export function LeftPanel() {
   }, [refreshSessions, refreshFiles]);
 
   return (
-    <div className="flex w-[280px] flex-none flex-col border-r-[3px] border-line bg-panel">
+    <div className="flex w-[280px] flex-none flex-col border-r border-line bg-panel">
       {/* Historique */}
       <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
         <span className="font-pixel text-[10px] text-label">HISTORIQUE</span>
@@ -50,7 +50,7 @@ export function LeftPanel() {
             <div
               key={s.id}
               onClick={() => openSession(s.id)}
-              className={`group cursor-pointer border-[3px] border-line px-3 py-2.5 ${
+              className={`group cursor-pointer border border-line px-3 py-2.5 ${
                 active ? "bg-card-deep shadow-hard-accent" : "bg-card"
               }`}
               style={{ borderRadius: 7 }}
@@ -58,14 +58,14 @@ export function LeftPanel() {
               <div className="flex items-center gap-1">
                 <div
                   className={`flex-1 truncate text-[14px] leading-tight ${
-                    active ? "text-white" : "text-ink-2"
+                    active ? "text-ink" : "text-ink-2"
                   }`}
                 >
                   {s.title}
                 </div>
                 {working && (
                   <span
-                    className="flex-none border-2 border-line bg-accent px-1.5 py-0.5 text-[10px] leading-none text-white"
+                    className="flex-none border border-line bg-accent px-1.5 py-0.5 text-[10px] leading-none text-white"
                     title="Session en cours de travail"
                   >
                     EN COURS
@@ -93,7 +93,7 @@ export function LeftPanel() {
         })}
       </div>
 
-      <div className="mx-0 my-4 h-[3px] bg-line" />
+      <div className="mx-0 my-4 h-px bg-line" />
 
       {/* Fichiers */}
       <div className="flex items-center justify-between px-4 pb-2">
@@ -136,7 +136,7 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
               className={`group mb-[3px] flex items-center gap-2 px-2 py-[5px] ${
                 n.type === "file"
                   ? active
-                    ? "cursor-pointer border-2 border-line bg-card-deep text-white"
+                    ? "cursor-pointer border border-line bg-card-deep text-ink"
                     : "cursor-pointer text-ink-2 hover:bg-base"
                   : "text-muted"
               }`}
@@ -146,7 +146,7 @@ function FileTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
                 <span className="text-muted-2">▾</span>
               ) : (
                 <span
-                  className={`h-2 w-2 border-2 ${
+                  className={`h-2 w-2 border ${
                     active ? "border-white bg-accent" : "border-line bg-muted-2"
                   }`}
                 />

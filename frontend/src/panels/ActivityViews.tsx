@@ -14,7 +14,7 @@ export function HistoryView({ onOpen }: { onOpen: () => void }) {
     <Page title="Historique" subtitle="Toutes les conversations enregistrées localement.">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
         {sessions.map((session) => (
-          <div key={session.id} className="border-[3px] border-line bg-card p-4 shadow-hard">
+          <div key={session.id} className="border border-line bg-card p-4 shadow-hard">
             <div className="truncate text-[15px] font-semibold text-ink">{session.title}</div>
             <div className="mt-1 text-[12px] text-muted-2">
               {session.message_count ?? 0} message(s) · {new Date(session.updated_at * 1000).toLocaleString("fr-FR")}
@@ -25,13 +25,13 @@ export function HistoryView({ onOpen }: { onOpen: () => void }) {
                   await openSession(session.id);
                   onOpen();
                 }}
-                className="border-2 border-line bg-accent px-3 py-1.5 text-[12px] font-bold text-white"
+                className="border border-line bg-accent px-3 py-1.5 text-[12px] font-bold text-white"
               >
                 Ouvrir
               </button>
               <button
                 onClick={() => removeSession(session.id)}
-                className="border-2 border-line bg-base px-3 py-1.5 text-[12px] text-warn"
+                className="border border-line bg-base px-3 py-1.5 text-[12px] text-warn"
               >
                 Supprimer
               </button>
@@ -53,7 +53,7 @@ export function FilesView() {
 
   return (
     <Page title="Fichiers" subtitle="Workspace créé et modifié par l’agent.">
-      <div className="border-[3px] border-line bg-panel p-3 shadow-hard">
+      <div className="border border-line bg-panel p-3 shadow-hard">
         {fileTree.length ? <WorkspaceTree nodes={fileTree} depth={0} /> : <Empty text="Le workspace est vide." />}
       </div>
     </Page>
@@ -74,9 +74,9 @@ function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
       {nodes.map((node) => (
         <div key={node.path}>
           <div
-            className={`mb-1 flex items-center gap-2 border-2 px-3 py-2 ${
+            className={`mb-1 flex items-center gap-2 border px-3 py-2 ${
               node.path === previewPath
-                ? "border-accent bg-card-deep text-white"
+                ? "border-accent bg-card-deep text-ink"
                 : "border-line bg-card text-ink-2"
             }`}
             style={{ marginLeft: depth * 18 }}
@@ -94,7 +94,7 @@ function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
             {node.type === "file" && (
               <button
                 onClick={() => downloadFile(node.path, currentProject())}
-                className="flex items-center gap-1 border-2 border-line bg-base px-2 py-1 text-[11px] text-accent"
+                className="flex items-center gap-1 border border-line bg-base px-2 py-1 text-[11px] text-accent"
                 title={`Télécharger ${node.name}`}
               >
                 <DownloadIcon size={12} /> Télécharger
@@ -102,7 +102,7 @@ function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
             )}
             <button
               onClick={() => confirmDelete(node)}
-              className="flex items-center gap-1 border-2 border-line bg-base px-2 py-1 text-[11px] text-warn"
+              className="flex items-center gap-1 border border-line bg-base px-2 py-1 text-[11px] text-warn"
               title={`Supprimer ${node.name}`}
             >
               <TrashIcon size={12} /> Supprimer
@@ -128,10 +128,10 @@ export function ToolsView({ onSettings }: { onSettings: () => void }) {
         {availableTools.map((name) => {
           const enabled = config?.tools[name] ?? false;
           return (
-            <div key={name} className="border-[3px] border-line bg-card p-4 shadow-hard">
+            <div key={name} className="border border-line bg-card p-4 shadow-hard">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[14px] text-ink">{name}</span>
-                <span className={`border-2 border-line px-2 py-1 text-[10px] ${enabled ? "bg-ok text-white" : "bg-base text-muted-2"}`}>
+                <span className={`border border-line px-2 py-1 text-[10px] ${enabled ? "bg-ok text-white" : "bg-base text-muted-2"}`}>
                   {enabled ? "ACTIF" : "INACTIF"}
                 </span>
               </div>
@@ -141,7 +141,7 @@ export function ToolsView({ onSettings }: { onSettings: () => void }) {
       </div>
       <button
         onClick={onSettings}
-        className="mt-5 border-[3px] border-line bg-accent px-4 py-2 text-[13px] font-bold text-white shadow-hard"
+        className="mt-5 border border-line bg-accent px-4 py-2 text-[13px] font-bold text-white shadow-hard"
       >
         Configurer les outils
       </button>
@@ -162,7 +162,7 @@ function Page({ title, subtitle, children }: { title: string; subtitle: string; 
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="border-2 border-line bg-card p-8 text-center text-muted-2">{text}</div>;
+  return <div className="border border-line bg-card p-8 text-center text-muted-2">{text}</div>;
 }
 
 function formatSize(bytes: number): string {

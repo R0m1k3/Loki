@@ -45,15 +45,15 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   };
 
   return (
-    <div className="my-2 overflow-hidden border-[3px] border-line bg-card-deep shadow-hard-sm" style={{ borderRadius: 7 }}>
-      <div className="flex items-center justify-between border-b-2 border-chrome-2 px-3 py-1.5">
+    <div className="my-2 overflow-hidden border border-line bg-card-deep shadow-hard-sm" style={{ borderRadius: 7 }}>
+      <div className="flex items-center justify-between border-b border-chrome-2 px-3 py-1.5">
         <span className="font-mono text-[10.5px] uppercase tracking-wide text-on-dark-2">
           {lang || "code"}
         </span>
         <button
           type="button"
           onClick={copy}
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-on-dark-2 transition-colors hover:text-white"
+          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-on-dark-2 transition-colors hover:text-ink"
         >
           {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
           {failed ? "Erreur" : copied ? "Copié" : "Copier"}
@@ -122,7 +122,7 @@ const components: Components = {
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   blockquote: ({ children }) => (
-    <blockquote className="my-2 border-l-2 border-line-strong pl-3 text-muted">
+    <blockquote className="my-2 border-l border-line-strong pl-3 text-muted">
       {children}
     </blockquote>
   ),

@@ -63,7 +63,7 @@ export function PreviewPanel() {
   // Replié : barre fine, aucun contenu monté (pas d'iframe vivante).
   if (collapsed) {
     return (
-      <div className="flex w-9 flex-none flex-col items-center border-l-[3px] border-line bg-panel pt-3">
+      <div className="flex w-9 flex-none flex-col items-center border-l border-line bg-panel pt-3">
         <button
           onClick={toggleCollapsed}
           title="Déplier l'aperçu"
@@ -80,7 +80,7 @@ export function PreviewPanel() {
 
   return (
     <div
-      className="relative flex flex-none flex-col border-l-[3px] border-line bg-panel"
+      className="relative flex flex-none flex-col border-l border-line bg-panel"
       style={{ width }}
     >
       <div
@@ -97,7 +97,7 @@ export function PreviewPanel() {
         title="Glisser pour redimensionner"
       />
       {/* Onglets */}
-      <div className="flex h-[46px] flex-none items-center gap-1.5 border-b-[3px] border-line bg-base px-3">
+      <div className="flex h-[46px] flex-none items-center gap-1.5 border-b border-line bg-base px-3">
         <Tab active={tab === "preview"} onClick={() => setTab("preview")}>
           Aperçu
         </Tab>
@@ -106,7 +106,7 @@ export function PreviewPanel() {
         </Tab>
         <Tab active={tab === "logs"} onClick={() => setTab("logs")}>
           Logs
-          <span className="font-pixel ml-1.5 border-2 border-line bg-accent px-1 py-0.5 text-[8px] text-white">
+          <span className="font-pixel ml-1.5 border border-line bg-accent px-1 py-0.5 text-[8px] text-white">
             {logs.length}
           </span>
         </Tab>
@@ -125,7 +125,7 @@ export function PreviewPanel() {
 
       {/* URL bar */}
       <div className="flex flex-none items-center gap-2 px-3 py-2.5">
-        <div className="flex h-8 flex-1 items-center gap-2 border-[3px] border-line bg-card px-[11px]">
+        <div className="flex h-8 flex-1 items-center gap-2 border border-line bg-card px-[11px]">
           <span className="text-[13px]">🔒</span>
           <span className="truncate text-[13px] text-muted-2">
             {previewPath ? `workspace/${previewPath}` : "workspace/"}
@@ -135,7 +135,7 @@ export function PreviewPanel() {
           <>
             <button
               onClick={() => downloadFile(previewPath, useStore.getState().currentProject())}
-              className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-accent"
+              className="flex h-8 items-center gap-1.5 border border-line bg-card px-2.5 text-[12px] text-accent"
               title={`Télécharger ${previewPath}`}
             >
               <DownloadIcon size={13} />
@@ -147,7 +147,7 @@ export function PreviewPanel() {
                   void removeFile(previewPath);
                 }
               }}
-              className="flex h-8 items-center gap-1.5 border-[3px] border-line bg-card px-2.5 text-[12px] text-warn"
+              className="flex h-8 items-center gap-1.5 border border-line bg-card px-2.5 text-[12px] text-warn"
               title={`Supprimer ${previewPath}`}
             >
               <TrashIcon size={13} />
@@ -162,7 +162,7 @@ export function PreviewPanel() {
         <GitPanel />
       ) : /* Onglet Logs (fond sombre) */
       tab === "logs" ? (
-        <div className="scr mx-3 mb-3 flex-1 overflow-auto border-[3px] border-line bg-card-deep p-3 text-[12.5px]">
+        <div className="scr mx-3 mb-3 flex-1 overflow-auto border border-line bg-card-deep p-3 text-[12.5px]">
           {logs.length === 0 ? (
             <div className="py-10 text-center text-on-dark-3">
               Aucune activité d'outil pour cette session.
@@ -171,7 +171,7 @@ export function PreviewPanel() {
             logs.map((l, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 border-b-2 border-chrome-2 py-[7px] last:border-0"
+                className="flex items-center gap-2 border-b border-chrome-2 py-[7px] last:border-0"
               >
                 <span
                   className={
@@ -204,14 +204,14 @@ export function PreviewPanel() {
         </div>
       ) : (
         /* Viewport Aperçu / Code (fond clair) */
-        <div className="scr mx-3 mb-3 flex-1 overflow-auto border-[3px] border-line bg-[#faf6ef] shadow-hard">
+        <div className="scr mx-3 mb-3 flex-1 overflow-auto border border-line bg-panel shadow-hard">
           {!previewPath ? (
             <Empty>
               L'aperçu s'affichera ici dès que l'agent générera un fichier (clique
               aussi un fichier à gauche).
             </Empty>
           ) : tab === "code" ? (
-            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-[#2a2018]">
+            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-ink">
               {previewContent}
             </pre>
           ) : isHtml ? (
@@ -225,7 +225,7 @@ export function PreviewPanel() {
               sandbox="allow-scripts"
             />
           ) : (
-            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-[#2a2018]">
+            <pre className="m-0 whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-ink">
               {previewContent}
             </pre>
           )}
@@ -276,14 +276,14 @@ function GitPanel() {
   };
 
   return (
-    <div className="scr mx-3 mb-3 flex flex-1 flex-col overflow-hidden border-[3px] border-line bg-card">
+    <div className="scr mx-3 mb-3 flex flex-1 flex-col overflow-hidden border border-line bg-card">
       {error && (
-        <div className="border-b-2 border-line bg-warn/10 px-3 py-2 text-[12px] text-warn">
+        <div className="border-b border-line bg-warn/10 px-3 py-2 text-[12px] text-warn">
           {error}
         </div>
       )}
       {/* Liste des commits */}
-      <div className="scr max-h-[45%] overflow-auto border-b-2 border-line">
+      <div className="scr max-h-[45%] overflow-auto border-b border-line">
         {commits.length === 0 ? (
           <div className="p-4 text-center text-[12px] text-muted-2">
             Aucun commit. L'agent commitera chaque modification de code ici.
@@ -310,7 +310,7 @@ function GitPanel() {
               <button
                 onClick={() => doRevert(c.hash)}
                 disabled={busy === c.hash}
-                className="flex-none border-2 border-line bg-card px-2 py-1 text-[11px] text-warn disabled:opacity-40"
+                className="flex-none border border-line bg-card px-2 py-1 text-[11px] text-warn disabled:opacity-40"
                 title="Annuler ce commit (revert)"
               >
                 {busy === c.hash ? "…" : "↶ Annuler"}
@@ -357,8 +357,8 @@ function DiffView({ diff }: { diff: string }) {
 function Empty({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-      <div className="font-pixel text-[10px] text-[#a98b63]">AUCUN APERÇU</div>
-      <div className="max-w-[240px] text-[13px] text-[#8a7a66]">{children}</div>
+      <div className="font-pixel text-[10px] text-label">AUCUN APERÇU</div>
+      <div className="max-w-[240px] text-[13px] text-muted-2">{children}</div>
     </div>
   );
 }
@@ -375,8 +375,8 @@ function Tab({
   return (
     <button
       onClick={onClick}
-      className={`flex h-[30px] items-center border-[3px] border-line px-[13px] text-[13px] ${
-        active ? "bg-card-deep text-white" : "bg-card text-muted"
+      className={`flex h-[30px] items-center border border-line px-[13px] text-[13px] ${
+        active ? "bg-card-deep text-ink" : "bg-card text-muted"
       }`}
     >
       {children}
