@@ -248,4 +248,18 @@ def ollama_options(cfg: dict) -> dict:
 
 
 def enabled_tool_names(cfg: dict) -> list[str]:
-    return [name for name, on in cfg["tools"].items() if on]
+    """Outils réellement proposables au modèle.
+
+    Un outil activé dans la config mais INUTILISABLE (dépendance absente) ne
+    doit pas apparaître dans le contexte : sinon le modèle l'appelle, échoue,
+    et gâche un tour. Mieux vaut qu'il ne sache pas qu'il existe et emploie
+    directement write_file / edit_file.
+    """
+    names = [name for name, on in cfg["tools"].items() if on]
+
+    if "code_task" in names:
+        from . import coder
+        if not coder.available():
+            names.remove("code_task")
+
+    return names
