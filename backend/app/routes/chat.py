@@ -17,6 +17,7 @@ import re
 import time
 from contextlib import suppress
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -28,6 +29,7 @@ from .. import router as msg_router
 from ..tools import check_html, _safe_path
 from ..agent import run_agent
 from ..config import settings
+from ..ollama_client import ollama
 
 router = APIRouter(prefix="/api", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -60,6 +62,37 @@ def _apply_mode(cfg: dict, mode: str) -> dict:
         cfg["confirm_shell"] = False
     # "build" : comportement par défaut (inchangé).
     return cfg
+
+
+async def _placement_notice(model: str) -> str | None:
+    """Avertit si le modèle tourne (au moins en partie) hors du GPU.
+
+    C'est LA cause d'un débit ridicule (quelques jetons/s) : Ollama a placé
+    tout ou partie des couches en RAM. Loki ne peut pas le corriger — le
+    placement appartient à Ollama — mais il peut le NOMMER, au lieu de
+    laisser croire à un blocage de l'application.
+    """
+    try:
+        loaded = await ollama.ps()
+    except (httpx.HTTPError, OSError):
+        return None
+
+    for m in loaded:
+        if (m.get("name") or m.get("model")) != model:
+            continue
+        size = m.get("size", 0) or 0
+        vram = m.get("size_vram", 0) or 0
+        if size <= 0 or vram >= size * 0.99:
+            return None
+        pct = int(vram / size * 100)
+        in_ram = (size - vram) / 1e9
+        where = "entièrement en RAM" if pct == 0 else f"{pct} % en VRAM"
+        return (
+            f"⚠️ {model} tourne {where} ({in_ram:.1f} Go hors GPU) : "
+            "le débit sera de quelques jetons par seconde. Réduis le contexte, "
+            "prends un modèle plus petit, ou répartis sur tes GPU côté Ollama."
+        )
+    return None
 
 
 def _loading_message(model: str, seconds: float) -> str:
@@ -420,6 +453,12 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         # Pannes MCP éventuelles : notice non bloquante dans le fil.
         for mcp_notice in mcp_manager.notices():
             yield _sse("notice", {"message": mcp_notice})
+
+        # Placement du modèle : dire tout de suite si l'inférence est hors GPU,
+        # au lieu de laisser l'utilisateur attribuer la lenteur à Loki.
+        placement = await _placement_notice(model)
+        if placement:
+            yield _sse("notice", {"message": placement})
 
         # ── Consignes additionnelles du tour ──────────────────────────────
         # Elles sont COLLECTÉES ici puis fusionnées dans l'UNIQUE message
