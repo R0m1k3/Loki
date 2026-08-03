@@ -9,10 +9,11 @@ import {
   type ToolCall,
 } from "../api/client";
 import { DownloadIcon, TrashIcon } from "../components/Icon";
+import { FileTree } from "../components/FileTree";
 
-type TabId = "preview" | "code" | "logs" | "git";
+type TabId = "preview" | "code" | "files" | "logs" | "git";
 
-/** Panneau droit : onglets Aperçu / Code / Logs. */
+/** Panneau droit : onglets Aperçu / Code / Fichiers / Logs / Git. */
 export function PreviewPanel() {
   const { previewPath, previewContent, messages, streamTools, removeFile } =
     useStore();
@@ -104,6 +105,9 @@ export function PreviewPanel() {
         <Tab active={tab === "code"} onClick={() => setTab("code")}>
           Code
         </Tab>
+        <Tab active={tab === "files"} onClick={() => setTab("files")}>
+          Fichiers
+        </Tab>
         <Tab active={tab === "logs"} onClick={() => setTab("logs")}>
           Logs
           <span className="font-pixel ml-1.5 border border-line bg-accent px-1 py-0.5 text-[8px] text-white">
@@ -160,6 +164,8 @@ export function PreviewPanel() {
       {/* Onglet Git */}
       {tab === "git" ? (
         <GitPanel />
+      ) : tab === "files" ? (
+        <FilesTab />
       ) : /* Onglet Logs (fond sombre) */
       tab === "logs" ? (
         <div className="scr mx-3 mb-3 flex-1 overflow-auto border border-line bg-card-deep p-3 text-[12.5px]">
@@ -236,6 +242,29 @@ export function PreviewPanel() {
 }
 
 /** Onglet Git : historique des commits, diff colorisé, retour arrière. */
+/** Onglet Fichiers : arborescence du workspace, à côté de Code. */
+function FilesTab() {
+  const { fileTree, refreshFiles } = useStore();
+
+  useEffect(() => {
+    refreshFiles();
+  }, [refreshFiles]);
+
+  return (
+    <div className="scr mx-3 mb-3 flex-1 overflow-auto rounded-card border border-line bg-panel p-2">
+      {fileTree.length === 0 ? (
+        <div className="px-2 py-8 text-center text-[13px] text-muted-2">
+          Le workspace est vide.
+          <br />
+          L'agent créera des fichiers ici.
+        </div>
+      ) : (
+        <FileTree nodes={fileTree} />
+      )}
+    </div>
+  );
+}
+
 function GitPanel() {
   const refreshFiles = useStore((s) => s.refreshFiles);
   const currentProject = useStore((s) => s.currentProject);

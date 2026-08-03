@@ -4,7 +4,7 @@ import { TopBar } from "./components/TopBar";
 import { ChatPanel } from "./panels/ChatPanel";
 import { PreviewPanel } from "./panels/PreviewPanel";
 import { SettingsView } from "./panels/SettingsView";
-import { FilesView, HistoryView, ToolsView } from "./panels/ActivityViews";
+import { HistoryView, ToolsView } from "./panels/ActivityViews";
 import { useStore } from "./store/useStore";
 
 export default function App() {
@@ -65,12 +65,6 @@ export default function App() {
           </>
         )}
         {view === "history" && <HistoryView onOpen={() => setView("chat")} />}
-        {view === "files" && (
-          <>
-            <FilesView />
-            <PreviewPanel />
-          </>
-        )}
         {view === "tools" && <ToolsView onSettings={() => setView("settings")} />}
         {view === "settings" && <SettingsView />}
       </div>

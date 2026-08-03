@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { downloadFile, type FileNode } from "../api/client";
-import { DownloadIcon, TrashIcon } from "../components/Icon";
 import { useStore } from "../store/useStore";
 
 export function HistoryView({ onOpen }: { onOpen: () => void }) {
@@ -41,77 +39,6 @@ export function HistoryView({ onOpen }: { onOpen: () => void }) {
         {sessions.length === 0 && <Empty text="Aucune conversation enregistrée." />}
       </div>
     </Page>
-  );
-}
-
-export function FilesView() {
-  const { fileTree, refreshFiles } = useStore();
-
-  useEffect(() => {
-    refreshFiles();
-  }, [refreshFiles]);
-
-  return (
-    <Page title="Fichiers" subtitle="Workspace créé et modifié par l’agent.">
-      <div className="border border-line bg-panel p-3 shadow-hard">
-        {fileTree.length ? <WorkspaceTree nodes={fileTree} depth={0} /> : <Empty text="Le workspace est vide." />}
-      </div>
-    </Page>
-  );
-}
-
-function WorkspaceTree({ nodes, depth }: { nodes: FileNode[]; depth: number }) {
-  const { openPreview, previewPath, removeFile, currentProject } = useStore();
-  const confirmDelete = (node: FileNode) => {
-    const msg =
-      node.type === "dir"
-        ? `Supprimer le dossier ${node.path} et tout son contenu ?`
-        : `Supprimer ${node.path} ?`;
-    if (window.confirm(msg)) void removeFile(node.path);
-  };
-  return (
-    <>
-      {nodes.map((node) => (
-        <div key={node.path}>
-          <div
-            className={`mb-1 flex items-center gap-2 border px-3 py-2 ${
-              node.path === previewPath
-                ? "border-accent bg-card-deep text-ink"
-                : "border-line bg-card text-ink-2"
-            }`}
-            style={{ marginLeft: depth * 18 }}
-          >
-            <button
-              onClick={() => node.type === "file" && openPreview(node.path)}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-              <span>{node.type === "dir" ? "▾" : "▪"}</span>
-              <span className="truncate">{node.name}</span>
-              {node.size !== undefined && (
-                <span className="ml-auto text-[11px] text-muted-2">{formatSize(node.size)}</span>
-              )}
-            </button>
-            {node.type === "file" && (
-              <button
-                onClick={() => downloadFile(node.path, currentProject())}
-                className="flex items-center gap-1 border border-line bg-base px-2 py-1 text-[11px] text-accent"
-                title={`Télécharger ${node.name}`}
-              >
-                <DownloadIcon size={12} /> Télécharger
-              </button>
-            )}
-            <button
-              onClick={() => confirmDelete(node)}
-              className="flex items-center gap-1 border border-line bg-base px-2 py-1 text-[11px] text-warn"
-              title={`Supprimer ${node.name}`}
-            >
-              <TrashIcon size={12} /> Supprimer
-            </button>
-          </div>
-          {node.children && <WorkspaceTree nodes={node.children} depth={depth + 1} />}
-        </div>
-      ))}
-    </>
   );
 }
 
@@ -165,8 +92,3 @@ function Empty({ text }: { text: string }) {
   return <div className="border border-line bg-card p-8 text-center text-muted-2">{text}</div>;
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
-}

@@ -2,20 +2,24 @@ import { useStore } from "../store/useStore";
 import {
   ChatIcon,
   ClockIcon,
-  FilesIcon,
   LokiMark,
   NodesIcon,
+  PlusIcon,
   SettingsIcon,
 } from "./Icon";
 
-export type View = "chat" | "history" | "files" | "tools" | "settings";
+export type View = "chat" | "history" | "tools" | "settings";
 
+// Les fichiers ne sont plus une vue : ils vivent dans l'onglet « Fichiers »
+// du panneau droit, à côté de Code.
 const NAV: { id: View; label: string; icon: React.ReactNode }[] = [
-  { id: "chat", label: "Demander", icon: <ChatIcon /> },
+  { id: "chat", label: "Discussion", icon: <ChatIcon /> },
   { id: "history", label: "Historique", icon: <ClockIcon /> },
-  { id: "files", label: "Fichiers", icon: <FilesIcon /> },
   { id: "tools", label: "Outils", icon: <NodesIcon /> },
 ];
+
+/** Nombre de discussions récentes listées sous « Discussion ». */
+const RECENT = 5;
 
 /** Barre latérale (264 px) : marque, navigation, état Ollama, compte. */
 export function Sidebar({
@@ -25,8 +29,28 @@ export function Sidebar({
   active: View;
   onChange: (v: View) => void;
 }) {
-  const { status, selectedModel, systemStats } = useStore();
+  const {
+    status,
+    selectedModel,
+    systemStats,
+    sessions,
+    currentSessionId,
+    streamingSessionId,
+    newSession,
+    openSession,
+  } = useStore();
   const gpu = systemStats?.gpu ?? null;
+  const recent = sessions.slice(0, RECENT);
+
+  const startChat = () => {
+    void newSession();
+    onChange("chat");
+  };
+
+  const pick = (id: string) => {
+    void openSession(id);
+    onChange("chat");
+  };
 
   return (
     <aside className="flex w-[264px] flex-none flex-col border-r border-line bg-panel px-3.5 py-4">
@@ -42,7 +66,48 @@ export function Sidebar({
       <div className="mx-1.5 mb-3.5 h-px bg-line" />
 
       <nav className="flex flex-col gap-[3px]">
-        {NAV.map((it) => (
+        <NavItem
+          id="chat"
+          label={NAV[0].label}
+          icon={NAV[0].icon}
+          active={active === "chat"}
+          onClick={() => onChange("chat")}
+        />
+
+        {/* Discussions récentes, directement sous « Discussion ». */}
+        <div className="mb-1 ml-2 flex flex-col gap-px border-l border-line pl-2">
+          <button
+            onClick={startChat}
+            className="flex items-center gap-1.5 rounded-card px-2 py-1.5 text-left text-[13px] text-accent hover:bg-accent-ghost"
+          >
+            <PlusIcon />
+            Nouvelle discussion
+          </button>
+          {recent.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => pick(s.id)}
+              title={s.title}
+              className={`flex items-center gap-1.5 truncate rounded-card px-2 py-1.5 text-left text-[13px] ${
+                s.id === currentSessionId
+                  ? "bg-accent-ghost text-ink"
+                  : "text-muted hover:bg-accent-ghost hover:text-ink"
+              }`}
+            >
+              <span className="min-w-0 flex-1 truncate">{s.title}</span>
+              {s.id === streamingSessionId && (
+                <span className="h-1.5 w-1.5 flex-none rounded-full bg-accent" />
+              )}
+            </button>
+          ))}
+          {recent.length === 0 && (
+            <span className="px-2 py-1.5 text-[12.5px] text-muted-3">
+              Aucune discussion
+            </span>
+          )}
+        </div>
+
+        {NAV.slice(1).map((it) => (
           <NavItem
             key={it.id}
             {...it}
