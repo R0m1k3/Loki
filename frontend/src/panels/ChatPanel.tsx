@@ -84,14 +84,10 @@ export function ChatPanel() {
       {/* Messages */}
       <div ref={scrollRef} className="scr flex-1 overflow-auto px-7 py-6">
         {empty ? (
-          <div className="mx-auto flex max-w-[680px] flex-col items-center justify-center gap-4 pt-24 text-center">
-            <LokiMark size={48} />
-            <div className="font-pixel text-[15px] text-ink">PRÊT À TRAVAILLER</div>
-            <div className="max-w-[380px] text-[14px] leading-relaxed text-muted">
-              Décris une tâche à l'agent. Outils fichiers et aperçu en direct
-              disponibles.
-            </div>
-          </div>
+          <Welcome
+            sessionCount={sessions.length}
+            onPick={(text) => setDraft(text)}
+          />
         ) : (
           <div className="mx-auto flex max-w-[680px] flex-col gap-5">
             {messages.map((m) => (
@@ -170,6 +166,62 @@ export function ChatPanel() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Pistes proposées sur l'écran d'accueil (maquette « Loki App »). */
+const STARTERS = [
+  ["📄", "Résumer un dossier", "Résume le contenu du dossier "],
+  ["🐞", "Corriger un bug", "Corrige le bug suivant : "],
+  ["✏️", "Refactorer un fichier", "Refactore le fichier "],
+  ["⌨️", "Écrire un script", "Écris un script qui "],
+  ["🔍", "Chercher dans le code", "Cherche dans le code "],
+  ["📊", "Analyser un CSV", "Analyse le fichier CSV "],
+  ["🌿", "Préparer un commit", "Prépare un commit pour "],
+  ["📥", "Générer un rapport", "Génère un rapport sur "],
+] as const;
+
+/** Écran d'accueil : accroche, pistes cliquables, renvoi vers l'historique. */
+function Welcome({
+  sessionCount,
+  onPick,
+}: {
+  sessionCount: number;
+  onPick: (text: string) => void;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-7 py-10 text-center">
+      <LokiMark size={44} />
+      <h1 className="mt-6 text-[34px] font-medium text-ink">
+        Bienvenue dans Loki
+      </h1>
+      <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-muted">
+        Choisissez une piste ci-dessous, ou écrivez directement votre demande.
+        Tout s'exécute sur cette machine, aucune donnée ne sort.
+      </p>
+
+      <div className="mt-8 flex max-w-[760px] flex-wrap justify-center gap-2.5">
+        {STARTERS.map(([icon, label, prefill]) => (
+          <button
+            key={label}
+            onClick={() => onPick(prefill)}
+            className="flex items-center gap-2 whitespace-nowrap rounded-full border border-line px-3.5 py-2 text-[13.5px] text-ink-2 hover:border-accent hover:bg-accent-ghost"
+          >
+            <span aria-hidden>{icon}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {sessionCount > 0 && (
+        <div className="mt-9 flex items-center gap-3 text-[12.5px] text-muted-3">
+          <span className="h-px w-11 bg-line" />
+          {sessionCount} conversation{sessionCount > 1 ? "s" : ""} enregistrée
+          {sessionCount > 1 ? "s" : ""} localement
+          <span className="h-px w-11 bg-line" />
+        </div>
+      )}
     </div>
   );
 }
