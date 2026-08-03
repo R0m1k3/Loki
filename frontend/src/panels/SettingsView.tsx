@@ -627,9 +627,13 @@ function HardwareCard() {
   const [hw, setHw] = useState<HardwareInfo | null>(null);
 
   const refresh = () => getHardware().then(setHw).catch(() => {});
+  // 15 s et rien quand l'onglet est caché : chaque appel lance nvidia-smi côté
+  // serveur. Le bouton ↻ reste là pour un rafraîchissement immédiat.
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 5000);
+    const id = setInterval(() => {
+      if (!document.hidden) refresh();
+    }, 15000);
     return () => clearInterval(id);
   }, []);
 

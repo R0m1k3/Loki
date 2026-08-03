@@ -18,8 +18,12 @@ _NVIDIA_SMI = shutil.which("nvidia-smi")
 
 # Cache court : le front interroge /stats en continu ; relancer un sous-processus
 # nvidia-smi à chaque tick charge la machine qui héberge aussi Ollama.
-_GPU_CACHE_TTL = 5.0
+# TTL volontairement > à la cadence de sondage, sinon le cache n'absorbe rien.
+_GPU_CACHE_TTL = 12.0
 _gpu_cache: dict = {"at": 0.0, "value": None}
+# Même logique pour la vue matériel (sous-processus nvidia-smi plus lourd).
+_HW_CACHE_TTL = 12.0
+_hw_cache: dict = {"at": 0.0, "value": None}
 
 
 async def _gpu_stats() -> dict | None:
@@ -69,10 +73,80 @@ async def stats() -> dict:
     }
 
 
+# Battement groupé : absorbe les rafales (plusieurs onglets, reconnexions)
+# sans multiplier les sous-processus ni les connexions vers Ollama.
+_PULSE_TTL = 2.5
+_pulse_cache: dict = {"at": 0.0, "value": None}
+
+
+async def _loaded_models() -> list[dict]:
+    """Modèles chargés en mémoire + placement GPU (vide si Ollama muet)."""
+    try:
+        loaded = await ollama.ps()
+    except (httpx.HTTPError, OSError):
+        return []
+    out = []
+    for m in loaded:
+        size = m.get("size", 0) or 0
+        vram = m.get("size_vram", 0) or 0
+        out.append({
+            "name": m.get("name") or m.get("model"),
+            "on_gpu": bool(size and vram >= size * 0.99),
+            "gpu_percent": int(vram / size * 100) if size else 0,
+        })
+    return out
+
+
+@router.get("/pulse")
+async def pulse() -> dict:
+    """Battement unique : statut Ollama + ressources + modèles chargés.
+
+    Remplace trois sondages séparés (statut, stats, modèles chargés) par UNE
+    requête : moins de réveils, moins de sous-processus et moins de connexions
+    vers Ollama quand l'application est simplement ouverte sans être utilisée.
+    """
+    if time.monotonic() - _pulse_cache["at"] < _PULSE_TTL and _pulse_cache["value"]:
+        return _pulse_cache["value"]
+
+    # Les deux appels Ollama partent ensemble : latence = le plus lent, pas la
+    # somme (important quand Ollama est sur une autre machine).
+    version, loaded = await asyncio.gather(
+        ollama.ping(), _loaded_models(), return_exceptions=True
+    )
+    connected = not isinstance(version, BaseException)
+
+    mem = psutil.virtual_memory()
+    value = {
+        "status": {
+            "connected": connected,
+            "host": ollama.host,
+            "version": version.get("version") if connected else None,
+            "default_model": settings.default_model,
+            **({} if connected else {"error": str(version)[:200]}),
+        },
+        "stats": {
+            "cpu_pct": psutil.cpu_percent(interval=None),
+            "ram_used_go": round(mem.used / 1_000_000_000, 1),
+            "ram_total_go": round(mem.total / 1_000_000_000, 1),
+            "ram_pct": mem.percent,
+            "gpu": await _gpu_stats(),
+        },
+        "loaded": [] if isinstance(loaded, BaseException) else loaded,
+    }
+    _pulse_cache.update(at=time.monotonic(), value=value)
+    return value
+
+
 async def _all_local_gpus() -> list[dict]:
-    """Tous les GPU NVIDIA visibles depuis le CONTENEUR Loki (peut être vide)."""
+    """Tous les GPU NVIDIA visibles depuis le CONTENEUR Loki (peut être vide).
+
+    Mis en cache : le panneau Matériel se rafraîchit en continu tant qu'il est
+    ouvert, et chaque appel lançait un sous-processus nvidia-smi.
+    """
     if not _NVIDIA_SMI:
         return []
+    if time.monotonic() - _hw_cache["at"] < _HW_CACHE_TTL:
+        return _hw_cache["value"] or []
     try:
         proc = await asyncio.create_subprocess_exec(
             _NVIDIA_SMI,
@@ -90,8 +164,10 @@ async def _all_local_gpus() -> list[dict]:
                 "vram_total_mb": float(total), "vram_used_mb": float(used),
                 "util_pct": float(util),
             })
+        _hw_cache.update(at=time.monotonic(), value=gpus)
         return gpus
     except Exception:
+        _hw_cache.update(at=time.monotonic(), value=[])
         return []
 
 

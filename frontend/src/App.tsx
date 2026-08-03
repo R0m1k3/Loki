@@ -10,33 +10,48 @@ import { useStore } from "./store/useStore";
 
 export default function App() {
   const [view, setView] = useState<View>("chat");
-  const {
-    refreshStatus,
-    refreshSystemStats,
-    refreshModels,
-    refreshLoadedModels,
-    refreshSessions,
-  } = useStore();
+  const { refreshPulse, refreshModels, refreshSessions } = useStore();
 
-  // Au démarrage : statut Ollama + modèles + sessions. La config est chargée
-  // par setSelectedModel (via refreshModels) — pas de double fetch. Poll du
-  // statut, des stats système (5 s, apparié au cache GPU serveur) et des
-  // modèles chargés en VRAM (indicateur de préchargement).
+  // Sondage frugal. Trois principes, contre l'app qui chauffait le CPU à vide :
+  //   - UNE seule requête groupée (/api/system/pulse) au lieu de trois ;
+  //   - RIEN quand l'onglet est caché (l'utilisateur ne regarde pas) ;
+  //   - cadence adaptative : réactif pendant le travail, lent au repos.
+  // Le serveur, lui, ne tourne jamais en boucle : sans navigateur, zéro CPU.
   useEffect(() => {
-    refreshStatus();
-    refreshSystemStats();
+    refreshPulse();
     refreshModels();
-    refreshLoadedModels();
     refreshSessions();
-    const statusId = setInterval(refreshStatus, 10000);
-    const statsId = setInterval(refreshSystemStats, 5000);
-    const loadedId = setInterval(refreshLoadedModels, 8000);
-    return () => {
-      clearInterval(statusId);
-      clearInterval(statsId);
-      clearInterval(loadedId);
+
+    let timer: number | undefined;
+    const tick = () => {
+      // Onglet caché : on ne sonde pas du tout, on repassera au retour.
+      if (document.hidden) return schedule();
+      refreshPulse().finally(schedule);
     };
-  }, [refreshStatus, refreshSystemStats, refreshModels, refreshLoadedModels, refreshSessions]);
+    const schedule = () => {
+      if (document.hidden) {
+        timer = window.setTimeout(schedule, 30000);
+        return;
+      }
+      // Pendant un flux, les indicateurs (VRAM, GPU) doivent suivre.
+      const busy = useStore.getState().streaming;
+      timer = window.setTimeout(tick, busy ? 4000 : 20000);
+    };
+    schedule();
+
+    // Retour sur l'onglet : rafraîchit tout de suite plutôt que d'attendre.
+    const onVisible = () => {
+      if (!document.hidden) {
+        window.clearTimeout(timer);
+        tick();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refreshPulse, refreshModels, refreshSessions]);
 
   return (
     <div className="flex h-full flex-col bg-base text-ink">

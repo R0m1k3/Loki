@@ -41,6 +41,19 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.json();
 }
 
+/** Battement groupé : statut + ressources + modèles chargés en UNE requête. */
+export interface Pulse {
+  status: OllamaStatus;
+  stats: SystemStats;
+  loaded: LoadedModel[];
+}
+
+export async function getPulse(): Promise<Pulse> {
+  const res = await fetch("/api/system/pulse");
+  if (!res.ok) throw new Error(`pulse ${res.status}`);
+  return res.json();
+}
+
 // ── Git du workspace ─────────────────────────────────────────────────────
 export interface GitCommit {
   hash: string;

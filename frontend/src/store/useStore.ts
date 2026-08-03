@@ -11,6 +11,7 @@ import {
   getStatus,
   getSystemStats,
   getLoadedModels,
+  getPulse,
   warmModel,
   fileContent,
   listFiles,
@@ -71,6 +72,7 @@ interface LokiState {
   refreshStatus: () => Promise<void>;
   refreshSystemStats: () => Promise<void>;
   refreshLoadedModels: () => Promise<void>;
+  refreshPulse: () => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshFiles: () => Promise<void>;
 
@@ -259,6 +261,21 @@ export const useStore = create<LokiState>((set, get) => ({
 
   refreshLoadedModels: async () => {
     set({ loadedModels: await getLoadedModels() });
+  },
+
+  // Sondage unique (statut + ressources + modèles chargés). Une seule requête
+  // au lieu de trois, et une seule mise à jour du store : moins de réveils
+  // navigateur et moins de rendus React quand l'app est ouverte à vide.
+  refreshPulse: async () => {
+    try {
+      const { status, stats, loaded } = await getPulse();
+      set({ status, systemStats: stats, loadedModels: loaded });
+    } catch {
+      set({
+        status: { connected: false, host: "", default_model: "" },
+        systemStats: null,
+      });
+    }
   },
 
   refreshModels: async () => {
