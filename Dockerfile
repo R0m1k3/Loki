@@ -27,6 +27,10 @@ ARG CUDA_ARCHS=75;86;89
 RUN git clone --depth 1 --branch "${LLAMACPP_REF}" \
         https://github.com/ggml-org/llama.cpp /src/llama.cpp
 
+# --allow-shlib-undefined : pas de GPU (donc pas de libcuda.so.1) sur le
+# builder — l'API driver (cuMemCreate…) reste non résolue au link et sera
+# fournie à l'exécution par le runtime NVIDIA. Même parade que le
+# cuda.Dockerfile officiel de llama.cpp.
 RUN cmake -S /src/llama.cpp -B /src/llama.cpp/build \
         -DCMAKE_BUILD_TYPE=Release \
         -DGGML_CUDA=ON \
@@ -38,6 +42,7 @@ RUN cmake -S /src/llama.cpp -B /src/llama.cpp/build \
         -DLLAMA_BUILD_EXAMPLES=OFF \
         -DLLAMA_BUILD_UI=OFF \
         -DLLAMA_USE_PREBUILT_UI=OFF \
+        -DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined \
     && cmake --build /src/llama.cpp/build --target llama-server -j"$(nproc)" \
     && mkdir -p /opt/llama.cpp \
     && find /src/llama.cpp/build -name 'llama-server' -type f -exec cp {} /opt/llama.cpp/ \; \
