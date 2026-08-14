@@ -1,0 +1,52 @@
+# Build macOS à la demande, SANS rien publier : produit AJEAN.app en artifact
+# téléchargeable depuis l'onglet Actions (visible seulement par le dépôt).
+# Sert à tester le bundle avant de décider d'une vraie release (release.yml).
+name: mac-build
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build + bundle AJEAN.app (arm64)
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" -o dist/ajean-macos-arm ./cmd/ajean
+          mkdir -p /tmp/ajean.iconset
+          sips -s format png 'cmd/ajean/icon.ico' --out /tmp/icon.png >/dev/null 2>&1 || true
+          for s in 16 32 128 256 512; do
+            sips -z $s $s /tmp/icon.png --out "/tmp/ajean.iconset/icon_${s}x${s}.png" >/dev/null 2>&1 || true
+          done
+          iconutil -c icns /tmp/ajean.iconset -o /tmp/ajean.icns >/dev/null 2>&1 || true
+          app="dist/AJEAN.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp dist/ajean-macos-arm "$app/Contents/MacOS/ajean"
+          chmod +x "$app/Contents/MacOS/ajean"
+          cp /tmp/ajean.icns "$app/Contents/Resources/ajean.icns" 2>/dev/null || true
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0"><dict>' \
+            '<key>CFBundleName</key><string>AJEAN</string>' \
+            '<key>CFBundleDisplayName</key><string>AJEAN</string>' \
+            '<key>CFBundleExecutable</key><string>ajean</string>' \
+            '<key>CFBundleIdentifier</key><string>link.ajean.app</string>' \
+            '<key>CFBundleIconFile</key><string>ajean</string>' \
+            '<key>CFBundlePackageType</key><string>APPL</string>' \
+            '<key>LSMinimumSystemVersion</key><string>11.0</string>' \
+            '<key>LSUIElement</key><true/>' \
+            '<key>NSHighResolutionCapable</key><true/>' \
+            '</dict></plist>' > "$app/Contents/Info.plist"
+          codesign --force --deep -s - "$app" || true
+          (cd dist && zip -qry ajean-macos-arm.zip AJEAN.app && rm -rf AJEAN.app)
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ajean-macos-arm
+          path: dist/ajean-macos-arm.zip
