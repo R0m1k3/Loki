@@ -1,0 +1,38 @@
+# Loki — fork conteneurisé d'AJEAN (https://github.com/nathaninline/ajean, MIT)
+# Un seul service : le conteneur embarque le moteur llama.cpp (CUDA) ET l'UI.
+#
+#   cp .env.example .env      # ajuste si besoin
+#   docker compose up --build # build local (30-45 min : compilation CUDA)
+#
+# Interface : http://localhost:8090
+# Pré-requis GPU : NVIDIA Container Toolkit sur l'hôte.
+services:
+  loki:
+    build:
+      context: .
+      args:
+        # Restreins à ta carte pour un build plus court : 75=Turing (GTX 16xx/RTX 20xx),
+        # 86=Ampere (RTX 30xx), 89=Ada (RTX 40xx).
+        CUDA_ARCHS: ${CUDA_ARCHS:-75;86;89}
+    container_name: loki
+    ports:
+      - "${LOKI_WEB_PORT:-8090}:${LOKI_WEB_PORT:-8090}"
+    environment:
+      - LOKI_WEB_PORT=${LOKI_WEB_PORT:-8090}
+      # Semé UNE fois au premier démarrage (modifiable ensuite dans l'UI) :
+      - LOKI_MODEL=${LOKI_MODEL:-}
+      - LOKI_CTX=${LOKI_CTX:-}
+      - LOKI_NGL=${LOKI_NGL:-}
+    volumes:
+      # /data = LOKI_HOME : config, base bbolt, mémoire, workspace, modèles téléchargés
+      - ./data:/data
+      # /models : dossier(s) de modèles GGUF supplémentaires (LOKI_MODEL_DIRS)
+      - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    restart: unless-stopped

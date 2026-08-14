@@ -1,0 +1,42 @@
+# ───────────────────────────────────────────────────────────────────────────
+# Loki — docker-compose pour Unraid (image préconstruite par GitHub Actions)
+#
+# Loki est un fork conteneurisé d'AJEAN (github.com/nathaninline/ajean, MIT) :
+# moteur llama.cpp CUDA + interface web dans UN conteneur autonome.
+# Aucun build ni git nécessaire sur Unraid — l'image est publiée sur GHCR à
+# chaque push sur main.
+#
+# MISE EN PLACE :
+#   1) Plugin « Nvidia Driver » (Apps) installé, GPU visible (nvidia-smi).
+#   2) Crée les dossiers de données (terminal Unraid) :
+#        mkdir -p /mnt/user/appdata/loki/data /mnt/user/appdata/loki/models
+#   3) Plugin « Compose Manager » -> nouvelle stack -> colle ce fichier.
+#   4) Compose Up. Interface : http://<ip-unraid>:8090
+#
+#   Les modèles se téléchargent directement depuis l'UI (catalogue intégré),
+#   ou dépose tes .gguf dans /mnt/user/appdata/loki/models.
+#
+#   Mise à jour : Compose Down puis Up avec « pull image », ou
+#   « docker compose pull » avant Up.
+# ───────────────────────────────────────────────────────────────────────────
+services:
+  loki:
+    image: ghcr.io/r0m1k3/loki:latest
+    container_name: loki
+    runtime: nvidia
+    ports:
+      # Pour changer de port : modifie 8090 à gauche ET LOKI_WEB_PORT… ou
+      # seulement à gauche (ex. "8717:8090") si tu veux garder l'ancien port.
+      - "8090:8090"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      # Optionnel : modèle initial (sinon, choisis-le dans l'UI au premier
+      # lancement). Ex. LOKI_MODEL=Qwen3-14B-Q4_K_M.gguf après dépôt du
+      # fichier dans /mnt/user/appdata/loki/models.
+      - LOKI_MODEL=
+    volumes:
+      # /data : config, base, mémoire, workspace, modèles téléchargés par l'UI
+      - /mnt/user/appdata/loki/data:/data
+      # /models : dossier de .gguf déposés à la main (gros fichiers)
+      - /mnt/user/appdata/loki/models:/models
+    restart: unless-stopped

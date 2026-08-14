@@ -54,6 +54,8 @@ func Main() {
 		mustExit(serviceLogs())
 	case "edit":
 		mustExit(editConfig())
+	case "config":
+		mustExit(cmdConfigKV(args))
 	case "set-api-key":
 		mustExit(cmdSetAPIKey(args))
 	case "set-web-key":

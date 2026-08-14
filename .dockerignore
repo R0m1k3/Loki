@@ -1,0 +1,10 @@
+.git
+.github
+data/
+models/
+docs/
+dist/
+*.md
+!README.md
+.env
+.env.*
