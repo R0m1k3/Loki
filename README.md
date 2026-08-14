@@ -38,8 +38,9 @@ chiffré — serveur d'inférence llama.cpp compris, dans une seule image.
 Pré-requis : pilote NVIDIA + [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
-cp .env.example .env    # CUDA_ARCHS=86 pour une RTX 30xx, etc.
-docker compose up --build   # 30-45 min : compilation CUDA de llama.cpp
+cp .env.example .env
+docker compose up --build   # quelques minutes : llama-server vient précompilé
+                            # de l'image officielle llama.cpp (server-cuda)
 ```
 
 Interface : http://localhost:8090 — télécharge un modèle depuis le catalogue
@@ -96,7 +97,7 @@ En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 | | AJEAN (amont) | Loki (ce fork) |
 |---|---|---|
 | Installation | binaire + `sudo ajean install` (systemd) | `docker compose up` |
-| Moteur llama.cpp | compilé sur la machine (`ajean llamacpp install`) | précompilé CUDA dans l'image |
+| Moteur llama.cpp | compilé sur la machine (`ajean llamacpp install`) | image officielle llama.cpp (`server-cuda`), précompilée |
 | Supervision moteur | systemd / launchd / PID (Windows) | fichier PID (`LOKI_CONTAINER=1`) |
 | Configuration initiale | `ajean edit` ($EDITOR) | entrypoint + `loki config set` |
 | Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
@@ -108,12 +109,22 @@ les évolutions de l'amont :
 git fetch upstream && git merge upstream/main   # conflits de renommage à arbitrer
 ```
 
-## Build sans GPU / autres accélérateurs
+## Build sans GPU / autres accélérateurs / version épinglée
 
-L'image par défaut cible CUDA. Pour un essai CPU, remplace dans le
-`Dockerfile` les bases `nvidia/cuda:*` par `ubuntu:24.04` et retire les flags
-`-DGGML_CUDA=*` (llama.cpp bascule en CPU). Vulkan/ROCm : adapter les flags
-comme le fait l'amont (`internal/loki/backend_build.go`).
+L'image Loki se construit **au-dessus de l'image serveur officielle de
+llama.cpp**, choisie par le build-arg `LLAMACPP_IMAGE` :
+
+```bash
+# CPU seul (test sans GPU)
+docker build --build-arg LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server .
+# Vulkan (GPU AMD/Intel/NVIDIA sans CUDA)
+docker build --build-arg LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server-vulkan .
+# Version de llama.cpp épinglée (reproductible)
+docker build --build-arg LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server-cuda-b10423 .
+```
+
+Aucune compilation de llama.cpp n'a lieu : le moteur est maintenu et
+précompilé par l'équipe amont (toutes architectures GPU courantes).
 
 ## Licence
 

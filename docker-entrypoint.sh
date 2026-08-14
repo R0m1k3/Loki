@@ -6,9 +6,10 @@ set -eu
 : "${LOKI_HOME:=/data}"
 mkdir -p "$LOKI_HOME"
 
-# Le chemin du moteur est imposé par l'image : on le (re)pose à chaque boot,
+# Le chemin du moteur est imposé par l'image (llama-server précompilé de
+# l'image officielle llama.cpp, dans /app) : on le (re)pose à chaque boot,
 # une mise à jour de l'image ne doit pas laisser un BIN obsolète en base.
-loki config set "BIN=/opt/llama.cpp/llama-server"
+loki config set "BIN=/app/llama-server"
 
 # Les autres clés ne sont semées QUE si absentes : ce que l'utilisateur règle
 # ensuite dans l'UI (modèle, contexte…) est conservé d'un redémarrage à l'autre.
