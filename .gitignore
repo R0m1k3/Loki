@@ -1,27 +1,15 @@
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-*.egg-info/
+# Binaires compilés
+/loki
+/loki.exe
+/dist/
 
-# Node
-node_modules/
-frontend/dist/
-.vite/
+# Artefacts de build Go
+*.exe
+*.test
+*.out
 
-# Data & workspace (runtime)
-data/*.db
-data/*.sqlite3
-workspace/*
-!workspace/.gitkeep
-
-# Env / IDE
-.env
-.env.local
+# OS / éditeurs
 .DS_Store
+Thumbs.db
 .idea/
 .vscode/
-
-# TS build cache
-frontend/tsconfig.tsbuildinfo

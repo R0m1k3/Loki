@@ -1,0 +1,138 @@
+# Release : sur tag vX.Y.Z, compile les 6 cibles et publie la release GitHub
+# avec les binaires (loki-linux, loki-macos, loki-windows.exe et leurs
+# variantes -arm) ET le fichier SHA256SUMS que `loki update` vérifie avant
+# d'installer. Ces noms doivent rester en phase avec assetNameFor (sys_update.go),
+# sinon plus aucune machine ne se met à jour.
+# ⚠️ NE PAS uploader de binaires à la main en plus : ce workflow écrase les
+# assets du même nom (softprops remplace), et des sommes qui ne correspondent
+# plus aux binaires font échouer `loki update` (vécu sur v0.4.7).
+#
+# Deux jobs de build : macOS a besoin d'un vrai runner Apple (l'icône de barre de
+# menus passe par Cocoa → CGO, pas cross-compilable depuis Linux) ; Linux et
+# Windows restent CGO_ENABLED=0 sur ubuntu.
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build macOS (CGO, arm64 + amd64)
+        run: |
+          mkdir -p dist
+          # arm64 = natif ; amd64 = cross avec le SDK universel (-arch x86_64).
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" -o dist/loki-macos-arm ./cmd/loki
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+            CGO_CFLAGS="-arch x86_64" CGO_LDFLAGS="-arch x86_64" \
+            go build -trimpath -ldflags="-s -w" -o dist/loki-macos ./cmd/loki
+          file dist/loki-macos*
+      - name: bundles Loki.app
+        run: |
+          # Un binaire nu double-cliqué ouvrirait le Terminal. On publie donc
+          # aussi un vrai bundle Loki.app (zippé pour garder le bit exécutable) :
+          # au clic, le Finder lance Contents/MacOS/loki, qui détecte le bundle
+          # et bascule en mode « application » (UI web + navigateur + icône dans
+          # la barre de menus), comme le double-clic sur loki.exe sous Windows.
+          # LSUIElement : app de barre de menus, aucune icône dans le Dock.
+          # L'icône part du PNG 1024 généré avec le reste de la marque
+          # (cmd/loki/icon.png, voir tools/gen-icon) : plus de conversion depuis
+          # le .ico, dont l'échec silencieux donnait une app sans icône.
+          mkdir -p /tmp/loki.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s 'cmd/loki/icon.png' --out "/tmp/loki.iconset/icon_${s}x${s}.png" >/dev/null
+          done
+          iconutil -c icns /tmp/loki.iconset -o /tmp/loki.icns
+          v="${GITHUB_REF_NAME#v}"
+          for bin in loki-macos loki-macos-arm; do
+            app="dist/bundle-$bin/Loki.app"
+            mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+            cp "dist/$bin" "$app/Contents/MacOS/loki"
+            chmod +x "$app/Contents/MacOS/loki"
+            cp /tmp/loki.icns "$app/Contents/Resources/loki.icns" 2>/dev/null || true
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0"><dict>' \
+              '<key>CFBundleName</key><string>Loki</string>' \
+              '<key>CFBundleDisplayName</key><string>Loki</string>' \
+              '<key>CFBundleExecutable</key><string>loki</string>' \
+              '<key>CFBundleIdentifier</key><string>link.loki.app</string>' \
+              '<key>CFBundleIconFile</key><string>loki</string>' \
+              '<key>CFBundlePackageType</key><string>APPL</string>' \
+              "<key>CFBundleShortVersionString</key><string>$v</string>" \
+              "<key>CFBundleVersion</key><string>$v</string>" \
+              '<key>LSMinimumSystemVersion</key><string>11.0</string>' \
+              '<key>LSUIElement</key><true/>' \
+              '<key>NSHighResolutionCapable</key><true/>' \
+              '</dict></plist>' > "$app/Contents/Info.plist"
+            # Signature ad-hoc : sans elle, macOS refuse purement et simplement
+            # de lancer un binaire arm64 non signé (pas juste un avertissement).
+            codesign --force --deep -s - "$app" || true
+            (cd "dist/bundle-$bin" && zip -qry "../$bin.zip" Loki.app)
+            rm -rf "dist/bundle-$bin"
+          done
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+
+  release:
+    needs: macos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build Linux + Windows
+        run: |
+          mkdir -p dist
+          # Noms d'asset : loki-<os>[-arm][.exe]. Volontairement lisibles, et
+          # volontairement DIFFÉRENTS du schéma loki-<GOOS>-<GOARCH> des 0.7 :
+          # leur mise à jour automatique ne trouve alors aucun asset et échoue
+          # sans rien remplacer, au lieu d'installer un binaire 0.8 sur une
+          # machine encore agencée en 0.7 (voir updateAssetName, sys_update.go).
+          for t in linux/amd64:loki-linux linux/arm64:loki-linux-arm \
+                   windows/amd64:loki-windows.exe windows/arm64:loki-windows-arm.exe; do
+            target=${t%%:*}; name=${t#*:}
+            os=${target%/*}; arch=${target#*/}; ldflags="-s -w"
+            # Windows : sous-système CONSOLE, pour que `cmd` attende la fin du
+            # programme et que redirections, tubes et commandes interactives
+            # fonctionnent. La console créée au double-clic est refermée par le
+            # programme lui-même (voir setupConsole, sys_console_windows.go).
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
+              go build -trimpath -ldflags="$ldflags" -o "dist/$name" ./cmd/loki
+          done
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: dist
+      - name: SHA256SUMS
+        run: |
+          chmod +x dist/loki-macos dist/loki-macos-arm
+          # Tous les assets commencent par « loki- », zips compris : un seul
+          # motif suffit. Ajouter « *.zip » les compterait DEUX fois, et un
+          # SHA256SUMS à doublons est exactement ce que `loki update` vérifie.
+          (cd dist && sha256sum loki-* > SHA256SUMS)
+          ls -l dist && cat dist/SHA256SUMS
+      - name: publier la release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          # Notes rédigées à la main, versionnées avec le code : le tag emporte
+          # donc ses notes, au lieu de publier une liste de commits auto-générée
+          # qu'il fallait ensuite remplacer à la main dans l'interface GitHub.
+          # ⚠️ Réécrire RELEASE_NOTES.md AVANT de poser le tag.
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false

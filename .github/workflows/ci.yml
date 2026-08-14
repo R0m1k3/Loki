@@ -1,0 +1,51 @@
+# CI : build + vet + gofmt + tests sur chaque push/PR.
+name: ci
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
+      # staticcheck : le projet est à zéro avertissement, et doit le rester.
+      # Les règles écartées et leur raison vivent dans staticcheck.conf.
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      - name: cross-compile (cibles release Linux + Windows)
+        run: |
+          # darwin n'est pas ici : depuis v0.5.4 l'icône de barre de menus passe
+          # par Cocoa (CGO) → les cibles macOS se compilent sur un runner Apple
+          # (job « macos » ci-dessous, comme dans release.yml).
+          for t in linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -o /dev/null ./cmd/loki
+          done
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      # Les tests tournent AUSSI ici : certains chemins ne s'exécutent que sur un
+      # vrai système de fichiers Unix (extraction des liens symboliques des
+      # archives llama.cpp, que Windows résout par une copie de repli).
+      - run: go test ./...
+      - name: build macOS (CGO, arm64 + amd64)
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o /dev/null ./cmd/loki
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+            CGO_CFLAGS="-arch x86_64" CGO_LDFLAGS="-arch x86_64" \
+            go build -o /dev/null ./cmd/loki

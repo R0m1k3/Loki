@@ -1,0 +1,175 @@
+async function loadStatus(){
+  const s=await jget('/api/status');
+  const el=document.getElementById('status-svc');
+  // Trois états : service coupé (err) · service actif mais modèle pas encore
+  // chargé (loading, llama-server renvoie 503) · modèle prêt (ok).
+  // Pastille COURTE et honnête. Le détail (cause exacte) va dans #model-err
+  // dessous : la pastille ne doit pas affirmer « incompatible » quand l'échec
+  // peut être tout autre chose.
+  let cls='err', txt='arrêté';
+  if(s.active && s.health){ cls='ok'; txt='prêt'; }
+  else if(s.load_error){ cls='err'; txt='erreur'; }
+  else if(s.active){ cls='loading'; txt='chargement…'; }
+  el.className='statuspill '+cls;
+  el.innerHTML='<span class="dot"></span>'+txt;
+  MODEL_READY = !!(s.active && s.health);
+  // Le bouton d'envoi suit l'état du moteur : inutile de pouvoir envoyer un
+  // message à un modèle qui n'est pas encore chargé (voir syncSendBtn).
+  STATUS_SEEN = true;
+  if(typeof syncSendBtn==='function') syncSendBtn();
+  if(s.ctx){ CTX_MAX=s.ctx; updateCtxMeter(); }
+  if(s.version){
+    document.getElementById('ver').textContent='v'+s.version;
+  }
+  // Avertissement de lancement (App Translocation macOS) : rare, mais il explique
+  // des symptomes tres deroutants, donc on l'affiche en permanence tant qu'il dure.
+  const wb=document.getElementById('app-warn');
+  if(wb){
+    if(s.warn){ wb.textContent='⚠ '+s.warn; wb.style.display=''; }
+    else { wb.style.display='none'; }
+  }
+  // Modèle qui ne charge pas (souvent un moteur incompatible) : message explicite
+  // plutôt qu'un « chargement… » perpétuel ou un crash-loop muet.
+  const me=document.getElementById('model-err');
+  if(me){
+    if(s.load_error){ me.textContent='⚠ '+s.load_error; me.style.display=''; }
+    else { me.style.display='none'; }
+  }
+}
+// Journal du moteur — replié par défaut, on l'ouvre en cliquant la pastille.
+function toggleSvcLog(){
+  const box=document.getElementById('svc-log-box');
+  if(!box) return;
+  const show = box.style.display==='none';
+  box.style.display = show ? '' : 'none';
+  if(show){ loadSvcLog(); showPaths(); }
+}
+async function loadSvcLog(){
+  const el=document.getElementById('svc-log');
+  if(!el) return;
+  el.textContent='chargement du journal…';
+  try{
+    const r=await jget('/api/service/log?n=120');
+    el.textContent = (r && r.log && r.log.trim()) ? r.log : 'journal vide — le moteur n\'a encore rien écrit.';
+    el.scrollTop = el.scrollHeight;
+  }catch(e){ el.textContent='journal indisponible : '+e; }
+}
+async function checkUpdate(){
+  const b=document.getElementById('upd-check'), msg=document.getElementById('upd-msg');
+  b.disabled=true; msg.textContent='Vérification…';
+  try{
+    const r=await jget('/api/update');
+    if(r.error){ msg.textContent='Erreur : '+r.error; }
+    else if(r.available){
+      msg.innerHTML='Nouvelle version <b>v'+r.latest+'</b> disponible. ';
+      const btn=document.createElement('button'); btn.textContent='Mettre à jour'; btn.onclick=applyUpdate;
+      msg.appendChild(btn);
+    } else { msg.textContent='Loki est à jour ✓'; }
+  }catch(e){ msg.textContent='Erreur réseau'; }
+  b.disabled=false;
+}
+// Emplacements — affichés avec le journal du moteur : c'est le panneau qu'on
+// ouvre quand on cherche à comprendre l'état de son installation.
+async function showPaths(){
+  const el=document.getElementById('paths-msg');
+  if(!el) return;
+  el.textContent='…';
+  try{
+    const p=await jget('/api/paths');
+    const rows=[['Données',p.home],['Base (config, préférences, conversation)',p.database],['Modèles',p.models],['Presets',p.presets],['Mémoire',p.memory],['Fichiers créés par l\'IA',p.workspace],['Moteur llama.cpp',p.backends],['Programme',p.exe]];
+    el.innerHTML=rows.map(r=>'<div style="margin-bottom:4px">'+r[0]+'<br><code style="word-break:break-all">'+escHtml(r[1]||'')+'</code></div>').join('');
+  }catch(e){ el.textContent='Erreur'; }
+}
+async function applyUpdate(){
+  const msg=document.getElementById('upd-msg');
+  msg.textContent='Téléchargement et installation…';
+  try{
+    // Signal dédié : le timeout par défaut (30 s) coupe le téléchargement du
+    // binaire sur une connexion lente et fait croire à un échec alors que la
+    // mise à jour aboutit côté serveur.
+    const ac=new AbortController(); const t=setTimeout(()=>ac.abort(), 10*60*1000);
+    let r;
+    try{ r=await (await jfetch('/api/update/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:ac.signal})).json(); }
+    finally{ clearTimeout(t); }
+    if(r.ok){
+      msg.innerHTML='✓ Installé en <b>v'+r.version+'</b>.<br>'+(r.restart||'');
+      // Redémarrage auto du service côté serveur : le flux va se couper puis
+      // reconnecter tout seul (connectStream boucle). On rafraîchit l'état après.
+      if(r.restarting){ toast('mise à jour appliquée — reconnexion…'); setTimeout(loadAll, 6000); }
+    }
+    else { msg.textContent='Échec : '+(r.error||'inconnu'); }
+  }catch(e){ msg.textContent='Erreur pendant la mise à jour (réessaie).'; }
+}
+// Compteur de contexte : CTX_USED estimé via les stats serveur (prefill+decode
+// du dernier tour ≈ taille du prochain prompt). À 90% on propose de compacter.
+let CTX_MAX=0, CTX_USED=0, MODEL_READY=false;
+// STATUS_SEEN : /api/status a répondu au moins une fois. Avant ça (ou s'il ne
+// répond pas), on ne verrouille RIEN — mieux vaut un envoi qui échoue qu'un chat
+// bloqué par un état inconnu.
+let STATUS_SEEN=false;
+function setCtxUsed(n){ CTX_USED=n||0; updateCtxMeter(); }
+function updateCtxMeter(){
+  if(!CTX_MAX) return;
+  const pct=Math.min(100, Math.round(CTX_USED*100/CTX_MAX));
+  const fill=document.getElementById('ctx-fill');
+  fill.style.width=pct+'%';
+  fill.style.background = pct>=90 ? 'var(--err,#c44)' : pct>=70 ? 'var(--warn,#c93)' : 'var(--ok,#3a7)';
+  // Les chiffres SANS le mot « contexte » : la jauge juste en dessous dit déjà de
+  // quoi on parle, et le pied de carte est étroit. Le libellé complet reste en
+  // infobulle.
+  const ct=document.getElementById('ctx-text');
+  ct.textContent=CTX_USED+' / '+CTX_MAX+' ('+pct+'%)';
+  ct.title='contexte utilisé';
+  // Bouton de compaction MANUELLE : visible dès la moitié du contexte pour qu'on
+  // puisse compacter à la demande avant que l'auto-compaction (75%) ne s'en charge.
+  document.getElementById('ctx-compact').style.display = (pct>=50 && CTX_USED>0) ? 'inline-block' : 'none';
+}
+async function loadVram(){
+  const gpus=await jget('/api/vram');
+  // Bloc de statistique : intitulé + valeur sur une ligne, jauge, détail dessous.
+  // Même gabarit que la RAM (voir .stat dans le CSS) — le HTML libre d'avant
+  // collait aux bords de la carte.
+  document.getElementById('vram').innerHTML = (gpus||[]).map(g=>{
+    const pct=Math.round(g.used*100/g.total);
+    return '<div class="stat"><div class="stat-h"><span class="stat-n">'+g.name+'</span>'+
+      '<span class="stat-v">'+(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' GiB</span></div>'+
+      '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
+      '<div class="stat-s">GPU '+g.util+' % · '+g.temp+' °C</div></div>';
+  }).join('') || '<div class="stat"><span class="stat-s">(pas de GPU)</span></div>';
+}
+async function loadRam(){
+  const m=await jget('/api/ram');
+  const box=document.getElementById('ram-details');
+  if(!m || !m.total){ if(box) box.style.display='none'; return; }
+  if(box) box.style.display='';
+  const pct=Math.round(m.used*100/m.total);
+  document.getElementById('ram').innerHTML =
+    '<div class="stat"><div class="stat-h"><span class="stat-n">Mémoire vive</span>'+
+    '<span class="stat-v">'+(m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' GiB</span></div>'+
+    '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
+    '<div class="stat-s">'+pct+' % utilisée</div></div>';
+}
+async function loadCfg(){
+  // /api/llamacpp en parallèle : il indique si le BIN de la config correspond au
+  // précompilé (prebuilt.in_use) ou compilé ici (in_use) — sinon c'est un fork perso.
+  const [c, lc] = await Promise.all([jget('/api/config'), jget('/api/llamacpp').catch(()=>null)]);
+  const row=(k,v,title)=>'<div class="kv"><span>'+k+'</span><span title="'+String(title!=null?title:v).replace(/"/g,'&quot;')+'">'+String(v)+'</span></div>';
+  const rows=[];
+  if(c.BIN){
+    // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
+    // toujours le chemin complet, quel que soit le libellé.
+    let v;
+    if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
+    else if(lc && lc.in_use) v='llama.cpp compilé';
+    else v='llama.cpp personnalisé : '+c.BIN;
+    rows.push(row('MOTEUR', v, c.BIN));
+  }
+  ['MODEL','CTX','BATCH','UBATCH','NGL'].filter(k=>c[k]).forEach(k=>{
+    let v=c[k]; if(k==='MODEL') v=v.split('/').pop();
+    rows.push(row(k, v));
+  });
+  // n-cpu-moe : affiché seulement s'il est réellement présent dans EXTRA_ARGS.
+  const m=(c.EXTRA_ARGS||'').match(/--n-cpu-moe\s+(\d+)/);
+  if(m) rows.push(row('N-CPU-MOE', m[1]));
+  document.getElementById('cfg').innerHTML = rows.join('');
+}

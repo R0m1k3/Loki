@@ -1,0 +1,52 @@
+# Build macOS à la demande, SANS rien publier : produit Loki.app en artifact
+# téléchargeable depuis l'onglet Actions (visible seulement par le dépôt).
+# Sert à tester le bundle avant de décider d'une vraie release (release.yml).
+name: mac-build
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build + bundle Loki.app (arm64)
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" -o dist/loki-macos-arm ./cmd/loki
+          mkdir -p /tmp/loki.iconset
+          sips -s format png 'cmd/loki/icon.ico' --out /tmp/icon.png >/dev/null 2>&1 || true
+          for s in 16 32 128 256 512; do
+            sips -z $s $s /tmp/icon.png --out "/tmp/loki.iconset/icon_${s}x${s}.png" >/dev/null 2>&1 || true
+          done
+          iconutil -c icns /tmp/loki.iconset -o /tmp/loki.icns >/dev/null 2>&1 || true
+          app="dist/Loki.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp dist/loki-macos-arm "$app/Contents/MacOS/loki"
+          chmod +x "$app/Contents/MacOS/loki"
+          cp /tmp/loki.icns "$app/Contents/Resources/loki.icns" 2>/dev/null || true
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0"><dict>' \
+            '<key>CFBundleName</key><string>Loki</string>' \
+            '<key>CFBundleDisplayName</key><string>Loki</string>' \
+            '<key>CFBundleExecutable</key><string>loki</string>' \
+            '<key>CFBundleIdentifier</key><string>link.loki.app</string>' \
+            '<key>CFBundleIconFile</key><string>loki</string>' \
+            '<key>CFBundlePackageType</key><string>APPL</string>' \
+            '<key>LSMinimumSystemVersion</key><string>11.0</string>' \
+            '<key>LSUIElement</key><true/>' \
+            '<key>NSHighResolutionCapable</key><true/>' \
+            '</dict></plist>' > "$app/Contents/Info.plist"
+          codesign --force --deep -s - "$app" || true
+          (cd dist && zip -qry loki-macos-arm.zip Loki.app && rm -rf Loki.app)
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: loki-macos-arm
+          path: dist/loki-macos-arm.zip
