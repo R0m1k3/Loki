@@ -1,5 +1,5 @@
-// Package nodewire porte le protocole PARTAGÉ entre le serveur ajean et le
-// client léger « poste distant » (ajean-node). Zéro dépendance hors stdlib :
+// Package nodewire porte le protocole PARTAGÉ entre le serveur loki et le
+// client léger « poste distant » (loki-node). Zéro dépendance hors stdlib :
 // c'est ce qui permet au client de rester minuscule (il n'embarque ni l'UI, ni
 // llama.cpp, ni bbolt, ni MCP — juste ce fichier + coder/websocket).
 //

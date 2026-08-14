@@ -1,11 +1,11 @@
 # Release : sur tag vX.Y.Z, compile les 6 cibles et publie la release GitHub
-# avec les binaires (ajean-linux, ajean-macos, ajean-windows.exe et leurs
-# variantes -arm) ET le fichier SHA256SUMS que `ajean update` vérifie avant
+# avec les binaires (loki-linux, loki-macos, loki-windows.exe et leurs
+# variantes -arm) ET le fichier SHA256SUMS que `loki update` vérifie avant
 # d'installer. Ces noms doivent rester en phase avec assetNameFor (sys_update.go),
 # sinon plus aucune machine ne se met à jour.
 # ⚠️ NE PAS uploader de binaires à la main en plus : ce workflow écrase les
 # assets du même nom (softprops remplace), et des sommes qui ne correspondent
-# plus aux binaires font échouer `ajean update` (vécu sur v0.4.7).
+# plus aux binaires font échouer `loki update` (vécu sur v0.4.7).
 #
 # Deux jobs de build : macOS a besoin d'un vrai runner Apple (l'icône de barre de
 # menus passe par Cocoa → CGO, pas cross-compilable depuis Linux) ; Linux et
@@ -31,43 +31,43 @@ jobs:
           mkdir -p dist
           # arm64 = natif ; amd64 = cross avec le SDK universel (-arch x86_64).
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-            go build -trimpath -ldflags="-s -w" -o dist/ajean-macos-arm ./cmd/ajean
+            go build -trimpath -ldflags="-s -w" -o dist/loki-macos-arm ./cmd/loki
           CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
             CGO_CFLAGS="-arch x86_64" CGO_LDFLAGS="-arch x86_64" \
-            go build -trimpath -ldflags="-s -w" -o dist/ajean-macos ./cmd/ajean
-          file dist/ajean-macos*
-      - name: bundles AJEAN.app
+            go build -trimpath -ldflags="-s -w" -o dist/loki-macos ./cmd/loki
+          file dist/loki-macos*
+      - name: bundles Loki.app
         run: |
           # Un binaire nu double-cliqué ouvrirait le Terminal. On publie donc
-          # aussi un vrai bundle AJEAN.app (zippé pour garder le bit exécutable) :
-          # au clic, le Finder lance Contents/MacOS/ajean, qui détecte le bundle
+          # aussi un vrai bundle Loki.app (zippé pour garder le bit exécutable) :
+          # au clic, le Finder lance Contents/MacOS/loki, qui détecte le bundle
           # et bascule en mode « application » (UI web + navigateur + icône dans
-          # la barre de menus), comme le double-clic sur ajean.exe sous Windows.
+          # la barre de menus), comme le double-clic sur loki.exe sous Windows.
           # LSUIElement : app de barre de menus, aucune icône dans le Dock.
           # L'icône part du PNG 1024 généré avec le reste de la marque
-          # (cmd/ajean/icon.png, voir tools/gen-icon) : plus de conversion depuis
+          # (cmd/loki/icon.png, voir tools/gen-icon) : plus de conversion depuis
           # le .ico, dont l'échec silencieux donnait une app sans icône.
-          mkdir -p /tmp/ajean.iconset
+          mkdir -p /tmp/loki.iconset
           for s in 16 32 128 256 512; do
-            sips -z $s $s 'cmd/ajean/icon.png' --out "/tmp/ajean.iconset/icon_${s}x${s}.png" >/dev/null
+            sips -z $s $s 'cmd/loki/icon.png' --out "/tmp/loki.iconset/icon_${s}x${s}.png" >/dev/null
           done
-          iconutil -c icns /tmp/ajean.iconset -o /tmp/ajean.icns
+          iconutil -c icns /tmp/loki.iconset -o /tmp/loki.icns
           v="${GITHUB_REF_NAME#v}"
-          for bin in ajean-macos ajean-macos-arm; do
-            app="dist/bundle-$bin/AJEAN.app"
+          for bin in loki-macos loki-macos-arm; do
+            app="dist/bundle-$bin/Loki.app"
             mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-            cp "dist/$bin" "$app/Contents/MacOS/ajean"
-            chmod +x "$app/Contents/MacOS/ajean"
-            cp /tmp/ajean.icns "$app/Contents/Resources/ajean.icns" 2>/dev/null || true
+            cp "dist/$bin" "$app/Contents/MacOS/loki"
+            chmod +x "$app/Contents/MacOS/loki"
+            cp /tmp/loki.icns "$app/Contents/Resources/loki.icns" 2>/dev/null || true
             printf '%s\n' \
               '<?xml version="1.0" encoding="UTF-8"?>' \
               '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
               '<plist version="1.0"><dict>' \
-              '<key>CFBundleName</key><string>AJEAN</string>' \
-              '<key>CFBundleDisplayName</key><string>AJEAN</string>' \
-              '<key>CFBundleExecutable</key><string>ajean</string>' \
-              '<key>CFBundleIdentifier</key><string>link.ajean.app</string>' \
-              '<key>CFBundleIconFile</key><string>ajean</string>' \
+              '<key>CFBundleName</key><string>Loki</string>' \
+              '<key>CFBundleDisplayName</key><string>Loki</string>' \
+              '<key>CFBundleExecutable</key><string>loki</string>' \
+              '<key>CFBundleIdentifier</key><string>link.loki.app</string>' \
+              '<key>CFBundleIconFile</key><string>loki</string>' \
               '<key>CFBundlePackageType</key><string>APPL</string>' \
               "<key>CFBundleShortVersionString</key><string>$v</string>" \
               "<key>CFBundleVersion</key><string>$v</string>" \
@@ -78,7 +78,7 @@ jobs:
             # Signature ad-hoc : sans elle, macOS refuse purement et simplement
             # de lancer un binaire arm64 non signé (pas juste un avertissement).
             codesign --force --deep -s - "$app" || true
-            (cd "dist/bundle-$bin" && zip -qry "../$bin.zip" AJEAN.app)
+            (cd "dist/bundle-$bin" && zip -qry "../$bin.zip" Loki.app)
             rm -rf "dist/bundle-$bin"
           done
           ls -l dist
@@ -98,13 +98,13 @@ jobs:
       - name: build Linux + Windows
         run: |
           mkdir -p dist
-          # Noms d'asset : ajean-<os>[-arm][.exe]. Volontairement lisibles, et
-          # volontairement DIFFÉRENTS du schéma ajean-<GOOS>-<GOARCH> des 0.7 :
+          # Noms d'asset : loki-<os>[-arm][.exe]. Volontairement lisibles, et
+          # volontairement DIFFÉRENTS du schéma loki-<GOOS>-<GOARCH> des 0.7 :
           # leur mise à jour automatique ne trouve alors aucun asset et échoue
           # sans rien remplacer, au lieu d'installer un binaire 0.8 sur une
           # machine encore agencée en 0.7 (voir updateAssetName, sys_update.go).
-          for t in linux/amd64:ajean-linux linux/arm64:ajean-linux-arm \
-                   windows/amd64:ajean-windows.exe windows/arm64:ajean-windows-arm.exe; do
+          for t in linux/amd64:loki-linux linux/arm64:loki-linux-arm \
+                   windows/amd64:loki-windows.exe windows/arm64:loki-windows-arm.exe; do
             target=${t%%:*}; name=${t#*:}
             os=${target%/*}; arch=${target#*/}; ldflags="-s -w"
             # Windows : sous-système CONSOLE, pour que `cmd` attende la fin du
@@ -112,7 +112,7 @@ jobs:
             # fonctionnent. La console créée au double-clic est refermée par le
             # programme lui-même (voir setupConsole, sys_console_windows.go).
             GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
-              go build -trimpath -ldflags="$ldflags" -o "dist/$name" ./cmd/ajean
+              go build -trimpath -ldflags="$ldflags" -o "dist/$name" ./cmd/loki
           done
       - uses: actions/download-artifact@v4
         with:
@@ -120,11 +120,11 @@ jobs:
           path: dist
       - name: SHA256SUMS
         run: |
-          chmod +x dist/ajean-macos dist/ajean-macos-arm
-          # Tous les assets commencent par « ajean- », zips compris : un seul
+          chmod +x dist/loki-macos dist/loki-macos-arm
+          # Tous les assets commencent par « loki- », zips compris : un seul
           # motif suffit. Ajouter « *.zip » les compterait DEUX fois, et un
-          # SHA256SUMS à doublons est exactement ce que `ajean update` vérifie.
-          (cd dist && sha256sum ajean-* > SHA256SUMS)
+          # SHA256SUMS à doublons est exactement ce que `loki update` vérifie.
+          (cd dist && sha256sum loki-* > SHA256SUMS)
           ls -l dist && cat dist/SHA256SUMS
       - name: publier la release
         uses: softprops/action-gh-release@v2

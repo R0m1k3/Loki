@@ -10,7 +10,7 @@ package nodewire
 //     clé = SHA256(shared || ephPub || agentPub)) — donc l'agent ouvre le sceau
 //     du poste avec son code existant, sans dupliquer la crypto ;
 //   - un CANAL authentifié à clés statiques : K = SHA256(ECDH(postePriv,
-//     agentPub) || "ajean-node-chan-v1"). Le poste et l'agent le calculent tous
+//     agentPub) || "loki-node-chan-v1"). Le poste et l'agent le calculent tous
 //     les deux ; le relais, qui n'a aucune des deux clés privées, non. Chaque
 //     message est scellé AES-GCM avec un nonce à compteur (anti-rejeu / anti-
 //     réordonnancement à l'intérieur d'une connexion).
@@ -129,7 +129,7 @@ func ChannelKey(privHex, peerPubHex string) ([]byte, error) {
 	}
 	h := sha256.New()
 	h.Write(ss)
-	h.Write([]byte("ajean-node-chan-v1"))
+	h.Write([]byte("loki-node-chan-v1"))
 	return h.Sum(nil), nil
 }
 

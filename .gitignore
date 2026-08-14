@@ -1,6 +1,6 @@
 # Binaires compilés
-/ajean
-/ajean.exe
+/loki
+/loki.exe
 /dist/
 
 # Artefacts de build Go

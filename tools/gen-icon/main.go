@@ -1,8 +1,8 @@
-// gen-icon écrit cmd/ajean/icon.ico à partir de l'icône de marque dessinée dans
-// internal/ajean (sys_brand_icon.go), pour que l'icône du .exe soit toujours la
+// gen-icon écrit cmd/loki/icon.ico à partir de l'icône de marque dessinée dans
+// internal/loki (sys_brand_icon.go), pour que l'icône du .exe soit toujours la
 // même que le favicon de l'UI et que celle de la zone de notification.
 //
-// Lancé par `go generate ./cmd/ajean`, AVANT goversioninfo qui embarque le .ico
+// Lancé par `go generate ./cmd/loki`, AVANT goversioninfo qui embarque le .ico
 // dans les ressources Windows.
 package main
 
@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nathaninline/ajean/internal/ajean"
+	"github.com/R0m1k3/Loki/internal/loki"
 )
 
 func main() {
@@ -21,13 +21,13 @@ func main() {
 	}
 	// Les tailles attendues par l'explorateur Windows, de la barre des tâches à
 	// l'aperçu en grandes icônes.
-	write(out, ajean.BrandICO(16, 32, 48, 64, 128, 256))
+	write(out, loki.BrandICO(16, 32, 48, 64, 128, 256))
 
 	// PNG 1024 pour le bundle macOS : la CI en tire le .icns via sips/iconutil.
 	// Elle partait auparavant du .ico, ce qui suppose que sips sache lire un ICO —
 	// et l'échec y est masqué par « || true », donc une app Mac sans icône passait
 	// inaperçue. Un PNG ne laisse aucune place au doute.
-	write(strings.TrimSuffix(out, ".ico")+".png", ajean.BrandIconPNG(1024))
+	write(strings.TrimSuffix(out, ".ico")+".png", loki.BrandIconPNG(1024))
 }
 
 func write(path string, data []byte) {

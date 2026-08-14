@@ -40,16 +40,16 @@ func Install() error {
 	case "darwin":
 		return installLaunchd(dst)
 	}
-	return fmt.Errorf("installation auto non gérée sur %s — lance « ajean remote connect » via ton propre gestionnaire de démarrage", runtime.GOOS)
+	return fmt.Errorf("installation auto non gérée sur %s — lance « loki remote connect » via ton propre gestionnaire de démarrage", runtime.GOOS)
 }
 
 func Uninstall() error {
 	switch runtime.GOOS {
 	case "linux":
-		_ = exec.Command("systemctl", "--user", "disable", "--now", "ajean-remote.service").Run()
-		return os.Remove(filepath.Join(os.Getenv("HOME"), ".config/systemd/user/ajean-remote.service"))
+		_ = exec.Command("systemctl", "--user", "disable", "--now", "loki-remote.service").Run()
+		return os.Remove(filepath.Join(os.Getenv("HOME"), ".config/systemd/user/loki-remote.service"))
 	case "darwin":
-		p := filepath.Join(os.Getenv("HOME"), "Library/LaunchAgents/link.ajean.remote.plist")
+		p := filepath.Join(os.Getenv("HOME"), "Library/LaunchAgents/link.loki.remote.plist")
 		_ = exec.Command("launchctl", "unload", p).Run()
 		return os.Remove(p)
 	}
@@ -57,18 +57,18 @@ func Uninstall() error {
 }
 
 func installSystemd(exe string) error {
-	unit := "[Unit]\nDescription=AJEAN poste distant\nAfter=network-online.target\n\n" +
+	unit := "[Unit]\nDescription=Loki poste distant\nAfter=network-online.target\n\n" +
 		"[Service]\nExecStart=" + exe + " remote run\nRestart=always\nRestartSec=5\n\n" +
 		"[Install]\nWantedBy=default.target\n"
 	dir := filepath.Join(os.Getenv("HOME"), ".config/systemd/user")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "ajean-remote.service"), []byte(unit), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "loki-remote.service"), []byte(unit), 0o644); err != nil {
 		return err
 	}
 	_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
-	if err := exec.Command("systemctl", "--user", "enable", "--now", "ajean-remote.service").Run(); err != nil {
+	if err := exec.Command("systemctl", "--user", "enable", "--now", "loki-remote.service").Run(); err != nil {
 		return fmt.Errorf("systemctl --user enable: %w (astuce : « loginctl enable-linger %s » pour survivre à la déconnexion)", err, os.Getenv("USER"))
 	}
 	return nil
@@ -78,7 +78,7 @@ func installLaunchd(exe string) error {
 	plist := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>link.ajean.remote</string>
+  <key>Label</key><string>link.loki.remote</string>
   <key>ProgramArguments</key><array><string>` + exe + `</string><string>remote</string><string>run</string></array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -88,7 +88,7 @@ func installLaunchd(exe string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	p := filepath.Join(dir, "link.ajean.remote.plist")
+	p := filepath.Join(dir, "link.loki.remote.plist")
 	if err := os.WriteFile(p, []byte(plist), 0o644); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func copyFile(src, dst string) error {
 	// Ré-installation : Linux refuse d'ÉCRASER l'image d'un binaire en cours
 	// (ETXTBSY « text file busy ») mais autorise à le DÉLIER — le service vivant
 	// garde son inode ouvert, et le nouveau fichier prend la place du nom. Sans ce
-	// unlink, « ajean remote install » relancé échouait tant que le service tournait.
+	// unlink, « loki remote install » relancé échouait tant que le service tournait.
 	_ = os.Remove(dst)
 	return os.WriteFile(dst, b, 0o755)
 }

@@ -1,9 +1,9 @@
 // Package nodeclient est le CLIENT léger « poste distant ». Il tourne sur un PC
-// secondaire, s'appaire une fois avec le serveur ajean, puis ouvre une connexion
+// secondaire, s'appaire une fois avec le serveur loki, puis ouvre une connexion
 // SORTANTE et exécute — sous contrôle local — les demandes de l'IA.
 //
 // Volontairement autonome : dépend seulement de nodewire (protocole partagé,
-// zéro dépendance) et de coder/websocket. AUCUN import d'ajean → binaire de
+// zéro dépendance) et de coder/websocket. AUCUN import d'loki → binaire de
 // quelques Mo, sans UI ni moteur.
 //
 // Sécurité côté poste : allowlist locale des capacités, confinement des fichiers
@@ -28,7 +28,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/nathaninline/ajean/internal/nodewire"
+	"github.com/R0m1k3/Loki/internal/nodewire"
 )
 
 const (
@@ -69,20 +69,20 @@ func (c Config) baseURL() string {
 }
 
 // dataDir est le dossier de données du poste. Sur Windows : C:\ProgramData\
-// ajean-remote — MACHINE-WIDE, pour que le service (qui tourne en LocalSystem) lise
+// loki-remote — MACHINE-WIDE, pour que le service (qui tourne en LocalSystem) lise
 // la MÊME config que celle écrite par `install` (le profil utilisateur de
 // LocalSystem est différent du tien). Ailleurs : dossier de config utilisateur.
 func dataDir() string {
 	if runtime.GOOS == "windows" {
 		if pd := os.Getenv("ProgramData"); pd != "" {
-			return filepath.Join(pd, "ajean-remote")
+			return filepath.Join(pd, "loki-remote")
 		}
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil || dir == "" {
 		dir, _ = os.Getwd()
 	}
-	return filepath.Join(dir, "ajean-remote")
+	return filepath.Join(dir, "loki-remote")
 }
 
 // ConfigPath renvoie le chemin du fichier de configuration.
@@ -91,7 +91,7 @@ func ConfigPath() string { return filepath.Join(dataDir(), "config.json") }
 // InstalledExePath est l'emplacement stable où `install` copie le binaire, pour
 // qu'il survive à la suppression du téléchargement.
 func InstalledExePath() string {
-	name := "ajean-remote"
+	name := "loki-remote"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}

@@ -1,4 +1,4 @@
-module github.com/nathaninline/ajean
+module github.com/R0m1k3/Loki
 
 go 1.25.0
 

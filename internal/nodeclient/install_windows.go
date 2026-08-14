@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-const serviceName = "AjeanRemote"
+const serviceName = "LokiRemote"
 
 // RunService lance la boucle client : en vrai service Windows si on est démarré
 // par le gestionnaire de services, sinon en avant-plan (utile pour `run` lancé
@@ -61,11 +61,11 @@ func Install() error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	// Ré-installation : un service AjeanRemote déjà présent tient ajean-remote.exe
+	// Ré-installation : un service LokiRemote déjà présent tient loki-remote.exe
 	// OUVERT (verrou Windows sur l'image d'un processus en cours) → la copie
 	// échouerait avec « used by another process » et CreateService avec « déjà
 	// installé ». On le retire d'abord (best-effort : absent = rien à faire), ce qui
-	// arrête le service et libère le fichier, rendant « ajean remote install »
+	// arrête le service et libère le fichier, rendant « loki remote install »
 	// ré-exécutable tel quel — sans imposer un « uninstall » manuel préalable.
 	_ = Uninstall()
 	if abs, _ := filepath.Abs(self); abs != dst {
@@ -80,8 +80,8 @@ func Install() error {
 	defer m.Disconnect()
 	s, err := m.CreateService(serviceName, dst, mgr.Config{
 		StartType:   mgr.StartAutomatic,
-		DisplayName: "AJEAN — poste distant",
-		Description: "Pont léger permettant à votre serveur IA AJEAN d'agir sur ce PC.",
+		DisplayName: "Loki — poste distant",
+		Description: "Pont léger permettant à votre serveur IA Loki d'agir sur ce PC.",
 	}, "remote", "run")
 	if err != nil {
 		return fmt.Errorf("création du service: %w", err)
