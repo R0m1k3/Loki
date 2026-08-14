@@ -29,6 +29,9 @@ const (
 func pidFilePath() string { return filepath.Join(LokiHome(), serviceName()+".pid") }
 func logFilePath() string { return filepath.Join(LokiHome(), serviceName()+".log") }
 
+// systemdAvailable : jamais de systemd sous Windows (consulté par relay_link.go).
+func systemdAvailable() bool { return false }
+
 func serviceAction(action string) error {
 	switch action {
 	case "start":

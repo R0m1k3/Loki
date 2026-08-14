@@ -16,9 +16,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/R0m1k3/Loki/internal/nodewire"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/R0m1k3/Loki/internal/nodewire"
 )
 
 const (

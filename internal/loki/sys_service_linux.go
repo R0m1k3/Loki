@@ -13,7 +13,12 @@ import (
 
 // serviceAction wraps `systemctl <action> <svc>` with passwordless sudo where
 // it makes sense, and prints a follow-up status check after start/restart.
+// Sans systemd (conteneur Docker, LOKI_CONTAINER=1), on bascule sur la
+// supervision par fichier PID (sys_service_container.go).
 func serviceAction(action string) error {
+	if !systemdAvailable() {
+		return userSvcAction(action)
+	}
 	svc := serviceName()
 	needsRoot := action == "start" || action == "stop" || action == "restart" || action == "enable" || action == "disable"
 	args := []string{}
@@ -103,6 +108,9 @@ func checkStarted(svc string) error {
 }
 
 func serviceLogs() error {
+	if !systemdAvailable() {
+		return userServiceLogs()
+	}
 	cmd := exec.Command("journalctl", "-u", serviceName(), "-n", "80", "-f")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -111,6 +119,10 @@ func serviceLogs() error {
 
 // serviceIsActive reports whether the systemd unit is currently running.
 func serviceIsActive() bool {
+	if !systemdAvailable() {
+		pid := readServicePID()
+		return pid > 0 && processAlive(pid)
+	}
 	out, _ := exec.Command("systemctl", "is-active", serviceName()).Output()
 	return strings.TrimSpace(string(out)) == "active"
 }
@@ -118,6 +130,9 @@ func serviceIsActive() bool {
 // serviceLogTail renvoie les n dernières lignes du journal du service (pour
 // l'UI web). Linux : journalctl.
 func serviceLogTail(n int) string {
+	if !systemdAvailable() {
+		return tailFile(logFilePath(), n)
+	}
 	out, err := exec.Command("journalctl", "-u", serviceName(), "-n", strconv.Itoa(n), "--no-pager").CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "journalctl indisponible : " + err.Error()

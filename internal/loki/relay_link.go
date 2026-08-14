@@ -322,7 +322,9 @@ func uiLogPath() string { return filepath.Join(LokiHome(), uiUnitName+".log") }
 // « arrêté » sur un Mac ou un PC : le token était enregistré mais rien ne
 // composait jamais le tunnel.
 func uiServiceCtl(action string) error {
-	if runtime.GOOS != "linux" {
+	// Linux sans systemd (conteneur Docker) : même traitement que macOS/Windows —
+	// le process `loki web` possède le tunnel (appOwnsLink), sinon worker PID.
+	if runtime.GOOS != "linux" || !systemdAvailable() {
 		// Dans l'app de bureau, le tunnel tourne DANS ce process (conversation
 		// unique) : on ne lance surtout pas un worker séparé.
 		if appOwnsLink {
@@ -364,7 +366,7 @@ func uiServiceCtl(action string) error {
 // uiServiceActive indique si le worker de lien tourne (unité systemd sous
 // Linux, processus suivi par fichier PID ailleurs).
 func uiServiceActive() bool {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" || !systemdAvailable() {
 		if appOwnsLink {
 			return appLinkRunning()
 		}

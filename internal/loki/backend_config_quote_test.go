@@ -11,9 +11,9 @@ import (
 func TestParseEnvKeepsInnerQuotes(t *testing.T) {
 	cases := map[string]string{
 		`EXTRA_ARGS=--jinja --chat-template-file "/etc/loki/tpl.jinja"`: `--jinja --chat-template-file "/etc/loki/tpl.jinja"`,
-		`EXTRA_ARGS="--jinja --flash-attn"`:                              `--jinja --flash-attn`,
-		`MODEL='/mnt/d/x.gguf'`:                                          `/mnt/d/x.gguf`,
-		`MODEL=/mnt/d/x.gguf`:                                            `/mnt/d/x.gguf`,
+		`EXTRA_ARGS="--jinja --flash-attn"`:                             `--jinja --flash-attn`,
+		`MODEL='/mnt/d/x.gguf'`:                                         `/mnt/d/x.gguf`,
+		`MODEL=/mnt/d/x.gguf`:                                           `/mnt/d/x.gguf`,
 	}
 	for line, want := range cases {
 		m := parseEnv(line)
