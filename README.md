@@ -1,309 +1,121 @@
-# Loki — Agent IA local sur Ollama
+# Loki — assistant IA local en conteneur (fork d'AJEAN)
 
-Loki est un atelier d'agent IA **100 % local**, conçu pour se connecter à
-[Ollama](https://ollama.com) et travailler en mode agentique : un tchat, des
-outils (lecture/écriture de fichiers, aperçu HTML en direct…) et un workspace
-de fichiers. Pensé pour un déploiement **Docker** simple.
+> **Loki est un fork de [AJEAN](https://github.com/nathaninline/ajean)** de
+> [nathaninline](https://github.com/nathaninline), sous licence MIT — voir
+> [`NOTICE.md`](NOTICE.md) et [`LICENSE`](LICENSE). L'essentiel du code et des
+> fonctionnalités vient d'AJEAN ; ce fork le rebaptise et le fait tourner dans
+> **un conteneur Docker GPU autonome**, là où l'amont s'installe en binaire +
+> systemd sur la machine hôte.
 
-Le thème visuel (« atelier café », sombre et chaleureux, accent ambre) est
-décliné fidèlement depuis la maquette d'origine.
+Loki fait tourner un modèle de langage **100 % en local** : tchat, mémoire
+persistante, accès internet, outils MCP, agent (shell, fichiers), accès distant
+chiffré — serveur d'inférence llama.cpp compris, dans une seule image.
 
 ## Architecture
 
 ```
-Frontend (React + Vite + TS + Tailwind)
-        │ HTTP + SSE
-Backend (FastAPI, Python)
-   ├── /api/status, /api/models, /api/models/pull   (Ollama)
-   ├── /api/sessions  (CRUD sessions)
-   ├── /api/chat      (boucle agentique + outils, streaming SSE)
-   ├── /api/files     (arborescence + contenu du workspace)
-   │   Outils agent : read_file · write_file · list_dir (confinés au workspace)
-        │ httpx                     │ volume
-     Ollama (:11434)            /workspace + /data (SQLite)
+┌────────────────── conteneur loki ──────────────────┐
+│  loki web  (UI + API, port 8090, premier plan)     │
+│     │ pilote (fichier PID — pas de systemd)        │
+│  loki serve ──exec──► llama-server (CUDA, :8080)   │
+│                        ▲ modèles .gguf             │
+│  /data (config, bbolt, mémoire, workspace)         │
+│  /models (GGUF déposés à la main)                  │
+└────────────────────────────────────────────────────┘
 ```
 
-Un seul conteneur : le backend FastAPI sert l'API **et** le frontend compilé.
-Loki se connecte à un **Ollama existant** via `OLLAMA_HOST`.
+- **Un seul conteneur** : l'UI joint le moteur sur `localhost` (contrainte
+  héritée de l'amont), les deux partagent donc le même conteneur.
+- **Sans systemd** : l'amont pilote le moteur via systemctl ; en conteneur,
+  Loki bascule automatiquement sur une supervision par fichier PID
+  (`internal/loki/sys_service_container.go`). Changer de modèle depuis l'UI
+  redémarre le moteur normalement.
+- Le moteur (port 8080, non authentifié par défaut) **n'est pas exposé** ;
+  seule l'UI (8090) l'est.
 
-## Démarrage rapide (Docker)
+## Démarrage rapide (Docker, GPU NVIDIA)
+
+Pré-requis : pilote NVIDIA + [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
-cp .env.example .env          # ajuste OLLAMA_HOST si besoin
-docker compose up --build
+cp .env.example .env    # CUDA_ARCHS=86 pour une RTX 30xx, etc.
+docker compose up --build   # 30-45 min : compilation CUDA de llama.cpp
 ```
 
-Application disponible sur http://localhost:8717
-
-> **Ollama** : par défaut Loki vise `http://host.docker.internal:11434`
-> (un Ollama installé sur la machine hôte). Pour embarquer Ollama dans la
-> stack : `docker compose --profile ollama up` puis règle
-> `OLLAMA_HOST=http://ollama:11434`.
+Interface : http://localhost:8090 — télécharge un modèle depuis le catalogue
+intégré (onglet modèles), il démarre tout seul.
 
 ## Installation sur Unraid
 
-L'image est **construite et publiée automatiquement par GitHub Actions** sur GHCR
-(`ghcr.io/r0m1k3/loki:latest`) à chaque push sur `main`. Aucun build ni `git`
-n'est nécessaire sur Unraid — un simple `pull`. Compose prêt à l'emploi :
-[`docker-compose.unraid.yml`](docker-compose.unraid.yml).
+L'image est construite et publiée par GitHub Actions sur GHCR
+(`ghcr.io/r0m1k3/loki:latest`) à chaque push sur `main` — aucun build sur
+Unraid. Compose prêt à l'emploi : [`docker-compose.unraid.yml`](docker-compose.unraid.yml).
 
-1. Dans le terminal Unraid, crée les dossiers de données :
+1. Installe le plugin **Nvidia Driver** (Apps) et vérifie `nvidia-smi`.
+2. Crée les dossiers :
    ```bash
-   mkdir -p /mnt/user/appdata/loki/workspace /mnt/user/appdata/loki/data
+   mkdir -p /mnt/user/appdata/loki/data /mnt/user/appdata/loki/models
    ```
-2. Installe le plugin **Compose Manager** (Apps), crée une nouvelle stack, et
-   colle le contenu de `docker-compose.unraid.yml`.
-3. **Adapte `OLLAMA_HOST`** : mets l'IP de ton serveur Unraid où tourne le
-   conteneur Ollama, p. ex. `http://192.168.1.10:11434`.
-4. **Compose Up**. Loki est accessible sur `http://<ip-unraid>:8717`
-   (change le port à gauche du mapping `8717:8080` s'il est déjà pris).
+3. Plugin **Compose Manager** → nouvelle stack → colle
+   `docker-compose.unraid.yml` → **Compose Up**.
+4. Interface : `http://<ip-unraid>:8090`.
 
-> La première publication de l'image prend quelques minutes (le temps que le
-> workflow GitHub se termine). Si l'image est privée, rends le package **public**
-> une fois (GitHub → Packages → `loki` → Package settings → Change visibility).
->
-> Les modèles déjà présents dans ton Ollama sont **détectés automatiquement** ;
-> tu peux en télécharger d'autres depuis l'onglet Configuration.
-> Mise à jour : Compose Down/Up (avec pull), ou `docker compose pull`.
+## Configuration
 
-## Développement (sans Docker)
+Tout se règle **dans l'UI** (modèle, contexte, presets…) et survit aux
+redémarrages (volume `/data`). Variables d'environnement du conteneur :
 
-**Backend**
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `LOKI_WEB_PORT` | port de l'UI | `8090` |
+| `LOKI_MODEL` | modèle initial (semé au 1er boot seulement) | — |
+| `LOKI_CTX` | taille de contexte initiale | `32768` |
+| `LOKI_NGL` | couches GPU initiales | `999` (tout) |
+| `LOKI_HOME` | données (volume) | `/data` |
+| `LOKI_MODEL_DIRS` | dossiers .gguf additionnels | `/models` |
+
+En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
+`logs`, `restart`, `config`, `bench`, `test`…).
+
+## Fonctionnalités (héritées d'AJEAN)
+
+- **Tchat** avec streaming, raisonnement visible, pièces jointes, vision
+  (selon modèle), export de conversations.
+- **Mémoire persistante** (`memory off|ondemand|always`).
+- **Accès internet** : recherche + lecture de pages, moteur Go intégré ou
+  [Crawl4AI](https://github.com/unclecode/crawl4ai) pour les pages JS.
+- **Agent** : shell, fichiers, workspace (`agent on`).
+- **Serveurs MCP** : Node.js est inclus dans l'image pour les serveurs `npx`.
+- **Presets** de configuration par modèle, bench, auto-détection GPU.
+- **Accès distant chiffré** via le relais [ajean.link](https://ajean.link)
+  (service opéré par l'auteur de l'amont).
+- **API OpenAI-compatible** exposable (`network on`, protégée par clé).
+
+## Différences avec l'amont
+
+| | AJEAN (amont) | Loki (ce fork) |
+|---|---|---|
+| Installation | binaire + `sudo ajean install` (systemd) | `docker compose up` |
+| Moteur llama.cpp | compilé sur la machine (`ajean llamacpp install`) | précompilé CUDA dans l'image |
+| Supervision moteur | systemd / launchd / PID (Windows) | fichier PID (`LOKI_CONTAINER=1`) |
+| Configuration initiale | `ajean edit` ($EDITOR) | entrypoint + `loki config set` |
+| Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
+
+Le reste — UI, mémoire, outils, protocole — est celui d'AJEAN. Pour récupérer
+les évolutions de l'amont :
+
 ```bash
-cd backend
-pip install -r requirements.txt
-OLLAMA_HOST=http://localhost:11434 uvicorn app.main:app --reload --port 8080
+git fetch upstream && git merge upstream/main   # conflits de renommage à arbitrer
 ```
 
-**Frontend** (proxy `/api` → `:8080`)
-```bash
-cd frontend
-npm install
-npm run dev        # http://localhost:5173
-```
+## Build sans GPU / autres accélérateurs
 
-## Configuration (variables d'environnement)
+L'image par défaut cible CUDA. Pour un essai CPU, remplace dans le
+`Dockerfile` les bases `nvidia/cuda:*` par `ubuntu:24.04` et retire les flags
+`-DGGML_CUDA=*` (llama.cpp bascule en CPU). Vulkan/ROCm : adapter les flags
+comme le fait l'amont (`internal/loki/backend_build.go`).
 
-| Variable        | Défaut                              | Rôle                          |
-| --------------- | ----------------------------------- | ----------------------------- |
-| `OLLAMA_HOST`   | `http://host.docker.internal:11434` | URL de l'instance Ollama      |
-| `DEFAULT_MODEL` | `gemma4:12b`                         | Modèle sélectionné au démarrage |
-| `WORKSPACE_DIR` | `/workspace`                        | Dossier de travail de l'agent |
-| `DATA_DIR`      | `/data`                             | Base SQLite (sessions + config) |
-| `PORT`          | `8717`                              | Port de l'application (dedans = dehors) |
-| `SEARX_URL`     | *(vide)*                            | Instance SearxNG pour `web_search` (sinon DuckDuckGo) |
+## Licence
 
-## Utilisation
-
-1. Vérifie la pastille **Ollama** (verte = connecté) en haut à droite, et choisis
-   un modèle qui supporte le *function calling* (profil fourni : `gemma4:12b`).
-2. Décris une tâche dans le tchat, p. ex. *« Crée une landing page pour un café
-   nommé Café Lumière, avec menu et horaires »*.
-3. L'agent lit/écrit des fichiers dans le **workspace** ; chaque appel d'outil
-   s'affiche dans le fil, et l'aperçu HTML apparaît à droite (onglets **Aperçu /
-   Code / Logs**).
-4. Règle le comportement dans **Configuration** (modèle, température/top-p/top-k,
-   jetons max, outils actifs, invite système).
-
-## Outils de l'agent
-
-| Outil         | Rôle                                   | Par défaut |
-| ------------- | -------------------------------------- | ---------- |
-| `read_file`   | Lire un fichier du workspace           | activé     |
-| `write_file`  | Créer / modifier un fichier            | activé     |
-| `list_dir`    | Lister un répertoire                   | activé     |
-| `web_search`  | Recherche web (DuckDuckGo / SearxNG)   | désactivé  |
-| `run_shell`   | Exécuter une commande **(sensible)**   | désactivé  |
-
-## Préchargement des modèles (réponses instantanées)
-
-Ollama décharge un modèle de la VRAM après quelques minutes d'inactivité : le
-message suivant paie alors un rechargement complet (lent). Loki évite ça :
-
-- **Préchargement à la sélection** : choisir un modèle le charge immédiatement
-  en VRAM (`/api/models/warm`).
-- **Maintien au chaud** : chaque requête envoie un `keep_alive` (défaut 30 min,
-  réglable dans Configuration → Intelligence : de « décharger aussitôt » à
-  « toujours »).
-- **Préchargement au démarrage** du modèle par défaut (en arrière-plan).
-- **Indicateur d'état** : la pastille du sélecteur de modèle est verte quand le
-  modèle est chargé sur GPU, orange sur CPU, blanche s'il reste à charger.
-
-## Performance Ollama (recommandé)
-
-Réglages **côté serveur Ollama** qui rendent Loki nettement plus fluide
-(variables d'environnement du service/conteneur Ollama, redémarrage requis) :
-
-| Variable | Valeur conseillée | Effet |
-| -------- | ----------------- | ----- |
-| `OLLAMA_KEEP_ALIVE` | `30m` (ou `-1`) | Durée de rétention par défaut d'un modèle en VRAM. `-1` = jamais déchargé (machine dédiée). Doit être ≥ au `keep_alive` configuré dans Loki. |
-| `OLLAMA_MAX_LOADED_MODELS` | `2` | Autorise le modèle de chat **et** le modèle d'embedding (RAG) à résider ensemble en VRAM — supprime les allers-retours de chargement à chaque message. |
-| `OLLAMA_NUM_PARALLEL` | `1` | Loki est mono-utilisateur ; chaque slot parallèle multiplie la VRAM du cache KV. |
-| `OLLAMA_FLASH_ATTENTION` | `1` | Attention plus rapide et plus sobre en VRAM. |
-| `OLLAMA_KV_CACHE_TYPE` | `q8_0` | Cache KV quantifié : ~moitié de VRAM en moins, marge pour un 12B sur 12 Go. |
-
-Exemple pour un Ollama en Docker (service `ollama` du compose) :
-
-```yaml
-  ollama:
-    image: ollama/ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=30m
-      - OLLAMA_MAX_LOADED_MODELS=2
-      - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_FLASH_ATTENTION=1
-      - OLLAMA_KV_CACHE_TYPE=q8_0
-```
-
-Côté Loki, tout est déjà optimisé : pool HTTP keep-alive partagé vers Ollama,
-options runner identiques sur tous les appels (pas de rechargement du modèle en
-plein message), `keep_alive` systématique (chat **et** embeddings), préparation
-du contexte (RAG + plan) en parallèle après l'ouverture du flux, et caches
-courts (`/api/tags`, stats GPU).
-
-## Modes d'exécution (Plan / Build / Yolo)
-
-Un sélecteur dans le composer contrôle le niveau d'autonomie de l'agent :
-- **Plan** 🔍 — lecture seule (`read_file`, `list_dir`, `grep_search`) : l'agent
-  analyse et propose sans jamais modifier de fichier ni exécuter de commande.
-- **Build** 🔨 — normal : écrit les fichiers, `run_shell` demande confirmation.
-- **Yolo** ⚡ — autonomie maximale : approuve tout, y compris le shell.
-
-## Panneau Git & Diff
-
-Le workspace étant un dépôt git (chaque action de l'agent = un commit), l'onglet
-**Git** du panneau de droite montre l'historique des commits, le **diff coloré**
-de chacun, et un bouton **↶ Annuler** (revert) pour défaire une modification en
-un clic.
-
-## Projets (répertoires de travail)
-
-Chaque session peut travailler dans un **projet** : un sous-dossier du
-workspace choisi via le chip 📁 du composer (« + Nouveau projet » pour en
-créer un). L'agent, le shell, le moteur code et l'arborescence sont confinés
-au projet ; chaque projet a son propre dépôt git (historique et revert
-indépendants). Session sans projet = racine du workspace.
-
-## Intelligence augmentée
-
-- **Plan-puis-exécute** : les demandes complexes sont décomposées en 3-5 étapes
-  affichées dans le fil ; l'agent (ou le moteur code) suit le plan.
-- **Auto-critique « Qualité + »** (Configuration → Intelligence) : la réponse
-  est relue et révisée avant d'être finalisée.
-- **Mémoire long-terme (RAG)** : chaque échange est vectorisé (`/api/embed`)
-  et les souvenirs pertinents des anciennes sessions sont réinjectés en
-  contexte. Nécessite un modèle d'embedding installé (ex.
-  `ollama pull nomic-embed-text`) — sinon désactivé silencieusement.
-- **Vérification HTML** : liens locaux cassés et balises déséquilibrées sont
-  détectés après chaque génération ; le moteur code fait une passe
-  d'auto-correction.
-- **Benchmark intégré** (Configuration → Benchmark) : 5 mini-épreuves notées
-  /100 (appel d'outil, code exécutable, consignes, extraction JSON, format)
-  pour comparer objectivement tes modèles installés.
-
-## Serveurs MCP (outils professionnels)
-
-Configuration → **Serveurs MCP** : catalogue préconfiguré, tout désactivé par
-défaut (un serveur inactif ne coûte rien — aucun process, aucun outil dans le
-prompt du modèle).
-
-| Serveur | Apport |
-| ------- | ------ |
-| Playwright | l'agent pilote un vrai navigateur : teste ses pages, lit la console |
-| Context7 | documentation à jour de n'importe quelle librairie |
-| Fetch | lecture propre d'URL (markdown) |
-| SearxNG | vraie recherche web (URL d'instance requise) |
-| Personnalisé | n'importe quel serveur MCP (commande stdio ou URL) |
-
-Chaque carte a un bouton **Tester** (connexion d'essai + liste des outils
-découverts). Un serveur en panne n'interrompt jamais le chat : notice dans le
-fil, nouvelle tentative au message suivant.
-
-## Skills automatiques
-
-Cinq méthodes expertes (débogage systématique, création web, refactor sûr,
-analyse de données, rédaction structurée) sont injectées automatiquement selon
-la tâche détectée — sélection lexicale instantanée, une seule à la fois, badge
-« 📘 Méthode : … » dans le fil. Désactivable dans Configuration → Intelligence.
-
-## Tirer le meilleur des petits modèles
-
-Loki est conçu pour qu'un modèle local modeste se comporte comme un bon agent :
-
-- **Mémoire compressée** : au-delà d'un seuil, les anciens tours sont résumés
-  en arrière-plan et le modèle ne reçoit que « invite + résumé + 10 derniers
-  messages ». Contexte court = modèle concentré, et qui reste sur le GPU.
-- **Outils chirurgicaux** : `edit_file` (recherche/remplacement exact — pas de
-  réécriture intégrale ratée), `grep_search` (trouver avant de modifier), et
-  `write_file` par morceaux (overwrite/append).
-- **Auto-vérification** : après chaque écriture, la syntaxe (`.py`, `.json`)
-  est contrôlée ; l'erreur est renvoyée immédiatement au modèle, qui se
-  corrige dans le même tour.
-- **Bon modèle au bon poste** : les tâches de code sont confiées au meilleur
-  modèle code installé (`qwen-coder`, `deepseek-coder`…), automatiquement
-  (config `code_model: auto`), même si tu discutes avec un généraliste.
-- **Récupération d'appels d'outils malformés** : arguments réparés ou
-  redemandés, modèles sans function-calling détectés et gérés.
-
-## Moteur code (façon Claude Code) — routage automatique
-
-Loki embarque [Aider](https://aider.chat) (Apache-2.0, version figée) comme
-**moteur code** : édition multi-fichiers fiable (formats diff/search-replace,
-efficaces même avec de petits modèles), repo map, et **commits git
-automatiques** dans le workspace.
-
-**C'est invisible** : un routeur classe chaque message.
-- Tâche de code détectée (heuristique lexicale instantanée) → le message part
-  au **moteur code** ; le fil affiche la carte `code_task`, les fichiers
-  modifiés et le commit.
-- Sinon → **boucle agent** classique ; et l'agent peut lui-même déléguer au
-  moteur via l'outil `code_task` quand il juge qu'il faut coder.
-
-Désactivable dans Configuration → Outils (`code_task`). Le workspace est
-auto-initialisé en dépôt git : chaque modification de code = un commit
-(historique et rollback via `git log` / `git revert` dans le workspace).
-
-## Profil GPU fourni
-
-Loki est préconfiguré pour une **RTX 3060 12 Go** avec `gemma4:12b` en Q4 :
-contexte 8192, sortie 4096 jetons, batch 256, GPU principal 0 et les 49 couches
-du modèle sur le GPU. Les paramètres de génération et de cache/contexte sont
-enregistrés séparément pour chaque modèle.
-
-La quantification du cache KV reste globale dans Ollama. Pour économiser environ
-la moitié de sa VRAM, démarre Ollama avec `OLLAMA_FLASH_ATTENTION=1` et
-`OLLAMA_KV_CACHE_TYPE=q8_0`. Un redémarrage d'Ollama est requis. Le conteneur
-doit également exposer le GPU (`--gpus=all`) ; Loki ne peut pas contourner une
-configuration Docker sans accès CUDA.
-
-## Sécurité
-
-- **Confinement** : toutes les opérations fichier (`read_file`, `write_file`,
-  `list_dir`) et `run_shell` sont strictement confinées au `WORKSPACE_DIR`. Toute
-  tentative de sortie (`../`, chemin absolu) est rejetée.
-- **`run_shell`** est désactivé par défaut. Une fois activé, chaque commande
-  proposée par l'agent demande une **validation explicite** dans l'interface
-  (option *confirm_shell*, activée par défaut) avant exécution.
-- Le conteneur tourne en **utilisateur non-root** et expose un **HEALTHCHECK**.
-- Loki est conçu pour un usage **local** : n'expose pas le port publiquement sans
-  ajouter ta propre couche d'authentification.
-
-## Feuille de route
-
-- [x] **Phase 1** — Socle + design system fidèle au thème, layout 3 panneaux
-- [x] **Phase 2** — Connexion Ollama : statut, liste des modèles, pull avec progression, sélecteur
-- [x] **Phase 3** — Chat streaming (SSE) + persistance des sessions (SQLite)
-- [x] **Phase 4** — Boucle agentique & outils fichiers (read/write/list), confinés au workspace, rendu des appels d'outils dans le fil
-- [x] **Phase 5** — Aperçu HTML live + onglets Code/Logs + arborescence du workspace
-- [x] **Phase 6** — Configuration complète (génération, toggles d'outils, invite système)
-- [x] **Phase 7** — Outils avancés : `web_search` (DuckDuckGo/SearxNG) et `run_shell` avec validation utilisateur
-- [x] **Phase 8** — Durcissement & documentation Docker
-
-## Structure
-
-```
-backend/   FastAPI : routes Ollama, client httpx, config
-frontend/  React : design system (tailwind.config), panneaux, store Zustand
-workspace/ fichiers créés par l'agent (monté en volume)
-data/      base SQLite (monté en volume)
-```
+MIT — © les contributeurs d'AJEAN (« Jean contributors ») pour le code amont,
+voir [`LICENSE`](LICENSE) et [`NOTICE.md`](NOTICE.md).
