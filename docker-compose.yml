@@ -2,7 +2,8 @@
 # Un seul service : le conteneur embarque le moteur llama.cpp (CUDA) ET l'UI.
 #
 #   cp .env.example .env      # ajuste si besoin
-#   docker compose up --build # build local (30-45 min : compilation CUDA)
+#   docker compose up --build # build local en quelques minutes (llama-server
+#                             # vient précompilé de l'image officielle llama.cpp)
 #
 # Interface : http://localhost:8090
 # Pré-requis GPU : NVIDIA Container Toolkit sur l'hôte.
@@ -10,10 +11,8 @@ services:
   loki:
     build:
       context: .
-      args:
-        # Restreins à ta carte pour un build plus court : 75=Turing (GTX 16xx/RTX 20xx),
-        # 86=Ampere (RTX 30xx), 89=Ada (RTX 40xx).
-        CUDA_ARCHS: ${CUDA_ARCHS:-75;86;89}
+      # Pour épingler la version du moteur ou passer en CPU/Vulkan :
+      # args: { LLAMACPP_IMAGE: "ghcr.io/ggml-org/llama.cpp:server-cuda-b10423" }
     container_name: loki
     ports:
       - "${LOKI_WEB_PORT:-8090}:${LOKI_WEB_PORT:-8090}"
