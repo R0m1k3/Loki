@@ -120,6 +120,60 @@ func handleChatReset(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
+// --- Discussions (plusieurs fils) ------------------------------------------
+// Le fil actif est PARTAGÉ par tous les appareils, comme la conversation unique
+// de l'amont : basculer sur le téléphone bascule aussi le PC (l'epoch fait
+// rejouer le nouveau fil à tous les abonnés SSE).
+
+func handleConvList(w http.ResponseWriter, r *http.Request) {
+	list, active := ConvList()
+	if list == nil {
+		list = []convMeta{}
+	}
+	sendJSON(w, 200, map[string]any{"conversations": list, "active": active})
+}
+
+func handleConvNew(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, 200, map[string]any{"ok": true, "id": convNew()})
+}
+
+func handleConvSwitch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := convSwitch(req.ID); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+func handleConvRename(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := convRename(req.ID, req.Title); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+func handleConvDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := convDelete(req.ID); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
 // handleChatCompact lance une compaction manuelle du contexte (bouton UI). La
 // progression est diffusée via le flux d'abonnement (compacting/compacted).
 func handleChatCompact(w http.ResponseWriter, r *http.Request) {

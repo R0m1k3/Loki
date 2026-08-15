@@ -152,7 +152,10 @@ function handleDelta(d){
     // déclencher la synchro — c'est ici qu'on décide d'afficher l'accueil.
     syncChatEmpty();
     return; }
-  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); return; }
+  // `reset` = fil vidé OU bascule de discussion (même mécanisme d'epoch côté
+  // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
+  // a pu être déclenchée depuis un autre appareil.
+  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;
@@ -162,7 +165,10 @@ function handleDelta(d){
     // bulle neuve — sinon elles apparaîtraient en double.
     if(d.files && !hasMsgFiles(el)) addMsgFiles(el, d.files);
     setBusy(true); T.typingEl=addTyping(); return; }
-  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats); setBusy(false); return; }
+  // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
+  // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
+  // replay, qui rejoue tous les tours passés d'un bloc.
+  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats); setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
   if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }

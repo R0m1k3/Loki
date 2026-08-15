@@ -71,7 +71,9 @@ var conv = func() *Conversation {
 // LoadConversation recharge l'état persisté au démarrage du process. Sans état
 // enregistré (première fois) on part d'une conversation vide.
 func LoadConversation() {
-	b := getBytes(bkChat, "conversation")
+	// convEnsureActive reprend au passage le fil unique des versions
+	// précédentes (clé « conversation ») comme première discussion.
+	b := getBytes(bkChat, convKey(convEnsureActive()))
 	if len(b) == 0 {
 		return
 	}
@@ -83,16 +85,44 @@ func LoadConversation() {
 	conv.cancel = nil
 }
 
+// loadFrom remplace l'état en mémoire par une autre discussion (b vide = fil
+// neuf) et invalide les abonnés : l'epoch incrémenté leur fait vider l'écran et
+// rejouer depuis zéro, exactement comme un reset. L'appelant NE doit PAS
+// détenir mu.
+func (c *Conversation) loadFrom(b []byte) {
+	c.Stop()
+	c.mu.Lock()
+	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
+	if len(b) > 0 {
+		_ = json.Unmarshal(b, c)
+	}
+	c.Generating = false
+	c.cancel = nil
+	c.epoch++
+	c.cond.Broadcast()
+	c.mu.Unlock()
+}
+
 // persist enregistre l'état (appelé en fin de tour et sur reset, pas à chaque
-// delta). L'appelant NE doit PAS détenir mu.
+// delta) sous la discussion active, et rafraîchit ses métadonnées (titre déduit
+// du premier message, date, nombre d'échanges). L'appelant NE doit PAS détenir mu.
 func (c *Conversation) persist() {
 	c.mu.Lock()
 	b, err := json.Marshal(c)
+	title := convSummary(c.Messages)
+	turns := 0
+	for _, ev := range c.Log {
+		if _, ok := ev.Delta["user"]; ok {
+			turns++
+		}
+	}
 	c.mu.Unlock()
 	if err != nil {
 		return
 	}
-	_ = putBytes(bkChat, "conversation", b)
+	id := convEnsureActive()
+	_ = putBytes(bkChat, convKey(id), b)
+	convTouchMeta(id, title, turns)
 }
 
 // appendDelta journalise un événement d'affichage et réveille les abonnés.

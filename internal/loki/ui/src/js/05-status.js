@@ -59,7 +59,10 @@ async function checkUpdate(){
   b.disabled=true; msg.textContent='Vérification…';
   try{
     const r=await jget('/api/update');
-    if(r.error){ msg.textContent='Erreur : '+r.error; }
+    // En conteneur, la mise à jour passe par l'image : on l'explique au lieu de
+    // proposer un remplacement de binaire impossible ici.
+    if(r.note){ msg.textContent=r.note; }
+    else if(r.error){ msg.textContent='Erreur : '+r.error; }
     else if(r.available){
       msg.innerHTML='Nouvelle version <b>v'+r.latest+'</b> disponible. ';
       const btn=document.createElement('button'); btn.textContent='Mettre à jour'; btn.onclick=applyUpdate;

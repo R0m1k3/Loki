@@ -194,12 +194,18 @@ func newWebMux() *http.ServeMux {
 	api("/api/restart", svcHandler("restart"))
 	api("/api/bench", handleBench)
 	api("/api/bench/last", handleBenchLast)
-	api("/api/chat", handleChat)                // flux d'ABONNEMENT (SSE) : rejoue + suit le fil
-	api("/api/chat/send", handleChatSend)       // envoie un message (lance la génération détachée)
-	api("/api/chat/upload", handleChatUpload)   // dépose un fichier dans le workspace agent (joint au message suivant)
-	api("/api/chat/file", handleChatFile)       // télécharge un fichier produit par l'agent (dossier de travail only)
-	api("/api/chat/stop", handleChatStop)       // interrompt la génération en cours
-	api("/api/chat/reset", handleChatReset)     // nouvelle conversation (pour tous les appareils)
+	api("/api/chat", handleChat)              // flux d'ABONNEMENT (SSE) : rejoue + suit le fil
+	api("/api/chat/send", handleChatSend)     // envoie un message (lance la génération détachée)
+	api("/api/chat/upload", handleChatUpload) // dépose un fichier dans le workspace agent (joint au message suivant)
+	api("/api/chat/file", handleChatFile)     // télécharge un fichier produit par l'agent (dossier de travail only)
+	api("/api/chat/stop", handleChatStop)     // interrompt la génération en cours
+	api("/api/chat/reset", handleChatReset)   // vide la discussion courante (pour tous les appareils)
+	// Discussions : liste, création, bascule, renommage, suppression.
+	api("/api/conversations", handleConvList)
+	api("/api/conversations/new", handleConvNew)
+	api("/api/conversations/switch", handleConvSwitch)
+	api("/api/conversations/rename", handleConvRename)
+	api("/api/conversations/delete", handleConvDelete)
 	api("/api/chat/compact", handleChatCompact) // compaction manuelle du contexte
 	api("/api/chat/state", handleChatState)     // instantané léger {seq, generating, ctx_used}
 	api("/api/chat/export", handleChatExport)   // téléchargement du fil (?format=md|json)
