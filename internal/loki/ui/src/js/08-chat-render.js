@@ -56,7 +56,22 @@ function addMsg(role, text){
     }
   }
   el.querySelector('.body').textContent=text;
-  chatEl().appendChild(el);
+  // Bulles techniques (raisonnement, outils, mémoire) : elles se posent CÔTE À
+  // CÔTE dans une rangée qui déborde à la ligne. Un tour d'agent en enchaîne
+  // parfois dix ; empilées, elles repoussaient la réponse hors de l'écran alors
+  // qu'elles ne portent qu'une étiquette tant qu'elles sont repliées. Dépliée,
+  // une bulle reprend toute la largeur de la rangée (CSS .toolrow).
+  if(collapsible){
+    let row = chatEl().lastElementChild;
+    if(!row || !row.classList.contains('toolrow')){
+      row = document.createElement('div');
+      row.className = 'toolrow';
+      chatEl().appendChild(row);
+    }
+    row.appendChild(el);
+  } else {
+    chatEl().appendChild(el);
+  }
   scrollMaybe();
   return el;
 }

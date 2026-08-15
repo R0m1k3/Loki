@@ -1318,3 +1318,32 @@ button:hover{border-color:var(--dim);color:var(--text)}
   #chat{padding:26px max(20px,calc(50% - var(--measure)/2)) 8px}
   #composer{--col:calc(max(20px,calc(50% - var(--measure)/2)) + var(--sbw,0px))}
 }
+
+/* --- Terre : rangée de bulles techniques ------------------------------
+   Raisonnement, outils et mémoire ne portent qu'une étiquette tant qu'ils sont
+   repliés : les empiler gaspillait une ligne entière par appel et repoussait la
+   réponse hors de l'écran. Ils défilent donc en rangée, et reprennent la pleine
+   largeur dès qu'on en déplie un. */
+.toolrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.toolrow>.msg.collapsible{margin:0;max-width:100%}
+.toolrow>.msg.collapsible.collapsed{width:auto}
+/* Dépliée : la bulle passe seule sur sa ligne, sinon son contenu serait
+   comprimé dans une colonne étroite à côté d'une pastille. */
+.toolrow>.msg.collapsible:not(.collapsed){flex:1 0 100%}
+
+/* --- Terre : sections groupées en cartes ------------------------------
+   Une carte par section empilait onze arrondis et autant de gouttières : la
+   barre latérale débordait de l'écran alors que la plupart de ces lignes sont
+   des titres repliés d'une seule ligne. Les sections d'IA d'un côté, celles de
+   l'application de l'autre, tiennent maintenant chacune dans UNE carte, avec un
+   filet discret entre les lignes. */
+@media (min-width:721px){
+  .sidegroup{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+    padding:2px 16px;display:flex;flex-direction:column}
+  /* Dans un groupe, les sections ne sont plus des cartes : elles redeviennent
+     des lignes, séparées par un filet — sauf la première. */
+  .sidegroup>details{background:transparent;box-shadow:none;border-radius:0;padding:0;
+    border-top:1px solid var(--border)}
+  .sidegroup>details:first-child{border-top:0}
+  .sidegroup>details[open]{padding-bottom:12px}
+}

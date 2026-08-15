@@ -1344,6 +1344,35 @@ button:hover{border-color:var(--dim);color:var(--text)}
   #chat{padding:26px max(20px,calc(50% - var(--measure)/2)) 8px}
   #composer{--col:calc(max(20px,calc(50% - var(--measure)/2)) + var(--sbw,0px))}
 }
+
+/* --- Terre : rangée de bulles techniques ------------------------------
+   Raisonnement, outils et mémoire ne portent qu'une étiquette tant qu'ils sont
+   repliés : les empiler gaspillait une ligne entière par appel et repoussait la
+   réponse hors de l'écran. Ils défilent donc en rangée, et reprennent la pleine
+   largeur dès qu'on en déplie un. */
+.toolrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.toolrow>.msg.collapsible{margin:0;max-width:100%}
+.toolrow>.msg.collapsible.collapsed{width:auto}
+/* Dépliée : la bulle passe seule sur sa ligne, sinon son contenu serait
+   comprimé dans une colonne étroite à côté d'une pastille. */
+.toolrow>.msg.collapsible:not(.collapsed){flex:1 0 100%}
+
+/* --- Terre : sections groupées en cartes ------------------------------
+   Une carte par section empilait onze arrondis et autant de gouttières : la
+   barre latérale débordait de l'écran alors que la plupart de ces lignes sont
+   des titres repliés d'une seule ligne. Les sections d'IA d'un côté, celles de
+   l'application de l'autre, tiennent maintenant chacune dans UNE carte, avec un
+   filet discret entre les lignes. */
+@media (min-width:721px){
+  .sidegroup{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+    padding:2px 16px;display:flex;flex-direction:column}
+  /* Dans un groupe, les sections ne sont plus des cartes : elles redeviennent
+     des lignes, séparées par un filet — sauf la première. */
+  .sidegroup>details{background:transparent;box-shadow:none;border-radius:0;padding:0;
+    border-top:1px solid var(--border)}
+  .sidegroup>details:first-child{border-top:0}
+  .sidegroup>details[open]{padding-bottom:12px}
+}
 </style></head><body>
 <button id="menubtn" onclick="toggleSide()">☰</button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
@@ -1374,6 +1403,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
        OU par son propre chevron — c'est une section comme les autres, sinon on ne
        trouvait pas comment la refermer.
        C'est le seul endroit où l'on voit pourquoi un modèle refuse de charger. -->
+  <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
+       empilait 11 arrondis et autant de gouttières : la barre latérale ne
+       tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <div class="sidegroup">
   <details id="svc-log-box" ontoggle="if(this.open){loadSvcLog();showPaths()}"><summary><span class="stitle">Journal du moteur</span></summary>
     <div class="row" style="justify-content:flex-end;align-items:center">
       <button onclick="loadSvcLog()" title="rafraîchir">↻</button>
@@ -1542,11 +1575,16 @@ button:hover{border-color:var(--dim);color:var(--text)}
       </div>
     </div></div>
   </details>
+  </div><!-- /sidegroup -->
   <!-- ── PARAMÈTRES DE L'APPLICATION ────────────────────────────────────
        Séparés des réglages d'IA (Machine, Presets, Mode agent, System
        prompt, Moteur), qui restent au-dessus : ce qui suit ne concerne que
        l'application elle-même. -->
   <div class="side-sep">Paramètres</div>
+  <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
+       empilait 11 arrondis et autant de gouttières : la barre latérale ne
+       tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <div class="sidegroup">
   <details id="ident-details"><summary><span class="stitle">Identité</span></summary>
     <div class="slist"><div class="rowbody">
       <div class="pe-row">
@@ -1625,35 +1663,6 @@ button:hover{border-color:var(--dim);color:var(--text)}
       </div>
     </div></div>
   </details>
-  <details id="remote-details"><summary><span class="stitle">Accès distant</span><span id="remote-badge" class="sbadge"></span></summary>
-    <div class="subhead">ajean.link<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Accédez à ce serveur Loki depuis <b>n'importe où</b>, sans ouvrir de port, à travers le relais <b>ajean.link</b>. Le trafic est chiffré de <b>bout en bout</b> : le relais ne voit rien. Abonnement 4,80 €/mois.</span></span></div>
-    <!-- Non connecté : un seul bouton, tout se passe dans la popup (compte + paiement). -->
-    <div id="remote-off" class="slist"><div class="rowbody">
-      <p class="muted" style="margin:0 0 8px">Ouvrez l'accès distant à ce serveur en quelques clics, sans terminal.</p>
-      <button onclick="remoteConnect()" style="border-color:var(--accent);color:var(--accent)">Connecter à ajean.link</button>
-    </div></div>
-    <!-- Connecté : URL publique + appairage + déconnexion. Le bouton « démarrer
-         le tunnel » vit DANS la carte de l'adresse : c'est l'action de cette
-         ligne, il flottait auparavant entre deux cartes. -->
-    <div id="remote-on" style="display:none">
-      <div class="slist"><div class="rowbody">
-        <div class="muted" style="margin:0 0 6px">Votre adresse d'accès distant</div>
-        <div class="row" style="margin:0">
-          <input id="remote-url" readonly class="io-input">
-          <button class="iconbtn" onclick="copyText(document.getElementById('remote-url').value,'adresse copiée')" title="copier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-          <button class="iconbtn" onclick="window.open(document.getElementById('remote-url').value,'_blank')" title="ouvrir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg></button>
-        </div>
-        <div id="remote-status" class="muted" style="margin-top:6px"></div>
-        <div class="row" style="margin-bottom:0"><button id="remote-start" onclick="remoteStart()" style="display:none;border-color:var(--accent);color:var(--accent)">démarrer le tunnel</button></div>
-      </div></div>
-      <div class="subhead">Première connexion<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">À votre première ouverture du portail distant, confirmez l'<b>empreinte</b> et saisissez le <b>code d'appairage</b> : cela verrouille la boîte noire sur CE serveur (anti-interception). Une seule fois par appareil.</span></span></div>
-      <div class="slist"><div class="rowbody">
-        <div class="row" style="margin:0"><button onclick="remotePairCode()">Afficher l'empreinte et le code d'appairage</button></div>
-        <div id="remote-pair" class="muted" style="display:none;margin-top:6px"></div>
-        <div class="row" style="margin-bottom:0"><button onclick="remoteDisconnect()" class="btn-danger-o">déconnecter l'accès distant</button></div>
-      </div></div>
-    </div>
-  </details>
   <details id="upd-details"><summary><span class="stitle">Actions</span></summary>
     <div class="slist"><div class="rowbody">
       <!-- Ligne 1 : mise à jour + export du fil. Depuis la 0.8 la conversation vit
@@ -1671,6 +1680,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
       </div>
     </div></div>
   </details>
+  </div><!-- /sidegroup -->
 </div>
 <div class="main" style="position:relative">
   <div id="chat"></div>
@@ -3147,7 +3157,7 @@ async function loadAll(){
   // allSettled et pas all : un seul chargement en échec (accès distant coupé,
   // clé API absente…) ne doit pas empêcher la suite — et surtout pas laisser les
   // hauteurs réservées en place pour toujours.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp(),loadRemote()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -4209,7 +4219,22 @@ function addMsg(role, text){
     }
   }
   el.querySelector('.body').textContent=text;
-  chatEl().appendChild(el);
+  // Bulles techniques (raisonnement, outils, mémoire) : elles se posent CÔTE À
+  // CÔTE dans une rangée qui déborde à la ligne. Un tour d'agent en enchaîne
+  // parfois dix ; empilées, elles repoussaient la réponse hors de l'écran alors
+  // qu'elles ne portent qu'une étiquette tant qu'elles sont repliées. Dépliée,
+  // une bulle reprend toute la largeur de la rangée (CSS .toolrow).
+  if(collapsible){
+    let row = chatEl().lastElementChild;
+    if(!row || !row.classList.contains('toolrow')){
+      row = document.createElement('div');
+      row.className = 'toolrow';
+      chatEl().appendChild(row);
+    }
+    row.appendChild(el);
+  } else {
+    chatEl().appendChild(el);
+  }
   scrollMaybe();
   return el;
 }
@@ -5352,102 +5377,6 @@ async function deleteMcp(){
   closeMcp();
   loadMCP();
   toast('serveur supprimé');
-}
-// Accès distant (ajean.link) — piloté depuis l'UI, sans terminal.
-// « Connecter » ouvre une popup app.ajean.link/connect.html qui gère compte +
-// abonnement, puis renvoie une clé de liaison par postMessage. On la POSTe à
-// l'agent local (/api/link/connect) qui fait le `loki link` (token + service).
-
-const LOKI_APP_ORIGIN = 'https://app.ajean.link';
-
-function renderRemote(d){
-  const off = document.getElementById('remote-off'), on = document.getElementById('remote-on');
-  const badge = document.getElementById('remote-badge');
-  if(!d || !d.linked){
-    // Serveur jamais lié : on l'affiche explicitement plutôt que de laisser la
-    // pastille vide, qui se lisait comme « je ne sais pas ».
-    off.style.display=''; on.style.display='none';
-    setBadge(badge, false, 'non connecté');
-    return;
-  }
-  off.style.display='none'; on.style.display='';
-  document.getElementById('remote-url').value = d.machineURL || '';
-  const st = document.getElementById('remote-status');
-  if(d.active){ st.textContent='● en ligne — accessible à distance'; st.style.color='var(--accent)'; }
-  else { st.textContent='○ tunnel arrêté (l\'accès distant ne répondra pas)'; st.style.color='var(--warn)'; }
-  const sb = document.getElementById('remote-start');
-  if(sb){ sb.style.display = d.active ? 'none' : ''; }
-  setBadge(badge, d.active ? true : 'warn', d.active ? 'connecté' : 'arrêté');
-}
-
-async function loadRemote(){
-  // Le panneau ne vaut qu'en LOCAL : il pilote /api/link/* que le tunnel bloque
-  // (boîte noire). Sur le portail distant (app.ajean.link/server.html), on le cache.
-  const det = document.getElementById('remote-details');
-  if(location.hostname === 'app.ajean.link'){ if(det) det.style.display='none'; return; }
-  // Statut injoignable : on retombe sur « non connecté » plutôt que de garder
-  // l'affichage précédent, qui pourrait annoncer « connecté » à tort.
-  try{ renderRemote(await jget('/api/link/status')); }catch(e){ renderRemote(null); }
-}
-
-// Ouvre la popup de connexion et attend la clé renvoyée par postMessage.
-function remoteConnect(){
-  const params = new URLSearchParams({ origin: window.location.origin, host: window.location.hostname || 'ce serveur' });
-  const url = LOKI_APP_ORIGIN + '/connect.html?' + params.toString();
-  const pop = window.open(url, 'loki-connect', 'width=440,height=640');
-  if(!pop){ toast('autorisez les popups pour connecter ajean.link'); return; }
-
-  async function onMsg(ev){
-    // Anti-usurpation : n'accepte QUE des messages du portail ajean.link.
-    if(ev.origin !== LOKI_APP_ORIGIN) return;
-    const d = ev.data || {};
-    if(d.type !== 'loki-link' || !d.token) return;
-    window.removeEventListener('message', onMsg);
-    try{
-      const r = await jpost('/api/link/connect', { token: d.token });
-      if(r && r.linked){
-        toast('✓ accès distant connecté');
-        if(r.serviceErr){ toast('token enregistré (service : '+r.serviceErr+')'); }
-        loadRemote();
-      } else {
-        toast((r && r.error) || 'échec de la connexion');
-      }
-    }catch(e){ toast('erreur : '+e); }
-  }
-  window.addEventListener('message', onMsg);
-}
-
-// Relance le tunnel avec la clé déjà enregistrée (sans repasser par la popup).
-async function remoteStart(){
-  const b = document.getElementById('remote-start');
-  if(b){ b.disabled = true; b.textContent = 'démarrage…'; }
-  try{
-    const r = await jpost('/api/link/start', {});
-    if(r && r.active){ toast('✓ tunnel démarré'); }
-    else { toast((r && r.error) || 'le tunnel n\'a pas démarré'); }
-  }catch(e){ toast('erreur : '+e); }
-  if(b){ b.disabled = false; b.textContent = 'démarrer le tunnel'; }
-  loadRemote();
-}
-
-async function remoteDisconnect(){
-  const ok = await askConfirm('Couper l\'accès distant et oublier la clé de liaison de ce serveur ?', {title:'Accès distant', okLabel:'Déconnecter'});
-  if(!ok) return;
-  try{ await jpost('/api/link/disconnect', {}); toast('accès distant coupé'); loadRemote(); }
-  catch(e){ toast('erreur : '+e); }
-}
-
-async function remotePairCode(){
-  const box = document.getElementById('remote-pair');
-  box.style.display=''; box.textContent='génération du code…';
-  try{
-    const r = await jpost('/api/link/paircode', {});
-    if(r && r.code){
-      box.innerHTML = 'Empreinte : <b>'+(r.fingerprint||'—')+'</b><br>Code d\'appairage (valable 10 min, usage unique) : <b>'+r.code+'</b>';
-    } else {
-      box.textContent = (r && r.error) || 'code indisponible';
-    }
-  }catch(e){ box.textContent='erreur : '+e; }
 }
 // ===== Pièces jointes du chat ==============================================
 // Un fichier joint n'est PAS lu par le navigateur ni injecté dans le contexte :

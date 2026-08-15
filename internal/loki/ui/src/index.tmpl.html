@@ -55,6 +55,10 @@
        OU par son propre chevron — c'est une section comme les autres, sinon on ne
        trouvait pas comment la refermer.
        C'est le seul endroit où l'on voit pourquoi un modèle refuse de charger. -->
+  <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
+       empilait 11 arrondis et autant de gouttières : la barre latérale ne
+       tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <div class="sidegroup">
   <details id="svc-log-box" ontoggle="if(this.open){loadSvcLog();showPaths()}"><summary><span class="stitle">Journal du moteur</span></summary>
     <div class="row" style="justify-content:flex-end;align-items:center">
       <button onclick="loadSvcLog()" title="rafraîchir">↻</button>
@@ -223,11 +227,16 @@
       </div>
     </div></div>
   </details>
+  </div><!-- /sidegroup -->
   <!-- ── PARAMÈTRES DE L'APPLICATION ────────────────────────────────────
        Séparés des réglages d'IA (Machine, Presets, Mode agent, System
        prompt, Moteur), qui restent au-dessus : ce qui suit ne concerne que
        l'application elle-même. -->
   <div class="side-sep">Paramètres</div>
+  <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
+       empilait 11 arrondis et autant de gouttières : la barre latérale ne
+       tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <div class="sidegroup">
   <details id="ident-details"><summary><span class="stitle">Identité</span></summary>
     <div class="slist"><div class="rowbody">
       <div class="pe-row">
@@ -306,35 +315,6 @@
       </div>
     </div></div>
   </details>
-  <details id="remote-details"><summary><span class="stitle">Accès distant</span><span id="remote-badge" class="sbadge"></span></summary>
-    <div class="subhead">ajean.link<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Accédez à ce serveur Loki depuis <b>n'importe où</b>, sans ouvrir de port, à travers le relais <b>ajean.link</b>. Le trafic est chiffré de <b>bout en bout</b> : le relais ne voit rien. Abonnement 4,80 €/mois.</span></span></div>
-    <!-- Non connecté : un seul bouton, tout se passe dans la popup (compte + paiement). -->
-    <div id="remote-off" class="slist"><div class="rowbody">
-      <p class="muted" style="margin:0 0 8px">Ouvrez l'accès distant à ce serveur en quelques clics, sans terminal.</p>
-      <button onclick="remoteConnect()" style="border-color:var(--accent);color:var(--accent)">Connecter à ajean.link</button>
-    </div></div>
-    <!-- Connecté : URL publique + appairage + déconnexion. Le bouton « démarrer
-         le tunnel » vit DANS la carte de l'adresse : c'est l'action de cette
-         ligne, il flottait auparavant entre deux cartes. -->
-    <div id="remote-on" style="display:none">
-      <div class="slist"><div class="rowbody">
-        <div class="muted" style="margin:0 0 6px">Votre adresse d'accès distant</div>
-        <div class="row" style="margin:0">
-          <input id="remote-url" readonly class="io-input">
-          <button class="iconbtn" onclick="copyText(document.getElementById('remote-url').value,'adresse copiée')" title="copier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-          <button class="iconbtn" onclick="window.open(document.getElementById('remote-url').value,'_blank')" title="ouvrir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg></button>
-        </div>
-        <div id="remote-status" class="muted" style="margin-top:6px"></div>
-        <div class="row" style="margin-bottom:0"><button id="remote-start" onclick="remoteStart()" style="display:none;border-color:var(--accent);color:var(--accent)">démarrer le tunnel</button></div>
-      </div></div>
-      <div class="subhead">Première connexion<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">À votre première ouverture du portail distant, confirmez l'<b>empreinte</b> et saisissez le <b>code d'appairage</b> : cela verrouille la boîte noire sur CE serveur (anti-interception). Une seule fois par appareil.</span></span></div>
-      <div class="slist"><div class="rowbody">
-        <div class="row" style="margin:0"><button onclick="remotePairCode()">Afficher l'empreinte et le code d'appairage</button></div>
-        <div id="remote-pair" class="muted" style="display:none;margin-top:6px"></div>
-        <div class="row" style="margin-bottom:0"><button onclick="remoteDisconnect()" class="btn-danger-o">déconnecter l'accès distant</button></div>
-      </div></div>
-    </div>
-  </details>
   <details id="upd-details"><summary><span class="stitle">Actions</span></summary>
     <div class="slist"><div class="rowbody">
       <!-- Ligne 1 : mise à jour + export du fil. Depuis la 0.8 la conversation vit
@@ -352,6 +332,7 @@
       </div>
     </div></div>
   </details>
+  </div><!-- /sidegroup -->
 </div>
 <div class="main" style="position:relative">
   <div id="chat"></div>
