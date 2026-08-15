@@ -162,6 +162,9 @@ func handleLlamacpp(w http.ResponseWriter, r *http.Request) {
 	cfgBin := ReadConfig()["BIN"]
 	out["config_bin"] = cfgBin
 	out["in_use"] = bin != "" && samePath(bin, cfgBin)
+	// Moteur livré par l'image Docker : il n'y a rien à installer, et l'image
+	// ne contient ni cmake ni compilateur. L'UI masque alors les trois modes.
+	out["provided"] = engineProvided(cfgBin)
 
 	plan := detectBuildPlan()
 	out["plan"] = map[string]any{
@@ -184,6 +187,40 @@ func handleLlamacpp(w http.ResponseWriter, r *http.Request) {
 	out["reco"] = recommendedMode(plan.backend)
 	out["job"] = lcJobSnapshot(0, false)
 	sendJSON(w, 200, out)
+}
+
+// engineProvided : le moteur est-il fourni par l'image Docker ? Vrai quand on
+// tourne en conteneur et que BIN désigne un exécutable existant SITUÉ HORS de
+// LOKI_HOME — donc ni le dépôt cloné, ni les binaires précompilés, ni les
+// backends custom, qui vivent tous sous LOKI_HOME et sont gérés par Loki.
+//
+// Sans cette distinction, l'UI proposait d'installer un moteur déjà présent, et
+// l'utilisateur tombait sur « outils manquants : cmake » — l'image ne contient
+// volontairement ni cmake ni compilateur, puisqu'elle part de l'image officielle
+// llama.cpp où llama-server est déjà compilé.
+func engineProvided(cfgBin string) bool {
+	if os.Getenv("LOKI_CONTAINER") != "1" || strings.TrimSpace(cfgBin) == "" {
+		return false
+	}
+	bin := prebuiltResolveBin(cfgBin)
+	if st, err := os.Stat(bin); err != nil || st.IsDir() {
+		return false
+	}
+	rel, err := filepath.Rel(LokiHome(), bin)
+	return err != nil || strings.HasPrefix(rel, "..")
+}
+
+// refuseIfProvided coupe court aux jobs d'installation/compilation quand le
+// moteur vient de l'image : rien à installer, et aucun compilateur disponible.
+// Renvoie true si la requête a été refusée (l'appelant doit sortir).
+func refuseIfProvided(w http.ResponseWriter) bool {
+	if !engineProvided(ReadConfig()["BIN"]) {
+		return false
+	}
+	sendJSON(w, 409, map[string]any{"ok": false, "error": "Le moteur est fourni par l'image Docker (" +
+		ReadConfig()["BIN"] + ") : il n'y a rien à installer ici, et l'image ne contient ni cmake ni compilateur. " +
+		"Pour changer de moteur, reconstruis l'image avec un autre build-arg LLAMACPP_IMAGE."})
+	return true
 }
 
 // samePath compare deux chemins en neutralisant séparateurs, symlinks et casse
@@ -237,6 +274,9 @@ func handleLlamacppCheck(w http.ResponseWriter, r *http.Request) {
 
 // handleLlamacppInstall lance le job d'installation (clone + build + BIN).
 func handleLlamacppInstall(w http.ResponseWriter, r *http.Request) {
+	if refuseIfProvided(w) {
+		return
+	}
 	var req struct {
 		Force bool `json:"force"`
 	}
@@ -253,6 +293,9 @@ func handleLlamacppInstall(w http.ResponseWriter, r *http.Request) {
 // compilé pour la machine, SANS toucher au BIN global. Il apparaît ensuite dans
 // /api/backends et se choisit par modèle (éditeur de preset → Moteur).
 func handleLlamacppInstallCustom(w http.ResponseWriter, r *http.Request) {
+	if refuseIfProvided(w) {
+		return
+	}
 	var req struct {
 		Repo string `json:"repo"`
 		Name string `json:"name"`
@@ -286,6 +329,9 @@ func lcRunCustomInstall(url, name, ref string) {
 // handleLlamacppUpdate lance le job de mise à jour (pull + rebuild + restart).
 // {clean:true} force une recompilation from scratch même sans nouveau commit.
 func handleLlamacppUpdate(w http.ResponseWriter, r *http.Request) {
+	if refuseIfProvided(w) {
+		return
+	}
 	var req struct {
 		Clean bool `json:"clean"`
 	}

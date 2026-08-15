@@ -36,13 +36,13 @@ async function loadStatus(){
     else { me.style.display='none'; }
   }
 }
-// Journal du moteur — replié par défaut, on l'ouvre en cliquant la pastille.
+// Journal du moteur — section repliable comme les autres. La pastille d'état
+// reste un raccourci ; le chargement du journal est déclenché par l'événement
+// `toggle` du <details>, qu'on l'ouvre par la pastille ou par son chevron.
 function toggleSvcLog(){
   const box=document.getElementById('svc-log-box');
   if(!box) return;
-  const show = box.style.display==='none';
-  box.style.display = show ? '' : 'none';
-  if(show){ loadSvcLog(); showPaths(); }
+  box.open = !box.open;
 }
 async function loadSvcLog(){
   const el=document.getElementById('svc-log');
