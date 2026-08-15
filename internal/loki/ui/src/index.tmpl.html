@@ -161,6 +161,85 @@
       </div>
     </div>
   </details>
+  <details><summary><span class="stitle">System prompt</span></summary>
+    <div class="slist"><div class="rowbody">
+      <textarea id="sysprompt" placeholder="(optionnel) ex: tu es un assistant concis en français" oninput="saveSys()" class="sctl"></textarea>
+    </div></div>
+  </details>
+  <details id="lc-details"><summary><span class="stitle">Moteur</span></summary>
+    <!-- Une seule carte : état, choix du mode et journal d'installation sont le
+         même sujet. Les trois modes sont des LIGNES de cette carte (elles
+         étaient des cartes dans une carte). -->
+    <div class="slist">
+    <!-- Moteur fourni par l'image Docker : aucun des trois modes ne s'applique
+         (rien à installer, et l'image n'embarque ni cmake ni compilateur). -->
+    <div id="lc-provided" class="rowbody" style="display:none">
+      <div style="font-size:12px;line-height:1.5">Moteur <b>fourni par l'image Docker</b> — llama.cpp officiel, déjà compilé.
+        <div class="muted" style="margin-top:4px">Rien à installer ni à mettre à jour ici : le moteur suit l'image.
+          Pour en changer (version épinglée, CPU, Vulkan), reconstruis l'image avec le build-arg <code>LLAMACPP_IMAGE</code>.</div>
+        <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
+      </div>
+    </div>
+    <!-- La pastille « conseillé » n'est PAS écrite ici : le bon choix dépend de
+         la machine (voir lcRenderReco). Sur Linux + NVIDIA le précompilé ne
+         donne que du Vulkan — llama.cpp ne publie aucun binaire CUDA Linux —
+         alors que compiler donne du CUDA natif. -->
+    <div class="lc-modes">
+      <div class="lc-mode" id="lc-mode-fast" onclick="lcPick('fast')">
+        <div class="lc-mode-t">llama.cpp précompilé <span class="lc-reco" id="lc-reco-fast" hidden>conseillé</span></div>
+        <div class="lc-mode-d" id="lc-desc-fast">binaire officiel téléchargé tel quel, prêt en ~2 min</div>
+        <div class="lc-mode-state" id="lc-fast-state"></div>
+      </div>
+      <div class="lc-mode" id="lc-mode-opt" onclick="lcPick('opt')">
+        <div class="lc-mode-t">llama.cpp compilé <span class="lc-reco" id="lc-reco-opt" hidden>conseillé</span></div>
+        <div class="lc-mode-d" id="lc-desc-opt">compilé ici pour votre machine — plus rapide, plus long à installer</div>
+        <div class="lc-mode-state" id="lc-opt-state"></div>
+      </div>
+      <div class="lc-mode" id="lc-mode-custom" onclick="openCustomBackends()">
+        <div class="lc-mode-t">llama.cpp personnalisé</div>
+        <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
+        <div class="lc-mode-state" id="lc-custom-state"></div>
+      </div>
+    </div>
+    <div id="lc-job" class="rowbody" style="display:none">
+      <div id="lc-job-phase" style="font-size:12px;display:flex;align-items:center;gap:6px"></div>
+      <div class="lc-logbar" onclick="lcToggleLog()"><span id="lc-log-caret">▸</span> détails</div>
+      <pre id="lc-log" hidden></pre>
+    </div>
+    </div>
+    <!-- Ces trois boutons pilotent le service qui fait tourner llama-server :
+         leur place est ici, avec le moteur, et pas dans une section « Service »
+         à part qui ne contenait qu'eux. -->
+    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).</span></span></div>
+    <div class="slist"><div class="rowbody">
+      <div class="row" style="margin:0">
+        <button onclick="act('start')">démarrer</button>
+        <button onclick="act('restart')">redémarrer</button>
+        <button onclick="act('stop')">arrêter</button>
+      </div>
+    </div></div>
+  </details>
+  <!-- ── PARAMÈTRES DE L'APPLICATION ────────────────────────────────────
+       Séparés des réglages d'IA (Machine, Presets, Mode agent, System
+       prompt, Moteur), qui restent au-dessus : ce qui suit ne concerne que
+       l'application elle-même. -->
+  <div class="side-sep">Paramètres</div>
+  <details id="ident-details"><summary><span class="stitle">Identité</span></summary>
+    <div class="slist"><div class="rowbody">
+      <div class="pe-row">
+        <span class="pe-row-l">Ton prénom<span class="pe-sub">affiché sur tes messages</span></span>
+        <span class="pe-row-c"><input id="p-username" class="pe-inp" maxlength="24" placeholder="toi" oninput="saveIdentity()"></span>
+      </div>
+      <div class="pe-row stack">
+        <span class="pe-row-l">Ton avatar</span>
+        <div id="p-avatar-user" class="avpick"></div>
+      </div>
+      <div class="pe-row stack">
+        <span class="pe-row-l">Avatar de Loki</span>
+        <div id="p-avatar-ai" class="avpick"></div>
+      </div>
+    </div></div>
+  </details>
   <details><summary><span class="stitle">Apparence</span></summary>
     <div class="slist">
       <label class="switchrow rev"><span>mode sombre</span>
@@ -175,11 +254,6 @@
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-side" onchange="toggleView('hide-side')"><span class="slider"></span></span> barre latérale escamotable<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">La barre latérale devient un tiroir <b>même sur ordinateur</b> : elle reste fermée et s'ouvre avec le bouton ☰. Toute la largeur pour la conversation.</span></span></label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-stats" onchange="toggleView('hide-stats')"><span class="slider"></span></span> masquer la vitesse de génération<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Sous chaque réponse : <b>prefill</b> (lecture du contexte) et <b>decode</b> (écriture), en tokens et en tokens/seconde. Coche pour ne plus les afficher.</span></span></label>
     </div>
-  </details>
-  <details><summary><span class="stitle">System prompt</span></summary>
-    <div class="slist"><div class="rowbody">
-      <textarea id="sysprompt" placeholder="(optionnel) ex: tu es un assistant concis en français" oninput="saveSys()" class="sctl"></textarea>
-    </div></div>
   </details>
   <details><summary><span class="stitle">Accès OpenAI</span></summary>
     <div class="subhead">Endpoint compatible OpenAI<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Branchez n'importe quel client compatible OpenAI (OpenCode, Continue, Cursor…) sur ces adresses. Si une clé est définie, le client doit envoyer <code>Authorization: Bearer &lt;clé&gt;</code>.</span></span></div>
@@ -251,59 +325,6 @@
         <div class="row" style="margin-bottom:0"><button onclick="remoteDisconnect()" class="btn-danger-o">déconnecter l'accès distant</button></div>
       </div></div>
     </div>
-  </details>
-  <details id="lc-details"><summary><span class="stitle">Moteur</span></summary>
-    <!-- Une seule carte : état, choix du mode et journal d'installation sont le
-         même sujet. Les trois modes sont des LIGNES de cette carte (elles
-         étaient des cartes dans une carte). -->
-    <div class="slist">
-    <!-- Moteur fourni par l'image Docker : aucun des trois modes ne s'applique
-         (rien à installer, et l'image n'embarque ni cmake ni compilateur). -->
-    <div id="lc-provided" class="rowbody" style="display:none">
-      <div style="font-size:12px;line-height:1.5">Moteur <b>fourni par l'image Docker</b> — llama.cpp officiel, déjà compilé.
-        <div class="muted" style="margin-top:4px">Rien à installer ni à mettre à jour ici : le moteur suit l'image.
-          Pour en changer (version épinglée, CPU, Vulkan), reconstruis l'image avec le build-arg <code>LLAMACPP_IMAGE</code>.</div>
-        <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
-      </div>
-    </div>
-    <!-- La pastille « conseillé » n'est PAS écrite ici : le bon choix dépend de
-         la machine (voir lcRenderReco). Sur Linux + NVIDIA le précompilé ne
-         donne que du Vulkan — llama.cpp ne publie aucun binaire CUDA Linux —
-         alors que compiler donne du CUDA natif. -->
-    <div class="lc-modes">
-      <div class="lc-mode" id="lc-mode-fast" onclick="lcPick('fast')">
-        <div class="lc-mode-t">llama.cpp précompilé <span class="lc-reco" id="lc-reco-fast" hidden>conseillé</span></div>
-        <div class="lc-mode-d" id="lc-desc-fast">binaire officiel téléchargé tel quel, prêt en ~2 min</div>
-        <div class="lc-mode-state" id="lc-fast-state"></div>
-      </div>
-      <div class="lc-mode" id="lc-mode-opt" onclick="lcPick('opt')">
-        <div class="lc-mode-t">llama.cpp compilé <span class="lc-reco" id="lc-reco-opt" hidden>conseillé</span></div>
-        <div class="lc-mode-d" id="lc-desc-opt">compilé ici pour votre machine — plus rapide, plus long à installer</div>
-        <div class="lc-mode-state" id="lc-opt-state"></div>
-      </div>
-      <div class="lc-mode" id="lc-mode-custom" onclick="openCustomBackends()">
-        <div class="lc-mode-t">llama.cpp personnalisé</div>
-        <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
-        <div class="lc-mode-state" id="lc-custom-state"></div>
-      </div>
-    </div>
-    <div id="lc-job" class="rowbody" style="display:none">
-      <div id="lc-job-phase" style="font-size:12px;display:flex;align-items:center;gap:6px"></div>
-      <div class="lc-logbar" onclick="lcToggleLog()"><span id="lc-log-caret">▸</span> détails</div>
-      <pre id="lc-log" hidden></pre>
-    </div>
-    </div>
-    <!-- Ces trois boutons pilotent le service qui fait tourner llama-server :
-         leur place est ici, avec le moteur, et pas dans une section « Service »
-         à part qui ne contenait qu'eux. -->
-    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).</span></span></div>
-    <div class="slist"><div class="rowbody">
-      <div class="row" style="margin:0">
-        <button onclick="act('start')">démarrer</button>
-        <button onclick="act('restart')">redémarrer</button>
-        <button onclick="act('stop')">arrêter</button>
-      </div>
-    </div></div>
   </details>
   <details id="upd-details"><summary><span class="stitle">Actions</span></summary>
     <div class="slist"><div class="rowbody">

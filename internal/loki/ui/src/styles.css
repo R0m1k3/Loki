@@ -104,7 +104,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
    reste un bloc à part : il apparaît en glissant quand le mode agent est actif. */
 #brand{display:inline-flex;align-items:center}
-#brand svg{height:10px;width:auto;display:block;shape-rendering:crispEdges;fill:currentColor}
+/* 17px : le logo pixel-art était minuscule à 10px, illisible sur un écran dense.
+   Multiple impair volontaire — la grille du SVG (5 px de haut) reste nette. */
+#brand svg{height:17px;width:auto;display:block;shape-rendering:crispEdges;fill:currentColor}
 #brand-word{display:inline-flex;color:var(--accent)}
 #ver{font-size:10px;font-weight:400;color:var(--dim);margin-left:7px;letter-spacing:0;align-self:flex-end;line-height:1;position:relative;top:1px}
 .sidehead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -120,6 +122,21 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .preset:hover .conv-acts,.preset:focus-within .conv-acts{opacity:1}
 .conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer}
 .conv-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
+/* Séparateur de groupe dans la barre latérale : sépare les réglages d'IA des
+   réglages d'application, sans imbriquer un second niveau de repli (illisible
+   dans une colonne aussi étroite). */
+.side-sep{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);
+  margin:18px 0 8px;padding-top:12px;border-top:1px solid var(--border)}
+/* Choix d'avatar : une grille de pastilles emoji, celle retenue encadrée. */
+.avpick{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.avpick button{font-size:15px;line-height:1;padding:5px 6px;background:var(--panel);
+  border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.avpick button:hover{border-color:var(--accent)}
+.avpick button.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+/* Avatar + nom en tête de bulle : l'emoji garde sa taille propre, le nom hérite
+   du style de .label (petites capitales) mais sans forcer la casse du prénom. */
+.msg .label .av{font-style:normal;font-size:13px;margin-right:5px;vertical-align:-1px}
+.msg .label .who{text-transform:none;letter-spacing:.04em;font-size:11px}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}

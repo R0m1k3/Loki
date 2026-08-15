@@ -25,6 +25,50 @@ var webPrefsAllowed = map[string]map[string]bool{
 	"hide_stats":     {"0": true, "1": true},
 }
 
+// avatarChoices : les emojis proposés pour toi et pour Loki. Liste FERMÉE —
+// n'accepter qu'un jeu connu évite de stocker une chaîne arbitraire qui finirait
+// affichée dans chaque bulle du chat.
+var avatarChoices = []string{
+	"🙂", "😎", "🧑", "👤", "🦊", "🐱", "🐼", "🦉",
+	"🚀", "⚡", "🌙", "🔥", "🌿", "🎯", "🧠", "🤖",
+}
+
+// webPrefsText : préférences à valeur libre, avec un nettoyage propre à chacune.
+// Renvoie la valeur retenue et si elle est acceptable.
+var webPrefsText = map[string]func(string) (string, bool){
+	// Prénom affiché dans le chat : une ligne, sans caractères de contrôle, et
+	// borné en RUNES (24 « é » ne doivent pas compter double).
+	"user_name": func(v string) (string, bool) {
+		v = strings.TrimSpace(strings.Map(func(r rune) rune {
+			if r < 0x20 || r == 0x7f {
+				return -1
+			}
+			return r
+		}, v))
+		if r := []rune(v); len(r) > 24 {
+			v = strings.TrimSpace(string(r[:24]))
+		}
+		return v, true // vide = revenir au libellé par défaut
+	},
+	"avatar_user": avatarPref,
+	"avatar_ai":   avatarPref,
+}
+
+// avatarPref n'accepte qu'un emoji de la liste fermée (ou le vide, qui rétablit
+// le défaut).
+func avatarPref(v string) (string, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", true
+	}
+	for _, a := range avatarChoices {
+		if a == v {
+			return v, true
+		}
+	}
+	return "", false
+}
+
 // loadWebPrefs lit les préférences enregistrées (map vide si aucune).
 func loadWebPrefs() map[string]string {
 	out := map[string]string{}
@@ -40,6 +84,12 @@ func saveWebPrefs(in map[string]string) (map[string]string, error) {
 	defer webPrefsMu.Unlock()
 	prefs := loadWebPrefs()
 	for k, v := range in {
+		if clean, ok := webPrefsText[k]; ok {
+			if val, good := clean(v); good {
+				prefs[k] = val
+			}
+			continue
+		}
 		allowed, ok := webPrefsAllowed[k]
 		if !ok {
 			continue
@@ -69,5 +119,7 @@ func handleWebPrefs(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"ok": true, "prefs": prefs})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true, "prefs": loadWebPrefs()})
+	// avatars : la liste fermée est servie avec les préférences, pour que l'UI
+	// n'ait pas sa propre copie (deux listes divergent tôt ou tard).
+	sendJSON(w, 200, map[string]any{"ok": true, "prefs": loadWebPrefs(), "avatars": avatarChoices})
 }

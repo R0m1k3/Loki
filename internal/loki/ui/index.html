@@ -130,7 +130,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
    reste un bloc à part : il apparaît en glissant quand le mode agent est actif. */
 #brand{display:inline-flex;align-items:center}
-#brand svg{height:10px;width:auto;display:block;shape-rendering:crispEdges;fill:currentColor}
+/* 17px : le logo pixel-art était minuscule à 10px, illisible sur un écran dense.
+   Multiple impair volontaire — la grille du SVG (5 px de haut) reste nette. */
+#brand svg{height:17px;width:auto;display:block;shape-rendering:crispEdges;fill:currentColor}
 #brand-word{display:inline-flex;color:var(--accent)}
 #ver{font-size:10px;font-weight:400;color:var(--dim);margin-left:7px;letter-spacing:0;align-self:flex-end;line-height:1;position:relative;top:1px}
 .sidehead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -146,6 +148,21 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .preset:hover .conv-acts,.preset:focus-within .conv-acts{opacity:1}
 .conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer}
 .conv-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
+/* Séparateur de groupe dans la barre latérale : sépare les réglages d'IA des
+   réglages d'application, sans imbriquer un second niveau de repli (illisible
+   dans une colonne aussi étroite). */
+.side-sep{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);
+  margin:18px 0 8px;padding-top:12px;border-top:1px solid var(--border)}
+/* Choix d'avatar : une grille de pastilles emoji, celle retenue encadrée. */
+.avpick{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.avpick button{font-size:15px;line-height:1;padding:5px 6px;background:var(--panel);
+  border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.avpick button:hover{border-color:var(--accent)}
+.avpick button.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+/* Avatar + nom en tête de bulle : l'emoji garde sa taille propre, le nom hérite
+   du style de .label (petites capitales) mais sans forcer la casse du prénom. */
+.msg .label .av{font-style:normal;font-size:13px;margin-right:5px;vertical-align:-1px}
+.msg .label .who{text-transform:none;letter-spacing:.04em;font-size:11px}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
@@ -1343,6 +1360,85 @@ button:hover{border-color:var(--dim);color:var(--text)}
       </div>
     </div>
   </details>
+  <details><summary><span class="stitle">System prompt</span></summary>
+    <div class="slist"><div class="rowbody">
+      <textarea id="sysprompt" placeholder="(optionnel) ex: tu es un assistant concis en français" oninput="saveSys()" class="sctl"></textarea>
+    </div></div>
+  </details>
+  <details id="lc-details"><summary><span class="stitle">Moteur</span></summary>
+    <!-- Une seule carte : état, choix du mode et journal d'installation sont le
+         même sujet. Les trois modes sont des LIGNES de cette carte (elles
+         étaient des cartes dans une carte). -->
+    <div class="slist">
+    <!-- Moteur fourni par l'image Docker : aucun des trois modes ne s'applique
+         (rien à installer, et l'image n'embarque ni cmake ni compilateur). -->
+    <div id="lc-provided" class="rowbody" style="display:none">
+      <div style="font-size:12px;line-height:1.5">Moteur <b>fourni par l'image Docker</b> — llama.cpp officiel, déjà compilé.
+        <div class="muted" style="margin-top:4px">Rien à installer ni à mettre à jour ici : le moteur suit l'image.
+          Pour en changer (version épinglée, CPU, Vulkan), reconstruis l'image avec le build-arg <code>LLAMACPP_IMAGE</code>.</div>
+        <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
+      </div>
+    </div>
+    <!-- La pastille « conseillé » n'est PAS écrite ici : le bon choix dépend de
+         la machine (voir lcRenderReco). Sur Linux + NVIDIA le précompilé ne
+         donne que du Vulkan — llama.cpp ne publie aucun binaire CUDA Linux —
+         alors que compiler donne du CUDA natif. -->
+    <div class="lc-modes">
+      <div class="lc-mode" id="lc-mode-fast" onclick="lcPick('fast')">
+        <div class="lc-mode-t">llama.cpp précompilé <span class="lc-reco" id="lc-reco-fast" hidden>conseillé</span></div>
+        <div class="lc-mode-d" id="lc-desc-fast">binaire officiel téléchargé tel quel, prêt en ~2 min</div>
+        <div class="lc-mode-state" id="lc-fast-state"></div>
+      </div>
+      <div class="lc-mode" id="lc-mode-opt" onclick="lcPick('opt')">
+        <div class="lc-mode-t">llama.cpp compilé <span class="lc-reco" id="lc-reco-opt" hidden>conseillé</span></div>
+        <div class="lc-mode-d" id="lc-desc-opt">compilé ici pour votre machine — plus rapide, plus long à installer</div>
+        <div class="lc-mode-state" id="lc-opt-state"></div>
+      </div>
+      <div class="lc-mode" id="lc-mode-custom" onclick="openCustomBackends()">
+        <div class="lc-mode-t">llama.cpp personnalisé</div>
+        <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
+        <div class="lc-mode-state" id="lc-custom-state"></div>
+      </div>
+    </div>
+    <div id="lc-job" class="rowbody" style="display:none">
+      <div id="lc-job-phase" style="font-size:12px;display:flex;align-items:center;gap:6px"></div>
+      <div class="lc-logbar" onclick="lcToggleLog()"><span id="lc-log-caret">▸</span> détails</div>
+      <pre id="lc-log" hidden></pre>
+    </div>
+    </div>
+    <!-- Ces trois boutons pilotent le service qui fait tourner llama-server :
+         leur place est ici, avec le moteur, et pas dans une section « Service »
+         à part qui ne contenait qu'eux. -->
+    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).</span></span></div>
+    <div class="slist"><div class="rowbody">
+      <div class="row" style="margin:0">
+        <button onclick="act('start')">démarrer</button>
+        <button onclick="act('restart')">redémarrer</button>
+        <button onclick="act('stop')">arrêter</button>
+      </div>
+    </div></div>
+  </details>
+  <!-- ── PARAMÈTRES DE L'APPLICATION ────────────────────────────────────
+       Séparés des réglages d'IA (Machine, Presets, Mode agent, System
+       prompt, Moteur), qui restent au-dessus : ce qui suit ne concerne que
+       l'application elle-même. -->
+  <div class="side-sep">Paramètres</div>
+  <details id="ident-details"><summary><span class="stitle">Identité</span></summary>
+    <div class="slist"><div class="rowbody">
+      <div class="pe-row">
+        <span class="pe-row-l">Ton prénom<span class="pe-sub">affiché sur tes messages</span></span>
+        <span class="pe-row-c"><input id="p-username" class="pe-inp" maxlength="24" placeholder="toi" oninput="saveIdentity()"></span>
+      </div>
+      <div class="pe-row stack">
+        <span class="pe-row-l">Ton avatar</span>
+        <div id="p-avatar-user" class="avpick"></div>
+      </div>
+      <div class="pe-row stack">
+        <span class="pe-row-l">Avatar de Loki</span>
+        <div id="p-avatar-ai" class="avpick"></div>
+      </div>
+    </div></div>
+  </details>
   <details><summary><span class="stitle">Apparence</span></summary>
     <div class="slist">
       <label class="switchrow rev"><span>mode sombre</span>
@@ -1357,11 +1453,6 @@ button:hover{border-color:var(--dim);color:var(--text)}
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-side" onchange="toggleView('hide-side')"><span class="slider"></span></span> barre latérale escamotable<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">La barre latérale devient un tiroir <b>même sur ordinateur</b> : elle reste fermée et s'ouvre avec le bouton ☰. Toute la largeur pour la conversation.</span></span></label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-stats" onchange="toggleView('hide-stats')"><span class="slider"></span></span> masquer la vitesse de génération<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Sous chaque réponse : <b>prefill</b> (lecture du contexte) et <b>decode</b> (écriture), en tokens et en tokens/seconde. Coche pour ne plus les afficher.</span></span></label>
     </div>
-  </details>
-  <details><summary><span class="stitle">System prompt</span></summary>
-    <div class="slist"><div class="rowbody">
-      <textarea id="sysprompt" placeholder="(optionnel) ex: tu es un assistant concis en français" oninput="saveSys()" class="sctl"></textarea>
-    </div></div>
   </details>
   <details><summary><span class="stitle">Accès OpenAI</span></summary>
     <div class="subhead">Endpoint compatible OpenAI<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Branchez n'importe quel client compatible OpenAI (OpenCode, Continue, Cursor…) sur ces adresses. Si une clé est définie, le client doit envoyer <code>Authorization: Bearer &lt;clé&gt;</code>.</span></span></div>
@@ -1433,59 +1524,6 @@ button:hover{border-color:var(--dim);color:var(--text)}
         <div class="row" style="margin-bottom:0"><button onclick="remoteDisconnect()" class="btn-danger-o">déconnecter l'accès distant</button></div>
       </div></div>
     </div>
-  </details>
-  <details id="lc-details"><summary><span class="stitle">Moteur</span></summary>
-    <!-- Une seule carte : état, choix du mode et journal d'installation sont le
-         même sujet. Les trois modes sont des LIGNES de cette carte (elles
-         étaient des cartes dans une carte). -->
-    <div class="slist">
-    <!-- Moteur fourni par l'image Docker : aucun des trois modes ne s'applique
-         (rien à installer, et l'image n'embarque ni cmake ni compilateur). -->
-    <div id="lc-provided" class="rowbody" style="display:none">
-      <div style="font-size:12px;line-height:1.5">Moteur <b>fourni par l'image Docker</b> — llama.cpp officiel, déjà compilé.
-        <div class="muted" style="margin-top:4px">Rien à installer ni à mettre à jour ici : le moteur suit l'image.
-          Pour en changer (version épinglée, CPU, Vulkan), reconstruis l'image avec le build-arg <code>LLAMACPP_IMAGE</code>.</div>
-        <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
-      </div>
-    </div>
-    <!-- La pastille « conseillé » n'est PAS écrite ici : le bon choix dépend de
-         la machine (voir lcRenderReco). Sur Linux + NVIDIA le précompilé ne
-         donne que du Vulkan — llama.cpp ne publie aucun binaire CUDA Linux —
-         alors que compiler donne du CUDA natif. -->
-    <div class="lc-modes">
-      <div class="lc-mode" id="lc-mode-fast" onclick="lcPick('fast')">
-        <div class="lc-mode-t">llama.cpp précompilé <span class="lc-reco" id="lc-reco-fast" hidden>conseillé</span></div>
-        <div class="lc-mode-d" id="lc-desc-fast">binaire officiel téléchargé tel quel, prêt en ~2 min</div>
-        <div class="lc-mode-state" id="lc-fast-state"></div>
-      </div>
-      <div class="lc-mode" id="lc-mode-opt" onclick="lcPick('opt')">
-        <div class="lc-mode-t">llama.cpp compilé <span class="lc-reco" id="lc-reco-opt" hidden>conseillé</span></div>
-        <div class="lc-mode-d" id="lc-desc-opt">compilé ici pour votre machine — plus rapide, plus long à installer</div>
-        <div class="lc-mode-state" id="lc-opt-state"></div>
-      </div>
-      <div class="lc-mode" id="lc-mode-custom" onclick="openCustomBackends()">
-        <div class="lc-mode-t">llama.cpp personnalisé</div>
-        <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
-        <div class="lc-mode-state" id="lc-custom-state"></div>
-      </div>
-    </div>
-    <div id="lc-job" class="rowbody" style="display:none">
-      <div id="lc-job-phase" style="font-size:12px;display:flex;align-items:center;gap:6px"></div>
-      <div class="lc-logbar" onclick="lcToggleLog()"><span id="lc-log-caret">▸</span> détails</div>
-      <pre id="lc-log" hidden></pre>
-    </div>
-    </div>
-    <!-- Ces trois boutons pilotent le service qui fait tourner llama-server :
-         leur place est ici, avec le moteur, et pas dans une section « Service »
-         à part qui ne contenait qu'eux. -->
-    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).</span></span></div>
-    <div class="slist"><div class="rowbody">
-      <div class="row" style="margin:0">
-        <button onclick="act('start')">démarrer</button>
-        <button onclick="act('restart')">redémarrer</button>
-        <button onclick="act('stop')">arrêter</button>
-      </div>
-    </div></div>
   </details>
   <details id="upd-details"><summary><span class="stitle">Actions</span></summary>
     <div class="slist"><div class="rowbody">
@@ -2977,7 +3015,7 @@ async function loadAll(){
   // allSettled et pas all : un seul chargement en échec (accès distant coupé,
   // clé API absente…) ne doit pas empêcher la suite — et surtout pas laisser les
   // hauteurs réservées en place pour toujours.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp(),loadRemote()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp(),loadRemote()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -4032,6 +4070,11 @@ function addMsg(role, text){
     el.querySelector('.label').onclick=()=>toggleCollapse(el);
   } else {
     el.innerHTML='<span class="label">'+role+'</span><div class="body"></div>';
+    // user / assistant portent un avatar et un nom (voir 17-identity.js) ;
+    // reasoning et tool gardent leur libellé technique.
+    if((role==='user'||role==='assistant') && typeof paintLabel==='function'){
+      paintLabel(el.querySelector('.label'), role);
+    }
   }
   el.querySelector('.body').textContent=text;
   chatEl().appendChild(el);
@@ -5843,5 +5886,84 @@ async function convDelete(id, title){
     if(r && r.ok === false){ toast('erreur : ' + (r.error || '')); return; }
     loadConversations();
   }catch(_){ toast('erreur réseau'); }
+}
+// Identité — prénom et avatars affichés en tête des bulles du chat.
+//
+// Les valeurs vivent dans les préférences SERVEUR (comme le thème) : elles
+// suivent donc d'un appareil à l'autre, au lieu de rester dans le localStorage
+// d'un seul navigateur. La liste d'emojis est celle que sert le serveur — pas
+// une seconde copie côté client, qui divergerait à la première modification.
+
+let IDENT = {name:'', user:'🙂', ai:'🦊'};
+let AVATARS = [];
+
+// applyIdentity redessine les libellés des bulles DÉJÀ affichées : changer son
+// prénom doit se voir tout de suite, sans recharger la page.
+function applyIdentity(){
+  document.querySelectorAll('#chat .msg.user > .label, #chat .msg.assistant > .label')
+    .forEach(l => paintLabel(l, l.parentElement.classList.contains('user') ? 'user' : 'assistant'));
+}
+
+// paintLabel remplit un libellé : avatar + nom. Le prénom vient de
+// l'utilisateur, donc textContent — jamais innerHTML.
+function paintLabel(label, role){
+  if(!label) return;
+  label.textContent = '';
+  const av = document.createElement('i'); av.className = 'av';
+  av.textContent = role === 'user' ? (IDENT.user || '🙂') : (IDENT.ai || '🦊');
+  const who = document.createElement('span'); who.className = 'who';
+  who.textContent = role === 'user' ? (IDENT.name || 'toi') : 'Loki';
+  label.appendChild(av); label.appendChild(who);
+}
+
+async function loadIdentity(){
+  let r;
+  try{ r = await jget('/api/prefs'); }catch(_){ return; }
+  const p = r.prefs || {};
+  AVATARS = r.avatars || [];
+  IDENT = {
+    name: p.user_name || '',
+    user: p.avatar_user || '🙂',
+    ai:   p.avatar_ai   || '🦊',
+  };
+  const inp = document.getElementById('p-username');
+  if(inp && document.activeElement !== inp) inp.value = IDENT.name;
+  renderAvatarPicker('p-avatar-user', 'user');
+  renderAvatarPicker('p-avatar-ai', 'ai');
+  applyIdentity();
+}
+
+function renderAvatarPicker(elID, which){
+  const box = document.getElementById(elID);
+  if(!box) return;
+  box.innerHTML = '';
+  for(const e of AVATARS){
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = e;
+    if(e === IDENT[which]) b.classList.add('sel');
+    b.onclick = () => pickAvatar(which, e);
+    box.appendChild(b);
+  }
+}
+
+async function pickAvatar(which, emoji){
+  IDENT[which] = emoji;
+  renderAvatarPicker(which === 'user' ? 'p-avatar-user' : 'p-avatar-ai', which);
+  applyIdentity();
+  try{ await jpost('/api/prefs', which === 'user' ? {avatar_user:emoji} : {avatar_ai:emoji}); }
+  catch(_){ toast('erreur réseau'); }
+}
+
+// Saisie du prénom : on n'écrit pas au serveur à chaque frappe.
+let identTimer = null;
+function saveIdentity(){
+  const inp = document.getElementById('p-username');
+  if(!inp) return;
+  IDENT.name = inp.value.trim();
+  applyIdentity();
+  clearTimeout(identTimer);
+  identTimer = setTimeout(async () => {
+    try{ await jpost('/api/prefs', {user_name: IDENT.name}); }catch(_){ toast('erreur réseau'); }
+  }, 500);
 }
 </script></body></html>
