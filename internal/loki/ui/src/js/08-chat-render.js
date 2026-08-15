@@ -49,6 +49,11 @@ function addMsg(role, text){
     el.querySelector('.label').onclick=()=>toggleCollapse(el);
   } else {
     el.innerHTML='<span class="label">'+role+'</span><div class="body"></div>';
+    // user / assistant portent un avatar et un nom (voir 17-identity.js) ;
+    // reasoning et tool gardent leur libellé technique.
+    if((role==='user'||role==='assistant') && typeof paintLabel==='function'){
+      paintLabel(el.querySelector('.label'), role);
+    }
   }
   el.querySelector('.body').textContent=text;
   chatEl().appendChild(el);
