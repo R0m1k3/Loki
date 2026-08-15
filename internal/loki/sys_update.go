@@ -239,6 +239,10 @@ func cmdUpdate(args []string) error {
 			checkOnly = true
 		}
 	}
+	if containerManaged() {
+		fmt.Println(containerUpdateNote)
+		return nil
+	}
 	fmt.Println("recherche de la dernière version…")
 	info, err := checkForUpdate()
 	if err != nil {
@@ -422,8 +426,21 @@ func cleanupOldBinary() {
 	removeOldBinaries(filepath.Join(filepath.Dir(exe), "loki.exe"))
 }
 
+// containerManaged : le binaire appartient à l'image Docker, la mise à jour
+// passe donc par elle (docker compose pull) et non par un remplacement du
+// fichier — que l'image, en lecture seule à l'exécution, ne permettrait pas.
+// Sans ce garde-fou, l'UI interrogeait les releases GitHub du dépôt du fork,
+// qui n'en publie aucune : « GitHub a répondu 404 Not Found ».
+func containerManaged() bool { return os.Getenv("LOKI_CONTAINER") == "1" }
+
+const containerUpdateNote = "Mise à jour par l'image Docker : docker compose pull && docker compose up -d"
+
 // handleUpdateCheck (GET /api/update) : renvoie l'état de mise à jour pour l'UI.
 func handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	if containerManaged() {
+		sendJSON(w, 200, map[string]any{"current": Version, "available": false, "note": containerUpdateNote})
+		return
+	}
 	info, err := checkForUpdate()
 	if err != nil {
 		sendJSON(w, 200, map[string]any{"current": Version, "available": false, "error": err.Error()})
@@ -437,6 +454,10 @@ func handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 // d'UI (loki-ui : il sert l'UI, le chat et le tunnel) pour appliquer la MAJ sans
 // avoir à SSH — voir restartAfterUpdate. Renvoie la version + le message de statut.
 func handleUpdateApply(w http.ResponseWriter, r *http.Request) {
+	if containerManaged() {
+		sendJSON(w, 409, map[string]any{"ok": false, "error": containerUpdateNote})
+		return
+	}
 	newVer, err := applyUpdate()
 	if err != nil {
 		// 500 : un client script peut tester le statut HTTP ; l'UI, elle, lit le JSON.

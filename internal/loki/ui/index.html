@@ -139,6 +139,13 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .brand-fork{font-size:10px;color:var(--dim);margin:0 0 14px;line-height:1.3}
 .brand-fork a{color:var(--dim);text-decoration:underline;text-underline-offset:2px}
 .brand-fork a:hover{color:var(--accent)}
+/* Discussions : mêmes lignes que les presets, plus deux actions au survol.
+   Elles restent visibles au clavier (:focus-within) pour rester atteignables
+   sans souris. */
+.conv-acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.preset:hover .conv-acts,.preset:focus-within .conv-acts{opacity:1}
+.conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer}
+.conv-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
@@ -1213,6 +1220,12 @@ button:hover{border-color:var(--dim);color:var(--text)}
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
   <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
+  <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
+       actif est partagé par tous les appareils (comme la conversation unique
+       d'origine) : basculer ici bascule partout. -->
+  <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion">+</button></summary>
+    <div id="conv-list" class="slist"></div>
+  </details>
   <!-- Avertissement de lancement (App Translocation macOS) — masqué par défaut. -->
   <div id="app-warn" class="muted" style="display:none;font-size:11px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-radius:8px;color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent)"></div>
   <div id="model-err" style="display:none;font-size:11px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-radius:8px;color:var(--err);border:1px solid color-mix(in srgb,var(--err) 45%,transparent);background:color-mix(in srgb,var(--err) 12%,transparent)"></div>
@@ -2354,7 +2367,10 @@ async function checkUpdate(){
   b.disabled=true; msg.textContent='Vérification…';
   try{
     const r=await jget('/api/update');
-    if(r.error){ msg.textContent='Erreur : '+r.error; }
+    // En conteneur, la mise à jour passe par l'image : on l'explique au lieu de
+    // proposer un remplacement de binaire impossible ici.
+    if(r.note){ msg.textContent=r.note; }
+    else if(r.error){ msg.textContent='Erreur : '+r.error; }
     else if(r.available){
       msg.innerHTML='Nouvelle version <b>v'+r.latest+'</b> disponible. ';
       const btn=document.createElement('button'); btn.textContent='Mettre à jour'; btn.onclick=applyUpdate;
@@ -2961,7 +2977,7 @@ async function loadAll(){
   // allSettled et pas all : un seul chargement en échec (accès distant coupé,
   // clé API absente…) ne doit pas empêcher la suite — et surtout pas laisser les
   // hauteurs réservées en place pour toujours.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp(),loadRemote()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp(),loadRemote()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -4475,7 +4491,10 @@ function handleDelta(d){
     // déclencher la synchro — c'est ici qu'on décide d'afficher l'accueil.
     syncChatEmpty();
     return; }
-  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); return; }
+  // `reset` = fil vidé OU bascule de discussion (même mécanisme d'epoch côté
+  // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
+  // a pu être déclenchée depuis un autre appareil.
+  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;
@@ -4485,7 +4504,10 @@ function handleDelta(d){
     // bulle neuve — sinon elles apparaîtraient en double.
     if(d.files && !hasMsgFiles(el)) addMsgFiles(el, d.files);
     setBusy(true); T.typingEl=addTyping(); return; }
-  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats); setBusy(false); return; }
+  // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
+  // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
+  // replay, qui rejoue tous les tours passés d'un bloc.
+  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats); setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
   if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
@@ -5726,5 +5748,100 @@ async function revokeNode(id){
   if(!await askConfirm('Révoquer le poste « '+(n?n.name:'')+' » ? Sa clé sera oubliée et il sera déconnecté.', {title:'Révoquer le poste ?', okText:'Révoquer', danger:true})) return;
   await jpost('/api/node/revoke', {id});
   hideModal('node-pair-modal'); resetNodeFoot(); loadNode(); toast('poste révoqué');
+}
+// Discussions — plusieurs fils au lieu de la conversation unique d'origine.
+//
+// Le fil actif est possédé par le SERVEUR et partagé par tous les appareils :
+// basculer ici bascule partout. Le changement arrive donc par le flux SSE (un
+// événement `reset`, comme pour « vider »), et c'est lui qui redessine le chat —
+// on ne fait que rafraîchir la liste.
+//
+// Les titres viennent du premier message de l'utilisateur : ils sont construits
+// en DOM (jamais en innerHTML) pour qu'un titre contenant < > & " ne casse ni le
+// balisage ni les gestionnaires d'événement.
+
+async function loadConversations(){
+  let r;
+  try{ r = await jget('/api/conversations'); }catch(_){ return; }
+  const cont = document.getElementById('conv-list');
+  if(!cont) return;
+  cont.innerHTML = '';
+  const list = r.conversations || [];
+  if(!list.length){ cont.innerHTML = '<span class="muted">(aucune)</span>'; return; }
+  for(const c of list){
+    const row = document.createElement('div');
+    row.className = 'preset' + (c.id === r.active ? ' active' : '');
+    row.onclick = () => convSwitch(c.id);
+
+    const info = document.createElement('div'); info.className = 'preset-info';
+    const nm = document.createElement('div'); nm.className = 'preset-name';
+    if(c.id === r.active){ const d = document.createElement('i'); d.className = 'preset-dot'; nm.appendChild(d); }
+    const title = c.title || 'Nouvelle discussion';
+    nm.appendChild(document.createTextNode(title));
+    nm.title = title;
+    const meta = document.createElement('div'); meta.className = 'preset-meta';
+    const when = document.createElement('span'); when.className = 'muted';
+    when.textContent = convWhen(c.updated) + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
+    meta.appendChild(when);
+    info.appendChild(nm); info.appendChild(meta);
+
+    // Renommer / supprimer : stopPropagation, sinon le clic bascule aussi.
+    const acts = document.createElement('div'); acts.className = 'conv-acts';
+    const ren = document.createElement('button'); ren.className = 'iconbtn'; ren.textContent = '✎';
+    ren.title = 'renommer'; ren.onclick = e => { e.stopPropagation(); convRename(c.id, title); };
+    const del = document.createElement('button'); del.className = 'iconbtn'; del.textContent = '🗑';
+    del.title = 'supprimer'; del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
+    acts.appendChild(ren); acts.appendChild(del);
+
+    row.appendChild(info); row.appendChild(acts);
+    cont.appendChild(row);
+  }
+}
+
+// Date courte : l'heure pour aujourd'hui, la date sinon — une liste de
+// discussions se lit d'un coup d'œil, pas au timestamp complet.
+function convWhen(unix){
+  if(!unix) return '';
+  const d = new Date(unix * 1000), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+    : d.toLocaleDateString([], {day:'2-digit', month:'2-digit'});
+}
+
+async function convNew(){
+  try{
+    await jpost('/api/conversations/new', {});
+    toast('nouvelle discussion');
+    loadConversations();
+  }catch(_){ toast('erreur réseau'); }
+}
+
+async function convSwitch(id){
+  try{
+    const r = await jpost('/api/conversations/switch', {id});
+    if(r && r.ok === false){ toast('erreur : ' + (r.error || '')); return; }
+    loadConversations();
+  }catch(_){ toast('erreur réseau'); }
+}
+
+async function convRename(id, current){
+  const t = await askPrompt('Nouveau titre de la discussion', {title:'Renommer', default:current, okText:'Renommer'});
+  if(!t) return;
+  try{
+    const r = await jpost('/api/conversations/rename', {id, title:t});
+    if(r && r.ok === false){ toast('erreur : ' + (r.error || '')); return; }
+    loadConversations();
+  }catch(_){ toast('erreur réseau'); }
+}
+
+async function convDelete(id, title){
+  if(!await askConfirm('Supprimer « ' + title + ' » ? Cette discussion et son historique seront perdus.',
+                       {title:'Supprimer la discussion', okText:'Supprimer', danger:true})) return;
+  try{
+    const r = await jpost('/api/conversations/delete', {id});
+    if(r && r.ok === false){ toast('erreur : ' + (r.error || '')); return; }
+    loadConversations();
+  }catch(_){ toast('erreur réseau'); }
 }
 </script></body></html>

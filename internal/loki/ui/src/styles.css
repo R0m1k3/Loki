@@ -113,6 +113,13 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .brand-fork{font-size:10px;color:var(--dim);margin:0 0 14px;line-height:1.3}
 .brand-fork a{color:var(--dim);text-decoration:underline;text-underline-offset:2px}
 .brand-fork a:hover{color:var(--accent)}
+/* Discussions : mêmes lignes que les presets, plus deux actions au survol.
+   Elles restent visibles au clavier (:focus-within) pour rester atteignables
+   sans souris. */
+.conv-acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.preset:hover .conv-acts,.preset:focus-within .conv-acts{opacity:1}
+.conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer}
+.conv-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
