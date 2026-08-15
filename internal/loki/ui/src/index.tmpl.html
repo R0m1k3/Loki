@@ -33,11 +33,15 @@
 <button id="lc-chip" onclick="lcChipOpen()" hidden></button>
 <div id="backdrop" onclick="toggleSide()"></div>
 <div class="side" id="side">
+  <!-- sidecard : regroupe la marque et la mention du fork en UNE carte (direction
+       Terre). Sans ce conteneur, les deux blocs flottaient séparément. -->
+  <div class="sidecard">
   <div class="sidehead">
     <h1 id="brand" aria-label="loki" title="Loki — fork d'AJEAN (github.com/nathaninline/ajean, MIT)"><span id="brand-a"><svg viewBox="0 0 4 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="1" height="5"/><rect x="1" y="4" width="3" height="1"/></svg></span><span id="brand-word"><svg viewBox="0 0 11 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="3"/><rect x="2" y="1" width="1" height="3"/><rect x="0" y="4" width="3" height="1"/><rect x="4" y="0" width="1" height="5"/><rect x="6" y="0" width="1" height="2"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="2"/><rect x="8" y="0" width="3" height="1"/><rect x="9" y="1" width="1" height="3"/><rect x="8" y="4" width="3" height="1"/></svg></span><span id="ver"></span></h1>
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
   <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
+  </div><!-- /sidecard -->
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
        d'origine) : basculer ici bascule partout. -->

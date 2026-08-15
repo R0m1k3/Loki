@@ -1,9 +1,42 @@
-/* ===== Palette =====================================================
-   Un seul thème (« Clean ») : noir et blanc, sobre. Deux variantes — claire par
-   défaut, sombre via data-theme="dark" sur <html>. Toutes les couleurs de l'UI
-   passent par ces variables ; rien d'autre ne code une couleur en dur. */
-:root{color-scheme:light;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--bubble:#f0f0f0;--bg:#ffffff;--panel:#fafafa;--border:#e0e0e2;--text:#0a0a0a;--dim:#6b6b70;--accent:#0a0a0a;--accent-bg:rgba(0,0,0,.05);--row-bg:rgba(0,0,0,.03);--row-bg-on:rgba(0,0,0,.042);--ok:#0a0a0a;--warn:#6b6b6b;--err:#c0392b;--mag:#6b6b6b;--code-bg:#f5f5f5;--danger-bg:#fbeae8;--warn-bg:#f2f2f2;--add:#1a7f37;--add-bg:rgba(26,127,55,.10);--del:#cf222e;--del-bg:rgba(207,34,46,.10)}
-[data-theme="dark"]{color-scheme:dark;--bubble:#232326;--bg:#0b0b0c;--panel:#161618;--border:#33333a;--text:#f2f2f4;--dim:#a0a0a8;--accent:#f5f5f5;--accent-bg:rgba(255,255,255,.07);--row-bg:rgba(255,255,255,.04);--row-bg-on:rgba(255,255,255,.055);--ok:#f5f5f5;--warn:#8e8e8e;--err:#f2777a;--mag:#8e8e8e;--code-bg:#000000;--danger-bg:#2e1a19;--warn-bg:#1c1c1c;--add:#4ac26b;--add-bg:rgba(74,194,107,.13);--del:#f85149;--del-bg:rgba(248,81,73,.13)}
+/* ===== Polices =====================================================
+   Bricolage Grotesque (titres et texte) + IBM Plex Mono (chiffres, chemins,
+   code). Servies par Loki (/fonts/, embarquées dans le binaire) et NON par
+   Google Fonts : une instance locale ou coupée d'internet doit s'afficher
+   correctement, sans qu'un tiers apprenne qui consulte l'interface.
+   swap : le texte s'affiche tout de suite dans la police de repli, puis bascule
+   — jamais de blanc au chargement. */
+@font-face{font-family:'Bricolage Grotesque';src:url('/fonts/bricolage.woff2') format('woff2');font-weight:400 700;font-display:swap;font-style:normal}
+@font-face{font-family:'IBM Plex Mono';src:url('/fonts/plexmono-400.woff2') format('woff2');font-weight:400;font-display:swap;font-style:normal}
+@font-face{font-family:'IBM Plex Mono';src:url('/fonts/plexmono-500.woff2') format('woff2');font-weight:500;font-display:swap;font-style:normal}
+
+/* ===== Palette « Terre » ===========================================
+   Bruns chauds, vert sauge et argile. Deux variantes — claire par défaut,
+   sombre via data-theme="dark" sur <html>. Toutes les couleurs de l'UI passent
+   par ces variables ; rien d'autre ne code une couleur en dur.
+
+   Rôles : --accent = sauge (sélection, marche, liens) · --warn = argile
+   (chiffres, mesures, avertissements) · --err = terre cuite (arrêt, danger).
+   --row-bg / --code-bg sont les deux fonds encastrés d'un panneau. */
+:root{color-scheme:light;
+  --font:'Bricolage Grotesque',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --bg:#f3efe8;--panel:#ffffff;--bubble:#efe9df;--border:rgba(44,38,34,.12);
+  --text:#2c2622;--dim:#7a7069;
+  --accent:#5f7f52;--accent-bg:rgba(95,127,82,.12);
+  --row-bg:#f7f4ee;--row-bg-on:#f4f1ea;
+  --ok:#5f7f52;--warn:#a9662f;--err:#c05a3f;--mag:#a9662f;
+  --code-bg:#f7f4ee;--danger-bg:#f8e9e4;--warn-bg:#f6efe4;
+  --add:#5f7f52;--add-bg:rgba(95,127,82,.12);--del:#c05a3f;--del-bg:rgba(192,90,63,.12);
+  --shadow:0 1px 2px rgba(44,38,34,.06)}
+[data-theme="dark"]{color-scheme:dark;
+  --bg:#211d1a;--panel:#2b2622;--bubble:#38312a;--border:rgba(236,229,221,.12);
+  --text:#ece5dd;--dim:#a99d92;
+  --accent:#9ab68c;--accent-bg:rgba(154,182,140,.15);
+  --row-bg:#332d28;--row-bg-on:#38312a;
+  --ok:#9ab68c;--warn:#d2a07a;--err:#c9705c;--mag:#d2a07a;
+  --code-bg:#211d1a;--danger-bg:#3a2621;--warn-bg:#332b23;
+  --add:#9ab68c;--add-bg:rgba(154,182,140,.15);--del:#c9705c;--del-bg:rgba(201,112,92,.15);
+  --shadow:none}
 /* Safari iOS peint un rectangle gris/noir sur TOUT élément touché (bouton, lien,
    résumé de section, bulle repliable…). C'est un retour tactile par défaut, hors
    de notre charte et impossible à styler : on le coupe. Nos états :active/:focus
@@ -1207,3 +1240,67 @@ button:hover{border-color:var(--dim);color:var(--text)}
 .node-target-opt.on{border-color:var(--accent);color:var(--accent)}
 .node-target-opt.off{opacity:.6}
 .node-target-opt input{margin:0}
+
+/* ===== Direction « Terre » : surfaces en cartes =======================
+   La charte pose des CARTES arrondies séparées par une gouttière, au lieu
+   d'une colonne à filets. Bloc en fin de feuille pour prendre le pas sur les
+   règles de structure d'origine sans les réécrire.
+   Bureau UNIQUEMENT : sur téléphone la barre latérale est un tiroir plein
+   écran et le fil occupe toute la largeur — y poser des cartes ne ferait que
+   grignoter des pixels précieux. */
+@media (min-width:721px){
+  /* Coque : le fond « terre » se voit dans la gouttière entre les deux cartes. */
+  body{padding:12px;gap:12px}
+  html[data-pwa="1"] body{padding-top:calc(12px + env(safe-area-inset-top))}
+
+  /* Barre latérale : pile de cartes, sans filet ni bordure de colonne. */
+  .side{width:312px;border-right:0;padding:0;background:transparent;
+    display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain}
+  .sidecard,.side>details{background:var(--panel);border:0;border-top:0;border-radius:20px;
+    box-shadow:var(--shadow);margin:0;padding:2px 16px}
+  .sidecard{padding:15px 18px 14px;display:flex;flex-direction:column;gap:2px}
+  .side>details[open]{padding-bottom:14px}
+  .side>details>summary{height:42px}
+  /* L'étiquette « Paramètres » n'est plus un filet mais un intertitre entre
+     deux cartes : le fond de la coque fait déjà la séparation. */
+  .side-sep{border-top:0;margin:10px 0 0;padding:0 6px}
+  /* Blocs encastrés DANS une carte : un ton plus chaud, sans bordure — deux
+     cadres imbriqués alourdiraient inutilement. */
+  .side .slist{background:var(--row-bg);border-color:transparent;border-radius:14px}
+
+  /* Colonne principale : une seule grande carte qui contient fil et saisie. */
+  .main{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+  #chat{padding:26px max(20px,calc(50% - 360px)) 8px}
+  /* Le dégradé qui fait disparaître le fil sous la carte de saisie doit fondre
+     vers le PANNEAU, pas vers le fond de la coque. */
+  #composer{background:linear-gradient(to bottom,transparent 0,var(--panel) 34%)}
+  /* Carte de saisie : posée SUR le panneau, donc un ton au-dessus, et sans
+     bordure — c'est l'élévation qui la détache. */
+  #inputbar,#ctxmeta{background:var(--row-bg-on);border-color:transparent}
+  #input{background:transparent}
+}
+
+/* --- Terre : densité et accents ------------------------------------- */
+@media (min-width:721px){
+  /* Gouttière resserrée : la charte empile beaucoup de cartes, 12 px entre
+     chacune repoussait « Actions » loin sous la ligne de flottaison. */
+  .side{gap:8px}
+  .side>details>summary{height:38px}
+
+  /* Discussion active : un LISERÉ sauge à gauche, pas un cadre complet — c'est
+     la marque de sélection de la charte, et elle se lit sans alourdir. */
+  .side .preset{border:0;border-left:3px solid transparent;border-radius:14px;background:transparent}
+  .side .preset.active{background:var(--row-bg-on);border-left-color:var(--accent)}
+  .side .preset:hover{background:var(--row-bg)}
+
+  /* Bulle de question : coin bas-droit rentré, comme une bulle qui pointe vers
+     son auteur. */
+  #chat .msg.user{border-radius:20px 20px 6px 20px}
+}
+/* Action principale en sauge : c'est la couleur d'action de la charte, et elle
+   se distingue enfin du texte (le bouton reprenait --text, donc un brun sombre
+   indistinct du reste). L'arrêt, lui, reste en terre cuite. */
+#send{background:var(--accent);border-color:var(--accent);color:#fff}
+#send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;opacity:.88}
+#stop{background:var(--err);border-color:var(--err);color:#fff}
+#stop:hover{background:var(--err);border-color:var(--err);color:#fff;opacity:.88}

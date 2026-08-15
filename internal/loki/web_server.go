@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 )
 
 //go:generate go run ../../tools/assemble-ui ui
-//go:embed ui/index.html ui/marked.min.js
+//go:embed ui/index.html ui/marked.min.js ui/fonts/*.woff2
 var uiFS embed.FS
 
 // cmdWeb starts the HTTP server on the given port (default 8090).
@@ -113,6 +114,27 @@ func newWebMux() *http.ServeMux {
 		b, _ := uiFS.ReadFile("ui/marked.min.js")
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(b)
+	})
+	// Polices embarquées (Bricolage Grotesque + IBM Plex Mono, sous-ensemble
+	// latin). Servies par Loki et non par Google Fonts : une instance locale ou
+	// derrière un réseau fermé doit s'afficher correctement sans appeler un tiers,
+	// et sans lui signaler qui consulte l'interface.
+	mux.HandleFunc("/fonts/", func(w http.ResponseWriter, r *http.Request) {
+		name := path.Base(r.URL.Path)
+		if !strings.HasSuffix(name, ".woff2") {
+			http.NotFound(w, r)
+			return
+		}
+		b, err := uiFS.ReadFile("ui/fonts/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "font/woff2")
+		// Immuables : leur nom change si leur contenu change (nouvelle version
+		// de l'image), donc un an de cache est sans risque.
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		w.Write(b)
 	})
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
