@@ -187,7 +187,12 @@ func visionEnabled() bool {
 // modèle d'aller ouvrir un fichier qu'il a déjà sous les yeux) ; les autres
 // fichiers, eux, restent annoncés comme avant.
 func userMessageContent(files []attachInfo, prompt string) any {
-	if !visionEnabled() {
+	// Double condition : MMPROJ configuré ET moteur qui déclare la vision
+	// (/props). Avec un projecteur d'un AUTRE modèle — donc jamais chargé — le
+	// gabarit sérialisait le base64 de la pièce jointe en TEXTE : un PNG de
+	// 3,5 Mo devenait des dizaines de milliers de tokens dans le contexte, le
+	// même engorgement que celui corrigé pour les captures d'écran.
+	if !visionEnabled() || !engineSeesImages() {
 		return attachNote(files) + prompt
 	}
 	dir, err := uploadsDir()
