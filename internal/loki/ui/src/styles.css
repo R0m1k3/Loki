@@ -979,10 +979,16 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 /* Question : pastille arrondie à droite, texte lisible sur fond clair OU sombre. */
 #chat .msg.user{background:var(--bubble);color:var(--text);border-radius:20px;padding:11px 18px;max-width:75%;line-height:1.6}
 #chat .msg.user .label{color:var(--dim)}
-/* Étiquettes VOUS / Loki : inutiles ici (l'alignement suffit), sauf pour les
-   bulles repliables (raisonnement / outils) où le label est le bouton de repli. */
+/* Libellés : l'amont les masquait tous ici, les mots « user » / « assistant »
+   n'ajoutant rien à l'alignement. Ils portent désormais un avatar et un prénom
+   (voir 17-identity.js), qui eux identifient vraiment l'interlocuteur — on les
+   réaffiche donc, en ligne et discrets. Restent masqués les libellés SANS
+   avatar, c'est-à-dire les bulles techniques non repliables. */
 #chat .msg .label{display:none}
 #chat .msg.collapsible .label{display:block}
+#chat .msg.user .label,#chat .msg.assistant .label{display:flex;align-items:center;gap:0;opacity:.85}
+/* Côté question, le libellé s'aligne à droite comme la bulle. */
+#chat .msg.user .label{justify-content:flex-end}
 /* Mesures de génération sous la réponse (prefill / decode). Assez discrètes pour
    ne pas concurrencer le texte, assez lisibles pour être utiles. Escamotables
    depuis Apparence → Affichage. */
