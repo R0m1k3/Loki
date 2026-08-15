@@ -163,8 +163,11 @@ func handleLlamacpp(w http.ResponseWriter, r *http.Request) {
 	out["config_bin"] = cfgBin
 	out["in_use"] = bin != "" && samePath(bin, cfgBin)
 	// Moteur livré par l'image Docker : il n'y a rien à installer, et l'image
-	// ne contient ni cmake ni compilateur. L'UI masque alors les trois modes.
-	out["provided"] = engineProvided(cfgBin)
+	// ne contient ni cmake ni compilateur. L'UI masque alors les trois modes,
+	// et le sélecteur par modèle propose « Image » au lieu de « Précompilé /
+	// Compilé », qui ne désignent rien ici.
+	out["provided"] = engineProvided()
+	out["provided_bin"] = providedEngineBin()
 
 	plan := detectBuildPlan()
 	out["plan"] = map[string]any{
@@ -189,36 +192,39 @@ func handleLlamacpp(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, out)
 }
 
-// engineProvided : le moteur est-il fourni par l'image Docker ? Vrai quand on
-// tourne en conteneur et que BIN désigne un exécutable existant SITUÉ HORS de
-// LOKI_HOME — donc ni le dépôt cloné, ni les binaires précompilés, ni les
-// backends custom, qui vivent tous sous LOKI_HOME et sont gérés par Loki.
+// providedEngineBin renvoie le moteur livré par l'image Docker, ou "" hors
+// conteneur. L'image le déclare elle-même via LOKI_ENGINE_BIN (voir Dockerfile
+// et docker-entrypoint.sh) : pas de chemin en dur ici, et n'importe quelle image
+// de base convient tant qu'elle pose cette variable.
 //
-// Sans cette distinction, l'UI proposait d'installer un moteur déjà présent, et
+// Sans cette notion, l'UI proposait d'installer un moteur déjà présent et
 // l'utilisateur tombait sur « outils manquants : cmake » — l'image ne contient
 // volontairement ni cmake ni compilateur, puisqu'elle part de l'image officielle
 // llama.cpp où llama-server est déjà compilé.
-func engineProvided(cfgBin string) bool {
-	if os.Getenv("LOKI_CONTAINER") != "1" || strings.TrimSpace(cfgBin) == "" {
-		return false
+func providedEngineBin() string {
+	p := strings.TrimSpace(os.Getenv("LOKI_ENGINE_BIN"))
+	if p == "" {
+		return ""
 	}
-	bin := prebuiltResolveBin(cfgBin)
-	if st, err := os.Stat(bin); err != nil || st.IsDir() {
-		return false
+	if st, err := os.Stat(prebuiltResolveBin(p)); err != nil || st.IsDir() {
+		return ""
 	}
-	rel, err := filepath.Rel(LokiHome(), bin)
-	return err != nil || strings.HasPrefix(rel, "..")
+	return p
 }
+
+// engineProvided : le moteur vient-il de l'image ? (raccourci de lecture)
+func engineProvided() bool { return providedEngineBin() != "" }
 
 // refuseIfProvided coupe court aux jobs d'installation/compilation quand le
 // moteur vient de l'image : rien à installer, et aucun compilateur disponible.
 // Renvoie true si la requête a été refusée (l'appelant doit sortir).
 func refuseIfProvided(w http.ResponseWriter) bool {
-	if !engineProvided(ReadConfig()["BIN"]) {
+	bin := providedEngineBin()
+	if bin == "" {
 		return false
 	}
-	sendJSON(w, 409, map[string]any{"ok": false, "error": "Le moteur est fourni par l'image Docker (" +
-		ReadConfig()["BIN"] + ") : il n'y a rien à installer ici, et l'image ne contient ni cmake ni compilateur. " +
+	sendJSON(w, 409, map[string]any{"ok": false, "error": "Le moteur est fourni par l'image Docker (" + bin +
+		") : il n'y a rien à installer ici, et l'image ne contient ni cmake ni compilateur. " +
 		"Pour changer de moteur, reconstruis l'image avec un autre build-arg LLAMACPP_IMAGE."})
 	return true
 }

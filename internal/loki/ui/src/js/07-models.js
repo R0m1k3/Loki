@@ -384,13 +384,21 @@ function underDir(p, dir){
   const n = x => String(x||'').replace(/\\/g,'/').replace(/\/+$/,'').toLowerCase();
   return !!p && !!dir && n(p).startsWith(n(dir)+'/');
 }
-let beFastPath = '', beOptPath = '', beFastDir = '';
+let beFastPath = '', beOptPath = '', beFastDir = '', beImagePath = '';
 async function populateBackend(){
   // Chemins des deux moteurs gérés + liste des backends détectés (dossier loki).
   let lc = {}; try{ lc = await jget('/api/llamacpp'); }catch(_){}
   beFastPath = (lc.prebuilt && lc.prebuilt.bin) || '';
   beFastDir  = (lc.prebuilt && lc.prebuilt.dir) || '';
   beOptPath  = lc.bin || '';
+  // Conteneur : le moteur vient de l'image. « Précompilé » et « Compilé »
+  // désignent des installations que Loki ne fait pas ici — les proposer ne
+  // menait qu'à « installez d'abord… ». On les remplace par « Image ».
+  beImagePath = lc.provided ? (lc.provided_bin || '') : '';
+  document.getElementById('be-lab-image').style.display = beImagePath ? '' : 'none';
+  document.getElementById('be-lab-fast').style.display  = beImagePath ? 'none' : '';
+  document.getElementById('be-lab-opt').style.display   = beImagePath ? 'none' : '';
+  document.getElementById('be-image-note').textContent  = beImagePath ? 'llama.cpp officiel' : '';
   // Menu « backend détecté » du mode personnalisé : tout ce qu'on trouve dans
   // le dossier backends de loki (l'utilisateur peut y déposer son propre build).
   const detected = await jget('/api/backends');
@@ -403,7 +411,10 @@ async function populateBackend(){
   // Sélectionne l'option correspondant au BIN actuel du preset.
   const cur = currentBinInTextarea();
   let mode = 'custom';
-  if(sameBinPath(cur, beFastPath) || underDir(cur, beFastDir)) mode = 'fast';
+  // Un preset sans BIN hérite du moteur global : en conteneur c'est celui de
+  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ».
+  if(beImagePath && (sameBinPath(cur, beImagePath) || !cur)) mode = 'image';
+  else if(sameBinPath(cur, beFastPath) || underDir(cur, beFastDir)) mode = 'fast';
   else if(sameBinPath(cur, beOptPath)) mode = 'opt';
   const radio = document.querySelector('input[name=m-be][value='+mode+']');
   if(radio) radio.checked = true;
@@ -419,7 +430,11 @@ function toggleBackendCustom(mode){
 }
 function onBackendMode(mode){
   toggleBackendCustom(mode);
-  if(mode === 'fast'){
+  if(mode === 'image'){
+    if(!beImagePath){ toast('aucun moteur fourni par l\'image'); return; }
+    setBinInTextarea(beImagePath); toast('moteur : llama.cpp de l\'image');
+    loadGpuDevices();
+  } else if(mode === 'fast'){
     if(!beFastPath){ toast('installez d\'abord llama.cpp précompilé (section MOTEUR)'); return; }
     setBinInTextarea(beFastPath); toast('moteur : llama.cpp précompilé');
     loadGpuDevices();
