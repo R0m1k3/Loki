@@ -553,6 +553,9 @@ func (c *Conversation) Stop() {
 // le bump d'epoch réduit de toute façon au silence.
 func (c *Conversation) Reset() {
 	c.Stop()
+	// Vider la discussion efface aussi ses captures : les messages qui les
+	// affichaient disparaissent, les fichiers n'auraient plus aucun lecteur.
+	dropConvCaptures(convEnsureActive())
 	c.mu.Lock()
 	c.Messages = nil
 	c.Log = nil

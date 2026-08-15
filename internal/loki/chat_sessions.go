@@ -211,6 +211,9 @@ func convDelete(id string) error {
 	}
 	convIndexSave(next)
 	_ = putBytes(bkChat, convKey(id), nil)
+	// Les captures de cette discussion n'ont plus rien qui les référence : les
+	// garder occuperait le disque pour toujours.
+	dropConvCaptures(id)
 	if id != getStr(bkChat, ckActive) {
 		return nil
 	}
