@@ -107,7 +107,12 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 #brand svg{height:10px;width:auto;display:block;shape-rendering:crispEdges;fill:currentColor}
 #brand-word{display:inline-flex;color:var(--accent)}
 #ver{font-size:10px;font-weight:400;color:var(--dim);margin-left:7px;letter-spacing:0;align-self:flex-end;line-height:1;position:relative;top:1px}
-.sidehead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px}
+.sidehead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+/* Attribution : Loki est un fork d'AJEAN (MIT). Discrète mais permanente, et le
+   nom du projet d'origine renvoie à son dépôt. */
+.brand-fork{font-size:10px;color:var(--dim);margin:0 0 14px;line-height:1.3}
+.brand-fork a{color:var(--dim);text-decoration:underline;text-underline-offset:2px}
+.brand-fork a:hover{color:var(--accent)}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}

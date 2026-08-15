@@ -47,6 +47,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data /models
 ENV LOKI_CONTAINER=1 \
     LOKI_HOME=/data \
     LOKI_MODEL_DIRS=/models \
+    LOKI_ENGINE_BIN=/app/llama-server \
     LD_LIBRARY_PATH=/app \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
