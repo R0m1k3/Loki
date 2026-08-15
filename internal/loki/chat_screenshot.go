@@ -3,7 +3,7 @@ package loki
 // chat_screenshot.go — outil web_screenshot : capture d'une page web RENDUE
 // (JavaScript exécuté) via le navigateur Chromium piloté par Playwright.
 //
-// Indépendant de la vision : la capture est un fichier PNG écrit dans le dossier
+// Indépendant de la vision : la capture est un fichier JPEG écrit dans le dossier
 // de travail, que l'UI affiche dans le fil (route /api/chat/image). Le modèle,
 // lui, ne la VOIT que si un projecteur multimodal est configuré (MMPROJ) — deux
 // mécanismes distincts qu'il ne faut pas confondre. Sans vision, l'agent
@@ -21,12 +21,33 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
-// captureDir : sous-dossier du workspace où atterrissent les captures.
+// captureDir : sous-dossier du workspace où atterrissent les captures. Elles
+// sont rangées PAR DISCUSSION (captures/<id>/…) pour que supprimer une
+// discussion supprime aussi ses images — sinon elles s'accumulaient sur le
+// disque sans qu'aucun écran ne les mentionne plus.
 const captureDir = "captures"
+
+// captureDirFor renvoie le dossier de captures d'une discussion (chemin absolu)
+// et son préfixe relatif, celui qui sert dans les URLs d'affichage.
+func captureDirFor(convID string) (abs, rel string) {
+	rel = captureDir + "/" + convID
+	return filepath.Join(agentWorkspace(), captureDir, convID), rel
+}
+
+// dropConvCaptures supprime les captures d'une discussion. Appelé quand on la
+// supprime ou qu'on la vide. Best-effort : un échec ne doit rien interrompre.
+func dropConvCaptures(convID string) {
+	if convID == "" {
+		return
+	}
+	abs, _ := captureDirFor(convID)
+	_ = os.RemoveAll(abs)
+}
 
 // screenshotTimeout : une page lente ne doit pas bloquer le tour. Playwright a
 // son propre délai interne, celui-ci est le garde-fou externe.
@@ -48,13 +69,13 @@ func webScreenshotTool() Tool {
 		Name: "web_screenshot",
 		// Description tenue au plus court : les schémas d'outils partent dans
 		// CHAQUE requête et le préambule a un budget (TestSystemPromptStaysLean).
-		Description: "Photographie une page web (PNG, JS exécuté) pour la MONTRER. " +
+		Description: "Photographie une page web (JS exécuté) pour la MONTRER. " +
 			"La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"url":       map[string]any{"type": "string", "description": "URL complète"},
-				"full_page": map[string]any{"type": "boolean", "description": "Page entière. Défaut true."},
+				"full_page": map[string]any{"type": "boolean", "description": "Page entière (lourd). Défaut false."},
 			},
 			"required": []string{"url"},
 		},
@@ -96,12 +117,16 @@ func toolWebScreenshot(args map[string]any) string {
 	if v, ok := args["width"].(float64); ok && v >= 320 && v <= 3840 {
 		width = int(v)
 	}
-	fullPage := true
+	// Pleine page NON par défaut : un article long capturé en entier fait
+	// plusieurs milliers de pixels de haut, donc plusieurs Mo, alors que « montre-moi
+	// cette page » veut presque toujours dire le premier écran. Le modèle peut
+	// demander la page entière quand c'est vraiment le sujet.
+	fullPage := false
 	if v, ok := args["full_page"].(bool); ok {
 		fullPage = v
 	}
 
-	dir := filepath.Join(agentWorkspace(), captureDir)
+	dir, relDir := captureDirFor(convEnsureActive())
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "[erreur] création du dossier de captures : " + err.Error()
 	}
@@ -114,7 +139,10 @@ func toolWebScreenshot(args map[string]any) string {
 	if i := strings.IndexAny(host, "/?#"); i >= 0 {
 		host = host[:i]
 	}
-	name := fmt.Sprintf("%s-%s.png", safeSlug(host), time.Now().Format("20060102-150405"))
+	// .jpg et non .png : Playwright déduit le format de l'extension, et sur une
+	// vraie page web (photos, dégradés) le JPEG pèse 3 à 10 fois moins. Le PNG ne
+	// gagne que sur les aplats — pas le cas courant ici.
+	name := fmt.Sprintf("%s-%s.jpg", safeSlug(host), time.Now().Format("20060102-150405"))
 	out := filepath.Join(dir, name)
 
 	cmdArgs := []string{"screenshot", "--browser", "chromium",
@@ -141,13 +169,70 @@ func toolWebScreenshot(args map[string]any) string {
 		return "[erreur] Playwright n'a produit aucune image"
 	}
 
-	rel := captureDir + "/" + name
+	pruneCaptures(dir, out)
+
+	rel := relDir + "/" + name
 	// On rend au modèle la ligne EXACTE à recopier : lui laisser composer l'URL
 	// d'affichage revient à lui faire inventer un chemin, donc une image cassée.
 	return fmt.Sprintf("Capture enregistrée (%s, %d Ko).\n"+
 		"Pour la montrer à l'utilisateur, recopie TELLE QUELLE cette ligne markdown dans ta réponse :\n"+
 		"![capture de %s](/api/chat/image?path=%s)",
 		rel, st.Size()/1024, host, rel)
+}
+
+// Plafonds du dossier de captures. Sans ménage, chaque capture s'ajoute pour
+// toujours dans /data — un volume que l'utilisateur n'inspecte jamais et qui
+// finirait par saturer son cache SSD.
+const (
+	maxCaptureFiles = 20
+	maxCaptureBytes = 40 << 20 // 40 Mo
+)
+
+// pruneCaptures supprime les captures les plus ANCIENNES tant que le dossier
+// dépasse l'un des deux plafonds. `keep` est la capture qui vient d'être prise :
+// elle n'est JAMAIS supprimée, sinon une capture plus lourde que le plafond
+// s'effacerait elle-même et le modèle renverrait un lien vers un fichier absent.
+// Best-effort : une erreur d'E/S ne doit pas faire échouer une capture réussie.
+func pruneCaptures(dir, keep string) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	type shot struct {
+		path string
+		mod  time.Time
+		size int64
+	}
+	var shots []shot
+	var total int64
+	for _, e := range ents {
+		if e.IsDir() {
+			continue
+		}
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		p := filepath.Join(dir, e.Name())
+		total += fi.Size()
+		if p == keep {
+			continue // comptée dans le total, mais jamais candidate à la suppression
+		}
+		shots = append(shots, shot{p, fi.ModTime(), fi.Size()})
+	}
+	// Plus ancienne en tête : c'est l'ordre de suppression. `nb` compte TOUS les
+	// fichiers (keep compris) pour que le plafond porte sur le dossier entier.
+	sort.Slice(shots, func(i, j int) bool { return shots[i].mod.Before(shots[j].mod) })
+	nb := len(shots)
+	if keep != "" {
+		nb++
+	}
+	for i := 0; i < len(shots) && (nb > maxCaptureFiles || total > maxCaptureBytes); i++ {
+		if os.Remove(shots[i].path) == nil {
+			total -= shots[i].size
+			nb--
+		}
+	}
 }
 
 // lastLines garde les n dernières lignes non vides d'une sortie d'erreur —
