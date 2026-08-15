@@ -1076,6 +1076,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)
+				// Capture d'écran + vision active : on fait SUIVRE l'image elle-même
+				// dans un message `user`. Un message `tool` ne transporte que du
+				// texte, donc sans ce relais le modèle recevait le chemin du fichier
+				// et rien d'autre — il annonçait alors à l'utilisateur qu'il ne
+				// voyait pas l'image, alors que le projecteur était bien chargé.
+				if tc.Function.Name == "web_screenshot" {
+					if rel := capturedRelPath(result); rel != "" {
+						if imgMsg, ok := screenshotImageMessage(rel); ok {
+							messages = append(messages, imgMsg)
+							extra = append(extra, imgMsg)
+						}
+					}
+				}
 			}
 			// Compaction EN COURS DE TOUR. Le seuil n'était testé qu'AU DÉBUT du tour :
 			// une boucle d'outils peut à elle seule remplir la fenêtre (résultats
