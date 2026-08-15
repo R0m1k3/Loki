@@ -241,6 +241,26 @@ func InjectSkills(msgs []Message, caps Caps) []Message {
 	return append([]Message{{Role: "system", Content: prefix}}, msgs...)
 }
 
+// steerSystem ajoute une consigne système SANS jamais créer un second message
+// système ailleurs qu'en tête : elle est fusionnée dans celui d'ouverture, ou
+// posée en première position s'il n'y en a pas.
+//
+// Un message système ajouté À LA FIN faisait échouer le tour sur les modèles
+// dont le gabarit l'interdit : gpt-oss (rôle « developer ») lève « System
+// message must be at the beginning », et ce 500 du gabarit remplaçait l'erreur
+// d'origine que la nouvelle tentative cherchait justement à contourner —
+// l'utilisateur voyait une exception Jinja au lieu du vrai problème.
+func steerSystem(msgs []Message, hint string) []Message {
+	if len(msgs) > 0 && msgs[0].Role == "system" {
+		if existing, ok := msgs[0].Content.(string); ok {
+			out := append([]Message(nil), msgs...)
+			out[0] = Message{Role: "system", Content: existing + "\n\n" + hint}
+			return out
+		}
+	}
+	return append([]Message{{Role: "system", Content: hint}}, msgs...)
+}
+
 // EnabledTools returns the tools to advertise on the next inference call.
 func EnabledTools(caps Caps) []Tool {
 	tools := []Tool{}
@@ -651,7 +671,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// Nudge the model to answer in plain text from what it already
 				// gathered, so it doesn't immediately re-emit a tool call that
 				// llama.cpp would again fail to parse.
-				messages = append(messages, Message{Role: "system", Content: "N'appelle plus d'outil. Réponds maintenant directement en français à partir des informations déjà obtenues."})
+				messages = steerSystem(messages, "N'appelle plus d'outil. Réponds maintenant directement en français à partir des informations déjà obtenues.")
 				continue
 			}
 			err := fmt.Errorf("llama-server a renvoyé %d : %s", resp.StatusCode, msg)
