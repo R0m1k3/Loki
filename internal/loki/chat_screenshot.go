@@ -17,13 +17,16 @@ package loki
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -87,13 +90,89 @@ func webScreenshotTool() Tool {
 }
 
 // screenshotVisionNote : ce que le modèle doit savoir de SA propre perception.
-// Avec un projecteur configuré, la capture lui est réellement transmise (voir
-// screenshotImageMessage) ; sans projecteur, il photographie sans regarder.
+// Alignée sur la capacité RÉELLE du moteur, pas seulement sur la clé MMPROJ —
+// sinon on promet une image qui n'arrivera pas et le modèle se contredit.
 func screenshotVisionNote() string {
-	if visionEnabled() {
+	if visionEnabled() && engineSeesImages() {
 		return "L'image t'est ensuite montrée : tu peux la décrire."
 	}
 	return "Tu ne vois pas l'image."
+}
+
+// engineSeesImages : le moteur ACCEPTE-t-il réellement des images ? On
+// interroge /props de llama-server (modalities.vision), avec un cache court —
+// l'appel est local et instantané moteur en marche, mais moteur ARRÊTÉ chaque
+// sonde attendrait le timeout, et elle est faite à chaque construction du
+// catalogue d'outils.
+//
+// La clé MMPROJ ne suffit pas : configurée avec le projecteur d'un AUTRE
+// modèle, ou avec un modèle sans vision (gpt-oss), le gabarit sérialise le
+// base64 de l'image en TEXTE — la requête vue en production pesait 55 000
+// tokens pour 32 768 de contexte, et tous les tours suivants échouaient.
+var (
+	visionProbeMu   sync.Mutex
+	visionProbeAt   time.Time
+	visionProbeSeen bool
+)
+
+func engineSeesImages() bool {
+	visionProbeMu.Lock()
+	defer visionProbeMu.Unlock()
+	if time.Since(visionProbeAt) < 10*time.Second {
+		return visionProbeSeen
+	}
+	visionProbeAt = time.Now()
+	visionProbeSeen = false
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://localhost:%d/props", LLMPort()))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	var props struct {
+		Modalities struct {
+			Vision bool `json:"vision"`
+		} `json:"modalities"`
+	}
+	if resp.StatusCode != 200 || json.NewDecoder(resp.Body).Decode(&props) != nil {
+		return false
+	}
+	visionProbeSeen = props.Modalities.Vision
+	return visionProbeSeen
+}
+
+// stripImageParts retire les parties image_url des messages persistés et
+// aplatit ce qui reste en texte simple. Deux raisons :
+//   - guérir les conversations créées AVANT le passage de l'image en éphémère,
+//     où un base64 de plusieurs dizaines de milliers de tokens était rejoué à
+//     chaque tour jusqu'à dépasser définitivement le contexte ;
+//   - garantir l'invariant à l'avenir, quel que soit le chemin d'écriture.
+func stripImageParts(msgs []Message) []Message {
+	for i, m := range msgs {
+		parts, ok := m.Content.([]any)
+		if !ok {
+			continue
+		}
+		var texts []string
+		dropped := false
+		for _, p := range parts {
+			pm, ok := p.(map[string]any)
+			if !ok {
+				continue
+			}
+			if pm["type"] == "image_url" {
+				dropped = true
+				continue
+			}
+			if t, ok := pm["text"].(string); ok {
+				texts = append(texts, t)
+			}
+		}
+		if dropped {
+			msgs[i].Content = strings.Join(texts, "\n")
+		}
+	}
+	return msgs
 }
 
 // screenshotImageMessage construit le message utilisateur qui PORTE la capture
@@ -106,7 +185,7 @@ func screenshotVisionNote() string {
 // llama-server rejette un contenu image sans --mmproj, donc mieux vaut ne rien
 // envoyer que de faire échouer le tour.
 func screenshotImageMessage(relPath string) (Message, bool) {
-	if !visionEnabled() {
+	if !visionEnabled() || !engineSeesImages() {
 		return Message{}, false
 	}
 	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(relPath))

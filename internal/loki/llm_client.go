@@ -1101,11 +1101,18 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// texte, donc sans ce relais le modèle recevait le chemin du fichier
 				// et rien d'autre — il annonçait alors à l'utilisateur qu'il ne
 				// voyait pas l'image, alors que le projecteur était bien chargé.
+				//
+				// ÉPHÉMÈRE : l'image va dans `messages` (le tour en cours) mais PAS
+				// dans `extra` (l'historique persistant). Un base64 de capture pèse
+				// des dizaines de milliers de tokens ; persisté, il était renvoyé à
+				// CHAQUE tour suivant et la conversation dépassait définitivement le
+				// contexte (vu en production : requêtes de 55 000 tokens pour une
+				// fenêtre de 32 768, plus aucun tour ne passait). Le modèle regarde
+				// l'image MAINTENANT et sa description textuelle, elle, reste.
 				if tc.Function.Name == "web_screenshot" {
 					if rel := capturedRelPath(result); rel != "" {
 						if imgMsg, ok := screenshotImageMessage(rel); ok {
 							messages = append(messages, imgMsg)
-							extra = append(extra, imgMsg)
 						}
 					}
 				}

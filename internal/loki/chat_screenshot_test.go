@@ -87,6 +87,11 @@ func TestConvDeleteSupprimeLesCaptures(t *testing.T) {
 func TestScreenshotSuitLEtatDeLaVision(t *testing.T) {
 	t.Setenv("LOKI_HOME", t.TempDir())
 
+	// Sans projecteur, la sonde moteur ne doit même pas être consultée : on
+	// s'assure que son cache est froid pour que le test reste hermétique.
+	visionProbeMu.Lock()
+	visionProbeAt, visionProbeSeen = time.Now(), false
+	visionProbeMu.Unlock()
 	if got := screenshotVisionNote(); !strings.Contains(got, "ne vois pas") {
 		t.Fatalf("sans projecteur, la description doit annoncer l'absence de vision : %q", got)
 	}
@@ -105,10 +110,16 @@ func TestScreenshotSuitLEtatDeLaVision(t *testing.T) {
 		t.Fatal("image transmise au modèle alors qu'aucun projecteur n'est configuré")
 	}
 
-	// Projecteur configuré → description ET transmission changent.
+	// Projecteur configuré ET moteur qui déclare la vision (on amorce le cache
+	// de la sonde : aucun llama-server ne tourne pendant les tests) →
+	// description ET transmission changent.
 	if err := SetConfigKey("MMPROJ", "mmproj-test.gguf"); err != nil {
 		t.Fatal(err)
 	}
+	visionProbeMu.Lock()
+	visionProbeAt, visionProbeSeen = time.Now(), true
+	visionProbeMu.Unlock()
+	defer func() { visionProbeMu.Lock(); visionProbeAt = time.Time{}; visionProbeMu.Unlock() }()
 	if got := screenshotVisionNote(); strings.Contains(got, "ne vois pas") {
 		t.Fatalf("avec projecteur, la description ne doit plus nier la vision : %q", got)
 	}
@@ -122,6 +133,28 @@ func TestScreenshotSuitLEtatDeLaVision(t *testing.T) {
 	parts, _ := msg.Content.([]map[string]any)
 	if len(parts) != 2 || parts[1]["type"] != "image_url" {
 		t.Fatalf("contenu multimodal attendu (text + image_url), obtenu %#v", msg.Content)
+	}
+}
+
+// Un base64 d'image persisté dans l'historique est rejoué à chaque tour : vu en
+// production, 55 000 tokens de requête pour 32 768 de contexte — plus aucun
+// tour ne passait. stripImageParts guérit les conversations existantes en
+// retirant les parties image et en aplatissant le texte restant.
+func TestStripImagePartsGueritLHistorique(t *testing.T) {
+	msgs := []Message{
+		{Role: "user", Content: "bonjour"}, // simple chaîne : intouchée
+		{Role: "user", Content: []any{ // message multimodal persisté (via JSON)
+			map[string]any{"type": "text", "text": "Voici la capture demandée."},
+			map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:image/jpeg;base64,AAAA"}},
+		}},
+	}
+	out := stripImageParts(msgs)
+	if out[0].Content.(string) != "bonjour" {
+		t.Fatalf("message texte modifié : %#v", out[0].Content)
+	}
+	got, ok := out[1].Content.(string)
+	if !ok || got != "Voici la capture demandée." {
+		t.Fatalf("le message multimodal doit être aplati en texte sans l'image, obtenu %#v", out[1].Content)
 	}
 }
 

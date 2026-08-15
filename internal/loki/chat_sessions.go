@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,6 +33,14 @@ const (
 	ckActive = "active"
 	ckLegacy = "conversation" // fil unique d'avant le multi-discussions
 )
+
+// convOpMu sérialise les opérations de haut niveau sur les discussions
+// (création, bascule, renommage, suppression). Chacune fait plusieurs
+// lectures-écritures de l'index et de la clé active : deux requêtes HTTP
+// simultanées (deux appareils, double-clic) pouvaient entrelacer ces étapes et
+// perdre une entrée d'index ou basculer sur une discussion supprimée. Le verrou
+// de Conversation protège l'état en mémoire, pas cette séquence-là.
+var convOpMu sync.Mutex
 
 // convMeta décrit une discussion SANS ses messages : c'est ce que liste l'UI.
 type convMeta struct {
@@ -136,6 +145,8 @@ func ConvList() ([]convMeta, string) { return convIndex(), convEnsureActive() }
 // la cible chargée en mémoire, et l'epoch incrémenté pour que tous les clients
 // rejouent le nouveau fil.
 func convSwitch(id string) error {
+	convOpMu.Lock()
+	defer convOpMu.Unlock()
 	if id == "" {
 		return fmt.Errorf("identifiant manquant")
 	}
@@ -172,11 +183,15 @@ func convCreate() string {
 
 // convNew met de côté la discussion courante puis en ouvre une neuve.
 func convNew() string {
+	convOpMu.Lock()
+	defer convOpMu.Unlock()
 	conv.persist()
 	return convCreate()
 }
 
 func convRename(id, title string) error {
+	convOpMu.Lock()
+	defer convOpMu.Unlock()
 	title = strings.TrimSpace(title)
 	if id == "" || title == "" {
 		return fmt.Errorf("identifiant ou titre manquant")
@@ -196,6 +211,8 @@ func convRename(id, title string) error {
 // sur la plus récente restante — ou sur une discussion neuve s'il n'en reste
 // aucune : il y a TOUJOURS une discussion active.
 func convDelete(id string) error {
+	convOpMu.Lock()
+	defer convOpMu.Unlock()
 	idx := convIndex()
 	next := make([]convMeta, 0, len(idx))
 	found := false

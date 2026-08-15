@@ -80,6 +80,9 @@ func LoadConversation() {
 	conv.mu.Lock()
 	defer conv.mu.Unlock()
 	_ = json.Unmarshal(b, conv)
+	// Guérit les conversations d'avant le passage des captures en éphémère : un
+	// base64 d'image persisté était rejoué à chaque tour et dépassait le contexte.
+	conv.Messages = stripImageParts(conv.Messages)
 	// Une génération n'a pas pu survivre à l'arrêt du process : on repart propre.
 	conv.Generating = false
 	conv.cancel = nil
@@ -95,6 +98,7 @@ func (c *Conversation) loadFrom(b []byte) {
 	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
 	if len(b) > 0 {
 		_ = json.Unmarshal(b, c)
+		c.Messages = stripImageParts(c.Messages) // même guérison qu'au chargement
 	}
 	c.Generating = false
 	c.cancel = nil

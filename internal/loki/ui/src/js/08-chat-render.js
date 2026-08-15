@@ -146,21 +146,30 @@ function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLink
 // est définie. On récupère donc l'image par fetch authentifié et on la pose en
 // blob:. Sans ça, toute instance protégée par une clé n'affichait que des images
 // cassées. Les URLs externes (http…) ne sont pas touchées.
+// Cache des blobs par URL source. renderBody est rappelé à CHAQUE delta du
+// streaming et reconstruit le DOM : sans cache, une image déjà affichée était
+// re-téléchargée à chaque token arrivé après elle. On garde l'objet URL (pas de
+// revoke) : quelques captures par discussion, mémoire négligeable, et un revoke
+// casserait les rendus suivants qui réutilisent la même entrée.
+const IMG_CACHE = new Map();
 function hydrateImages(root){
   root.querySelectorAll('img[src*="/api/chat/image"]').forEach(async img => {
     if(img.dataset.hydrated) return;
     img.dataset.hydrated = '1';
     const src = img.getAttribute('src');
+    img.classList.add('chatimg');
+    const cached = IMG_CACHE.get(src);
+    if(cached){ img.src = cached; return; }
     try{
       const r = await jfetch(src.startsWith('/') ? src : '/' + src);
       if(!r.ok) throw new Error(r.status);
       const url = URL.createObjectURL(await r.blob());
+      IMG_CACHE.set(src, url);
       img.src = url;
-      img.classList.add('chatimg');
-      // La révocation attend le chargement : révoquer tout de suite laisserait
-      // une image vide sur les navigateurs qui décodent en différé.
-      img.addEventListener('load', () => URL.revokeObjectURL(url), {once:true});
     }catch(e){
+      // Pas de remplacement définitif pendant le STREAMING : l'URL peut être
+      // tronquée en cours de frappe (404 transitoire) et le prochain delta
+      // re-rend le markdown complet. On note l'échec sans le graver.
       const note = document.createElement('span');
       note.className = 'muted';
       note.textContent = '[image indisponible : ' + src.replace(/^.*path=/, '') + ']';
