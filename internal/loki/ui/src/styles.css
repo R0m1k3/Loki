@@ -1304,3 +1304,17 @@ button:hover{border-color:var(--dim);color:var(--text)}
 #send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;opacity:.88}
 #stop{background:var(--err);border-color:var(--err);color:#fff}
 #stop:hover{background:var(--err);border-color:var(--err);color:#fff;opacity:.88}
+
+/* --- Terre : largeur de lecture --------------------------------------
+   La mesure était plafonnée à 760 px et centrée sur la fenêtre : sur un écran
+   large, le fil se réduisait à une colonne étroite entourée de vide, alors que
+   la charte fait courir le texte sur toute la largeur du panneau.
+   Une seule variable pilote désormais le fil ET la carte de saisie — ils
+   étaient réglés séparément (450 / 380 / 360 px), donc condamnés à diverger.
+   La borne haute reste : au-delà, une ligne devient pénible à lire (l'œil perd
+   le début de la suivante). 1080 px ≈ 110 caractères, large mais tenable. */
+@media (min-width:721px){
+  :root{--measure:min(1080px,100%)}
+  #chat{padding:26px max(20px,calc(50% - var(--measure)/2)) 8px}
+  #composer{--col:calc(max(20px,calc(50% - var(--measure)/2)) + var(--sbw,0px))}
+}
