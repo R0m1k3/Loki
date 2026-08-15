@@ -15,27 +15,34 @@ async function loadLlamacpp(){
   const fastInstalled = !!pb.bin;
   const optInstalled  = !!s.bin;
 
-  lcRenderReco(s.reco);
-  lcRenderMode('fast', fastInstalled);
-  lcRenderMode('opt', optInstalled);
-  lcRenderCustomCard();
+  // Moteur fourni par l'image Docker : les trois modes d'installation n'ont
+  // aucun sens (rien à installer, aucun compilateur dans l'image). On affiche
+  // l'état réel à la place — les boutons du service, eux, restent utiles.
+  lcRenderProvided(s);
 
-  // Job en cours (page rechargée pendant une install) → on raccroche l'affichage.
-  if(s.job && s.job.exists && s.job.running && !lcPoll){
-    document.getElementById('lc-details').open = true;
-    lcStartPolling();
+  if(!s.provided){
+    lcRenderReco(s.reco);
+    lcRenderMode('fast', fastInstalled);
+    lcRenderMode('opt', optInstalled);
+    lcRenderCustomCard();
+
+    // Job en cours (page rechargée pendant une install) → on raccroche l'affichage.
+    if(s.job && s.job.exists && s.job.running && !lcPoll){
+      document.getElementById('lc-details').open = true;
+      lcStartPolling();
+    }
+    // Job terminé/interrompu qu'on n'a pas encore montré (rechargement APRÈS coup,
+    // typiquement quand le service a redémarré) : on l'affiche sans polling.
+    else if(s.job && s.job.exists && !s.job.running && !lcPoll && s.job.error && !lcEndShown){
+      document.getElementById('lc-details').open = true;
+      document.getElementById('lc-job').style.display = '';
+      lcLogNext = 0;
+      document.getElementById('lc-log').textContent = '';
+      lcEndShown = true;
+      lcPollJob(true); // quiet : simple rattrapage, pas de toast ni de rechargement
+    }
+    lcChipSync(s.job);
   }
-  // Job terminé/interrompu qu'on n'a pas encore montré (rechargement APRÈS coup,
-  // typiquement quand le service a redémarré) : on l'affiche sans polling.
-  else if(s.job && s.job.exists && !s.job.running && !lcPoll && s.job.error && !lcEndShown){
-    document.getElementById('lc-details').open = true;
-    document.getElementById('lc-job').style.display = '';
-    lcLogNext = 0;
-    document.getElementById('lc-log').textContent = '';
-    lcEndShown = true;
-    lcPollJob(true); // quiet : simple rattrapage, pas de toast ni de rechargement
-  }
-  lcChipSync(s.job);
   // Préchauffe la liste des cartes du moteur actif : interroger le moteur prend
   // 1 à 3 s (init CUDA/Vulkan), et sans ça l'encart « cartes graphiques » de
   // l'éditeur apparaissait après coup, une fois le reste déjà affiché.
@@ -88,6 +95,21 @@ function lcRenderReco(reco){
   // repasse par là, donc pas d'accumulation possible.)
   const desc = document.getElementById('lc-desc-'+mode);
   if(desc && reco && reco.why) desc.textContent = reco.why;
+}
+
+// Bascule entre « moteur de l'image » (une ligne d'état) et les trois modes
+// d'installation gérés par Loki.
+function lcRenderProvided(s){
+  const box = document.getElementById('lc-provided');
+  const modes = document.querySelector('.lc-modes');
+  if(!box || !modes) return;
+  box.style.display = s.provided ? '' : 'none';
+  modes.style.display = s.provided ? 'none' : '';
+  if(!s.provided) return;
+  const bin = document.getElementById('lc-provided-bin');
+  if(bin) bin.textContent = s.config_bin || '';
+  const job = document.getElementById('lc-job');
+  if(job) job.style.display = 'none';
 }
 
 function lcRenderMode(mode, installed){
