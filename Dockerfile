@@ -50,9 +50,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG PLAYWRIGHT=1
 ARG PLAYWRIGHT_VERSION=latest
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+# Les polices sont INDISPENSABLES : sans elles, Chromium rend les pages sans
+# AUCUN texte — boutons et titres sortent vides, seuls les images et les aplats
+# apparaissent. Noto couvre l'essentiel des écritures, Liberation fournit les
+# substituts d'Arial/Times que réclament la plupart des sites.
 RUN if [ "$PLAYWRIGHT" = "1" ]; then \
         npm i -g playwright@${PLAYWRIGHT_VERSION} \
         && playwright install --with-deps chromium \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends \
+             fonts-liberation fonts-dejavu-core fonts-noto-core \
+             fonts-noto-cjk fonts-noto-color-emoji \
+        && fc-cache -f \
         && rm -rf /root/.npm /var/lib/apt/lists/* ; \
     fi
 

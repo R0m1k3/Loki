@@ -16,6 +16,7 @@ package loki
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -69,8 +70,11 @@ func webScreenshotTool() Tool {
 		Name: "web_screenshot",
 		// Description tenue au plus court : les schémas d'outils partent dans
 		// CHAQUE requête et le préambule a un budget (TestSystemPromptStaysLean).
+		// Elle DÉPEND de la vision : annoncer « tu ne vois pas l'image » à un
+		// modèle qui la reçoit ensuite le fait se contredire devant l'utilisateur
+		// (il refuse de décrire ce qu'il a pourtant sous les yeux).
 		Description: "Photographie une page web (JS exécuté) pour la MONTRER. " +
-			"La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
+			"La réponse donne la ligne markdown à recopier. " + screenshotVisionNote(),
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -80,6 +84,59 @@ func webScreenshotTool() Tool {
 			"required": []string{"url"},
 		},
 	}}
+}
+
+// screenshotVisionNote : ce que le modèle doit savoir de SA propre perception.
+// Avec un projecteur configuré, la capture lui est réellement transmise (voir
+// screenshotImageMessage) ; sans projecteur, il photographie sans regarder.
+func screenshotVisionNote() string {
+	if visionEnabled() {
+		return "L'image t'est ensuite montrée : tu peux la décrire."
+	}
+	return "Tu ne vois pas l'image."
+}
+
+// screenshotImageMessage construit le message utilisateur qui PORTE la capture
+// jusqu'au modèle. Le résultat d'un outil est un message `tool`, qui ne
+// transporte que du texte : pour qu'un modèle multimodal voie l'image, elle doit
+// arriver dans un message `user` au format OpenAI (partie text + partie
+// image_url en data URI), le même que celui des pièces jointes.
+//
+// Renvoie ok=false quand la vision est absente ou le fichier illisible :
+// llama-server rejette un contenu image sans --mmproj, donc mieux vaut ne rien
+// envoyer que de faire échouer le tour.
+func screenshotImageMessage(relPath string) (Message, bool) {
+	if !visionEnabled() {
+		return Message{}, false
+	}
+	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(relPath))
+	mime := imageMime(abs)
+	if mime == "" {
+		return Message{}, false
+	}
+	b, err := os.ReadFile(abs)
+	if err != nil || len(b) == 0 {
+		return Message{}, false
+	}
+	return Message{Role: "user", Content: []map[string]any{
+		{"type": "text", "text": "Voici la capture demandée."},
+		{"type": "image_url", "image_url": map[string]any{
+			"url": "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(b),
+		}},
+	}}, true
+}
+
+// capturedRelPath extrait le chemin de la capture du texte rendu par
+// toolWebScreenshot, pour éviter de faire porter deux valeurs de retour à
+// l'outil (le protocole n'en accepte qu'une, textuelle).
+var capturedRe = regexp.MustCompile(`\(/api/chat/image\?path=([^)]+)\)`)
+
+func capturedRelPath(toolResult string) string {
+	m := capturedRe.FindStringSubmatch(toolResult)
+	if len(m) != 2 {
+		return ""
+	}
+	return m[1]
 }
 
 // safeSlug réduit un hôte à un nom de fichier sûr.
@@ -147,7 +204,10 @@ func toolWebScreenshot(args map[string]any) string {
 
 	cmdArgs := []string{"screenshot", "--browser", "chromium",
 		"--viewport-size", fmt.Sprintf("%d,800", width),
-		"--wait-for-timeout", "2500"}
+		// 3,5 s : beaucoup de sites chargent leurs polices en webfont et laissent le
+		// texte INVISIBLE le temps du téléchargement (font-display: block). Capturer
+		// trop tôt donnait une page aux blocs vides, sans un mot.
+		"--wait-for-timeout", "3500"}
 	if fullPage {
 		cmdArgs = append(cmdArgs, "--full-page")
 	}
