@@ -198,6 +198,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/chat/send", handleChatSend)     // envoie un message (lance la génération détachée)
 	api("/api/chat/upload", handleChatUpload) // dépose un fichier dans le workspace agent (joint au message suivant)
 	api("/api/chat/file", handleChatFile)     // télécharge un fichier produit par l'agent (dossier de travail only)
+	api("/api/chat/image", handleChatImage)   // affiche une IMAGE du dossier de travail (captures d'écran)
 	api("/api/chat/stop", handleChatStop)     // interrompt la génération en cours
 	api("/api/chat/reset", handleChatReset)   // vide la discussion courante (pour tous les appareils)
 	// Discussions : liste, création, bascule, renommage, suppression.

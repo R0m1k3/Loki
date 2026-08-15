@@ -162,7 +162,10 @@ async function loadCfg(){
     // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
     // toujours le chemin complet, quel que soit le libellé.
     let v;
-    if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
+    // En conteneur, le moteur vient de l'image : le dire, plutôt que de le
+    // ranger dans « personnalisé » qui laisse croire à un bricolage.
+    if(lc && lc.provided && sameBinPath(c.BIN, lc.provided_bin)) v='llama.cpp de l\'image';
+    else if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
     else if(lc && lc.in_use) v='llama.cpp compilé';
     else v='llama.cpp personnalisé : '+c.BIN;
     rows.push(row('MOTEUR', v, c.BIN));

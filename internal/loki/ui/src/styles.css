@@ -137,6 +137,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
    du style de .label (petites capitales) mais sans forcer la casse du prénom. */
 .msg .label .av{font-style:normal;font-size:13px;margin-right:5px;vertical-align:-1px}
 .msg .label .who{text-transform:none;letter-spacing:.04em;font-size:11px}
+/* Captures d'écran et images de l'agent : bornées à la largeur de la bulle, et
+   cliquables pour ouvrir en grand dans un onglet. */
+.msg .body img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--border);display:block;margin:8px 0}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}

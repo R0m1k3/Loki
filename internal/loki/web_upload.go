@@ -336,6 +336,55 @@ func handleChatFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, abs)
 }
 
+// handleChatImage sert une image du dossier de travail POUR AFFICHAGE dans le
+// fil (captures d'écran, images produites par l'agent). Route distincte de
+// handleChatFile, qui force le téléchargement de TOUT : la règle « rien ne
+// s'exécute dans l'origine de l'UI » est ici tenue autrement, en ne servant
+// jamais que des images —
+//   - le type est déduit du CONTENU (les 512 premiers octets), pas de
+//     l'extension : un .png qui contient du HTML est refusé ;
+//   - nosniff empêche le navigateur de revenir sur ce type ;
+//   - une CSP « default-src 'none' » neutralise le document au cas où.
+func handleChatImage(w http.ResponseWriter, r *http.Request) {
+	rel := r.URL.Query().Get("path")
+	if strings.TrimSpace(rel) == "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "chemin manquant"})
+		return
+	}
+	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(rel))
+	if _, ok := workspaceRel(abs); !ok {
+		sendJSON(w, 403, map[string]any{"ok": false, "error": "hors du dossier de travail"})
+		return
+	}
+	st, err := os.Stat(abs)
+	if err != nil || st.IsDir() {
+		sendJSON(w, 404, map[string]any{"ok": false, "error": "fichier introuvable"})
+		return
+	}
+	f, err := os.Open(abs)
+	if err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	mime := http.DetectContentType(head[:n])
+	if !strings.HasPrefix(mime, "image/") {
+		sendJSON(w, 415, map[string]any{"ok": false, "error": "ce fichier n'est pas une image"})
+		return
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	w.Header().Set("Content-Disposition", "inline; filename*=UTF-8''"+url.PathEscape(filepath.Base(abs)))
+	http.ServeContent(w, r, filepath.Base(abs), st.ModTime(), f)
+}
+
 type uploadReq struct {
 	Name string `json:"name"`
 	Data string `json:"data"` // base64 d'UN morceau (accepte un data: URL complet)

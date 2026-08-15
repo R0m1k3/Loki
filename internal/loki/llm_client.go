@@ -257,6 +257,12 @@ func EnabledTools(caps Caps) []Tool {
 	// donc prompt et outils restent cohérents — pas de web_search halluciné.
 	if caps.Agent && caps.Internet {
 		tools = append(tools, webSearchTool(), webOpenTool(), webReadTool(), webGrepTool())
+		// Capture d'écran : seulement si Playwright est réellement présent dans
+		// l'image. Annoncer un outil absent enverrait le modèle en boucle de
+		// réessai sur un échec systématique.
+		if screenshotAvailable() {
+			tools = append(tools, webScreenshotTool())
+		}
 	}
 	// Outils MCP : serveurs tiers configurés par le propriétaire de la machine.
 	// Comme bash, ils exécutent du code arbitraire côté hôte → réservés au mode
@@ -1054,6 +1060,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					result = capWebOutput(toolWebRead(args))
 				case "web_grep":
 					result = capWebOutput(toolWebGrep(args))
+				case "web_screenshot":
+					result = toolWebScreenshot(args)
 				default:
 					if isMCPTool(tc.Function.Name) {
 						result = mcpCall(tc.Function.Name, args)
