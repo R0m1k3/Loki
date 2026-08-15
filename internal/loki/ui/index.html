@@ -1902,8 +1902,8 @@ button:hover{border-color:var(--dim);color:var(--text)}
             <span class="pe-row-c"><input id="s-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768" oninput="cfgWriteKey('CTX', this.value)"><span class="pe-unit">tok</span></span>
           </div>
           <div class="pe-row">
-            <span class="pe-row-l">Couches sur GPU<span class="pe-sub">999 = tout sur le GPU</span></span>
-            <span class="pe-row-c"><input id="s-ngl" class="pe-val" type="number" min="0" step="1" placeholder="999" oninput="cfgWriteKey('NGL', this.value)"></span>
+            <span class="pe-row-l">Couches sur GPU<span class="pe-sub">999 = tout sur le GPU · auto = ce qui tient en VRAM</span></span>
+            <span class="pe-row-c"><input id="s-ngl" class="pe-val" type="text" inputmode="numeric" placeholder="999" oninput="cfgWriteKey('NGL', this.value)"></span>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Experts MoE sur CPU<span class="pe-sub">vide = non</span></span>

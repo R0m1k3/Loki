@@ -101,7 +101,6 @@ func cmdServe(args []string) error {
 
 	llmArgs := []string{bin,
 		"-m", model,
-		"-ngl", get("NGL", "999"),
 		"-c", get("CTX", "32768"),
 		"-t", get("THREADS", "0"),
 		"-tb", get("THREADS_BATCH", "0"),
@@ -109,6 +108,16 @@ func cmdServe(args []string) error {
 		"-ub", get("UBATCH", "512"),
 		"--host", get("HOST", "0.0.0.0"),
 		"--port", get("PORT", "8080"),
+	}
+	// NGL=auto : on n'envoie PAS -ngl, et llama.cpp choisit lui-même combien de
+	// couches tiennent dans la VRAM libre (common_fit_params). Il s'en abstient
+	// dès que la valeur est imposée — « n_gpu_layers already set by user to 999,
+	// abort » — d'où des cudaMalloc en échec, un repli partiel sur le CPU et un
+	// débit effondré alors que le GPU tourne à 100 %.
+	// Le défaut reste 999 (tout sur le GPU) : omettre -ngl sur un llama.cpp
+	// antérieur à cet ajustement automatique le ferait tourner 100 % CPU.
+	if ngl := get("NGL", "999"); !strings.EqualFold(ngl, "auto") {
+		llmArgs = append(llmArgs, "-ngl", ngl)
 	}
 	if ktv != "" {
 		llmArgs = append(llmArgs, "-ctk", ktv)
