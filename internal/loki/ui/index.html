@@ -163,6 +163,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
    du style de .label (petites capitales) mais sans forcer la casse du prénom. */
 .msg .label .av{font-style:normal;font-size:13px;margin-right:5px;vertical-align:-1px}
 .msg .label .who{text-transform:none;letter-spacing:.04em;font-size:11px}
+/* Captures d'écran et images de l'agent : bornées à la largeur de la bulle, et
+   cliquables pour ouvrir en grand dans un onglet. */
+.msg .body img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--border);display:block;margin:8px 0}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
@@ -2508,7 +2511,10 @@ async function loadCfg(){
     // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
     // toujours le chemin complet, quel que soit le libellé.
     let v;
-    if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
+    // En conteneur, le moteur vient de l'image : le dire, plutôt que de le
+    // ranger dans « personnalisé » qui laisse croire à un bricolage.
+    if(lc && lc.provided && sameBinPath(c.BIN, lc.provided_bin)) v='llama.cpp de l\'image';
+    else if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
     else if(lc && lc.in_use) v='llama.cpp compilé';
     else v='llama.cpp personnalisé : '+c.BIN;
     rows.push(row('MOTEUR', v, c.BIN));
@@ -4161,7 +4167,34 @@ function setStats(el, text){
 }
 function bodyOf(el){ return el.querySelector('.body'); }
 // Render markdown into a message body in place; safe because md() escapes HTML.
-function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLinkSpaces(text)); markNotices(b); addCopyButtons(b); markFileLinks(b); scrollMaybe(); }
+function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLinkSpaces(text)); markNotices(b); addCopyButtons(b); markFileLinks(b); hydrateImages(b); scrollMaybe(); }
+// Images servies par Loki (/api/chat/image) : une balise <img> ne peut pas
+// porter d'en-tête Authorization, or /api/* exige la clé de pilotage dès qu'elle
+// est définie. On récupère donc l'image par fetch authentifié et on la pose en
+// blob:. Sans ça, toute instance protégée par une clé n'affichait que des images
+// cassées. Les URLs externes (http…) ne sont pas touchées.
+function hydrateImages(root){
+  root.querySelectorAll('img[src*="/api/chat/image"]').forEach(async img => {
+    if(img.dataset.hydrated) return;
+    img.dataset.hydrated = '1';
+    const src = img.getAttribute('src');
+    try{
+      const r = await jfetch(src.startsWith('/') ? src : '/' + src);
+      if(!r.ok) throw new Error(r.status);
+      const url = URL.createObjectURL(await r.blob());
+      img.src = url;
+      img.classList.add('chatimg');
+      // La révocation attend le chargement : révoquer tout de suite laisserait
+      // une image vide sur les navigateurs qui décodent en différé.
+      img.addEventListener('load', () => URL.revokeObjectURL(url), {once:true});
+    }catch(e){
+      const note = document.createElement('span');
+      note.className = 'muted';
+      note.textContent = '[image indisponible : ' + src.replace(/^.*path=/, '') + ']';
+      img.replaceWith(note);
+    }
+  });
+}
 // Render a tool call as its own conversation message: the command the model
 // wrote, then the response it got back. textContent keeps it injection-safe.
 function renderToolMsg(el, tu){

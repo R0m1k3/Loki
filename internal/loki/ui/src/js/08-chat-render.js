@@ -140,7 +140,34 @@ function setStats(el, text){
 }
 function bodyOf(el){ return el.querySelector('.body'); }
 // Render markdown into a message body in place; safe because md() escapes HTML.
-function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLinkSpaces(text)); markNotices(b); addCopyButtons(b); markFileLinks(b); scrollMaybe(); }
+function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLinkSpaces(text)); markNotices(b); addCopyButtons(b); markFileLinks(b); hydrateImages(b); scrollMaybe(); }
+// Images servies par Loki (/api/chat/image) : une balise <img> ne peut pas
+// porter d'en-tête Authorization, or /api/* exige la clé de pilotage dès qu'elle
+// est définie. On récupère donc l'image par fetch authentifié et on la pose en
+// blob:. Sans ça, toute instance protégée par une clé n'affichait que des images
+// cassées. Les URLs externes (http…) ne sont pas touchées.
+function hydrateImages(root){
+  root.querySelectorAll('img[src*="/api/chat/image"]').forEach(async img => {
+    if(img.dataset.hydrated) return;
+    img.dataset.hydrated = '1';
+    const src = img.getAttribute('src');
+    try{
+      const r = await jfetch(src.startsWith('/') ? src : '/' + src);
+      if(!r.ok) throw new Error(r.status);
+      const url = URL.createObjectURL(await r.blob());
+      img.src = url;
+      img.classList.add('chatimg');
+      // La révocation attend le chargement : révoquer tout de suite laisserait
+      // une image vide sur les navigateurs qui décodent en différé.
+      img.addEventListener('load', () => URL.revokeObjectURL(url), {once:true});
+    }catch(e){
+      const note = document.createElement('span');
+      note.className = 'muted';
+      note.textContent = '[image indisponible : ' + src.replace(/^.*path=/, '') + ']';
+      img.replaceWith(note);
+    }
+  });
+}
 // Render a tool call as its own conversation message: the command the model
 // wrote, then the response it got back. textContent keeps it injection-safe.
 function renderToolMsg(el, tu){

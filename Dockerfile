@@ -35,9 +35,26 @@ LABEL org.opencontainers.image.revision="${LOKI_VERSION}" \
 
 # git pour les outils de l'agent ; nodejs/npm pour les serveurs MCP lancés
 # via npx ; tini en PID 1. curl et libgomp1 sont déjà dans l'image amont.
+# Node 22 depuis NodeSource et non depuis Ubuntu (qui livre Node 18) : Playwright
+# et la plupart des serveurs MCP réclament Node ≥ 20.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git nodejs npm tini \
+        git tini ca-certificates curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Playwright + Chromium : l'outil web_screenshot capture une page RENDUE
+# (JavaScript exécuté), ce que le moteur web intégré ne sait pas faire.
+# Coût assumé : ~500 Mo à 1 Go d'image. Mettre PLAYWRIGHT=0 pour bâtir une image
+# légère — l'outil se désactive alors tout seul (le binaire absent est détecté).
+ARG PLAYWRIGHT=1
+ARG PLAYWRIGHT_VERSION=latest
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+RUN if [ "$PLAYWRIGHT" = "1" ]; then \
+        npm i -g playwright@${PLAYWRIGHT_VERSION} \
+        && playwright install --with-deps chromium \
+        && rm -rf /root/.npm /var/lib/apt/lists/* ; \
+    fi
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
