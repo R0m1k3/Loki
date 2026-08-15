@@ -228,7 +228,12 @@
     <div class="slist"><div class="rowbody">
       <div class="pe-row">
         <span class="pe-row-l">Ton prénom<span class="pe-sub">affiché sur tes messages</span></span>
-        <span class="pe-row-c"><input id="p-username" class="pe-inp" maxlength="24" placeholder="toi" oninput="saveIdentity()"></span>
+        <!-- autocomplete/data-*-ignore : sans ça, les gestionnaires de mots de
+             passe prennent ce champ pour un identifiant de connexion et
+             recouvrent la saisie de comptes enregistrés. -->
+        <span class="pe-row-c"><input id="p-username" class="pe-inp" maxlength="24" placeholder="toi"
+          autocomplete="off" name="loki-nickname" data-1p-ignore data-lpignore="true" data-form-type="other"
+          oninput="saveIdentity()"></span>
       </div>
       <div class="pe-row stack">
         <span class="pe-row-l">Ton avatar</span>
