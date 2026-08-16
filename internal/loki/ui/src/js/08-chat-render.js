@@ -14,8 +14,26 @@ function syncGutter(){
   const g=Math.max(0,(chat.offsetWidth-chat.clientWidth)/2);
   document.documentElement.style.setProperty('--sbw', g+'px');
 }
+// La carte de saisie flotte AU-DESSUS du fil (position:absolute) : c'est au fil
+// de réserver sa hauteur en rembourrage bas, sinon ses derniers messages passent
+// dessous et deviennent hors d'atteinte — aucun défilement ne les ramène.
+// Cette hauteur n'est pas constante : la saisie grandit avec le texte (autoGrow),
+// et une pièce jointe en attente ajoute une rangée de pastilles. On la mesure
+// donc au lieu de la deviner, comme on le fait déjà pour la gouttière.
+// Pas de boucle d'observation : le composeur est en position:absolute, changer le
+// rembourrage de #chat ne modifie pas sa hauteur.
+function syncComposer(){
+  const c=document.getElementById('composer'); if(!c) return;
+  document.documentElement.style.setProperty('--composer-h', c.offsetHeight+'px');
+}
 addEventListener('resize', syncGutter);
 addEventListener('DOMContentLoaded', syncGutter);
+addEventListener('resize', syncComposer);
+addEventListener('DOMContentLoaded', ()=>{
+  syncComposer();
+  const c=document.getElementById('composer');
+  if(c && window.ResizeObserver) new ResizeObserver(syncComposer).observe(c);
+});
 
 function scrollMaybe(){
   // Pendant le replay initial on NE force AUCUN reflow : lire scrollHeight à chaque
