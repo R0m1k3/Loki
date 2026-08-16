@@ -136,8 +136,12 @@ function labelTokens(el, role, n, firstTs, lastTs){
 function setBusy(on){ busy=on; if(!REPLAYING) syncSendBtn(); }
 function syncSendBtn(){
   const sb=document.getElementById('send');
-  sb.style.display=busy?'none':'inline-block';
-  document.getElementById('stop').style.display=busy?'inline-block':'none';
+  // ⚠️ L'état passe par un ATTRIBUT, jamais par un style inline. Ces deux
+  // boutons étaient montrés/cachés avec `style.display='inline-block'`, qui
+  // l'emportait sur le `display:flex` de la feuille : le bouton gardait sa
+  // boîte de 34 px mais son icône de 18 px se collait à gauche, décalée de 8 px.
+  // C'est invisible tant que l'icône est un glyphe de texte, flagrant en SVG.
+  document.documentElement.setAttribute('data-busy', busy ? '1' : '0');
   // Tant que le moteur n'a pas fini de charger le modèle, envoyer ne mène à rien :
   // on bloque le bouton et l'Entrée, et on le DIT sous le champ. `STATUS_SEEN`
   // évite de verrouiller le chat quand /api/status n'a pas encore répondu (ou ne
