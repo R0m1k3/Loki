@@ -1366,3 +1366,31 @@ button:hover{border-color:var(--dim);color:var(--text)}
   .sidegroup>details:first-child{border-top:0}
   .sidegroup>details[open]{padding-bottom:12px}
 }
+
+/* --- Recherche Hugging Face -------------------------------------------
+   Deux listes successives dans la même zone (dépôts, puis fichiers du dépôt
+   choisi) : une seule mise en forme sert aux deux, sinon elles divergent. La
+   liste est bornée en hauteur et défile — un dépôt publie facilement vingt
+   quantifications, et la modale ne doit pas s'étirer jusqu'à sortir de
+   l'écran. */
+.hf-list{display:flex;flex-direction:column;max-height:220px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:12px;margin-top:6px}
+.hf-row{display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;
+  border-top:1px solid var(--border);font-size:12px}
+.hf-row:first-child{border-top:0}
+.hf-row:hover{background:var(--row-bg-on)}
+/* Le nom prend la place restante et se tronque : un identifiant de dépôt long
+   ne doit pas pousser la taille et le verdict hors de la ligne. */
+.hf-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.hf-meta{flex:none;color:var(--dim);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+/* Verdict mémoire. La couleur seule ne suffit pas — le mot est écrit dedans,
+   et l'explication complète est dans l'infobulle. */
+.hf-fit{flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:.03em;
+  text-transform:uppercase;border:1px solid transparent}
+.hf-fit.ok{color:var(--ok);border-color:var(--ok)}
+.hf-fit.juste{color:var(--warn);border-color:var(--warn)}
+.hf-fit.trop{color:var(--err);border-color:var(--err)}
+.hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
+.hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
+  color:var(--dim);cursor:pointer}
+.hf-mm.muted{cursor:default}

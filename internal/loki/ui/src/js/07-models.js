@@ -110,6 +110,7 @@ async function openItem(kind, key){
     settingsRow.style.display = 'flex';
     document.getElementById('m-hf-url').value = '';
     resetDlUI();
+    resetHfUI();
     // Preset : la config brute est une ligne repliable, fermée par défaut.
     rawHead.textContent = 'Configuration';
     rawToggle.style.display = '';
@@ -883,9 +884,18 @@ async function populateDlDirs(){
   }
   if(prev && dlDirList.some(x => samePath(x.path, prev))) sel.value = prev;
 }
+// File d'attente : installer un modèle avec son projecteur, c'est DEUX
+// téléchargements, et le serveur n'en mène qu'un à la fois (une seule barre,
+// un seul poll). On enchaîne donc à la fin de chacun plutôt que de les lancer
+// ensemble — deux transferts concurrents sur la même liaison ne vont pas plus
+// vite et brouillent la progression affichée.
+let dlQueue = [];
 async function startDownload(){
   const url = document.getElementById('m-hf-url').value.trim();
   if(!url){ toast('colle un lien .gguf'); return; }
+  return startDownloadURL(url);
+}
+async function startDownloadURL(url){
   const dir = (document.getElementById('m-hf-dir')||{}).value || '';
   const e = dlEls();
   e.btn.disabled = true;
@@ -900,6 +910,7 @@ async function startDownload(){
   if(!p.ok || !p.enough){
     e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+escHtml(p.error||'espace insuffisant')+'</span>';
     e.bar.style.display = 'none'; e.btn.disabled=false;
+    dlQueue = []; // le reste de la file dépendait de ce fichier : on n'enchaîne pas
     await populateDlDirs();
     return;
   }
@@ -910,7 +921,7 @@ async function startDownload(){
   const r = await jpost('/api/models/download', {url, dir});
   if(!r.ok){
     e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+(r.error||'')+'</span>';
-    e.bar.style.display = 'none'; e.btn.disabled=false; return;
+    e.bar.style.display = 'none'; e.btn.disabled=false; dlQueue = []; return;
   }
   watchDownload(r.filename);
 }
@@ -940,11 +951,11 @@ function watchDownload(fname){
     if(!st) return;
     if(st.canceled){
       e.prog.textContent = 'téléchargement annulé — '+fname;
-      e.bar.style.display = 'none'; stop(); return;
+      e.bar.style.display = 'none'; dlQueue = []; stop(); return;
     }
     if(st.error){
       e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+st.error+'</span>';
-      e.bar.style.display = 'none'; stop(); return;
+      e.bar.style.display = 'none'; dlQueue = []; stop(); return;
     }
     if(st.finished){
       e.prog.innerHTML = '<span style="color:var(--ok)">✓ '+fname+' téléchargé ('+fmtSize(st.done)+')</span>';
@@ -962,6 +973,10 @@ function watchDownload(fname){
       };
       if(isMmprojName(fname)) pick('m-mmproj', onPickMmproj);
       else pick('m-model', onPickModel);
+      // Suite de la file : c'est ici que le projecteur part, une fois le modèle
+      // arrivé. L'ordre compte — le champ Vision ne se remplit que si le modèle
+      // est déjà sélectionné.
+      if(dlQueue.length) startDownloadURL(dlQueue.shift());
       return;
     }
     const pct = st.total>0 ? st.done*100/st.total : 0;
@@ -995,6 +1010,152 @@ async function attachDownload(){
   const list = await jget('/api/models/download/status');
   const st = (list||[]).find(d=>!d.finished);
   if(st) watchDownload(st.filename);
+}
+
+// --- Recherche Hugging Face -------------------------------------------
+// Deux écrans : la liste des dépôts, puis les fichiers d'un dépôt. Tout est
+// construit en DOM et JAMAIS en innerHTML — noms de dépôts et de fichiers
+// viennent d'un tiers, c'est la même règle que pour les titres de discussions.
+let hfRepoFiles = null; // dernier dépôt déplié, pour l'installation
+
+function hfOut(){ return document.getElementById('hf-out'); }
+function hfMsg(txt, err){
+  const o = hfOut(); if(!o) return;
+  o.textContent = '';
+  const d = document.createElement('div');
+  d.className = 'pe-note';
+  if(err) d.style.color = 'var(--err)';
+  d.textContent = txt;
+  o.appendChild(d);
+}
+// Remet la zone de recherche à zéro (réouverture de la modale).
+function resetHfUI(){
+  hfRepoFiles = null;
+  const o = hfOut(); if(o) o.textContent = '';
+  const q = document.getElementById('hf-q'); if(q) q.value = '';
+}
+
+async function hfSearch(){
+  const q = (document.getElementById('hf-q').value || '').trim();
+  if(!q){ toast('tape un nom de modèle'); return; }
+  hfMsg('recherche…');
+  let r;
+  try{ r = await jget('/api/hf/search?q='+encodeURIComponent(q)); }
+  catch(_){ hfMsg('Hugging Face injoignable', true); return; }
+  if(!r.ok){ hfMsg(r.error||'recherche impossible', true); return; }
+  if(!r.repos || !r.repos.length){ hfMsg('aucun dépôt GGUF pour « '+q+' »'); return; }
+
+  const o = hfOut(); o.textContent = '';
+  const list = document.createElement('div'); list.className = 'hf-list';
+  for(const rep of r.repos){
+    const row = document.createElement('div');
+    row.className = 'hf-row';
+    row.onclick = ()=>hfPickRepo(rep.id);
+    const n = document.createElement('span'); n.className = 'hf-name'; n.textContent = rep.id;
+    const m = document.createElement('span'); m.className = 'hf-meta';
+    m.textContent = fmtCount(rep.downloads)+' ↓';
+    row.append(n, m);
+    list.appendChild(row);
+  }
+  o.appendChild(list);
+}
+
+// Millions/milliers abrégés : un dépôt à 1 945 635 téléchargements dit surtout
+// « celui-là est le plus utilisé », pas son compte exact.
+function fmtCount(n){
+  n = n || 0;
+  if(n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+' M';
+  if(n >= 1e3) return Math.round(n/1e3)+' k';
+  return String(n);
+}
+
+async function hfPickRepo(repo){
+  hfMsg('lecture du dépôt…');
+  let r;
+  try{ r = await jget('/api/hf/files?repo='+encodeURIComponent(repo)); }
+  catch(_){ hfMsg('Hugging Face injoignable', true); return; }
+  if(!r.ok){ hfMsg(r.error||'dépôt illisible', true); return; }
+  hfRepoFiles = r;
+  if(!r.models || !r.models.length){ hfMsg('ce dépôt ne publie aucun modèle GGUF utilisable'); return; }
+
+  const o = hfOut(); o.textContent = '';
+
+  const head = document.createElement('div');
+  head.className = 'hf-head';
+  const back = document.createElement('button');
+  back.className = 'pe-link'; back.textContent = '← résultats';
+  back.onclick = hfSearch;
+  const title = document.createElement('span'); title.className = 'hf-name'; title.textContent = repo;
+  head.append(back, title);
+  o.appendChild(head);
+
+  // Projecteur vision : proposé UNIQUEMENT s'il vient de ce dépôt. Un mmproj
+  // encode dans l'espace latent de SON modèle ; en prendre un ailleurs donne un
+  // moteur qui démarre et ne voit rien. Quand le dépôt n'en publie pas, on le
+  // dit — on ne va pas en chercher un.
+  let mmChk = null;
+  const mm = (r.projectors||[])[0] && hfBestProjector(r.projectors);
+  const note = document.createElement('label');
+  note.className = 'hf-mm';
+  if(mm){
+    mmChk = document.createElement('input');
+    mmChk.type = 'checkbox'; mmChk.checked = true;
+    const t = document.createElement('span');
+    t.textContent = ' installer aussi le projecteur vision — '+mm.name+' ('+fmtSize(mm.size)+')';
+    note.append(mmChk, t);
+  } else {
+    note.textContent = 'Ce dépôt ne publie pas de projecteur : ce modèle n’aura pas la vision.';
+    note.classList.add('muted');
+  }
+  o.appendChild(note);
+
+  const list = document.createElement('div'); list.className = 'hf-list';
+  for(const m of r.models){
+    const row = document.createElement('div');
+    row.className = 'hf-row';
+    row.onclick = ()=>hfInstall(m, mm && mmChk && mmChk.checked ? mm : null);
+    const n = document.createElement('span'); n.className = 'hf-name';
+    n.textContent = m.quant || m.name;
+    const meta = document.createElement('span'); meta.className = 'hf-meta';
+    meta.textContent = fmtSize(m.size) + (m.shards > 1 ? ' · '+m.shards+' fichiers' : '');
+    row.append(n, meta);
+    if(m.verdict){
+      const fit = document.createElement('span');
+      fit.className = 'hf-fit ' + m.verdict;
+      fit.textContent = m.verdict;
+      fit.title = m.why || '';
+      row.appendChild(fit);
+    }
+    list.appendChild(row);
+  }
+  o.appendChild(list);
+
+  if(r.hardware){
+    const hw = document.createElement('div');
+    hw.className = 'pe-note muted';
+    hw.textContent = r.hardware.vram_gb > 0
+      ? 'Verdict calculé sur '+r.hardware.vram_gb.toFixed(1)+' Go de VRAM et un contexte de '+r.ctx+' jetons (estimation).'
+      : 'Aucun GPU détecté : verdict calculé sur '+r.hardware.ram_gb.toFixed(1)+' Go de RAM (estimation).';
+    o.appendChild(hw);
+  }
+}
+
+// Q8_0 d'abord (629 Mo contre 931 pour le BF16, sans différence perceptible sur
+// un encodeur d'images), sinon le plus léger. Même règle que hfPickProjector
+// côté serveur — l'UI choisit pour ne pas imposer un menu de plus.
+function hfBestProjector(list){
+  return list.find(p => /^Q8_0$/i.test(p.quant || '')) || list.slice().sort((a,b)=>a.size-b.size)[0];
+}
+
+// Installe : le modèle d'abord, le projecteur ensuite (la file s'en charge). Le
+// champ Vision du preset ne se remplit correctement que dans cet ordre.
+async function hfInstall(model, projector){
+  if(model.verdict === 'trop' && !await askConfirm(
+      (model.why||'Ce modèle dépasse la mémoire disponible.')+'\n\nLe téléchargement fonctionnera, mais le moteur risque de ne pas le charger.',
+      {title:'Installer quand même ?', okText:'Installer', danger:true})) return;
+  dlQueue = projector ? [projector.url] : [];
+  document.getElementById('m-hf-url').value = model.url;
+  await startDownloadURL(model.url);
 }
 // Smart autoscroll: follow the bottom while the user hasn't manually scrolled
 // up. Re-stick when they scroll back near bottom themselves.

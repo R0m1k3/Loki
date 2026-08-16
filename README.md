@@ -43,8 +43,36 @@ docker compose up --build   # quelques minutes : llama-server vient précompilé
                             # de l'image officielle llama.cpp (server-cuda)
 ```
 
-Interface : http://localhost:8090 — télécharge un modèle depuis le catalogue
-intégré (onglet modèles), il démarre tout seul.
+Interface : http://localhost:8090 — installe un modèle depuis la recherche
+Hugging Face intégrée (voir ci-dessous), il démarre tout seul.
+
+## Installer un modèle
+
+Dans l'éditeur de preset, **Chercher un modèle** interroge Hugging Face et ne
+remonte que les dépôts GGUF. Choisir un dépôt déplie ses quantifications avec
+leur taille et un verdict mémoire (`ok` / `juste` / `trop`) calculé sur la VRAM
+réellement détectée — ou sur la RAM système s'il n'y a pas de GPU. C'est une
+estimation : le coût exact du cache KV dépend de l'architecture du modèle, que
+la seule liste des fichiers ne révèle pas.
+
+Si le dépôt publie un projecteur vision (`mmproj-*.gguf`), Loki propose de
+l'installer avec le modèle et remplit le champ **Vision** du preset. C'est le
+seul moyen fiable d'avoir la vision : un projecteur encode dans l'espace latent
+de **son** modèle, donc un `mmproj` pris dans un autre dépôt donne un moteur qui
+démarre et ne voit rien. Quand le dépôt n'en publie pas, Loki le dit plutôt que
+d'aller en chercher un ailleurs.
+
+Deux repères pour choisir un dépôt :
+
+- `unsloth/*` publie des quantifications **Dynamic** (`UD-Q4_K_XL`,
+  `UD-IQ3_XXS`…) qui gardent en plus haute précision les tenseurs sensibles :
+  à taille égale, elles se tiennent mieux qu'un `Q4_K_M` classique.
+- `ggml-org/*` est le dépôt de référence de l'équipe llama.cpp — c'est en
+  général là que le projecteur vision est publié en premier.
+
+Le champ **Télécharger un modèle** reste disponible pour coller un lien direct
+(dépôt privé, fichier hors des conventions). Un dépôt à accès restreint demande
+la variable d'environnement `HF_TOKEN`.
 
 ## Installation sur Unraid
 
