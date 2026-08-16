@@ -145,7 +145,6 @@ func newWebMux() *http.ServeMux {
 	api("/api/vram", handleVram)
 	api("/api/ram", handleRam)
 	api("/api/config", handleConfigEnv)
-	api("/api/catalog", handleCatalog)
 	api("/api/paths", handlePaths)
 	api("/api/update", handleUpdateCheck)
 	api("/api/update/apply", handleUpdateApply)
@@ -156,6 +155,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/models/download/probe", handleModelDownloadProbe) // taille + espace libre avant de lancer
 	api("/api/models/download/status", handleModelDownloadStatus)
 	api("/api/models/download/cancel", handleModelDownloadCancel)
+	api("/api/hf/search", handleHFSearch) // chercher un modèle GGUF sur Hugging Face
+	api("/api/hf/files", handleHFFiles)   // quants et projecteurs d'un dépôt
 	api("/api/backends", handleBackends)
 	api("/api/backends/custom", handleBackendsCustom)                    // backends custom uniquement (hors ⚡/🔧)
 	api("/api/backends/devices", handleBackendDevices)                   // GPU vus par CE moteur (noms/ordre propres au backend)

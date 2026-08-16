@@ -656,6 +656,19 @@
               <span class="pe-row-l">Vision<span class="pe-sub">projecteur mmproj</span></span>
               <span class="pe-row-c"><span class="pe-selc"><select id="m-mmproj" onchange="onPickMmproj()"></select></span></span>
             </div>
+            <!-- Recherche Hugging Face. Le champ « lien direct » juste en dessous
+                 reste là : c'est le mode expert (dépôt privé, fichier exotique,
+                 lien reçu d'ailleurs). Celui-ci évite d'avoir à quitter Loki, et
+                 surtout il propose le projecteur vision DU MÊME DÉPÔT — le seul
+                 qui corresponde au modèle choisi. -->
+            <div class="pe-row stack">
+              <span class="pe-row-l">Chercher un modèle<span class="pe-sub">sur Hugging Face — dépôts GGUF uniquement</span></span>
+              <div class="pe-inpbtn">
+                <input id="hf-q" class="pe-inp" placeholder="qwen3.8, mistral, gemma…" onkeydown="if(event.key==='Enter'){event.preventDefault();hfSearch();}">
+                <button id="hf-go" onclick="hfSearch()" title="Chercher">⌕</button>
+              </div>
+              <div id="hf-out"></div>
+            </div>
             <div class="pe-row stack">
               <span class="pe-row-l">Télécharger un modèle <span class="pe-sub">ou un projecteur mmproj — lien direct vers un .gguf</span></span>
               <div class="pe-inpbtn">
