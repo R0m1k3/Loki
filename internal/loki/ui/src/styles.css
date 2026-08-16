@@ -1620,6 +1620,12 @@ button:active:not(:disabled){transform:translateY(1px)}
   display:inline-flex;align-items:center;justify-content:center;align-self:center;
   border:0;border-radius:10px;background:transparent;color:var(--dim);
   transition:background .15s ease,color .15s ease,transform .08s ease}
+/* Envoyer / arrêter : un seul des deux à la fois, décidé par data-busy (posé par
+   syncSendBtn). C'est la feuille qui garde la main sur `display` — un style
+   inline y substituait `inline-block`, et le centrage flex tombait avec lui. */
+#stop{display:none}
+html[data-busy="1"] #send{display:none}
+html[data-busy="1"] #stop{display:inline-flex}
 #inputbar #attach svg,#inputbar #files-btn svg,#send svg,#stop svg{display:block;width:18px;height:18px}
 #inputbar #attach:hover,#inputbar #files-btn:hover{background:var(--row-bg-on);color:var(--text)}
 html[data-files="1"] #files-btn{color:var(--accent)}
