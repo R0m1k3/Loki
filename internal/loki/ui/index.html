@@ -43,9 +43,26 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
 @font-face{font-family:'JetBrains Mono';src:url('/fonts/jetbrainsmono.woff2') format('woff2');font-weight:100 800;font-display:swap;font-style:normal}
 
 /* ===== Palette « Sober Tech » ======================================
-   Ardoise et sauge. Deux variantes — claire par défaut (celle de la maquette),
-   sombre « Deep Dark » via data-theme="dark" sur <html>. Toutes les couleurs de
-   l'UI passent par ces variables ; rien d'autre ne code une couleur en dur.
+   Ardoise et sauge. Deux variantes — claire par défaut, sombre via
+   data-theme="dark" sur <html>. Toutes les couleurs de l'UI passent par ces
+   variables ; rien d'autre ne code une couleur en dur.
+
+   ⚠️ Les valeurs sont RELEVÉES sur la maquette (projet Stitch « Loki AI Chat
+   Modern Redesign v1 », écrans clair et sombre), pas approchées à l'œil. Elles
+   posent une hiérarchie de surfaces que l'intuition inverse volontiers :
+
+     barre latérale  la plus SOMBRE des trois     #E4E8E9 / #0F1829
+     fil             la surface de référence      #EFF3F4 / #1E2834
+     carte           s'ÉCARTE du fil              #E5E9EA / #253141
+     saisie          la plus claire               #EFF3F6 / #1F2734
+
+   En clair la carte de réponse est donc plus sombre que le fil (et non blanche),
+   en sombre plus claire : dans les deux cas elle se détache en s'éloignant du
+   fond, jamais en allant vers le blanc.
+
+   La bulle de l'utilisateur ne suit PAS l'accent : sauge en clair (#7EA58A),
+   ardoise en sombre (#334257) — la maquette réserve le vert aux jauges dès que
+   le fond est sombre.
 
    Rôles : --accent = sauge (sélection, marche, liens, bulle utilisateur) ·
    --warn = ambre (chiffres, mesures, avertissements) · --err = rouille (arrêt,
@@ -60,28 +77,30 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
 :root{color-scheme:light;
   --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --bg:#eceff0;--panel:#ffffff;--bubble:#f6f8f7;--border:rgba(30,41,59,.11);
+  --bg:#eff3f4;--panel:#eff3f6;--bubble:#e5e9ea;--border:rgba(30,41,59,.10);
   --text:#1e293b;--dim:#64748b;
-  --accent:#5e7f5a;--accent-bg:rgba(94,127,90,.11);--on-accent:#ffffff;--on-err:#ffffff;
-  --accent-soft:#8fab8b;
-  --side:#fafbfa;--row-bg:#f5f7f6;--row-bg-on:#eef2f0;
-  --ok:#5e7f5a;--warn:#a86a2a;--err:#c0503f;--mag:#a86a2a;
-  --code-bg:#e7ecea;--danger-bg:#faeae7;--warn-bg:#f7f0e5;
-  --add:#5e7f5a;--add-bg:rgba(94,127,90,.11);--del:#c0503f;--del-bg:rgba(192,80,63,.12);
+  --accent:#4a7059;--accent-bg:rgba(126,165,138,.18);--on-accent:#ffffff;--on-err:#ffffff;
+  --accent-fill:#7ea58a;--accent-soft:#7ea58a;
+  --user-bg:#7ea58a;--on-user:#ffffff;
+  --side:#e4e8e9;--row-bg:#e9edee;--row-bg-on:#d8dcdf;--track:#d5d9dc;
+  --ok:#4a7059;--warn:#a86a2a;--err:#c0503f;--mag:#a86a2a;
+  --code-bg:#dbe0e2;--danger-bg:#f5e3e0;--warn-bg:#f2ece1;
+  --add:#4a7059;--add-bg:rgba(126,165,138,.18);--del:#c0503f;--del-bg:rgba(192,80,63,.12);
   --shadow:0 1px 2px rgba(15,23,42,.05);--shadow-lift:0 4px 16px rgba(15,23,42,.08);
-  --shadow-card:0 2px 10px rgba(15,23,42,.07),0 1px 3px rgba(15,23,42,.05)}
+  --shadow-card:0 2px 10px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04)}
 /* « Deep Dark » : fond #0F172A, cartes #1E293B. */
 [data-theme="dark"]{color-scheme:dark;
-  --bg:#0f172a;--panel:#1e293b;--bubble:#1e293b;--border:rgba(148,163,184,.17);
+  --bg:#1e2834;--panel:#1f2734;--bubble:#253141;--border:rgba(148,163,184,.16);
   --text:#e2e8f0;--dim:#94a3b8;
-  --accent:#8fb08c;--accent-bg:rgba(143,176,140,.16);--on-accent:#0f172a;--on-err:#0f172a;
-  --accent-soft:#6d8f6a;
-  --side:#0d1424;--row-bg:#172033;--row-bg-on:#243349;
-  --ok:#8fb08c;--warn:#d9a55f;--err:#e0705c;--mag:#d9a55f;
-  --code-bg:#0e1626;--danger-bg:#3a1f1c;--warn-bg:#33291b;
-  --add:#8fb08c;--add-bg:rgba(143,176,140,.16);--del:#e0705c;--del-bg:rgba(224,112,92,.16);
+  --accent:#9dbfa8;--accent-bg:rgba(119,150,132,.22);--on-accent:#0f1829;--on-err:#0f1829;
+  --accent-fill:#779684;--accent-soft:#779684;
+  --user-bg:#334257;--on-user:#e8eef5;
+  --side:#0f1829;--row-bg:#1a2231;--row-bg-on:#22293b;--track:#1e2738;
+  --ok:#9dbfa8;--warn:#d9a55f;--err:#e0705c;--mag:#d9a55f;
+  --code-bg:#151e2a;--danger-bg:#3a1f1c;--warn-bg:#33291b;
+  --add:#9dbfa8;--add-bg:rgba(119,150,132,.22);--del:#e0705c;--del-bg:rgba(224,112,92,.16);
   --shadow:none;--shadow-lift:0 4px 16px rgba(0,0,0,.35);
-  --shadow-card:0 2px 12px rgba(0,0,0,.30),0 1px 3px rgba(0,0,0,.22)}
+  --shadow-card:0 2px 12px rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.20)}
 /* Safari iOS peint un rectangle gris/noir sur TOUT élément touché (bouton, lien,
    résumé de section, bulle repliable…). C'est un retour tactile par défaut, hors
    de notre charte et impossible à styler : on le coupe. Nos états :active/:focus
@@ -1576,7 +1595,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* La jauge : 4 px, coins ronds, remplissage sauge. Elle passe à l'ambre puis au
    rouille quand la machine sature — c'est là que l'information devient utile. */
 .perf-track{height:4px;border-radius:999px;background:var(--row-bg-on);overflow:hidden}
-.perf-fill{height:100%;width:0;border-radius:999px;background:var(--accent-soft);
+.perf-fill{height:100%;width:0;border-radius:999px;background:var(--accent-fill);
   transition:width .4s ease,background .4s ease}
 .perf-fill.hot{background:var(--warn)}
 .perf-fill.max{background:var(--err)}
@@ -1599,10 +1618,10 @@ button:active:not(:disabled){transform:translateY(1px)}
 #chat .msg.assistant.errmsg{background:var(--danger-bg);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
 /* Question : aplat de sauge, coin bas-droit rentré. --on-accent garantit le
    contraste dans les DEUX variantes. */
-#chat .msg.user{background:var(--accent);color:var(--on-accent);border-radius:18px 18px 6px 18px;
+#chat .msg.user{background:var(--user-bg);color:var(--on-user);border-radius:18px 18px 6px 18px;
   padding:11px 16px;max-width:75%;box-shadow:var(--shadow-card)}
-#chat .msg.user .label{color:var(--on-accent);opacity:.75}
-#chat .msg.user .body a{color:var(--on-accent);text-decoration:underline}
+#chat .msg.user .label{color:var(--on-user);opacity:.75}
+#chat .msg.user .body a{color:var(--on-user);text-decoration:underline}
 #chat .msg.user code{background:rgba(255,255,255,.18);color:inherit}
 [data-theme="dark"] #chat .msg.user code{background:rgba(15,23,42,.22)}
 /* Les pastilles de fichier d'une question sont posées SUR l'aplat de sauge :
@@ -1676,11 +1695,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .side .preset{position:relative;border-radius:12px}
 .side .preset .conv-acts{position:absolute;right:6px;top:50%;transform:translateY(-50%);
   margin:0;background:var(--row-bg-on);border-radius:9px;padding:1px}
-.side .preset.active .conv-acts{background:var(--accent-bg)}
+.side .preset.active .conv-acts{background:var(--row-bg)}
 .side .preset .preset-info{overflow:hidden}
 /* La sélection est un aplat, pas un cadre : un liseré autour d'une ligne de
    liste alourdit là où un fond suffit à dire « c'est celle-ci ». */
-.side .preset.active{background:var(--accent-bg);border-color:transparent}
+.side .preset.active{background:var(--row-bg-on);border-color:transparent}
 .side .preset.active .preset-name{color:var(--text)}
 
 /* --- Téléphone : un seul bouton de barre latérale -------------------- */
@@ -1702,8 +1721,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #menubtn:hover{background:var(--row-bg-on);color:var(--text)}
 #lc-chip{border-radius:10px;height:34px;top:calc(11px + env(safe-area-inset-top));left:calc(50px + env(safe-area-inset-left))}
 /* Jauges : la piste doit se VOIR, sinon une barre presque vide ressemble à un
-   trait souligné sous l'intitulé. */
-.perf-track{background:color-mix(in srgb,var(--text) 9%,transparent)}
+   trait souligné sous l'intitulé. Valeurs relevées sur la maquette. */
+.perf-track{background:var(--track)}
 /* Une liste déroulante posée directement dans une ligne de modale n'a pas de
    garde-fou de largeur (contrairement à .pe-row-c) : une valeur très longue —
    un chemin de destination, par exemple — débordait sous l'intitulé. */
