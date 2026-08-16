@@ -1031,8 +1031,13 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 /* Barre latérale : plus sombre/atténuée que la zone de conversation. */
 .side{background:var(--panel);border-right-color:transparent}
 @media (max-width:720px){.side{background:var(--panel)}}
-/* Colonne de lecture centrée (comme le fil ChatGPT), pleine largeur sur mobile. */
-#chat{padding:28px max(16px,calc(50% - 380px)) 8px;gap:22px;scrollbar-gutter:stable both-edges}
+/* Colonne de lecture centrée (comme le fil ChatGPT), pleine largeur sur mobile.
+   ⚠️ JAMAIS le raccourci `padding` ici : le rembourrage BAS réserve la hauteur
+   de la carte de saisie (voir #chat plus bas) et il est réglé ailleurs. Une
+   règle en raccourci le remet silencieusement à sa valeur du raccourci — c'est
+   exactement ce qui, jusqu'à ce correctif, laissait la fin du fil coincée sous
+   la carte au-delà de 721 px de large. Longhands uniquement. */
+#chat{padding-top:28px;padding-inline:max(16px,calc(50% - 380px));gap:22px;scrollbar-gutter:stable both-edges}
 /* Réponses de l'assistant : pas de cadre, pas de fond — juste du texte. */
 #chat .msg.assistant{background:transparent;border:none;padding:0;max-width:100%;line-height:1.7}
 /* Question : pastille arrondie à droite, texte lisible sur fond clair OU sombre. */
@@ -1078,9 +1083,21 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
 /* Le padding BAS dégage l'indicateur d'accueil de l'iPhone en PWA : la carte
    flotte au-dessus de lui, son arrondi bas reste donc bien visible. Hors PWA
    l'inset vaut 0 → strictement les 8 px d'origine. */
-#composer{position:absolute;left:0;right:0;bottom:0;z-index:4;border-top:none;display:flex;flex-direction:column;padding:34px 0 calc(8px + env(safe-area-inset-bottom));--col:calc(max(16px,calc(50% - 380px)) + var(--sbw,0px));background:linear-gradient(to bottom,transparent 0,var(--bg) 34%)}
-#chat{padding-bottom:calc(170px + env(safe-area-inset-bottom))}
-#scrollbtn{bottom:calc(180px + env(safe-area-inset-bottom));border-radius:999px}
+/* --fade = la bande transparente au-dessus de la carte, celle où le fil doit
+   s'effacer. Le dégradé s'exprime dans la MÊME unité (et non en % de la hauteur
+   totale du composeur, qui varie) : l'opacité est donc pleine exactement au bord
+   haut de la carte. Avec un %, le fondu finissait SOUS ce bord et le texte
+   restait lisible au ras de la carte — l'impression de « passer derrière ». */
+#composer{position:absolute;left:0;right:0;bottom:0;z-index:4;border-top:none;display:flex;flex-direction:column;--fade:34px;padding:var(--fade) 0 calc(8px + env(safe-area-inset-bottom));--col:calc(max(16px,calc(50% - 380px)) + var(--sbw,0px));background:linear-gradient(to bottom,transparent 0,var(--bg) var(--fade))}
+/* Réserve sous le fil = hauteur RÉELLE du composeur, mesurée et publiée par
+   syncComposer() (08-chat-render.js). Une constante redevient fausse dès que la
+   saisie grandit ou qu'une pièce jointe s'affiche, et la fin du fil repasse hors
+   d'atteinte. 170px n'est que le repli du tout premier rendu, avant mesure.
+   Pas de env(safe-area-inset-bottom) ici : il est déjà DANS le padding bas du
+   composeur, donc dans sa hauteur mesurée — le compter deux fois creusait un
+   trou en PWA iOS. */
+#chat{padding-bottom:calc(var(--composer-h,170px) + 12px)}
+#scrollbtn{bottom:calc(var(--composer-h,170px) + 10px);border-radius:999px}
 #inputbar{order:1;margin:0 var(--col);padding:8px 8px 8px 16px;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:26px 26px 0 0}
 #input{background:transparent;border:none;border-radius:0;padding:9px 0;min-height:36px;line-height:18px;max-height:160px}
 /* Pas de cadre qui s'assombrit au focus : la carte garde exactement la même
@@ -1147,7 +1164,7 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
   overflow-x:auto;scrollbar-width:none}
 #attach-list::-webkit-scrollbar{display:none}
 #attach-list.show{display:flex}
-#composer:has(#attach-list.show){padding-top:6px}
+#composer:has(#attach-list.show){--fade:6px}
 /* Posées sur le fil (et non sur la carte) : il leur faut un fond opaque et un
    cadre, sinon le texte de la conversation transparaît derrière. */
 #attach-list .chip-file{flex:0 0 auto;background:var(--panel);border-color:var(--border);
@@ -1296,10 +1313,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
 
   /* Colonne principale : une seule grande carte qui contient fil et saisie. */
   .main{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
-  #chat{padding:26px max(20px,calc(50% - 360px)) 8px}
+  #chat{padding-top:26px;padding-inline:max(20px,calc(50% - 360px))}
   /* Le dégradé qui fait disparaître le fil sous la carte de saisie doit fondre
      vers le PANNEAU, pas vers le fond de la coque. */
-  #composer{background:linear-gradient(to bottom,transparent 0,var(--panel) 34%)}
+  #composer{background:linear-gradient(to bottom,transparent 0,var(--panel) var(--fade))}
   /* Carte de saisie : posée SUR le panneau, donc un ton au-dessus, et sans
      bordure — c'est l'élévation qui la détache. */
   #inputbar,#ctxmeta{background:var(--row-bg-on);border-color:transparent}
@@ -1313,10 +1330,12 @@ button:hover{border-color:var(--dim);color:var(--text)}
   .side{gap:8px}
   .side>details>summary{height:38px}
 
-  /* Discussion active : un LISERÉ sauge à gauche, pas un cadre complet — c'est
-     la marque de sélection de la charte, et elle se lit sans alourdir. */
-  .side .preset{border:0;border-left:3px solid transparent;border-radius:14px;background:transparent}
-  .side .preset.active{background:var(--row-bg-on);border-left-color:var(--accent)}
+  /* Discussion active : un cadre sauge COMPLET, mais fin (1 px) — le liseré de
+     3 px sur le seul bord gauche se lisait mal et déséquilibrait la ligne. La
+     bordure transparente est portée par tous les états : la sélection ne décale
+     donc pas le contenu d'un pixel. */
+  .side .preset{border:1px solid transparent;border-radius:14px;background:transparent}
+  .side .preset.active{background:var(--row-bg-on);border-color:var(--accent)}
   .side .preset:hover{background:var(--row-bg)}
 
   /* Bulle de question : coin bas-droit rentré, comme une bulle qui pointe vers
@@ -1341,7 +1360,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
    le début de la suivante). 1080 px ≈ 110 caractères, large mais tenable. */
 @media (min-width:721px){
   :root{--measure:min(1080px,100%)}
-  #chat{padding:26px max(20px,calc(50% - var(--measure)/2)) 8px}
+  #chat{padding-top:26px;padding-inline:max(20px,calc(50% - var(--measure)/2))}
   #composer{--col:calc(max(20px,calc(50% - var(--measure)/2)) + var(--sbw,0px))}
 }
 
@@ -4177,8 +4196,26 @@ function syncGutter(){
   const g=Math.max(0,(chat.offsetWidth-chat.clientWidth)/2);
   document.documentElement.style.setProperty('--sbw', g+'px');
 }
+// La carte de saisie flotte AU-DESSUS du fil (position:absolute) : c'est au fil
+// de réserver sa hauteur en rembourrage bas, sinon ses derniers messages passent
+// dessous et deviennent hors d'atteinte — aucun défilement ne les ramène.
+// Cette hauteur n'est pas constante : la saisie grandit avec le texte (autoGrow),
+// et une pièce jointe en attente ajoute une rangée de pastilles. On la mesure
+// donc au lieu de la deviner, comme on le fait déjà pour la gouttière.
+// Pas de boucle d'observation : le composeur est en position:absolute, changer le
+// rembourrage de #chat ne modifie pas sa hauteur.
+function syncComposer(){
+  const c=document.getElementById('composer'); if(!c) return;
+  document.documentElement.style.setProperty('--composer-h', c.offsetHeight+'px');
+}
 addEventListener('resize', syncGutter);
 addEventListener('DOMContentLoaded', syncGutter);
+addEventListener('resize', syncComposer);
+addEventListener('DOMContentLoaded', ()=>{
+  syncComposer();
+  const c=document.getElementById('composer');
+  if(c && window.ResizeObserver) new ResizeObserver(syncComposer).observe(c);
+});
 
 function scrollMaybe(){
   // Pendant le replay initial on NE force AUCUN reflow : lire scrollHeight à chaque
