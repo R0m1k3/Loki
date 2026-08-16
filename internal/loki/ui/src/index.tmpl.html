@@ -12,8 +12,8 @@
 <!-- Favicon (même marque « loki » que la landing/portail) + icône PWA (écran d'accueil
      iOS). SVG inline pour le favicon, PNG 180×180 en data-URI pour apple-touch-icon
      (iOS n'accepte pas le SVG pour l'icône d'accueil). Aucun fichier externe requis. -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><rect width='12' height='12' rx='2' ry='2' fill='%23000'/><rect x='6' y='3' width='2' height='2' fill='%23fff'/><rect x='6' y='5' width='2' height='2' fill='%23fff'/><rect x='4' y='7' width='2' height='2' fill='%23fff'/></svg>">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAABBUlEQVR42u3SAQkAAAwCQfuX3lI4GNxF0E8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIArU2NbcYhDHOIQhzgQB+JAHIgDcSAOxIE4xCEOcYhDHIgDcSAOxIE4EAfiQBziEIc4xCEOcYgDcSAOxIE4EAfiQBziEIc4xCEOcYgDcSAOxIE4EAfiQByIQxziEIc4xIE4EAfiQByIA3EgDsQhDnGIQxziEIc4EAfiQByIAxciDsSBOBAH4kAc4hCHOMQhDnGIA3EgDsSBOBAH4kAc4hCHOMQhDnGIA3EgDsSBOBAH4kAciEMc4hCHOMQBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADfLBHMhi4TnG6EAAAAAElFTkSuQmCC">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><rect width='12' height='12' rx='2' ry='2' fill='%235E7F5A'/><rect x='6' y='3' width='2' height='2' fill='%23fff'/><rect x='6' y='5' width='2' height='2' fill='%23fff'/><rect x='4' y='7' width='2' height='2' fill='%23fff'/></svg>">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAADD0lEQVR4nOzdW27aWgBGYag6ylZqh1I6lFZKppmjEylRLlyMsbG9+n3vsP2w8mfDC193d/Dj17ene5zDuv39/bif+4xZDhAwQ8wR+GRvKGJuMVXcN7+JkJnSrWGPfrGQmdPYsL+MeZGYmdvYxq76KxAyS7hmrQcvtJhZyjXtDQpazCxtaIMXgxYzazGkxbNBi5m1udTkyaDFzFqda3PU13awVkeDts6s3alGPwUtZrbiWKuuHKS8C9o6szUfm7XQpLwGbZ3ZqrftWmhSBE3Kc9CuG2zdS8MWmhRBkyJoUvbuz5RYaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSbnLj9ez2/05PCxy7s/D90XOXYqFJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAialK9LP8C9/Tk8LHLuz8P3Rc7911hoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZl/+PXt6elHwKmYqFJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgibly9/fj/ulHwKm8H/LFpoUQZMiaFKeg3aPZuteGrbQpAialNegXTvYqrftWmhS3gVtpdmaj81aaFI+BW2l2YpjrR5daFGzdqcadeUg5WTQVpq1Otfm2YUWNWtzqcmLVw5RsxZDWhx0hxY1Sxva4OAPhaJmKde0NypSPwXHPYwZ0VFf21lr5ja2sZvDtNZM6daxnGxphc0tpvqvP8vVQdwMMcfV9S53YYGzu9Nnr/8CAAD//xZRk2OJYiOqAAAAAElFTkSuQmCC">
 <!-- Marque le mode PWA AVANT le rendu : la hauteur de coque et le défilement du
      document en dépendent (voir styles.css). ⚠️ On NE PEUT PAS se fier au média
      `display-mode:standalone` : WebKit l'adosse au `display` du MANIFESTE, or cette
@@ -42,7 +42,12 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
        C'est ce découpage qui garde les jauges visibles quel que soit le nombre
        de discussions — elles les poussaient auparavant hors de l'écran. -->
   <div class="sidehead">
+    <div class="sidebrand">
     <h1 id="brand" aria-label="loki" title="Loki — fork d'AJEAN (github.com/nathaninline/ajean, MIT)"><span id="brand-a"><svg viewBox="0 0 4 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="1" height="5"/><rect x="1" y="4" width="3" height="1"/></svg></span><span id="brand-word"><svg viewBox="0 0 11 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="3"/><rect x="2" y="1" width="1" height="3"/><rect x="0" y="4" width="3" height="1"/><rect x="4" y="0" width="1" height="5"/><rect x="6" y="0" width="1" height="2"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="2"/><rect x="8" y="0" width="3" height="1"/><rect x="9" y="1" width="1" height="3"/><rect x="8" y="4" width="3" height="1"/></svg></span><span id="ver"></span></h1>
+    <!-- Attribution du fork (licence MIT de l'amont) : sous le nom de l'app,
+         là où elle a toujours vécu. -->
+    <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
+    </div><!-- /.sidebrand -->
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
   <div id="side-scroll">
@@ -338,10 +343,6 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
   </details>
   </div><!-- /sidegroup -->
   </details><!-- /#side-settings -->
-  <!-- Attribution du fork (licence MIT de l'amont) : en pied de la zone
-       défilante, sous les réglages. Elle a quitté l'en-tête, que la refonte
-       réduit à la marque et à l'état du moteur, mais elle reste affichée. -->
-  <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
   </div><!-- /#side-scroll -->
   <!-- Moniteur machine : charge GPU, VRAM et mémoire vive. Posé en pied, en
        jauges fines — visible en permanence sans jamais disputer la place au
@@ -418,7 +419,7 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
            reste porté par aria-label et l'infobulle — l'action garde son nom
            pour un lecteur d'écran, elle ne l'affiche simplement plus. -->
       <button id="send" onclick="send()" title="Envoyer" aria-label="Envoyer">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" stroke="none" aria-hidden="true"><path d="M3.2 20.6 21.5 12 3.2 3.4l.02 6.69L16 12 3.22 13.9z"/></svg>
       </button>
       <button id="stop" onclick="stopGen()" style="display:none" title="Arrêter la génération" aria-label="Arrêter la génération">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
