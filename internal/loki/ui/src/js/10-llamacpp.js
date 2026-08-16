@@ -28,13 +28,13 @@ async function loadLlamacpp(){
 
     // Job en cours (page rechargée pendant une install) → on raccroche l'affichage.
     if(s.job && s.job.exists && s.job.running && !lcPoll){
-      document.getElementById('lc-details').open = true;
+      openDetails('lc-details');
       lcStartPolling();
     }
     // Job terminé/interrompu qu'on n'a pas encore montré (rechargement APRÈS coup,
     // typiquement quand le service a redémarré) : on l'affiche sans polling.
     else if(s.job && s.job.exists && !s.job.running && !lcPoll && s.job.error && !lcEndShown){
-      document.getElementById('lc-details').open = true;
+      openDetails('lc-details');
       document.getElementById('lc-job').style.display = '';
       lcLogNext = 0;
       document.getElementById('lc-log').textContent = '';
@@ -73,7 +73,7 @@ function lcChipOpen(){
   const side = document.getElementById('side');
   if(!side.classList.contains('open')) toggleSide();
   const det = document.getElementById('lc-details');
-  det.open = true;
+  openDetails(det); // déplie aussi « Réglages », qui contient la section
   det.scrollIntoView({block:'center'});
   if(!document.getElementById('lc-chip').classList.contains('failed')) return;
   lcSeenEnd = true;
@@ -235,7 +235,7 @@ async function lcInstallCustom(){
   const r = await jpost('/api/llamacpp/install-custom', {repo:url, name});
   if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
   closeCustomBackends();
-  document.getElementById('lc-details').open = true;
+  openDetails('lc-details');
   lcStartPolling();
 }
 

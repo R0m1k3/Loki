@@ -22,7 +22,12 @@
      garde `display-mode` en second pour les PWA Android/desktop à manifeste. -->
 <script>try{var pwa=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode:standalone)').matches)||(window.matchMedia&&window.matchMedia('(display-mode:fullscreen)').matches);document.documentElement.setAttribute('data-pwa',pwa?'1':'0');}catch(e){document.documentElement.setAttribute('data-pwa','0');}</script>
 <!-- Applique le thème AVANT le rendu (pas de flash) : lit le choix persisté. -->
-<script>try{var t=localStorage.getItem('loki-theme')||'light';document.documentElement.setAttribute('data-theme',(t==='dark'||t.endsWith('-dark'))?'dark':'light');['hide-reasoning','hide-tools','fold-tools','hide-side','hide-stats'].forEach(function(k){document.documentElement.setAttribute('data-'+k,localStorage.getItem('loki-'+k)==='1'?'1':'0')})}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
+<script>try{var t=localStorage.getItem('loki-theme')||'light';document.documentElement.setAttribute('data-theme',(t==='dark'||t.endsWith('-dark'))?'dark':'light');['hide-reasoning','hide-tools','fold-tools','hide-stats'].forEach(function(k){document.documentElement.setAttribute('data-'+k,localStorage.getItem('loki-'+k)==='1'?'1':'0')});
+/* Barre latérale escamotée et moniteur replié : posés AVANT le rendu, sinon la
+   barre s'affiche puis se referme sous les yeux à chaque chargement. Ouverts par
+   défaut — une valeur absente vaut « visible ». */
+document.documentElement.setAttribute('data-side',localStorage.getItem('loki-side')==='0'?'0':'1');
+document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-perf')==='0'?'0':'1');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 <style>
 @@CSS@@
 </style></head><body>
@@ -33,19 +38,22 @@
 <button id="lc-chip" onclick="lcChipOpen()" hidden></button>
 <div id="backdrop" onclick="toggleSide()"></div>
 <div class="side" id="side">
-  <!-- sidecard : regroupe la marque et la mention du fork en UNE carte (direction
-       Terre). Sans ce conteneur, les deux blocs flottaient séparément. -->
-  <div class="sidecard">
+  <!-- Trois zones : en-tête figé, contenu défilant, moniteur machine en pied.
+       C'est ce découpage qui garde les jauges visibles quel que soit le nombre
+       de discussions — elles les poussaient auparavant hors de l'écran. -->
   <div class="sidehead">
     <h1 id="brand" aria-label="loki" title="Loki — fork d'AJEAN (github.com/nathaninline/ajean, MIT)"><span id="brand-a"><svg viewBox="0 0 4 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="1" height="5"/><rect x="1" y="4" width="3" height="1"/></svg></span><span id="brand-word"><svg viewBox="0 0 11 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="3"/><rect x="2" y="1" width="1" height="3"/><rect x="0" y="4" width="3" height="1"/><rect x="4" y="0" width="1" height="5"/><rect x="6" y="0" width="1" height="2"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="2"/><rect x="8" y="0" width="3" height="1"/><rect x="9" y="1" width="1" height="3"/><rect x="8" y="4" width="3" height="1"/></svg></span><span id="ver"></span></h1>
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
-  <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
-  </div><!-- /sidecard -->
+  <div id="side-scroll">
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
-       d'origine) : basculer ici bascule partout. -->
+       d'origine) : basculer ici bascule partout.
+       La recherche filtre CÔTÉ CLIENT : la liste est déjà entièrement chargée
+       (métadonnées seules, sans les messages), un aller-retour serveur par
+       frappe n'apporterait rien. -->
   <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion">+</button></summary>
+    <input id="conv-search" type="search" placeholder="rechercher une discussion…" oninput="renderConversations()" aria-label="rechercher une discussion">
     <div id="conv-list" class="slist"></div>
   </details>
   <!-- Avertissement de lancement (App Translocation macOS) — masqué par défaut. -->
@@ -58,6 +66,11 @@
   <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
        empilait 11 arrondis et autant de gouttières : la barre latérale ne
        tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <!-- Tout ce qui n'est pas la conversation tient sous CE repli : la barre
+       latérale par défaut, c'est les discussions et la machine. Les sections
+       ouvertes par programme (journal du moteur, installation llama.cpp)
+       passent par openDetails(), qui déplie aussi les parents. -->
+  <details id="side-settings"><summary><span class="stitle">Réglages</span></summary>
   <div class="sidegroup">
   <details id="svc-log-box" ontoggle="if(this.open){loadSvcLog();showPaths()}"><summary><span class="stitle">Journal du moteur</span></summary>
     <div class="row" style="justify-content:flex-end;align-items:center">
@@ -70,14 +83,6 @@
       <span class="io-cap">Emplacements</span>
     </div>
     <div id="paths-msg" class="muted" style="font-size:10px;line-height:1.5"></div>
-  </details>
-  <!-- GPU et RAM décrivent la même chose (les ressources de la machine) :
-       une seule section, deux blocs de statistique dans la même carte. -->
-  <details open><summary><span class="stitle">Machine</span></summary>
-    <div class="slist">
-      <div id="vram">…</div>
-      <div id="ram-details"><div id="ram"></div></div>
-    </div>
   </details>
   <details open id="cfg-details"><summary><span class="stitle">Config active</span></summary>
     <div id="cfg" class="slist">…</div>
@@ -269,7 +274,6 @@
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-reasoning" onchange="toggleView('hide-reasoning')"><span class="slider"></span></span> masquer le raisonnement</label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-tools" onchange="toggleView('hide-tools')"><span class="slider"></span></span> masquer les appels d'outils</label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-fold-tools" onchange="toggleView('fold-tools')"><span class="slider"></span></span> garder les bulles repliées<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Les bulles de raisonnement et d'outil arrivent <b>déjà fermées</b> au lieu de s'ouvrir puis se refermer. Un clic sur leur étiquette les déplie.</span></span></label>
-    <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-side" onchange="toggleView('hide-side')"><span class="slider"></span></span> barre latérale escamotable<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">La barre latérale devient un tiroir <b>même sur ordinateur</b> : elle reste fermée et s'ouvre avec le bouton ☰. Toute la largeur pour la conversation.</span></span></label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-stats" onchange="toggleView('hide-stats')"><span class="slider"></span></span> masquer la vitesse de génération<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Sous chaque réponse : <b>prefill</b> (lecture du contexte) et <b>decode</b> (écriture), en tokens et en tokens/seconde. Coche pour ne plus les afficher.</span></span></label>
     </div>
   </details>
@@ -333,8 +337,37 @@
     </div></div>
   </details>
   </div><!-- /sidegroup -->
+  </details><!-- /#side-settings -->
+  <!-- Attribution du fork (licence MIT de l'amont) : en pied de la zone
+       défilante, sous les réglages. Elle a quitté l'en-tête, que la refonte
+       réduit à la marque et à l'état du moteur, mais elle reste affichée. -->
+  <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
+  </div><!-- /#side-scroll -->
+  <!-- Moniteur machine : charge GPU, VRAM et mémoire vive. Posé en pied, en
+       jauges fines — visible en permanence sans jamais disputer la place au
+       fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
+       bloc entier se replie d'un clic. -->
+  <div id="side-perf">
+    <div class="perf-head"><span>Performance</span>
+      <button class="perf-toggle" onclick="togglePerf()" title="replier le moniteur" aria-label="replier le moniteur">–</button>
+    </div>
+    <div class="perf-body"><div id="vram">…</div><div id="ram-details"><div id="ram"></div></div></div>
+  </div>
 </div>
 <div class="main" style="position:relative">
+  <!-- Barre d'en-tête : de quoi on parle, et avec quel modèle. Le changement de
+       modèle demandait auparavant d'ouvrir la barre latérale et de descendre
+       jusqu'aux presets — trois clics pour un geste qu'on répète. -->
+  <header id="topbar">
+    <button id="sidetoggle" class="iconbtn" onclick="toggleSideCollapse()" title="afficher/masquer la barre latérale" aria-label="afficher ou masquer la barre latérale">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+    </button>
+    <div id="topbar-title">Nouvelle discussion</div>
+    <select id="model-switch" onchange="onModelSwitch(this)" title="modèle actif — changer relance le moteur" aria-label="modèle actif"></select>
+    <button id="themebtn" class="iconbtn" onclick="toggleThemeQuick()" title="thème clair / sombre" aria-label="basculer le thème">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </header>
   <div id="chat"></div>
   <!-- Voile de chargement du fil : sans lui, une connexion lente donne un chat
        VIDE indiscernable d'une conversation vide. Masqué au signal {caught_up}. -->
@@ -361,18 +394,6 @@
       <span style="display:flex;align-items:center;gap:8px;margin-left:auto">
         <span id="ctx-text" class="muted">0 / 0</span>
         <button id="ctx-compact" onclick="compactContext()">compacter</button>
-        <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
-             gabarit que le trombone — ce sont les deux faces du même sujet,
-             ce qui entre et ce qui sort. -->
-        <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        </button>
-        <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
-        <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
-          <!-- Trombone dessiné en SVG : pas de dépendance à une police d'emoji,
-               dont le rendu varie énormément d'un système à l'autre. -->
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 1 1 5.18 5.18l-9.2 9.2a1.83 1.83 0 1 1-2.59-2.6l8.49-8.48"/></svg>
-        </button>
       </span>
     </div>
     <!-- Pièces jointes en attente : remplie par addFiles(), vidée à l'envoi.
@@ -380,9 +401,28 @@
          qui la sépare du fil — la carte ne bouge donc pas d'un pixel. -->
     <div id="attach-list"></div>
     <div id="inputbar">
-      <textarea id="input" rows="1" placeholder="message…" onkeydown="onKey(event)" oninput="autoGrow(this)" onpaste="onPaste(event)"></textarea>
-      <button id="send" onclick="send()">send</button>
-      <button id="stop" onclick="stopGen()" style="display:none;background:var(--danger-bg);border-color:var(--err);color:var(--err)">stop</button>
+      <textarea id="input" rows="1" placeholder="Message Loki…" onkeydown="onKey(event)" oninput="autoGrow(this)" onpaste="onPaste(event)"></textarea>
+      <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
+      <!-- Joindre un fichier. Icône dessinée en SVG : pas de dépendance à une
+           police d'emoji, dont le rendu varie énormément d'un système à l'autre. -->
+      <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+      <!-- Fichiers de la discussion : ouvre le panneau de droite. Même gabarit
+           que le dépôt — ce sont les deux faces du même sujet, ce qui entre et
+           ce qui sort. -->
+      <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </button>
+      <!-- Envoi : pastille ronde à flèche, comme la maquette. Le mot « Envoyer »
+           reste porté par aria-label et l'infobulle — l'action garde son nom
+           pour un lecteur d'écran, elle ne l'affiche simplement plus. -->
+      <button id="send" onclick="send()" title="Envoyer" aria-label="Envoyer">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>
+      </button>
+      <button id="stop" onclick="stopGen()" style="display:none" title="Arrêter la génération" aria-label="Arrêter la génération">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
     </div>
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
@@ -396,7 +436,9 @@
 <div id="files-backdrop" onclick="toggleFiles()"></div>
 <aside id="files" aria-label="Fichiers de cette discussion">
   <div class="files-head">
-    <span class="stitle">Fichiers de la discussion</span>
+    <!-- Titre court : le panneau est déjà nommé par son contexte, et le libellé
+         complet reste porté par l'aria-label de la section. -->
+    <span class="stitle">Fichiers</span>
     <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
     <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
   </div>

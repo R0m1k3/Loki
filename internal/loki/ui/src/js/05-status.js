@@ -42,7 +42,9 @@ async function loadStatus(){
 function toggleSvcLog(){
   const box=document.getElementById('svc-log-box');
   if(!box) return;
-  box.open = !box.open;
+  // openDetails déplie aussi « Réglages » : sans lui, la section s'ouvrait à
+  // l'intérieur d'un repli fermé — donc nulle part, du point de vue de l'écran.
+  if(box.open) box.open = false; else openDetails(box);
 }
 async function loadSvcLog(){
   const el=document.getElementById('svc-log');
@@ -127,30 +129,63 @@ function updateCtxMeter(){
   // puisse compacter à la demande avant que l'auto-compaction (75%) ne s'en charge.
   document.getElementById('ctx-compact').style.display = (pct>=50 && CTX_USED>0) ? 'inline-block' : 'none';
 }
+// ─── Moniteur machine (pied de barre latérale) ───────────────────────────────
+// Une jauge par ressource : nom, pourcentage, barre, puis le détail chiffré en
+// dessous. C'est la hiérarchie de la maquette — on lit la charge d'un coup
+// d'œil, et le détail (Gio, température) reste là pour qui le cherche.
+//
+// Construit EN DOM et non en innerHTML : les noms de GPU viennent du pilote,
+// donc d'ailleurs. Même règle que pour les noms de fichiers et les titres de
+// discussions.
+function perfRow(label, pct, sub, title){
+  pct = Math.max(0, Math.min(100, Math.round(pct||0)));
+  const row=document.createElement('div'); row.className='perf-row';
+  if(title) row.title=title;
+  const l=document.createElement('div'); l.className='perf-l';
+  const b=document.createElement('b'); b.textContent=label;
+  const v=document.createElement('span'); v.className='perf-pct'; v.textContent=pct+'%';
+  l.append(b,v);
+  const track=document.createElement('div'); track.className='perf-track';
+  const fill=document.createElement('div');
+  // Sauge jusqu'à 75 %, ambre au-delà, rouille à 90 : la couleur ne sert à rien
+  // tant que la machine respire, elle doit sauter aux yeux quand elle sature.
+  fill.className='perf-fill'+(pct>=90?' max':pct>=75?' hot':'');
+  fill.style.width=pct+'%';
+  track.appendChild(fill);
+  row.append(l,track);
+  if(sub){ const s=document.createElement('div'); s.className='perf-sub'; s.textContent=sub; row.appendChild(s); }
+  return row;
+}
 async function loadVram(){
   const gpus=await jget('/api/vram');
-  // Bloc de statistique : intitulé + valeur sur une ligne, jauge, détail dessous.
-  // Même gabarit que la RAM (voir .stat dans le CSS) — le HTML libre d'avant
-  // collait aux bords de la carte.
-  document.getElementById('vram').innerHTML = (gpus||[]).map(g=>{
-    const pct=Math.round(g.used*100/g.total);
-    return '<div class="stat"><div class="stat-h"><span class="stat-n">'+g.name+'</span>'+
-      '<span class="stat-v">'+(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' GiB</span></div>'+
-      '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
-      '<div class="stat-s">GPU '+g.util+' % · '+g.temp+' °C</div></div>';
-  }).join('') || '<div class="stat"><span class="stat-s">(pas de GPU)</span></div>';
+  const box=document.getElementById('vram');
+  if(!box) return;
+  box.textContent='';
+  if(!gpus || !gpus.length){
+    const d=document.createElement('div'); d.className='perf-sub'; d.textContent='(pas de GPU détecté)';
+    box.appendChild(d);
+    return;
+  }
+  gpus.forEach((g,i)=>{
+    // Le pourcentage affiché est la CHARGE du processeur graphique (ce que
+    // montre la maquette) ; la VRAM, elle, passe en détail sous la barre — deux
+    // mesures distinctes qu'une seule barre ne peut pas porter.
+    const vram=(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' Gio';
+    box.appendChild(perfRow(
+      'GPU '+i+(gpus.length>1?'':'')+' — charge', g.util,
+      vram+' · '+g.temp+' °C', g.name));
+  });
 }
 async function loadRam(){
   const m=await jget('/api/ram');
   const box=document.getElementById('ram-details');
-  if(!m || !m.total){ if(box) box.style.display='none'; return; }
-  if(box) box.style.display='';
-  const pct=Math.round(m.used*100/m.total);
-  document.getElementById('ram').innerHTML =
-    '<div class="stat"><div class="stat-h"><span class="stat-n">Mémoire vive</span>'+
-    '<span class="stat-v">'+(m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' GiB</span></div>'+
-    '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
-    '<div class="stat-s">'+pct+' % utilisée</div></div>';
+  if(!box) return;
+  if(!m || !m.total){ box.style.display='none'; return; }
+  box.style.display='';
+  const host=document.getElementById('ram');
+  host.textContent='';
+  host.appendChild(perfRow('Mémoire vive', m.used*100/m.total,
+    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio'));
 }
 async function loadCfg(){
   // /api/llamacpp en parallèle : il indique si le BIN de la config correspond au

@@ -177,7 +177,7 @@ Ajoutées par ce fork :
   lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
   la montrer, sans prétendre la décrire. L'image relayée au moteur reste
   éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
-- **Panneau Fichiers** (bouton dossier du pied de carte) : les fichiers de la
+- **Panneau Fichiers** (bouton dossier de la barre de saisie) : les fichiers de la
   discussion ouverte — dépôts, captures, ce que l'agent y a écrit — avec
   navigation dans les sous-dossiers, téléchargement et suppression. Un dossier
   affiche la taille de **tout** son contenu, c'est ce qu'on libère en le
@@ -186,6 +186,15 @@ Ajoutées par ce fork :
   reste du disque ni les autres discussions ne sont atteignables. Les fichiers
   d'avant ce rangement que la migration n'a pas su rattacher restent joignables
   par le bouton **hors discussion**, qui disparaît une fois le ménage fait.
+- **Interface « Sober Tech »** : ardoise et sauge, typographie Inter (interface)
+  et JetBrains Mono (code, chiffres, chemins) — embarquées dans le binaire, donc
+  aucune requête vers un service de polices. Deux variantes : claire par défaut,
+  **Deep Dark** (fond `#0F172A`, cartes `#1E293B`) d'un clic depuis l'en-tête.
+  L'en-tête porte le titre de la discussion et le **sélecteur de modèle** (le
+  changement de preset ne demande plus d'ouvrir les réglages) ; la barre
+  latérale s'escamote pour rendre toute la largeur au fil ; les discussions s'y
+  cherchent au clavier et les jauges **GPU / VRAM / mémoire vive** restent
+  visibles en pied de colonne.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
 - **Paramètres** : les réglages d'application (identité, apparence, accès

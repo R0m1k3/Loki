@@ -22,47 +22,62 @@
      garde `display-mode` en second pour les PWA Android/desktop à manifeste. -->
 <script>try{var pwa=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode:standalone)').matches)||(window.matchMedia&&window.matchMedia('(display-mode:fullscreen)').matches);document.documentElement.setAttribute('data-pwa',pwa?'1':'0');}catch(e){document.documentElement.setAttribute('data-pwa','0');}</script>
 <!-- Applique le thème AVANT le rendu (pas de flash) : lit le choix persisté. -->
-<script>try{var t=localStorage.getItem('loki-theme')||'light';document.documentElement.setAttribute('data-theme',(t==='dark'||t.endsWith('-dark'))?'dark':'light');['hide-reasoning','hide-tools','fold-tools','hide-side','hide-stats'].forEach(function(k){document.documentElement.setAttribute('data-'+k,localStorage.getItem('loki-'+k)==='1'?'1':'0')})}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
+<script>try{var t=localStorage.getItem('loki-theme')||'light';document.documentElement.setAttribute('data-theme',(t==='dark'||t.endsWith('-dark'))?'dark':'light');['hide-reasoning','hide-tools','fold-tools','hide-stats'].forEach(function(k){document.documentElement.setAttribute('data-'+k,localStorage.getItem('loki-'+k)==='1'?'1':'0')});
+/* Barre latérale escamotée et moniteur replié : posés AVANT le rendu, sinon la
+   barre s'affiche puis se referme sous les yeux à chaque chargement. Ouverts par
+   défaut — une valeur absente vaut « visible ». */
+document.documentElement.setAttribute('data-side',localStorage.getItem('loki-side')==='0'?'0':'1');
+document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-perf')==='0'?'0':'1');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 <style>
 /* ===== Polices =====================================================
-   Bricolage Grotesque (titres et texte) + IBM Plex Mono (chiffres, chemins,
-   code). Servies par Loki (/fonts/, embarquées dans le binaire) et NON par
-   Google Fonts : une instance locale ou coupée d'internet doit s'afficher
-   correctement, sans qu'un tiers apprenne qui consulte l'interface.
+   Inter (interface) + JetBrains Mono (chiffres, chemins, code). Servies par Loki
+   (/fonts/, embarquées dans le binaire) et NON par Google Fonts : une instance
+   locale ou coupée d'internet doit s'afficher correctement, sans qu'un tiers
+   apprenne qui consulte l'interface.
+   Sous-ensemble LATIN uniquement (~48 + ~31 Ko) : il couvre le français, y
+   compris œ et les guillemets. Les symboles de l'UI (↻ ⌫ ☰ 🗑) n'ont jamais été
+   dessinés par la police d'interface — ils viennent du système, ici comme avant.
    swap : le texte s'affiche tout de suite dans la police de repli, puis bascule
    — jamais de blanc au chargement. */
-@font-face{font-family:'Bricolage Grotesque';src:url('/fonts/bricolage.woff2') format('woff2');font-weight:400 700;font-display:swap;font-style:normal}
-@font-face{font-family:'IBM Plex Mono';src:url('/fonts/plexmono-400.woff2') format('woff2');font-weight:400;font-display:swap;font-style:normal}
-@font-face{font-family:'IBM Plex Mono';src:url('/fonts/plexmono-500.woff2') format('woff2');font-weight:500;font-display:swap;font-style:normal}
+@font-face{font-family:'Inter';src:url('/fonts/inter.woff2') format('woff2');font-weight:100 900;font-display:swap;font-style:normal}
+@font-face{font-family:'JetBrains Mono';src:url('/fonts/jetbrainsmono.woff2') format('woff2');font-weight:100 800;font-display:swap;font-style:normal}
 
-/* ===== Palette « Terre » ===========================================
-   Bruns chauds, vert sauge et argile. Deux variantes — claire par défaut,
-   sombre via data-theme="dark" sur <html>. Toutes les couleurs de l'UI passent
-   par ces variables ; rien d'autre ne code une couleur en dur.
+/* ===== Palette « Sober Tech » ======================================
+   Ardoise et sauge. Deux variantes — claire par défaut (celle de la maquette),
+   sombre « Deep Dark » via data-theme="dark" sur <html>. Toutes les couleurs de
+   l'UI passent par ces variables ; rien d'autre ne code une couleur en dur.
 
-   Rôles : --accent = sauge (sélection, marche, liens) · --warn = argile
-   (chiffres, mesures, avertissements) · --err = terre cuite (arrêt, danger).
-   --row-bg / --code-bg sont les deux fonds encastrés d'un panneau. */
+   Rôles : --accent = sauge (sélection, marche, liens, bulle utilisateur) ·
+   --warn = ambre (chiffres, mesures, avertissements) · --err = rouille (arrêt,
+   danger). --row-bg / --code-bg sont les deux fonds encastrés d'un panneau.
+
+   --on-accent : ce qui s'écrit SUR un aplat de sauge. Il change avec la
+   variante — blanc sur la sauge foncée du thème clair, ardoise sur la sauge
+   claire du thème sombre — sinon un des deux thèmes écrit du texte à 2:1 de
+   contraste sur la bulle utilisateur et le bouton d'envoi. */
 :root{color-scheme:light;
-  --font:'Bricolage Grotesque',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --bg:#f3efe8;--panel:#ffffff;--bubble:#efe9df;--border:rgba(44,38,34,.12);
-  --text:#2c2622;--dim:#7a7069;
-  --accent:#5f7f52;--accent-bg:rgba(95,127,82,.12);
-  --row-bg:#f7f4ee;--row-bg-on:#f4f1ea;
-  --ok:#5f7f52;--warn:#a9662f;--err:#c05a3f;--mag:#a9662f;
-  --code-bg:#f7f4ee;--danger-bg:#f8e9e4;--warn-bg:#f6efe4;
-  --add:#5f7f52;--add-bg:rgba(95,127,82,.12);--del:#c05a3f;--del-bg:rgba(192,90,63,.12);
-  --shadow:0 1px 2px rgba(44,38,34,.06)}
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --bg:#eceff0;--panel:#ffffff;--bubble:#f6f8f7;--border:rgba(30,41,59,.11);
+  --text:#1e293b;--dim:#64748b;
+  --accent:#5e7f5a;--accent-bg:rgba(94,127,90,.11);--on-accent:#ffffff;--on-err:#ffffff;
+  --accent-soft:#8fab8b;
+  --side:#fafbfa;--row-bg:#f5f7f6;--row-bg-on:#eef2f0;
+  --ok:#5e7f5a;--warn:#a86a2a;--err:#c0503f;--mag:#a86a2a;
+  --code-bg:#f4f6f5;--danger-bg:#faeae7;--warn-bg:#f7f0e5;
+  --add:#5e7f5a;--add-bg:rgba(94,127,90,.11);--del:#c0503f;--del-bg:rgba(192,80,63,.12);
+  --shadow:0 1px 2px rgba(15,23,42,.05);--shadow-lift:0 4px 16px rgba(15,23,42,.08)}
+/* « Deep Dark » : fond #0F172A, cartes #1E293B. */
 [data-theme="dark"]{color-scheme:dark;
-  --bg:#211d1a;--panel:#2b2622;--bubble:#38312a;--border:rgba(236,229,221,.12);
-  --text:#ece5dd;--dim:#a99d92;
-  --accent:#9ab68c;--accent-bg:rgba(154,182,140,.15);
-  --row-bg:#332d28;--row-bg-on:#38312a;
-  --ok:#9ab68c;--warn:#d2a07a;--err:#c9705c;--mag:#d2a07a;
-  --code-bg:#211d1a;--danger-bg:#3a2621;--warn-bg:#332b23;
-  --add:#9ab68c;--add-bg:rgba(154,182,140,.15);--del:#c9705c;--del-bg:rgba(201,112,92,.15);
-  --shadow:none}
+  --bg:#0f172a;--panel:#1e293b;--bubble:#1e293b;--border:rgba(148,163,184,.17);
+  --text:#e2e8f0;--dim:#94a3b8;
+  --accent:#8fb08c;--accent-bg:rgba(143,176,140,.16);--on-accent:#0f172a;--on-err:#0f172a;
+  --accent-soft:#6d8f6a;
+  --side:#0d1424;--row-bg:#172033;--row-bg-on:#243349;
+  --ok:#8fb08c;--warn:#d9a55f;--err:#e0705c;--mag:#d9a55f;
+  --code-bg:#131c2f;--danger-bg:#3a1f1c;--warn-bg:#33291b;
+  --add:#8fb08c;--add-bg:rgba(143,176,140,.16);--del:#e0705c;--del-bg:rgba(224,112,92,.16);
+  --shadow:none;--shadow-lift:0 4px 16px rgba(0,0,0,.35)}
 /* Safari iOS peint un rectangle gris/noir sur TOUT élément touché (bouton, lien,
    résumé de section, bulle repliable…). C'est un retour tactile par défaut, hors
    de notre charte et impossible à styler : on le coupe. Nos états :active/:focus
@@ -491,7 +506,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media (max-width:720px){
   .side{padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 }
-[data-hide-side="1"] .side{padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 .sidehead{margin-bottom:10px}
 
 /* --- En-tête de section --- */
@@ -627,24 +641,10 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
      data-hide-reasoning : masque les bulles de raisonnement
      data-hide-tools     : masque les bulles d'appel d'outil
      data-fold-tools     : les garde repliées (déplia­bles au clic)
-     data-hide-side      : barre latérale en tiroir, même sur ordinateur
    Quand raisonnement et outils sont masqués, l'activité reste signalée par
    l'indicateur de frappe (.msg.typing) maintenu pendant tout le tour. */
 [data-hide-reasoning="1"] #chat .msg.reasoning{display:none}
 [data-hide-tools="1"] #chat .msg.tool{display:none}
-/* Barre latérale en tiroir sur TOUTES les tailles d'écran : mêmes règles que
-   la version mobile, activées par l'attribut au lieu de la largeur. */
-[data-hide-side="1"] .side{position:fixed;inset:0 auto 0 0;width:80%;max-width:320px;z-index:15;transform:translateX(-100%);transition:transform .2s;background:var(--bg);padding-top:calc(16px + env(safe-area-inset-top));padding-left:calc(16px + env(safe-area-inset-left));border-right:1px solid var(--border)}
-@media (min-width:721px){[data-hide-side="1"] .side{width:380px;max-width:380px}}
-/* Le bouton ☰ est posé au-dessus du fil : on dégage le haut de la
-   conversation pour qu'il ne recouvre aucun message. */
-@media (min-width:721px){html[data-hide-side="1"] #chat{padding-top:60px}}
-[data-hide-side="1"] .side.open{transform:translateX(0)}
-[data-hide-side="1"] #menubtn{display:block}
-[data-hide-side="1"] #lc-chip:not([hidden]){display:block}
-[data-hide-side="1"] #backdrop.open{display:block}
-[data-hide-side="1"] body.drawer-open #menubtn,[data-hide-side="1"] body.drawer-open #lc-chip{display:none}
-[data-hide-side="1"] .main{width:100%}
 /* Hauteur animée en JS (mesure scrollHeight → 0) plutôt que grid 1fr→0fr qui
    peut « dépasser ». overflow:hidden clippe le contenu pendant tout le repli.
    width revient à auto SANS délai à l'ouverture (pas de saut), et passe à 0
@@ -1316,10 +1316,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
 /* Action principale en sauge : c'est la couleur d'action de la charte, et elle
    se distingue enfin du texte (le bouton reprenait --text, donc un brun sombre
    indistinct du reste). L'arrêt, lui, reste en terre cuite. */
-#send{background:var(--accent);border-color:var(--accent);color:#fff}
-#send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;opacity:.88}
-#stop{background:var(--err);border-color:var(--err);color:#fff}
-#stop:hover{background:var(--err);border-color:var(--err);color:#fff;opacity:.88}
+#send{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+#send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--on-accent);opacity:.88}
+#stop{background:var(--err);border-color:var(--err);color:var(--on-err)}
+#stop:hover{background:var(--err);border-color:var(--err);color:var(--on-err);opacity:.88}
 
 /* --- Terre : largeur de lecture --------------------------------------
    La mesure était plafonnée à 760 px et centrée sur la fenêtre : sur un écran
@@ -1467,6 +1467,240 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   #files{background:var(--panel);border-left-color:transparent;border-radius:20px;
     box-shadow:var(--shadow);margin:0}
 }
+
+/* =====================================================================
+   ===== Refonte « Sober Tech » ========================================
+   =====================================================================
+   Dernière section du fichier, donc dernier mot de la cascade : elle porte la
+   coque de la refonte (barre d'en-tête, zones de la barre latérale, moniteur
+   machine) et redresse les quelques règles historiques qu'elle contredit.
+
+   Trois principes, tirés de la maquette :
+   1. Le fil est la seule chose qui compte : tout le reste est atténué, sans
+      cadre superflu, et la barre latérale s'escamote d'un clic.
+   2. Les données machine sont TOUJOURS visibles mais jamais au premier plan —
+      un pied de barre latérale, trois jauges, pas un tableau.
+   3. Aucun contour permanent sur les boutons : l'affordance vient du survol
+      (fond qui apparaît, léger enfoncement au clic).
+   ===================================================================== */
+
+/* --- Coque ---------------------------------------------------------- */
+.side{background:var(--side);display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+/* Les trois zones de la barre : en-tête fixe, contenu qui défile, moniteur
+   posé en pied. Sans ça, la liste des discussions poussait les jauges hors de
+   l'écran dès la dixième discussion. */
+.sidehead{flex:none;display:flex;align-items:center;gap:8px;margin:0;
+  padding:14px 14px 10px;padding-top:calc(14px + env(safe-area-inset-top))}
+#side-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 12px 12px;
+  scrollbar-gutter:stable;display:flex;flex-direction:column;gap:2px}
+#side-perf{flex:none;border-top:1px solid var(--border);padding:12px 14px;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+@media (max-width:720px){
+  .side{padding:0}
+  #side-scroll{padding-left:calc(12px + env(safe-area-inset-left))}
+  .sidehead{padding-left:calc(14px + env(safe-area-inset-left))}
+}
+/* Escamotage sur grand écran : la barre disparaît, le fil reprend la place.
+   L'état est persisté (localStorage) et posé sur <html> avant le rendu, comme
+   le thème — sinon la barre apparaît puis se referme sous les yeux. */
+@media (min-width:721px){
+  html[data-side="0"] .side{display:none}
+  html[data-side="0"] #sidetoggle svg{transform:none}
+}
+#sidetoggle svg{transform:scaleX(-1)}
+
+/* --- Barre d'en-tête du fil ----------------------------------------- */
+/* Elle porte ce qui décrit la conversation en cours : de quoi on parle, et avec
+   QUEL modèle. Le choix du modèle vivait au fond de la barre latérale, dans une
+   liste de presets — trois clics et un défilement pour une action qu'on fait
+   plusieurs fois par session. */
+#topbar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 16px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--border);background:var(--bg);z-index:5}
+#topbar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:13.5px;font-weight:500;color:var(--text)}
+#topbar .iconbtn{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;
+  justify-content:center;border:0;border-radius:9px;background:transparent;color:var(--dim);
+  cursor:pointer;margin:0;padding:0;transition:background .15s,color .15s,transform .1s}
+#topbar .iconbtn:hover{background:var(--row-bg-on);color:var(--text)}
+#topbar .iconbtn:active{transform:scale(.92)}
+#topbar .iconbtn svg{display:block}
+/* Sélecteur de modèle : le libellé n'est PAS une étiquette flottante mais le nom
+   du preset actif, lisible d'un coup d'œil. */
+#model-switch{max-width:230px;font:inherit;font-size:12.5px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border);border-radius:999px;
+  padding:6px 30px 6px 12px;cursor:pointer;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%,calc(100% - 11px) 52%;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+#model-switch:hover{border-color:var(--accent)}
+#model-switch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (max-width:720px){
+  #topbar{padding-left:56px} /* la place du bouton ☰, en position fixe */
+  #model-switch{max-width:130px}
+}
+
+/* --- Discussions ----------------------------------------------------- */
+/* La liste EST la barre latérale : titre à gauche, heure à droite, une ligne.
+   Le reste (réglages) descend sous un unique repli. */
+#conv-search{width:100%;font:inherit;font-size:12.5px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:7px 11px;margin:0 0 6px}
+#conv-search::placeholder{color:var(--dim)}
+#conv-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.side .preset{padding:8px 11px;margin:1px 0;gap:10px}
+.side .preset .preset-name{font-size:13px;font-weight:450;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;word-break:normal;overflow-wrap:normal}
+.side .preset.active .preset-name{font-weight:550}
+/* Heure de la dernière activité : à DROITE du titre, sur la même ligne, en
+   monospace pour que les colonnes s'alignent d'une ligne à l'autre.
+   ⚠️ Sélecteur en TROIS classes : `.preset>span` (plus haut) pose flex:1 sur
+   tout span enfant d'une ligne — l'heure prenait donc la MOITIÉ de la ligne et
+   le titre était tronqué au premier mot. */
+.side .preset .conv-when{flex:none;font-family:var(--mono);font-size:10.5px;
+  color:var(--dim);letter-spacing:-.01em;overflow:visible}
+.side .preset:hover .conv-when{opacity:0}
+.conv-empty{font-size:12px;color:var(--dim);padding:8px 11px}
+/* Repli des réglages : tout ce qui n'est pas la conversation tient sous cette
+   seule ligne, pour que la barre latérale de la maquette (discussions +
+   machine) reste la vue par défaut. */
+#side-settings{margin-top:8px;border-top:1px solid var(--border)}
+#side-settings>summary{height:38px}
+#side-settings>.sidegroup{margin-top:2px}
+
+/* --- Moniteur machine (pied de barre latérale) ----------------------- */
+.perf-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+.perf-head .perf-toggle{margin-left:auto;border:0;background:transparent;color:var(--dim);
+  padding:0 2px;margin:0;font-size:11px;cursor:pointer;line-height:1}
+.perf-row{margin:0 0 9px}
+.perf-row:last-child{margin-bottom:0}
+.perf-l{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:var(--dim);margin-bottom:4px}
+.perf-l b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:450;color:var(--text)}
+.perf-l .perf-pct{font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums}
+/* La jauge : 4 px, coins ronds, remplissage sauge. Elle passe à l'ambre puis au
+   rouille quand la machine sature — c'est là que l'information devient utile. */
+.perf-track{height:4px;border-radius:999px;background:var(--row-bg-on);overflow:hidden}
+.perf-fill{height:100%;width:0;border-radius:999px;background:var(--accent-soft);
+  transition:width .4s ease,background .4s ease}
+.perf-fill.hot{background:var(--warn)}
+.perf-fill.max{background:var(--err)}
+.perf-sub{margin-top:3px;font-family:var(--mono);font-size:9.5px;color:var(--dim);opacity:.85}
+html[data-perf="0"] .perf-body{display:none}
+
+/* --- Boutons : sans contour, micro-interaction au survol ------------- */
+button{border-color:transparent;background:var(--row-bg);border-radius:9px;
+  transition:background .15s ease,color .15s ease,transform .08s ease}
+button:hover{background:var(--row-bg-on);border-color:transparent;color:var(--text)}
+button:active:not(:disabled){transform:translateY(1px)}
+.side .preset,.slist,#conv-search{transition:background .15s ease,border-color .15s ease}
+
+/* --- Fil : la réponse redevient une carte --------------------------- */
+/* La maquette encadre la réponse de l'IA : sur un fond de fil coloré, du texte
+   nu flotte sans ancrage, et la frontière entre deux réponses se perd. */
+#chat{padding-top:22px}
+#chat .msg.assistant{background:var(--bubble);border:1px solid var(--border);
+  border-radius:16px;padding:14px 18px;max-width:100%;box-shadow:var(--shadow)}
+#chat .msg.assistant.errmsg{background:var(--danger-bg);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
+/* Question : aplat de sauge, coin bas-droit rentré. --on-accent garantit le
+   contraste dans les DEUX variantes. */
+#chat .msg.user{background:var(--accent);color:var(--on-accent);border-radius:18px 18px 6px 18px;
+  padding:11px 16px;max-width:75%}
+#chat .msg.user .label{color:var(--on-accent);opacity:.75}
+#chat .msg.user .body a{color:var(--on-accent);text-decoration:underline}
+#chat .msg.user code{background:rgba(255,255,255,.18);color:inherit}
+[data-theme="dark"] #chat .msg.user code{background:rgba(15,23,42,.22)}
+/* Les pastilles de fichier d'une question sont posées SUR l'aplat de sauge :
+   sans fond propre, elles s'y fondaient. */
+#chat .msg.user .msg-files .chip-file{background:var(--panel);color:var(--text);border-color:transparent}
+
+/* --- Saisie : la pilule de la maquette ------------------------------ */
+/* Le bouton d'envoi devient une pastille ronde à flèche : c'est la forme de la
+   maquette, et elle laisse toute la largeur au texte. Le mot « Envoyer » reste
+   porté par aria-label et par l'infobulle — l'action n'est pas moins nommée
+   pour un lecteur d'écran, elle l'est moins à l'écran. */
+#send,#stop{width:34px;height:34px;min-height:34px;padding:0;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;flex:none}
+#send svg,#stop svg{display:block}
+#send:hover:not(:disabled){opacity:1;transform:none;background:color-mix(in srgb,var(--accent) 85%,var(--text))}
+#send:active:not(:disabled){transform:scale(.92)}
+#stop:hover{opacity:1;background:color-mix(in srgb,var(--err) 85%,var(--text))}
+/* Les outils de la saisie (joindre, fichiers, envoyer) montent DANS la pilule,
+   à droite du texte : c'est là qu'on les cherche, et le pied de carte redevient
+   ce qu'il doit être — une jauge de contexte, rien d'autre. */
+#inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow)}
+#composer:focus-within #inputbar,#composer:focus-within #ctxmeta{border-color:var(--accent-soft)}
+#inputbar #attach,#inputbar #files-btn{width:34px;height:34px;min-height:34px;border-radius:999px;
+  align-self:center}
+#inputbar #attach svg,#inputbar #files-btn svg{width:16px;height:16px}
+#ctxmeta{padding-bottom:12px}
+#ctxtrack{border-radius:999px}
+
+/* --- Coque à plat ---------------------------------------------------
+   La direction précédente posait deux CARTES flottantes séparées par une
+   gouttière ; la maquette est bord à bord : barre latérale collée au bord,
+   simple filet de séparation, fil qui occupe tout le reste. On neutralise donc
+   ici les règles de coque de la section « Terre » plutôt que de les réécrire
+   plus haut — la cascade fait le tri, et l'historique reste lisible. */
+@media (min-width:721px){
+  body{padding:0;gap:0}
+  html[data-pwa="1"] body{padding-top:env(safe-area-inset-top)}
+  .side{width:300px;border-right:1px solid var(--border);border-radius:0;
+    box-shadow:none;background:var(--side);overflow:hidden}
+  /* Dans la barre, plus de cartes : des lignes posées sur le fond. Deux niveaux
+     de cadre imbriqués (carte de section + carte de liste) pour une liste de
+     titres, c'était deux de trop. */
+  #side-scroll>details,#side-scroll>.sidegroup{background:transparent;box-shadow:none;
+    border-radius:0;padding:0;margin:0}
+  #side-scroll>details>summary{height:34px}
+  .side .slist{background:transparent;border-color:transparent;border-radius:12px}
+  .side #side-settings .slist{background:var(--row-bg);border-radius:12px}
+  /* Le fil n'est plus une carte : il EST la page. */
+  .main{background:transparent;border-radius:0;box-shadow:none;overflow:visible}
+  #composer{background:linear-gradient(to bottom,transparent 0,var(--bg) var(--fade))}
+  #inputbar,#ctxmeta{background:var(--panel);border-color:var(--border)}
+  #input{background:transparent}
+}
+/* Ligne de discussion : les actions (renommer, supprimer) sont posées EN
+   SURIMPRESSION à droite plutôt qu'en flux. En flux, elles réservaient leur
+   largeur en permanence — invisibles mais présentes — et le titre était tronqué
+   au tiers de la place disponible. */
+.side .preset{position:relative;border-radius:12px}
+.side .preset .conv-acts{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  margin:0;background:var(--row-bg-on);border-radius:9px;padding:1px}
+.side .preset.active .conv-acts{background:var(--accent-bg)}
+.side .preset .preset-info{overflow:hidden}
+/* La sélection est un aplat, pas un cadre : un liseré autour d'une ligne de
+   liste alourdit là où un fond suffit à dire « c'est celle-ci ». */
+.side .preset.active{background:var(--accent-bg);border-color:transparent}
+.side .preset.active .preset-name{color:var(--text)}
+
+/* --- Téléphone : un seul bouton de barre latérale -------------------- */
+/* Le ☰ flottant ouvre déjà le tiroir ; garder EN PLUS l'icône d'escamotage de
+   l'en-tête donnait deux boutons voisins pour la même action, et grignotait la
+   place du titre sur un écran qui n'en a pas. */
+@media (max-width:720px){
+  /* Sélecteur en DEUX id : `#topbar .iconbtn` (plus haut) pose déjà un display,
+     et il l'emporterait sur un simple `#sidetoggle`. */
+  #topbar #sidetoggle{display:none}
+  #topbar{padding-left:52px;padding-right:10px;gap:6px}
+  #topbar-title{font-size:13px}
+}
+/* Le ☰ suit la charte des boutons : pas de contour, un fond qui apparaît au
+   survol. Il flotte au-dessus de l'en-tête, il doit donc en reprendre le fond
+   pour ne pas laisser voir le fil défiler dessous. */
+#menubtn{background:var(--bg);border:0;color:var(--dim);border-radius:10px;
+  width:34px;height:34px;font-size:16px;top:calc(11px + env(safe-area-inset-top));left:9px}
+#menubtn:hover{background:var(--row-bg-on);color:var(--text)}
+#lc-chip{border-radius:10px;height:34px;top:calc(11px + env(safe-area-inset-top));left:calc(50px + env(safe-area-inset-left))}
+/* Jauges : la piste doit se VOIR, sinon une barre presque vide ressemble à un
+   trait souligné sous l'intitulé. */
+.perf-track{background:color-mix(in srgb,var(--text) 9%,transparent)}
+/* Une liste déroulante posée directement dans une ligne de modale n'a pas de
+   garde-fou de largeur (contrairement à .pe-row-c) : une valeur très longue —
+   un chemin de destination, par exemple — débordait sous l'intitulé. */
+.pe-row>.pe-selc{max-width:62%}
 </style></head><body>
 <button id="menubtn" onclick="toggleSide()">☰</button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
@@ -1475,19 +1709,22 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 <button id="lc-chip" onclick="lcChipOpen()" hidden></button>
 <div id="backdrop" onclick="toggleSide()"></div>
 <div class="side" id="side">
-  <!-- sidecard : regroupe la marque et la mention du fork en UNE carte (direction
-       Terre). Sans ce conteneur, les deux blocs flottaient séparément. -->
-  <div class="sidecard">
+  <!-- Trois zones : en-tête figé, contenu défilant, moniteur machine en pied.
+       C'est ce découpage qui garde les jauges visibles quel que soit le nombre
+       de discussions — elles les poussaient auparavant hors de l'écran. -->
   <div class="sidehead">
     <h1 id="brand" aria-label="loki" title="Loki — fork d'AJEAN (github.com/nathaninline/ajean, MIT)"><span id="brand-a"><svg viewBox="0 0 4 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="1" height="5"/><rect x="1" y="4" width="3" height="1"/></svg></span><span id="brand-word"><svg viewBox="0 0 11 5" shape-rendering="crispEdges" fill="currentColor"><rect x="0" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="3"/><rect x="2" y="1" width="1" height="3"/><rect x="0" y="4" width="3" height="1"/><rect x="4" y="0" width="1" height="5"/><rect x="6" y="0" width="1" height="2"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="2"/><rect x="8" y="0" width="3" height="1"/><rect x="9" y="1" width="1" height="3"/><rect x="8" y="4" width="3" height="1"/></svg></span><span id="ver"></span></h1>
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
-  <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
-  </div><!-- /sidecard -->
+  <div id="side-scroll">
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
-       d'origine) : basculer ici bascule partout. -->
+       d'origine) : basculer ici bascule partout.
+       La recherche filtre CÔTÉ CLIENT : la liste est déjà entièrement chargée
+       (métadonnées seules, sans les messages), un aller-retour serveur par
+       frappe n'apporterait rien. -->
   <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion">+</button></summary>
+    <input id="conv-search" type="search" placeholder="rechercher une discussion…" oninput="renderConversations()" aria-label="rechercher une discussion">
     <div id="conv-list" class="slist"></div>
   </details>
   <!-- Avertissement de lancement (App Translocation macOS) — masqué par défaut. -->
@@ -1500,6 +1737,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <!-- sidegroup : plusieurs sections dans UNE carte. Une carte par section
        empilait 11 arrondis et autant de gouttières : la barre latérale ne
        tenait plus dans un écran, alors que ces lignes sont des titres repliés. -->
+  <!-- Tout ce qui n'est pas la conversation tient sous CE repli : la barre
+       latérale par défaut, c'est les discussions et la machine. Les sections
+       ouvertes par programme (journal du moteur, installation llama.cpp)
+       passent par openDetails(), qui déplie aussi les parents. -->
+  <details id="side-settings"><summary><span class="stitle">Réglages</span></summary>
   <div class="sidegroup">
   <details id="svc-log-box" ontoggle="if(this.open){loadSvcLog();showPaths()}"><summary><span class="stitle">Journal du moteur</span></summary>
     <div class="row" style="justify-content:flex-end;align-items:center">
@@ -1512,14 +1754,6 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <span class="io-cap">Emplacements</span>
     </div>
     <div id="paths-msg" class="muted" style="font-size:10px;line-height:1.5"></div>
-  </details>
-  <!-- GPU et RAM décrivent la même chose (les ressources de la machine) :
-       une seule section, deux blocs de statistique dans la même carte. -->
-  <details open><summary><span class="stitle">Machine</span></summary>
-    <div class="slist">
-      <div id="vram">…</div>
-      <div id="ram-details"><div id="ram"></div></div>
-    </div>
   </details>
   <details open id="cfg-details"><summary><span class="stitle">Config active</span></summary>
     <div id="cfg" class="slist">…</div>
@@ -1711,7 +1945,6 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-reasoning" onchange="toggleView('hide-reasoning')"><span class="slider"></span></span> masquer le raisonnement</label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-tools" onchange="toggleView('hide-tools')"><span class="slider"></span></span> masquer les appels d'outils</label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-fold-tools" onchange="toggleView('fold-tools')"><span class="slider"></span></span> garder les bulles repliées<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Les bulles de raisonnement et d'outil arrivent <b>déjà fermées</b> au lieu de s'ouvrir puis se refermer. Un clic sur leur étiquette les déplie.</span></span></label>
-    <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-side" onchange="toggleView('hide-side')"><span class="slider"></span></span> barre latérale escamotable<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">La barre latérale devient un tiroir <b>même sur ordinateur</b> : elle reste fermée et s'ouvre avec le bouton ☰. Toute la largeur pour la conversation.</span></span></label>
     <label class="switchrow"><span class="switch"><input type="checkbox" id="view-hide-stats" onchange="toggleView('hide-stats')"><span class="slider"></span></span> masquer la vitesse de génération<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Sous chaque réponse : <b>prefill</b> (lecture du contexte) et <b>decode</b> (écriture), en tokens et en tokens/seconde. Coche pour ne plus les afficher.</span></span></label>
     </div>
   </details>
@@ -1775,8 +2008,37 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     </div></div>
   </details>
   </div><!-- /sidegroup -->
+  </details><!-- /#side-settings -->
+  <!-- Attribution du fork (licence MIT de l'amont) : en pied de la zone
+       défilante, sous les réglages. Elle a quitté l'en-tête, que la refonte
+       réduit à la marque et à l'état du moteur, mais elle reste affichée. -->
+  <div class="brand-fork">fork de <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener noreferrer" title="AJEAN par nathaninline — licence MIT">AJEAN</a></div>
+  </div><!-- /#side-scroll -->
+  <!-- Moniteur machine : charge GPU, VRAM et mémoire vive. Posé en pied, en
+       jauges fines — visible en permanence sans jamais disputer la place au
+       fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
+       bloc entier se replie d'un clic. -->
+  <div id="side-perf">
+    <div class="perf-head"><span>Performance</span>
+      <button class="perf-toggle" onclick="togglePerf()" title="replier le moniteur" aria-label="replier le moniteur">–</button>
+    </div>
+    <div class="perf-body"><div id="vram">…</div><div id="ram-details"><div id="ram"></div></div></div>
+  </div>
 </div>
 <div class="main" style="position:relative">
+  <!-- Barre d'en-tête : de quoi on parle, et avec quel modèle. Le changement de
+       modèle demandait auparavant d'ouvrir la barre latérale et de descendre
+       jusqu'aux presets — trois clics pour un geste qu'on répète. -->
+  <header id="topbar">
+    <button id="sidetoggle" class="iconbtn" onclick="toggleSideCollapse()" title="afficher/masquer la barre latérale" aria-label="afficher ou masquer la barre latérale">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+    </button>
+    <div id="topbar-title">Nouvelle discussion</div>
+    <select id="model-switch" onchange="onModelSwitch(this)" title="modèle actif — changer relance le moteur" aria-label="modèle actif"></select>
+    <button id="themebtn" class="iconbtn" onclick="toggleThemeQuick()" title="thème clair / sombre" aria-label="basculer le thème">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </header>
   <div id="chat"></div>
   <!-- Voile de chargement du fil : sans lui, une connexion lente donne un chat
        VIDE indiscernable d'une conversation vide. Masqué au signal {caught_up}. -->
@@ -1803,18 +2065,6 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <span style="display:flex;align-items:center;gap:8px;margin-left:auto">
         <span id="ctx-text" class="muted">0 / 0</span>
         <button id="ctx-compact" onclick="compactContext()">compacter</button>
-        <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
-             gabarit que le trombone — ce sont les deux faces du même sujet,
-             ce qui entre et ce qui sort. -->
-        <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        </button>
-        <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
-        <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
-          <!-- Trombone dessiné en SVG : pas de dépendance à une police d'emoji,
-               dont le rendu varie énormément d'un système à l'autre. -->
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 1 1 5.18 5.18l-9.2 9.2a1.83 1.83 0 1 1-2.59-2.6l8.49-8.48"/></svg>
-        </button>
       </span>
     </div>
     <!-- Pièces jointes en attente : remplie par addFiles(), vidée à l'envoi.
@@ -1822,9 +2072,28 @@ html[data-files="1"] #files-btn{color:var(--accent)}
          qui la sépare du fil — la carte ne bouge donc pas d'un pixel. -->
     <div id="attach-list"></div>
     <div id="inputbar">
-      <textarea id="input" rows="1" placeholder="message…" onkeydown="onKey(event)" oninput="autoGrow(this)" onpaste="onPaste(event)"></textarea>
-      <button id="send" onclick="send()">send</button>
-      <button id="stop" onclick="stopGen()" style="display:none;background:var(--danger-bg);border-color:var(--err);color:var(--err)">stop</button>
+      <textarea id="input" rows="1" placeholder="Message Loki…" onkeydown="onKey(event)" oninput="autoGrow(this)" onpaste="onPaste(event)"></textarea>
+      <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
+      <!-- Joindre un fichier. Icône dessinée en SVG : pas de dépendance à une
+           police d'emoji, dont le rendu varie énormément d'un système à l'autre. -->
+      <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+      <!-- Fichiers de la discussion : ouvre le panneau de droite. Même gabarit
+           que le dépôt — ce sont les deux faces du même sujet, ce qui entre et
+           ce qui sort. -->
+      <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </button>
+      <!-- Envoi : pastille ronde à flèche, comme la maquette. Le mot « Envoyer »
+           reste porté par aria-label et l'infobulle — l'action garde son nom
+           pour un lecteur d'écran, elle ne l'affiche simplement plus. -->
+      <button id="send" onclick="send()" title="Envoyer" aria-label="Envoyer">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>
+      </button>
+      <button id="stop" onclick="stopGen()" style="display:none" title="Arrêter la génération" aria-label="Arrêter la génération">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
     </div>
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
@@ -1838,7 +2107,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 <div id="files-backdrop" onclick="toggleFiles()"></div>
 <aside id="files" aria-label="Fichiers de cette discussion">
   <div class="files-head">
-    <span class="stitle">Fichiers de la discussion</span>
+    <!-- Titre court : le panneau est déjà nommé par son contexte, et le libellé
+         complet reste porté par l'aria-label de la section. -->
+    <span class="stitle">Fichiers</span>
     <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
     <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
   </div>
@@ -2355,11 +2626,14 @@ function initTheme(){
 // Quatre interrupteurs indépendants. Chacun pose un attribut sur <html> ; le CSS
 // fait le reste, sauf « replier les bulles » qui est un comportement (voir
 // 08-chat-render).
+//
+// « barre latérale escamotable » a disparu d'ici : la refonte l'escamote pour de
+// bon (bouton de l'en-tête, data-side — voir 18-shell.js), au lieu de la
+// transformer en tiroir qui recouvre la conversation.
 const VIEW_OPTS=[
   {id:'hide-reasoning', label:'masquer le raisonnement'},
   {id:'hide-tools',     label:"masquer les appels d'outils"},
   {id:'fold-tools',     label:'garder les bulles repliées'},
-  {id:'hide-side',      label:'barre latérale escamotable'},
   {id:'hide-stats',     label:'masquer la vitesse de génération'},
 ];
 function viewOn(id){ return document.documentElement.getAttribute('data-'+id)==='1'; }
@@ -2367,12 +2641,6 @@ function applyView(id, on){
   document.documentElement.setAttribute('data-'+id, on?'1':'0');
   try{ localStorage.setItem('loki-'+id, on?'1':'0'); }catch(e){}
   const box=document.getElementById('view-'+id); if(box) box.checked=!!on;
-  // La barre latérale peut rester ouverte quand on repasse en mode fixe.
-  if(id==='hide-side' && !on){
-    document.getElementById('side').classList.remove('open');
-    document.getElementById('backdrop').classList.remove('open');
-    document.body.classList.remove('drawer-open');
-  }
 }
 function toggleView(id){ applyView(id, document.getElementById('view-'+id).checked); savePrefs(); }
 function initView(){
@@ -2599,7 +2867,9 @@ async function loadStatus(){
 function toggleSvcLog(){
   const box=document.getElementById('svc-log-box');
   if(!box) return;
-  box.open = !box.open;
+  // openDetails déplie aussi « Réglages » : sans lui, la section s'ouvrait à
+  // l'intérieur d'un repli fermé — donc nulle part, du point de vue de l'écran.
+  if(box.open) box.open = false; else openDetails(box);
 }
 async function loadSvcLog(){
   const el=document.getElementById('svc-log');
@@ -2684,30 +2954,63 @@ function updateCtxMeter(){
   // puisse compacter à la demande avant que l'auto-compaction (75%) ne s'en charge.
   document.getElementById('ctx-compact').style.display = (pct>=50 && CTX_USED>0) ? 'inline-block' : 'none';
 }
+// ─── Moniteur machine (pied de barre latérale) ───────────────────────────────
+// Une jauge par ressource : nom, pourcentage, barre, puis le détail chiffré en
+// dessous. C'est la hiérarchie de la maquette — on lit la charge d'un coup
+// d'œil, et le détail (Gio, température) reste là pour qui le cherche.
+//
+// Construit EN DOM et non en innerHTML : les noms de GPU viennent du pilote,
+// donc d'ailleurs. Même règle que pour les noms de fichiers et les titres de
+// discussions.
+function perfRow(label, pct, sub, title){
+  pct = Math.max(0, Math.min(100, Math.round(pct||0)));
+  const row=document.createElement('div'); row.className='perf-row';
+  if(title) row.title=title;
+  const l=document.createElement('div'); l.className='perf-l';
+  const b=document.createElement('b'); b.textContent=label;
+  const v=document.createElement('span'); v.className='perf-pct'; v.textContent=pct+'%';
+  l.append(b,v);
+  const track=document.createElement('div'); track.className='perf-track';
+  const fill=document.createElement('div');
+  // Sauge jusqu'à 75 %, ambre au-delà, rouille à 90 : la couleur ne sert à rien
+  // tant que la machine respire, elle doit sauter aux yeux quand elle sature.
+  fill.className='perf-fill'+(pct>=90?' max':pct>=75?' hot':'');
+  fill.style.width=pct+'%';
+  track.appendChild(fill);
+  row.append(l,track);
+  if(sub){ const s=document.createElement('div'); s.className='perf-sub'; s.textContent=sub; row.appendChild(s); }
+  return row;
+}
 async function loadVram(){
   const gpus=await jget('/api/vram');
-  // Bloc de statistique : intitulé + valeur sur une ligne, jauge, détail dessous.
-  // Même gabarit que la RAM (voir .stat dans le CSS) — le HTML libre d'avant
-  // collait aux bords de la carte.
-  document.getElementById('vram').innerHTML = (gpus||[]).map(g=>{
-    const pct=Math.round(g.used*100/g.total);
-    return '<div class="stat"><div class="stat-h"><span class="stat-n">'+g.name+'</span>'+
-      '<span class="stat-v">'+(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' GiB</span></div>'+
-      '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
-      '<div class="stat-s">GPU '+g.util+' % · '+g.temp+' °C</div></div>';
-  }).join('') || '<div class="stat"><span class="stat-s">(pas de GPU)</span></div>';
+  const box=document.getElementById('vram');
+  if(!box) return;
+  box.textContent='';
+  if(!gpus || !gpus.length){
+    const d=document.createElement('div'); d.className='perf-sub'; d.textContent='(pas de GPU détecté)';
+    box.appendChild(d);
+    return;
+  }
+  gpus.forEach((g,i)=>{
+    // Le pourcentage affiché est la CHARGE du processeur graphique (ce que
+    // montre la maquette) ; la VRAM, elle, passe en détail sous la barre — deux
+    // mesures distinctes qu'une seule barre ne peut pas porter.
+    const vram=(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' Gio';
+    box.appendChild(perfRow(
+      'GPU '+i+(gpus.length>1?'':'')+' — charge', g.util,
+      vram+' · '+g.temp+' °C', g.name));
+  });
 }
 async function loadRam(){
   const m=await jget('/api/ram');
   const box=document.getElementById('ram-details');
-  if(!m || !m.total){ if(box) box.style.display='none'; return; }
-  if(box) box.style.display='';
-  const pct=Math.round(m.used*100/m.total);
-  document.getElementById('ram').innerHTML =
-    '<div class="stat"><div class="stat-h"><span class="stat-n">Mémoire vive</span>'+
-    '<span class="stat-v">'+(m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' GiB</span></div>'+
-    '<div class="bar"><div style="width:'+pct+'%"></div></div>'+
-    '<div class="stat-s">'+pct+' % utilisée</div></div>';
+  if(!box) return;
+  if(!m || !m.total){ box.style.display='none'; return; }
+  box.style.display='';
+  const host=document.getElementById('ram');
+  host.textContent='';
+  host.appendChild(perfRow('Mémoire vive', m.used*100/m.total,
+    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio'));
 }
 async function loadCfg(){
   // /api/llamacpp en parallèle : il indique si le BIN de la config correspond au
@@ -2782,6 +3085,8 @@ async function loadPresets(){
   const sp = document.getElementById('status-preset');
   sp.textContent = act ? act.name : '';
   sp.title = act ? 'preset actif' : '';
+  // Sélecteur de modèle de l'en-tête : même donnée, autre point d'entrée.
+  if(typeof renderModelSwitch === 'function') renderModelSwitch(p, act);
   const cont=document.getElementById('presets');
   cont.innerHTML='';
   if(!p.length){ cont.innerHTML='<span class="muted">(aucun)</span>'; return; }
@@ -5177,13 +5482,13 @@ async function loadLlamacpp(){
 
     // Job en cours (page rechargée pendant une install) → on raccroche l'affichage.
     if(s.job && s.job.exists && s.job.running && !lcPoll){
-      document.getElementById('lc-details').open = true;
+      openDetails('lc-details');
       lcStartPolling();
     }
     // Job terminé/interrompu qu'on n'a pas encore montré (rechargement APRÈS coup,
     // typiquement quand le service a redémarré) : on l'affiche sans polling.
     else if(s.job && s.job.exists && !s.job.running && !lcPoll && s.job.error && !lcEndShown){
-      document.getElementById('lc-details').open = true;
+      openDetails('lc-details');
       document.getElementById('lc-job').style.display = '';
       lcLogNext = 0;
       document.getElementById('lc-log').textContent = '';
@@ -5222,7 +5527,7 @@ function lcChipOpen(){
   const side = document.getElementById('side');
   if(!side.classList.contains('open')) toggleSide();
   const det = document.getElementById('lc-details');
-  det.open = true;
+  openDetails(det); // déplie aussi « Réglages », qui contient la section
   det.scrollIntoView({block:'center'});
   if(!document.getElementById('lc-chip').classList.contains('failed')) return;
   lcSeenEnd = true;
@@ -5384,7 +5689,7 @@ async function lcInstallCustom(){
   const r = await jpost('/api/llamacpp/install-custom', {repo:url, name});
   if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
   closeCustomBackends();
-  document.getElementById('lc-details').open = true;
+  openDetails('lc-details');
   lcStartPolling();
 }
 
@@ -6196,31 +6501,55 @@ function fmtWhen(sec){
 // Les titres viennent du premier message de l'utilisateur : ils sont construits
 // en DOM (jamais en innerHTML) pour qu'un titre contenant < > & " ne casse ni le
 // balisage ni les gestionnaires d'événement.
+//
+// La liste chargée est GARDÉE en mémoire (CONVS) pour que la recherche filtre
+// sans aller-retour serveur : elle ne porte que des métadonnées — identifiant,
+// titre, dates, nombre d'échanges — jamais les messages.
+
+let CONVS = [], CONV_ACTIVE = '';
 
 async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
+  CONVS = r.conversations || [];
+  CONV_ACTIVE = r.active || '';
+  renderConversations();
+}
+
+function renderConversations(){
   const cont = document.getElementById('conv-list');
   if(!cont) return;
-  cont.innerHTML = '';
-  const list = r.conversations || [];
-  if(!list.length){ cont.innerHTML = '<span class="muted">(aucune)</span>'; return; }
+  const q = (document.getElementById('conv-search')?.value || '').trim().toLowerCase();
+  cont.textContent = '';
+  const list = q
+    ? CONVS.filter(c => (c.title || 'Nouvelle discussion').toLowerCase().includes(q))
+    : CONVS;
+  if(!list.length){
+    const e = document.createElement('div');
+    e.className = 'conv-empty';
+    e.textContent = q ? 'aucune discussion ne correspond' : '(aucune)';
+    cont.appendChild(e);
+    syncTopbarTitle();
+    return;
+  }
   for(const c of list){
     const row = document.createElement('div');
-    row.className = 'preset' + (c.id === r.active ? ' active' : '');
+    row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '');
     row.onclick = () => convSwitch(c.id);
 
     const info = document.createElement('div'); info.className = 'preset-info';
     const nm = document.createElement('div'); nm.className = 'preset-name';
-    if(c.id === r.active){ const d = document.createElement('i'); d.className = 'preset-dot'; nm.appendChild(d); }
     const title = c.title || 'Nouvelle discussion';
     nm.appendChild(document.createTextNode(title));
-    nm.title = title;
-    const meta = document.createElement('div'); meta.className = 'preset-meta';
-    const when = document.createElement('span'); when.className = 'muted';
-    when.textContent = convWhen(c.updated) + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
-    meta.appendChild(when);
-    info.appendChild(nm); info.appendChild(meta);
+    nm.title = title + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
+    info.appendChild(nm);
+
+    // Heure à droite du titre, sur la même ligne (maquette). Elle s'efface au
+    // survol : renommer et supprimer prennent sa place, la ligne ne s'allonge
+    // donc jamais et rien ne se chevauche.
+    const when = document.createElement('span');
+    when.className = 'conv-when';
+    when.textContent = convWhen(c.updated);
 
     // Renommer / supprimer : stopPropagation, sinon le clic bascule aussi.
     const acts = document.createElement('div'); acts.className = 'conv-acts';
@@ -6230,9 +6559,21 @@ async function loadConversations(){
     del.title = 'supprimer'; del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
     acts.appendChild(ren); acts.appendChild(del);
 
-    row.appendChild(info); row.appendChild(acts);
+    row.append(info, when, acts);
     cont.appendChild(row);
   }
+  syncTopbarTitle();
+}
+
+// Titre de l'en-tête : celui de la discussion ouverte. Il dit de quoi on parle
+// quand la barre latérale est escamotée — c'est-à-dire quand on en a besoin.
+function syncTopbarTitle(){
+  const el = document.getElementById('topbar-title');
+  if(!el) return;
+  const cur = CONVS.find(c => c.id === CONV_ACTIVE);
+  const t = (cur && cur.title) || 'Nouvelle discussion';
+  el.textContent = t;
+  el.title = t;
 }
 
 // Date courte : l'heure pour aujourd'hui, la date sinon — une liste de
@@ -6250,6 +6591,8 @@ async function convNew(){
   try{
     await jpost('/api/conversations/new', {});
     toast('nouvelle discussion');
+    const s = document.getElementById('conv-search');
+    if(s) s.value = ''; // sinon la discussion toute neuve est masquée par le filtre
     loadConversations();
   }catch(_){ toast('erreur réseau'); }
 }
@@ -6362,4 +6705,109 @@ function saveIdentity(){
     try{ await jpost('/api/prefs', {user_name: IDENT.name}); }catch(_){ toast('erreur réseau'); }
   }, 500);
 }
+// ─── Coque de l'interface ────────────────────────────────────────────────────
+// Les commandes de la refonte : escamoter la barre latérale, replier le
+// moniteur machine, basculer le thème depuis l'en-tête, changer de modèle sans
+// ouvrir les réglages.
+//
+// Chaque état vit sur <html> (data-side, data-perf, data-theme) et dans
+// localStorage, et il est REPOSÉ AVANT LE RENDU par le script du <head> : sans
+// ça, la barre latérale s'afficherait puis se refermerait sous les yeux à chaque
+// chargement de page.
+
+// Escamotage de la barre latérale (grand écran). Sur téléphone elle est déjà un
+// tiroir — c'est toggleSide() qui s'en charge, et le bouton ☰ qui l'ouvre.
+function toggleSideCollapse(){
+  if(window.innerWidth <= 720){ toggleSide(); return; }
+  const on = document.documentElement.getAttribute('data-side') !== '0';
+  document.documentElement.setAttribute('data-side', on ? '0' : '1');
+  try{ localStorage.setItem('loki-side', on ? '0' : '1'); }catch(_){}
+  // La largeur du fil change sans qu'aucun `resize` ne soit émis : la gouttière
+  // de barre de défilement mesurée dans --sbw resterait celle d'avant, et la
+  // carte de saisie serait décalée du fil.
+  if(typeof syncGutter === 'function') requestAnimationFrame(syncGutter);
+}
+
+// Moniteur machine replié : le pied de barre latérale ne garde que son titre.
+function togglePerf(){
+  const on = document.documentElement.getAttribute('data-perf') !== '0';
+  document.documentElement.setAttribute('data-perf', on ? '0' : '1');
+  try{ localStorage.setItem('loki-perf', on ? '0' : '1'); }catch(_){}
+  const b = document.querySelector('#side-perf .perf-toggle');
+  if(b){
+    b.textContent = on ? '+' : '–';
+    b.title = on ? 'déplier le moniteur' : 'replier le moniteur';
+  }
+}
+
+// Bascule clair/sombre depuis l'en-tête. Elle passe par applyTheme + savePrefs
+// (01-theme.js) pour rester alignée avec l'interrupteur des réglages et avec le
+// serveur — deux chemins vers le même réglage, une seule source de vérité.
+function toggleThemeQuick(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(dark ? 'light' : 'dark');
+  if(typeof savePrefs === 'function') savePrefs();
+}
+
+// Déplie un <details> ET tous ceux qui le contiennent. Depuis que les réglages
+// vivent sous un repli unique, ouvrir une section par programme (journal du
+// moteur, installation llama.cpp) ne suffit plus : elle s'ouvrait à l'intérieur
+// d'un parent fermé, donc invisible.
+function openDetails(el){
+  if(typeof el === 'string') el = document.getElementById(el);
+  while(el){
+    if(el.tagName === 'DETAILS') el.open = true;
+    el = el.parentElement;
+  }
+}
+
+// Sélecteur de modèle de l'en-tête. Il liste les presets ; en choisir un revient
+// à cliquer la ligne correspondante dans les réglages (switchTo demande
+// confirmation puis relance le moteur).
+function onModelSwitch(sel){
+  const n = parseInt(sel.value, 10);
+  if(!n) return;
+  const name = sel.options[sel.selectedIndex].textContent;
+  // La liste est repeinte par loadPresets() une fois la bascule faite (ou
+  // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
+  // pendant les quelques secondes du redémarrage.
+  switchTo(n, name);
+}
+
+// Remplit le sélecteur à partir de la liste de presets déjà chargée par
+// loadPresets() — aucun appel réseau supplémentaire.
+function renderModelSwitch(presets, active){
+  const sel = document.getElementById('model-switch');
+  if(!sel) return;
+  sel.textContent = '';
+  if(!presets || !presets.length){
+    const o = document.createElement('option');
+    o.textContent = 'aucun preset'; o.value = '';
+    sel.appendChild(o); sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  presets.forEach((p, i) => {
+    const o = document.createElement('option');
+    o.value = String(i + 1);
+    o.textContent = p.name;
+    if(active && p.id === active.id) o.selected = true;
+    sel.appendChild(o);
+  });
+  // Aucun preset actif (configuration modifiée à la main) : on le dit, plutôt
+  // que de laisser le premier de la liste passer pour le modèle chargé.
+  if(!active){
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = 'configuration hors preset'; o.selected = true;
+    sel.insertBefore(o, sel.firstChild);
+  }
+}
+
+// État initial des libellés (le CSS, lui, est déjà appliqué par le <head>).
+document.addEventListener('DOMContentLoaded', () => {
+  if(document.documentElement.getAttribute('data-perf') === '0'){
+    const b = document.querySelector('#side-perf .perf-toggle');
+    if(b){ b.textContent = '+'; b.title = 'déplier le moniteur'; }
+  }
+});
 </script></body></html>
