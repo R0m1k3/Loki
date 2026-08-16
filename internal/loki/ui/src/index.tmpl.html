@@ -361,6 +361,12 @@
       <span style="display:flex;align-items:center;gap:8px;margin-left:auto">
         <span id="ctx-text" class="muted">0 / 0</span>
         <button id="ctx-compact" onclick="compactContext()">compacter</button>
+        <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
+             gabarit que le trombone — ce sont les deux faces du même sujet,
+             ce qui entre et ce qui sort. -->
+        <button id="files-btn" onclick="toggleFiles()" title="Fichiers du dossier de travail" aria-label="Fichiers du dossier de travail" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        </button>
         <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
         <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
           <!-- Trombone dessiné en SVG : pas de dépendance à une police d'emoji,
@@ -381,6 +387,24 @@
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
 </div>
+<!-- Fichiers : ce que l'agent a écrit dans son dossier de travail. Panneau de
+     DROITE, symétrique des réglages à gauche, ouvert et fermé par le bouton
+     dossier du pied de carte. Il ne se remplit qu'à l'ouverture (loadFiles) —
+     un ReadDir à chaque chargement de page pour un panneau fermé serait payé
+     par tout le monde et utile à personne. -->
+<div id="files-backdrop" onclick="toggleFiles()"></div>
+<aside id="files" aria-label="Fichiers du dossier de travail">
+  <div class="files-head">
+    <span class="stitle">Fichiers</span>
+    <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
+    <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
+  </div>
+  <!-- Fil d'Ariane : le dossier de travail contient des sous-dossiers (captures
+       par discussion), il faut pouvoir y descendre et en remonter. -->
+  <div id="files-crumb" class="files-crumb"></div>
+  <div id="files-list" class="files-list"></div>
+  <div id="files-foot" class="files-foot muted"></div>
+</aside>
 <div id="toast"></div>
 <div id="bench-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeBenchModal()">
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:100%;max-width:480px;display:flex;flex-direction:column">

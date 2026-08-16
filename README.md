@@ -174,6 +174,12 @@ Ajoutées par ce fork :
   lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
   la montrer, sans prétendre la décrire. L'image relayée au moteur reste
   éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
+- **Panneau Fichiers** (bouton dossier du pied de carte) : ce que l'agent a
+  écrit dans son dossier de travail, avec navigation dans les sous-dossiers,
+  téléchargement et suppression. Un dossier affiche la taille de **tout** son
+  contenu — c'est ce qu'on libère en le supprimant. Le pied donne l'occupation
+  disque totale de l'agent. Les chemins sont bornés au dossier de travail, liens
+  symboliques résolus des deux côtés : rien du reste du disque n'est atteignable.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
 - **Paramètres** : les réglages d'application (identité, apparence, accès

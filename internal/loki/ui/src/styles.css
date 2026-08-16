@@ -1365,3 +1365,72 @@ button:hover{border-color:var(--dim);color:var(--text)}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
 .hf-mm.muted{cursor:default}
+
+/* --- Panneau « Fichiers » (droite) ------------------------------------
+   Symétrique des réglages à gauche : une colonne fixe qui pousse la
+   conversation au lieu de la recouvrir. C'est possible ici parce que la largeur
+   de lecture est pilotée par --measure et que #chat se recentre tout seul dans
+   la place qui reste — le fil se resserre, il ne passe pas dessous.
+   Le panneau est retiré du flux quand il est fermé (et non simplement décalé) :
+   sinon il conserverait sa gouttière et le fil resterait décentré. */
+#files{display:none;width:320px;flex-shrink:0;border-left:1px solid var(--border);
+  background:var(--panel);padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  overflow-y:auto;flex-direction:column;gap:10px}
+html[data-files="1"] #files{display:flex}
+#files-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:14}
+.files-head{display:flex;align-items:center;gap:8px}
+.files-head .stitle{flex:1}
+#files-refresh,#files-close{margin:0;padding:2px 8px;min-height:0;font-size:12px;
+  background:transparent;border:1px solid transparent;color:var(--dim);border-radius:8px}
+#files-refresh:hover,#files-close:hover{border-color:var(--border);color:var(--text)}
+/* Fil d'Ariane : il doit pouvoir revenir à la ligne — un identifiant de
+   discussion dans le chemin dépasse largement 320 px. */
+.files-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:11px}
+.files-crumb-b{margin:0;padding:2px 6px;min-height:0;font-size:11px;border:0;border-radius:7px;
+  background:transparent;color:var(--dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files-crumb-b:hover:not(:disabled){background:var(--row-bg-on);color:var(--text)}
+.files-crumb-b.on{color:var(--text);cursor:default}
+.files-crumb-s{color:var(--dim);opacity:.5}
+.files-list{display:flex;flex-direction:column;flex:1;min-height:0}
+.files-empty{font-size:12px;line-height:1.5;padding:10px 2px}
+/* Une ligne = pastille, nom + méta, actions. Les actions n'apparaissent qu'au
+   survol : au repos on veut lire des noms de fichiers, pas une grille de
+   boutons. Sur écran tactile (pas de survol) elles restent visibles. */
+.files-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;font-size:12px}
+.files-row:hover{background:var(--row-bg-on)}
+.files-ic{flex:none;width:12px;text-align:center;color:var(--dim)}
+.files-row.isdir .files-ic{color:var(--accent)}
+.files-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.files-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.files-meta{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.files-acts{flex:none;display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.files-row:hover .files-acts,.files-row:focus-within .files-acts{opacity:1}
+@media (hover:none){.files-acts{opacity:1}}
+.files-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;
+  border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
+.files-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
+.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border)}
+/* Téléchargement en cours : downloadWorkspaceFile pose .busy sur la ligne. */
+.files-row.busy{opacity:.55;pointer-events:none}
+/* Bouton dossier du composeur : même gabarit que le trombone, et teinté quand
+   le panneau est ouvert — l'état se lit sans regarder à droite. */
+#files-btn{width:18px;height:18px;min-height:18px;flex:none;margin:0;padding:0;
+  display:flex;align-items:center;justify-content:center;border-radius:999px;
+  background:transparent;border:1px solid transparent;color:var(--dim)}
+#files-btn:hover{background:var(--row-bg-on);border-color:transparent;color:var(--text)}
+#files-btn:active{transform:scale(.9)}
+#files-btn svg{display:block}
+html[data-files="1"] #files-btn{color:var(--accent)}
+/* Petit écran : tiroir par la droite, comme les réglages par la gauche. Pousser
+   une colonne de 320 px sur un téléphone ne laisserait rien à la conversation. */
+@media (max-width:720px){
+  #files{position:fixed;inset:0 0 0 auto;width:85%;max-width:340px;z-index:15;
+    background:var(--bg);padding-top:calc(16px + env(safe-area-inset-top));
+    padding-right:calc(16px + env(safe-area-inset-right))}
+  html[data-files="1"] #files-backdrop{display:block}
+}
+@media (min-width:721px){
+  /* Dans la charte « Terre », le panneau est une carte comme les autres. */
+  #files{background:var(--panel);border-left-color:transparent;border-radius:20px;
+    box-shadow:var(--shadow);margin:0}
+}
