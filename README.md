@@ -186,6 +186,10 @@ Retirées par ce fork :
   propre réseau n'en a pas l'usage. Le code serveur du relais reste en place
   mais **inerte** (aucun jeton, aucune section pour en fournir un) : le retirer
   créerait un conflit à chaque reprise de l'amont.
+- **Postes distants** (faire agir l'agent sur un autre PC appairé) : bouton du
+  composeur, modales d'appairage et module JS supprimés. Même traitement que
+  ci-dessus — les routes `/api/node/*` subsistent mais plus rien ne peut
+  générer de code d'appairage, donc aucun poste ne peut se connecter.
 - **Catalogue de modèles distant** : il interrogeait `ajean.link/models.json`,
   sa route n'avait aucun consommateur et son repli embarqué datait de 2024. La
   recherche Hugging Face le remplace.

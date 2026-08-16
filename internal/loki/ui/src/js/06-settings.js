@@ -488,10 +488,13 @@ async function clearCrawlKey(){
   toast('clé retirée');
 }
 async function loadAll(){
-  // allSettled et pas all : un seul chargement en échec (accès distant coupé,
-  // clé API absente…) ne doit pas empêcher la suite — et surtout pas laisser les
-  // hauteurs réservées en place pour toujours.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadNode(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp()]);
+  // allSettled et pas all : un seul chargement en échec (moteur arrêté, clé API
+  // absente…) ne doit pas empêcher la suite — et surtout pas laisser les
+  // hauteurs réservées en place pour toujours. ⚠️ Le revers : une fonction
+  // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
+  // suppression de module doit donc retirer son appel de cette ligne, et le test
+  // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
