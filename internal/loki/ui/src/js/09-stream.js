@@ -22,7 +22,10 @@ function addPending(text){
   clearPending();
   PENDING=addMsg('user', text);
   PENDING.classList.add('pending');
-  const l=PENDING.querySelector('.label'); if(l) l.textContent='envoi…';
+  // L'étiquette garde l'avatar et le prénom (paintLabel, posé par addMsg) : une
+  // bulle ne doit JAMAIS s'appeler autrement d'un tour à l'autre. L'envoi en
+  // cours se lit à la bulle grisée (.pending) et à l'infobulle.
+  const l=PENDING.querySelector('.label'); if(l) l.title='envoi en cours…';
   jumpBottom();
   return PENDING;
 }
@@ -33,7 +36,11 @@ function confirmPending(text){
   const b=PENDING.querySelector('.body');
   if(!b || b.textContent!==text) return false;
   PENDING.classList.remove('pending');
-  const l=PENDING.querySelector('.label'); if(l) l.textContent='user';
+  // ⚠️ NE PAS réécrire l'étiquette ici : elle porte l'avatar et le prénom
+  // (17-identity.js). Elle y était remise à « user », si bien que le message
+  // qu'on venait d'envoyer s'affichait « USER » alors que ceux rejoués au
+  // chargement portaient le prénom — deux bulles identiques, deux libellés.
+  const l=PENDING.querySelector('.label'); if(l) l.removeAttribute('title');
   PENDING=null;
   return true;
 }
@@ -114,8 +121,14 @@ function renderStats(el, s){
 function labelTokens(el, role, n, firstTs, lastTs){
   if(!el) return;
   const secs=(lastTs-firstTs)/1000;
-  if(secs>0.05 && n>1){ setLabel(el, role+'  ·  '+n+' tok  ·  '+(n/secs).toFixed(1)+' tok/s'); }
-  else { setLabel(el, role+'  ·  '+n+' tok'); }
+  const m = (secs>0.05 && n>1) ? n+' tok  ·  '+(n/secs).toFixed(1)+' tok/s' : n+' tok';
+  // Bulle technique : son étiquette EST le bouton de repli, les mesures y vont.
+  // Réponse de l'assistant : son étiquette porte l'avatar et le nom, les mesures
+  // vont dans la ligne dédiée — comme le font déjà les stats de fin de tour
+  // (applyStats). Sans ce partage, le libellé « Loki » était remplacé en direct
+  // par « assistant · 75 tok · 21.5 tok/s », et ne revenait qu'au rechargement.
+  if(el.classList.contains('collapsible')) setLabel(el, role+'  ·  '+m);
+  else setStats(el, m);
 }
 // Pendant le replay on met à jour l'état `busy` mais on NE touche PAS aux boutons
 // (sinon user→stop puis turn_done→send à chaque tour rejoué = flottement visible).

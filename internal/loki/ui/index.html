@@ -162,7 +162,6 @@ option,optgroup{background:var(--panel);color:var(--text)}
   .msg{max-width:92%}
   #chat .msg.assistant,#chat .msg.reasoning{max-width:100%}
   #inputbar{padding:8px;gap:4px}
-  #send,#stop{padding:0 12px}
   /* Petit écran (menu replié en tiroir) : on masque l'aide clavier — inutile et
      ça prend de la place. Elle reste visible sur desktop. */
   #sendhint{display:none}
@@ -675,7 +674,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 #sendhint.waiting{opacity:1;color:var(--dim)}
 #input{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit;resize:none;min-height:56px;max-height:200px;overflow-y:hidden}
 #input:focus{outline:none;border-color:var(--accent)}
-#send{padding:0 20px}
 .muted{color:var(--dim);font-size:13px}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;background:var(--panel);border:1px solid var(--border);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.18)}
 #toast.show{opacity:1}
@@ -707,7 +705,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
   /* PAS de font-size < 16px ici : iOS Safari zoome à la sélection du champ. On
      garde 16px (hérité de la règle anti-zoom) et on compacte via hauteur/padding. */
   #input{min-height:34px;max-height:120px;padding:6px 9px}
-  #send,#stop{padding:0 14px}
   #composer .muted{display:none}
   #ctxmeta{padding:3px 10px 0}
   h1{font-size:15px}
@@ -1105,9 +1102,6 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
 /* Pas de cadre qui s'assombrit au focus : la carte garde exactement la même
    bordure, seule la saisie change (curseur). */
 #input:focus{border-color:transparent}
-#send,#stop{border-radius:999px;height:36px;min-height:36px;padding:0 18px;margin:0}
-#send{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:600}
-#send:hover:not(:disabled){opacity:.85;color:var(--bg);border-color:var(--text)}
 /* Pied de carte : c'est LUI qui porte l'arrondi bas (26 px, comme en haut) et
    qui clippe la jauge. Un bandeau de 7 px ne peut pas dessiner un rayon de 26 px
    (le navigateur l'écrase, d'où les coins bizarres) : on laisse donc la carte
@@ -1318,10 +1312,6 @@ button:hover{border-color:var(--dim);color:var(--text)}
 /* Action principale en sauge : c'est la couleur d'action de la charte, et elle
    se distingue enfin du texte (le bouton reprenait --text, donc un brun sombre
    indistinct du reste). L'arrêt, lui, reste en terre cuite. */
-#send{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-#send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--on-accent);opacity:.88}
-#stop{background:var(--err);border-color:var(--err);color:var(--on-err)}
-#stop:hover{background:var(--err);border-color:var(--err);color:var(--on-err);opacity:.88}
 
 /* --- Terre : largeur de lecture --------------------------------------
    La mesure était plafonnée à 760 px et centrée sur la fenêtre : sur un écran
@@ -1622,23 +1612,33 @@ button:active:not(:disabled){transform:translateY(1px)}
    maquette, et elle laisse toute la largeur au texte. Le mot « Envoyer » reste
    porté par aria-label et par l'infobulle — l'action n'est pas moins nommée
    pour un lecteur d'écran, elle l'est moins à l'écran. */
-#send,#stop{width:34px;height:34px;min-height:34px;padding:0;border-radius:999px;
-  display:inline-flex;align-items:center;justify-content:center;flex:none}
-#send svg,#stop svg{display:block}
-#send{background:transparent;border-color:transparent;color:var(--accent)}
-#send:hover:not(:disabled){opacity:1;transform:none;background:var(--accent-bg);color:var(--accent)}
-#send:active:not(:disabled){transform:scale(.92)}
-#send:disabled{background:transparent;color:var(--dim)}
-#stop{background:transparent;border-color:transparent;color:var(--err)}
-#stop:hover{opacity:1;background:var(--danger-bg);color:var(--err)}
+/* Les QUATRE boutons de la barre de saisie — joindre, fichiers, envoyer,
+   arrêter — sont un seul et même objet : 34x34, coins doux (jamais un rond :
+   la maquette n'en a pas), icône de 18 px centrée, fond seulement au survol.
+   Seule la couleur les distingue : atténué pour les secondaires, sauge pour
+   l'envoi, rouille pour l'arrêt.
+   ⚠️ Une seule règle pour les quatre. Il y en avait trois générations empilées
+   (pilule large « Envoyer », aplat noir, aplat sauge) : chaque état tirait sa
+   taille, sa forme et son alignement d'une couche différente. */
+#inputbar #attach,#inputbar #files-btn,#send,#stop{
+  width:34px;height:34px;min-height:34px;flex:none;margin:0;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;align-self:center;
+  border:0;border-radius:10px;background:transparent;color:var(--dim);
+  transition:background .15s ease,color .15s ease,transform .08s ease}
+#inputbar #attach svg,#inputbar #files-btn svg,#send svg,#stop svg{display:block;width:18px;height:18px}
+#inputbar #attach:hover,#inputbar #files-btn:hover{background:var(--row-bg-on);color:var(--text)}
+html[data-files="1"] #files-btn{color:var(--accent)}
+#send{color:var(--accent)}
+#send:hover:not(:disabled){background:var(--accent-bg);color:var(--accent);opacity:1;transform:none}
+#send:disabled{background:transparent;color:var(--dim);opacity:.45}
+#stop{color:var(--err)}
+#stop:hover{background:var(--danger-bg);color:var(--err);opacity:1}
+#inputbar #attach:active,#inputbar #files-btn:active,#send:active:not(:disabled),#stop:active{transform:scale(.92)}
 /* Les outils de la saisie (joindre, fichiers, envoyer) montent DANS la pilule,
    à droite du texte : c'est là qu'on les cherche, et le pied de carte redevient
    ce qu'il doit être — une jauge de contexte, rien d'autre. */
 #inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow-card)}
 #composer:focus-within #inputbar,#composer:focus-within #ctxmeta{border-color:var(--accent-soft)}
-#inputbar #attach,#inputbar #files-btn{width:34px;height:34px;min-height:34px;border-radius:999px;
-  align-self:center}
-#inputbar #attach svg,#inputbar #files-btn svg{width:16px;height:16px}
 #ctxmeta{padding-bottom:12px}
 #ctxtrack{border-radius:999px}
 
@@ -2086,22 +2086,22 @@ button:active:not(:disabled){transform:translateY(1px)}
       <!-- Joindre un fichier. Icône dessinée en SVG : pas de dépendance à une
            police d'emoji, dont le rendu varie énormément d'un système à l'autre. -->
       <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       </button>
       <!-- Fichiers de la discussion : ouvre le panneau de droite. Même gabarit
            que le dépôt — ce sont les deux faces du même sujet, ce qui entre et
            ce qui sort. -->
       <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       </button>
       <!-- Envoi : pastille ronde à flèche, comme la maquette. Le mot « Envoyer »
            reste porté par aria-label et l'infobulle — l'action garde son nom
            pour un lecteur d'écran, elle ne l'affiche simplement plus. -->
       <button id="send" onclick="send()" title="Envoyer" aria-label="Envoyer">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" stroke="none" aria-hidden="true"><path d="M3.2 20.6 21.5 12 3.2 3.4l.02 6.69L16 12 3.22 13.9z"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l.02 6.53L15.5 12 3.42 13.87z"/></svg>
       </button>
       <button id="stop" onclick="stopGen()" style="display:none" title="Arrêter la génération" aria-label="Arrêter la génération">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>
       </button>
     </div>
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
@@ -5177,7 +5177,10 @@ function addPending(text){
   clearPending();
   PENDING=addMsg('user', text);
   PENDING.classList.add('pending');
-  const l=PENDING.querySelector('.label'); if(l) l.textContent='envoi…';
+  // L'étiquette garde l'avatar et le prénom (paintLabel, posé par addMsg) : une
+  // bulle ne doit JAMAIS s'appeler autrement d'un tour à l'autre. L'envoi en
+  // cours se lit à la bulle grisée (.pending) et à l'infobulle.
+  const l=PENDING.querySelector('.label'); if(l) l.title='envoi en cours…';
   jumpBottom();
   return PENDING;
 }
@@ -5188,7 +5191,11 @@ function confirmPending(text){
   const b=PENDING.querySelector('.body');
   if(!b || b.textContent!==text) return false;
   PENDING.classList.remove('pending');
-  const l=PENDING.querySelector('.label'); if(l) l.textContent='user';
+  // ⚠️ NE PAS réécrire l'étiquette ici : elle porte l'avatar et le prénom
+  // (17-identity.js). Elle y était remise à « user », si bien que le message
+  // qu'on venait d'envoyer s'affichait « USER » alors que ceux rejoués au
+  // chargement portaient le prénom — deux bulles identiques, deux libellés.
+  const l=PENDING.querySelector('.label'); if(l) l.removeAttribute('title');
   PENDING=null;
   return true;
 }
@@ -5269,8 +5276,14 @@ function renderStats(el, s){
 function labelTokens(el, role, n, firstTs, lastTs){
   if(!el) return;
   const secs=(lastTs-firstTs)/1000;
-  if(secs>0.05 && n>1){ setLabel(el, role+'  ·  '+n+' tok  ·  '+(n/secs).toFixed(1)+' tok/s'); }
-  else { setLabel(el, role+'  ·  '+n+' tok'); }
+  const m = (secs>0.05 && n>1) ? n+' tok  ·  '+(n/secs).toFixed(1)+' tok/s' : n+' tok';
+  // Bulle technique : son étiquette EST le bouton de repli, les mesures y vont.
+  // Réponse de l'assistant : son étiquette porte l'avatar et le nom, les mesures
+  // vont dans la ligne dédiée — comme le font déjà les stats de fin de tour
+  // (applyStats). Sans ce partage, le libellé « Loki » était remplacé en direct
+  // par « assistant · 75 tok · 21.5 tok/s », et ne revenait qu'au rechargement.
+  if(el.classList.contains('collapsible')) setLabel(el, role+'  ·  '+m);
+  else setStats(el, m);
 }
 // Pendant le replay on met à jour l'état `busy` mais on NE touche PAS aux boutons
 // (sinon user→stop puis turn_done→send à chaque tour rejoué = flottement visible).
