@@ -1853,7 +1853,15 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    de la colonne. */
 #side-scroll{padding:0 12px 12px}
 #side-scroll>details>summary,#side-settings>summary{padding:0 2px}
-#side-settings>.sidegroup{padding:0}
+/* ⚠️ La gouttière INTÉRIEURE de la carte n'est pas décorative. En la mettant à
+   zéro (le retrait extérieur venant désormais de #side-scroll), les lignes
+   allaient d'un bord à l'autre : le chevron de chaque section tombait dans le
+   congé de 20 px, donc il en débordait visuellement sur la première et la
+   dernière ligne, et les filets de séparation venaient buter dans la courbe.
+   Le rayon paraissait « trop fort » alors que c'est le contenu qui n'avait plus
+   de quoi s'en écarter. On reprend le retrait d'avant la refonte (16 px), qui
+   laisse au congé la place de tourner à vide. */
+#side-settings>.sidegroup{padding:2px 16px}
 @media (max-width:720px){
   #side-scroll{padding-left:calc(12px + env(safe-area-inset-left))}
 }
