@@ -154,8 +154,9 @@ function handleDelta(d){
     return; }
   // `reset` = fil vidé OU bascule de discussion (même mécanisme d'epoch côté
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
-  // a pu être déclenchée depuis un autre appareil.
-  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); return; }
+  // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
+  // appartiennent à la discussion, le panneau doit changer avec elle.
+  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;

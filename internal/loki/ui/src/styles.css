@@ -1409,7 +1409,14 @@ html[data-files="1"] #files{display:flex}
 .files-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;
   border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
 .files-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
-.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border)}
+.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Détour « hors discussion » : discret, en pied de panneau — c'est une sortie de
+   secours pour les fichiers d'avant le rangement par discussion, pas une vue
+   qu'on propose au même rang que la discussion ouverte. */
+.files-scope{margin:0;padding:2px 6px;min-height:0;font-family:var(--mono);font-size:10px;
+  background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--dim)}
+.files-scope:hover{color:var(--text);background:var(--row-bg-on)}
 /* Téléchargement en cours : downloadWorkspaceFile pose .busy sur la ligne. */
 .files-row.busy{opacity:.55;pointer-events:none}
 /* Bouton dossier du composeur : même gabarit que le trombone, et teinté quand

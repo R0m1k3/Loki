@@ -149,7 +149,7 @@ func machineSystemPrompt(caps Caps) string {
 	if u, err := user.Current(); err == nil {
 		who = u.Username
 	}
-	cwd := agentWorkspace()
+	cwd := convWorkspace()
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Machine: host=%s, %s/%s", host, runtime.GOOS, runtime.GOARCH))
@@ -185,16 +185,17 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	ctx, cancel := context.WithTimeout(parent, time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 	cmd := newShellCmd(ctx, command)
-	// Le shell démarre dans le workspace, pas dans le dossier d'où loki a été
-	// lancé : un `> notes.txt` du modèle ne doit pas atterrir sur le Bureau.
+	// Le shell démarre dans le dossier de la discussion ouverte, pas dans le
+	// dossier d'où loki a été lancé : un `> notes.txt` du modèle ne doit pas
+	// atterrir sur le Bureau, ni dans une AUTRE discussion.
 	//
-	// Le dossier est résolu UNE fois par process (agentWorkspace), donc s'il
-	// disparaît ensuite — l'utilisateur fait le ménage, ou le modèle lui-même le
+	// La racine est résolue UNE fois par process (agentWorkspace), donc si elle
+	// disparaît ensuite — l'utilisateur fait le ménage, ou le modèle lui-même la
 	// supprime — toutes les commandes suivantes échouaient sur un « chdir : no
 	// such file or directory » incompréhensible, et ce jusqu'au redémarrage. On
 	// le recrée au besoin, et à défaut on démarre là où on peut plutôt que de
 	// tout refuser.
-	if ws := agentWorkspace(); ws != "" {
+	if ws := convWorkspace(); ws != "" {
 		if err := os.MkdirAll(ws, 0o755); err == nil {
 			cmd.Dir = ws
 		}

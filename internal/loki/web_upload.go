@@ -1,9 +1,10 @@
 // web_upload.go — dépôt de fichiers depuis le chat.
 //
 // L'utilisateur glisse un fichier dans le composeur ; il est écrit dans
-// uploads/ à l'intérieur du workspace de l'agent (chat_workspace.go), et son
-// chemin RELATIF est joint au message. Le modèle en fait ce qu'il veut avec ses
-// outils (read, bash, edit) — on ne tente ni extraction ni interprétation ici.
+// uploads/ à l'intérieur du dossier de la DISCUSSION ouverte (chat_convfiles.go),
+// et son chemin RELATIF est joint au message. Le modèle en fait ce qu'il veut
+// avec ses outils (read, bash, edit) — on ne tente ni extraction ni
+// interprétation ici.
 //
 // Le transport est du JSON base64, et non du multipart : c'est la seule forme
 // qui traverse le tunnel E2E d'app.ajean.link (relay_e2e.go ne dispatche que des
@@ -43,9 +44,11 @@ const (
 	downloadChunkMax = 8 << 20
 )
 
-// uploadsDir renvoie (en le créant) le dossier de dépôt, dans le workspace agent.
+// uploadsDir renvoie (en le créant) le dossier de dépôt de la discussion
+// ouverte. Un fichier joint appartient à la discussion où il a été déposé : il
+// n'apparaît pas dans les autres et part avec elle.
 func uploadsDir() (string, error) {
-	dir := filepath.Join(agentWorkspace(), "uploads")
+	dir := filepath.Join(convWorkspace(), uploadsSub)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -233,22 +236,7 @@ func userMessageContent(files []attachInfo, prompt string) any {
 // on lui donne un chemin absolu (voir resolveAgentPath) ; ouvrir le téléchargement
 // à ces fichiers-là ferait de /api/chat/file un « lis-moi ce fichier du serveur »
 // à usage général — l'API n'a pas forcément de clé et écoute sur 0.0.0.0.
-func workspaceRel(abs string) (string, bool) {
-	root := agentWorkspace()
-	// EvalSymlinks des deux côtés : sans ça, un lien qui sort du dossier passerait
-	// le test de préfixe.
-	if r, err := filepath.EvalSymlinks(root); err == nil {
-		root = r
-	}
-	if a, err := filepath.EvalSymlinks(abs); err == nil {
-		abs = a
-	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", false
-	}
-	return filepath.ToSlash(rel), true
-}
+func workspaceRel(abs string) (string, bool) { return relWithin(agentWorkspace(), abs) }
 
 // e2eInnerHeader marque une requête dispatchée depuis le proxy chiffré
 // (relay_e2e.go). Cf. handleChatFile : c'est le seul moyen pour un handler de
@@ -275,10 +263,10 @@ func handleChatFile(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "chemin manquant"})
 		return
 	}
-	// Un chemin ABSOLU fourni par le client ne doit pas être suivi : on le traite
-	// comme relatif au dossier de travail, et le contrôle ci-dessous tranche.
-	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(rel))
-	if _, ok := workspaceRel(abs); !ok {
+	// Un chemin ABSOLU fourni par le client ne doit pas être suivi : workspaceFile
+	// le traite comme relatif au dossier de la discussion et tranche lui-même.
+	abs, ok := workspaceFile(rel)
+	if !ok {
 		sendJSON(w, 403, map[string]any{"ok": false, "error": "hors du dossier de travail"})
 		return
 	}
@@ -356,8 +344,8 @@ func handleChatImage(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "chemin manquant"})
 		return
 	}
-	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(rel))
-	if _, ok := workspaceRel(abs); !ok {
+	abs, ok := workspaceFile(rel)
+	if !ok {
 		sendJSON(w, 403, map[string]any{"ok": false, "error": "hors du dossier de travail"})
 		return
 	}
@@ -595,19 +583,30 @@ func handleChatUpload(w http.ResponseWriter, r *http.Request) {
 // cleanStaleUploadParts efface les .part laissés par un envoi que le process n'a
 // pas pu terminer (arrêt du service, crash). Appelé au démarrage : les sessions
 // vivent en mémoire, aucun de ces fichiers n'est reprenable.
+//
+// Le balayage couvre TOUTES les discussions, pas seulement l'active : un envoi
+// coupé dans une discussion qu'on ne rouvrira jamais laisserait sinon son .part
+// occuper le disque pour toujours.
 func cleanStaleUploadParts() {
-	dir, err := uploadsDir()
-	if err != nil {
-		return
+	dirs := []string{filepath.Join(agentWorkspace(), uploadsSub)} // dépôts d'avant le rangement par discussion
+	convs := filepath.Join(agentWorkspace(), convFilesRoot)
+	if ents, err := os.ReadDir(convs); err == nil {
+		for _, e := range ents {
+			if e.IsDir() {
+				dirs = append(dirs, filepath.Join(convs, e.Name(), uploadsSub))
+			}
+		}
 	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		n := e.Name()
-		if !e.IsDir() && strings.HasPrefix(n, ".upload-") && strings.HasSuffix(n, ".part") {
-			os.Remove(filepath.Join(dir, n))
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			n := e.Name()
+			if !e.IsDir() && strings.HasPrefix(n, ".upload-") && strings.HasSuffix(n, ".part") {
+				os.Remove(filepath.Join(dir, n))
+			}
 		}
 	}
 }

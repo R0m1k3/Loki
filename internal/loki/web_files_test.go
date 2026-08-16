@@ -10,11 +10,17 @@ import (
 	"testing"
 )
 
-// withWorkspace pointe le dossier de travail sur un dossier temporaire. Le
-// chemin est mémoïsé par un sync.Once (chat_workspace.go), donc on force la
-// variable directement — c'est le seul moyen d'isoler ces tests.
+// withWorkspace pointe le dossier de travail sur un dossier temporaire et rend
+// le dossier de la discussion ACTIVE — celui où atterrissent les fichiers et
+// que le panneau ouvre. Le chemin de la racine est mémoïsé par un sync.Once
+// (chat_workspace.go), donc on force la variable directement : c'est le seul
+// moyen d'isoler ces tests.
+//
+// testHome donne au passage une base à part : la discussion active s'y lit, et
+// aucun test ne doit toucher celle de la machine qui les fait tourner.
 func withWorkspace(t *testing.T) string {
 	t.Helper()
+	testHome(t)
 	dir := t.TempDir()
 	// EvalSymlinks : sur macOS /var est un lien vers /private/var, et
 	// workspaceRel compare des chemins résolus. Sans ça tout serait « hors du
@@ -29,7 +35,7 @@ func withWorkspace(t *testing.T) string {
 	prevPath := agentWorkspace()
 	workspacePath = dir
 	t.Cleanup(func() { workspacePath = prevPath })
-	return dir
+	return convWorkspace()
 }
 
 func writeFile(t *testing.T, path, body string) {

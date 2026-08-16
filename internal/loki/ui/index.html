@@ -1435,7 +1435,14 @@ html[data-files="1"] #files{display:flex}
 .files-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;
   border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
 .files-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
-.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border)}
+.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Détour « hors discussion » : discret, en pied de panneau — c'est une sortie de
+   secours pour les fichiers d'avant le rangement par discussion, pas une vue
+   qu'on propose au même rang que la discussion ouverte. */
+.files-scope{margin:0;padding:2px 6px;min-height:0;font-family:var(--mono);font-size:10px;
+  background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--dim)}
+.files-scope:hover{color:var(--text);background:var(--row-bg-on)}
 /* Téléchargement en cours : downloadWorkspaceFile pose .busy sur la ligne. */
 .files-row.busy{opacity:.55;pointer-events:none}
 /* Bouton dossier du composeur : même gabarit que le trombone, et teinté quand
@@ -1799,7 +1806,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
              gabarit que le trombone — ce sont les deux faces du même sujet,
              ce qui entre et ce qui sort. -->
-        <button id="files-btn" onclick="toggleFiles()" title="Fichiers du dossier de travail" aria-label="Fichiers du dossier de travail" aria-expanded="false">
+        <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         </button>
         <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
@@ -1822,20 +1829,21 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
 </div>
-<!-- Fichiers : ce que l'agent a écrit dans son dossier de travail. Panneau de
-     DROITE, symétrique des réglages à gauche, ouvert et fermé par le bouton
-     dossier du pied de carte. Il ne se remplit qu'à l'ouverture (loadFiles) —
-     un ReadDir à chaque chargement de page pour un panneau fermé serait payé
-     par tout le monde et utile à personne. -->
+<!-- Fichiers : ce qui appartient à la DISCUSSION ouverte — pièces jointes
+     déposées, captures, ce que l'agent y a écrit. Panneau de DROITE, symétrique
+     des réglages à gauche, ouvert et fermé par le bouton dossier du pied de
+     carte. Il ne se remplit qu'à l'ouverture (loadFiles) — un ReadDir à chaque
+     chargement de page pour un panneau fermé serait payé par tout le monde et
+     utile à personne. -->
 <div id="files-backdrop" onclick="toggleFiles()"></div>
-<aside id="files" aria-label="Fichiers du dossier de travail">
+<aside id="files" aria-label="Fichiers de cette discussion">
   <div class="files-head">
-    <span class="stitle">Fichiers</span>
+    <span class="stitle">Fichiers de la discussion</span>
     <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
     <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
   </div>
-  <!-- Fil d'Ariane : le dossier de travail contient des sous-dossiers (captures
-       par discussion), il faut pouvoir y descendre et en remonter. -->
+  <!-- Fil d'Ariane : le dossier de la discussion a des sous-dossiers (uploads,
+       captures), il faut pouvoir y descendre et en remonter. -->
   <div id="files-crumb" class="files-crumb"></div>
   <div id="files-list" class="files-list"></div>
   <div id="files-foot" class="files-foot muted"></div>
@@ -4718,9 +4726,18 @@ function addCopyButtons(root){
     pre.appendChild(btn);
   });
 }
-// Nouvelle conversation POUR TOUS LES APPAREILS : le serveur vide le fil et
+// Vider la discussion POUR TOUS LES APPAREILS : le serveur vide le fil et
 // diffuse un {reset} ; le flux d'abonnement nettoie alors l'affichage.
-function resetChat(){ jfetch('/api/chat/reset',{method:'POST'}).catch(()=>{}); toast('nouvelle conversation'); }
+//
+// Confirmé, car le geste emporte aussi les FICHIERS de la discussion (dépôts,
+// captures, ce que l'agent y a écrit) : ils n'appartiennent qu'à elle, et plus
+// un message ne les mentionnerait.
+async function resetChat(){
+  if(!await askConfirm('Le fil de cette discussion et ses fichiers (pièces jointes, captures, fichiers écrits par l\'agent) seront effacés.\n\nC\'est définitif.',
+      {title:'Vider la discussion', okText:'Vider', danger:true})) return;
+  jfetch('/api/chat/reset',{method:'POST'}).catch(()=>{});
+  toast('discussion vidée');
+}
 // Compaction : on demande à l'IA un résumé de la conversation destiné à la
 // reprendre dans une session neuve, puis on repart d'un contexte propre seedé
 // avec ce résumé. Réduit drastiquement les tokens tout en gardant le fil.
@@ -4975,8 +4992,9 @@ function handleDelta(d){
     return; }
   // `reset` = fil vidé OU bascule de discussion (même mécanisme d'epoch côté
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
-  // a pu être déclenchée depuis un autre appareil.
-  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); return; }
+  // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
+  // appartiennent à la discussion, le panneau doit changer avec elle.
+  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;
@@ -5948,11 +5966,17 @@ async function attachPaths(){
   return ATTACH.filter(a=>a.state==='ok'&&a.path).map(a=>a.path);
 }
 renderAttach();
-// ─── Fichiers du dossier de travail ──────────────────────────────────────────
+// ─── Fichiers de la discussion ───────────────────────────────────────────────
 // L'agent écrit des rapports, des scripts, des exports, des captures. Jusqu'ici
 // on ne pouvait récupérer un fichier que si le modèle avait pensé à en mettre le
 // lien dans sa réponse — tout le reste restait invisible, et faire le ménage
 // demandait un shell.
+//
+// Le panneau montre les fichiers de la discussion OUVERTE, et rien d'autre :
+// chaque discussion a son dossier côté serveur (chat_convfiles.go), changer de
+// discussion change donc la liste, et supprimer une discussion emporte ses
+// fichiers. `FILES_SCOPE = 'legacy'` ouvre le détour « hors discussion » : les
+// fichiers d'avant ce rangement, que la migration n'a pas su rattacher.
 //
 // Le panneau est construit EN DOM, jamais en innerHTML : les noms de fichiers
 // viennent du modèle et du système de fichiers, donc d'ailleurs. Même règle que
@@ -5961,7 +5985,8 @@ renderAttach();
 // Le téléchargement réutilise downloadWorkspaceFile (14-attach.js), qui sait
 // déjà gérer le blob et les cas particuliers du navigateur.
 
-let FILES_DIR = '';   // dossier affiché, relatif au dossier de travail
+let FILES_DIR = '';   // dossier affiché, relatif à la racine du panneau
+let FILES_SCOPE = ''; // '' = discussion ouverte, 'legacy' = fichiers hors discussion
 let FILES_OPEN = false;
 
 // Ouvre/ferme le panneau. L'état est persisté : sur un grand écran on garde
@@ -5994,7 +6019,7 @@ async function loadFiles(dir){
   const foot = document.getElementById('files-foot');
   if(!list) return;
   let r;
-  try{ r = await jget('/api/chat/files?dir='+encodeURIComponent(FILES_DIR)); }
+  try{ r = await jget('/api/chat/files?dir='+encodeURIComponent(FILES_DIR)+'&scope='+encodeURIComponent(FILES_SCOPE)); }
   catch(_){ filesMsg('lecture impossible'); return; }
   if(!r.ok){
     // Un dossier supprimé entre deux affichages (par l'agent, ou depuis un autre
@@ -6008,13 +6033,40 @@ async function loadFiles(dir){
   if(!r.entries.length){
     const d = document.createElement('div');
     d.className = 'files-empty muted';
-    d.textContent = FILES_DIR ? '(dossier vide)' : "L'agent n'a encore rien écrit ici.";
+    d.textContent = FILES_DIR ? '(dossier vide)'
+      : (FILES_SCOPE === 'legacy' ? '(plus rien hors discussion)'
+                                  : "Rien dans cette discussion — les fichiers déposés et ceux que l'agent écrit apparaissent ici.");
     list.appendChild(d);
   }
   for(const e of r.entries) list.appendChild(fileRow(e));
 
-  foot.textContent = r.count + (r.count > 1 ? ' fichiers · ' : ' fichier · ') + fmtSize(r.total);
+  renderFoot(foot, r);
+}
+
+// Pied : occupation disque de ce qui est affiché — la discussion ouverte, ou le
+// hors-discussion — et le va-et-vient entre les deux. Le bouton n'apparaît que
+// s'il reste vraiment quelque chose hors discussion (compté par le serveur), et
+// disparaît de lui-même une fois le ménage fait.
+function renderFoot(foot, r){
+  if(!foot) return;
+  foot.textContent = '';
+  const n = document.createElement('span');
+  n.textContent = r.count + (r.count > 1 ? ' fichiers · ' : ' fichier · ') + fmtSize(r.total);
+  foot.appendChild(n);
   foot.title = r.root || '';
+  if(FILES_SCOPE !== 'legacy' && !r.legacy) return;
+  const b = document.createElement('button');
+  b.className = 'files-scope';
+  if(FILES_SCOPE === 'legacy'){
+    b.textContent = '← cette discussion';
+    b.title = 'revenir aux fichiers de la discussion ouverte';
+    b.onclick = ()=>{ FILES_SCOPE = ''; loadFiles(''); };
+  } else {
+    b.textContent = 'hors discussion (' + r.legacy + ')';
+    b.title = "fichiers d'avant le rangement par discussion";
+    b.onclick = ()=>{ FILES_SCOPE = 'legacy'; loadFiles(''); };
+  }
+  foot.appendChild(b);
 }
 
 function filesMsg(txt){
@@ -6026,7 +6078,9 @@ function filesMsg(txt){
   list.appendChild(d);
 }
 
-// Fil d'Ariane : « travail / captures / <id> », chaque segment cliquable.
+// Fil d'Ariane : « discussion / captures », chaque segment cliquable. La racine
+// est le dossier de la discussion ouverte — on n'en sort pas, sauf par le
+// détour « hors discussion », qui a sa propre racine.
 function renderCrumb(r){
   const c = document.getElementById('files-crumb');
   c.textContent = '';
@@ -6039,7 +6093,7 @@ function renderCrumb(r){
     c.appendChild(b);
   };
   const parts = r.dir ? r.dir.split('/') : [];
-  seg('travail', '', parts.length === 0);
+  seg(FILES_SCOPE === 'legacy' ? 'hors discussion' : 'discussion', '', parts.length === 0);
   let acc = '';
   parts.forEach((p, i)=>{
     acc = acc ? acc + '/' + p : p;
@@ -6105,10 +6159,19 @@ async function removeFile(e){
     : '« '+e.name+' » ('+fmtSize(e.size)+') sera supprimé.';
   if(!await askConfirm(quoi + '\n\nC\'est définitif — le fichier ne part pas à la corbeille.',
       {title:'Supprimer ?', okText:'Supprimer', danger:true})) return;
-  const r = await jpost('/api/chat/file/delete', {path: e.path});
+  const r = await jpost('/api/chat/file/delete', {path: e.path, scope: FILES_SCOPE});
   if(!r.ok){ toast('suppression impossible : '+(r.error||'')); return; }
   toast('supprimé — '+fmtSize(r.freed||0)+' libérés');
   loadFiles();
+}
+
+// Changement de discussion (bascule, « vider »), signalé par le flux SSE :
+// le panneau montre les fichiers de la discussion OUVERTE, il doit donc être
+// redessiné. On revient aussi à sa racine — le sous-dossier affiché était celui
+// de l'autre discussion, il n'existe pas forcément ici.
+function filesOnConvChange(){
+  FILES_DIR = ''; FILES_SCOPE = '';
+  if(FILES_OPEN) loadFiles('');
 }
 
 // Date courte : l'heure pour aujourd'hui, la date sinon. Ce qu'on veut savoir,
@@ -6210,7 +6273,9 @@ async function convRename(id, current){
 }
 
 async function convDelete(id, title){
-  if(!await askConfirm('Supprimer « ' + title + ' » ? Cette discussion et son historique seront perdus.',
+  // Le geste emporte aussi les fichiers de la discussion : ils lui appartiennent
+  // (un dossier par discussion côté serveur), autant le dire avant.
+  if(!await askConfirm('Supprimer « ' + title + ' » ? Son historique ET ses fichiers (pièces jointes, captures, fichiers écrits par l\'agent) seront perdus.',
                        {title:'Supprimer la discussion', okText:'Supprimer', danger:true})) return;
   try{
     const r = await jpost('/api/conversations/delete', {id});

@@ -11,7 +11,13 @@ package loki
 // Le téléchargement existait déjà (handleChatFile, web_upload.go). Ce fichier
 // ajoute les deux verbes qui manquaient : LISTER et SUPPRIMER.
 //
-// Tout est borné par workspaceRel (web_upload.go), qui résout les liens
+// Le panneau s'ouvre sur le dossier de la DISCUSSION active (chat_convfiles.go)
+// et n'en sort pas : les fichiers appartiennent à la discussion où ils sont nés,
+// changer de discussion change ce qu'on voit. `scope=legacy` ouvre la racine du
+// dossier de travail — les fichiers d'avant ce rangement, que la migration n'a
+// pas su rattacher à une discussion.
+//
+// Tout est borné par relWithin (chat_convfiles.go), qui résout les liens
 // symboliques des DEUX côtés avant de comparer : un lien posé dans le dossier
 // de travail ne peut pas servir d'échappatoire vers le reste du disque.
 
@@ -29,7 +35,7 @@ import (
 // qui aide à décider.
 type wsEntry struct {
 	Name  string `json:"name"`
-	Path  string `json:"path"` // relatif au dossier de travail, séparateurs /
+	Path  string `json:"path"` // relatif à la racine du panneau, séparateurs /
 	Dir   bool   `json:"dir"`
 	Size  int64  `json:"size"`
 	Mod   int64  `json:"mod"`   // date de modification, epoch en secondes
@@ -51,17 +57,17 @@ var wsImageExt = map[string]bool{
 // annoncer une taille approchée (Items le dit).
 const wsWalkLimit = 20000
 
-// wsResolve traduit un chemin RELATIF venu du client en chemin absolu vérifié.
-// La chaîne vide et "." désignent la racine du dossier de travail — cas que
-// workspaceRel rejette (il renvoie false sur "."), d'où ce sas.
-func wsResolve(rel string) (string, bool) {
+// wsResolve traduit un chemin RELATIF venu du client en chemin absolu vérifié,
+// sous la racine du panneau. La chaîne vide et "." désignent cette racine — cas
+// que relWithin rejette (il renvoie false sur "."), d'où ce sas.
+func wsResolve(root, rel string) (string, bool) {
 	rel = strings.TrimSpace(rel)
 	rel = strings.TrimPrefix(strings.ReplaceAll(rel, "\\", "/"), "/")
 	if rel == "" || rel == "." {
-		return agentWorkspace(), true
+		return root, true
 	}
-	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(rel))
-	if _, ok := workspaceRel(abs); !ok {
+	abs := filepath.Join(root, filepath.FromSlash(rel))
+	if _, ok := relWithin(root, abs); !ok {
 		return "", false
 	}
 	return abs, true
@@ -102,17 +108,21 @@ func dirSize(root string) (total int64, count int) {
 	return total, count
 }
 
-// handleChatFiles liste un dossier du workspace.
+// handleChatFiles liste un dossier de la discussion active.
 //
-//	GET /api/chat/files?dir=<relatif>
-//	→ {ok, dir, parent, entries:[…], total, count}
+//	GET /api/chat/files?dir=<relatif>[&scope=legacy]
+//	→ {ok, dir, parent, entries:[…], total, count, scope, legacy}
 //
-// `total` et `count` portent sur le dossier de travail ENTIER, pas sur le
-// dossier affiché : c'est l'occupation disque de l'agent, l'information qu'on
-// veut avoir sous les yeux en faisant le ménage.
+// `total` et `count` portent sur le dossier ENTIER de la discussion, pas sur le
+// dossier affiché : c'est ce que cette discussion occupe sur le disque, donc ce
+// qu'on libère en la supprimant.
+//
+// `legacy` compte ce qui reste à la racine du dossier de travail, hors
+// discussions : l'UI n'offre le détour « hors discussion » que si ce compte est
+// non nul, et le bouton disparaît une fois le ménage fait.
 func handleChatFiles(w http.ResponseWriter, r *http.Request) {
-	rel := r.URL.Query().Get("dir")
-	abs, ok := wsResolve(rel)
+	root, legacy := filesRoot(r.URL.Query().Get("scope"))
+	abs, ok := wsResolve(root, r.URL.Query().Get("dir"))
 	if !ok {
 		sendJSON(w, 403, map[string]any{"ok": false, "error": "hors du dossier de travail"})
 		return
@@ -128,10 +138,15 @@ func handleChatFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cur, _ := workspaceRel(abs) // "" à la racine
+	cur, _ := relWithin(root, abs) // "" à la racine
 	entries := []wsEntry{}
 	for _, e := range ents {
 		name := e.Name()
+		// Vue « hors discussion » : le dossier des discussions n'y a pas sa place,
+		// il est déjà accessible discussion par discussion.
+		if legacy && cur == "" && name == convFilesRoot {
+			continue
+		}
 		info, err := e.Info()
 		if err != nil {
 			continue
@@ -164,38 +179,49 @@ func handleChatFiles(w http.ResponseWriter, r *http.Request) {
 			parent = cur[:i]
 		}
 	}
-	total, count := dirSize(agentWorkspace())
+	total, count := dirSize(root)
+	scope := ""
+	if legacy {
+		scope = "legacy"
+	}
 	sendJSON(w, 200, map[string]any{
 		"ok": true, "dir": cur, "parent": parent, "at_root": cur == "",
 		"entries": entries, "total": total, "count": count,
-		"root": agentWorkspace(),
+		"root": root, "scope": scope, "legacy": legacyCount(),
 	})
 }
 
-// handleChatFileDelete supprime un fichier ou un dossier du workspace.
+// handleChatFileDelete supprime un fichier ou un dossier de la discussion.
 //
-//	POST /api/chat/file/delete {"path":"rapport.md"}
+//	POST /api/chat/file/delete {"path":"rapport.md"[,"scope":"legacy"]}
 //	→ {ok, freed}
 //
-// La racine du dossier de travail est refusée : « tout supprimer » n'est pas un
-// geste qu'on veut à un clic de distance, et l'agent perdrait aussi le dossier
-// dans lequel il écrit.
+// La racine est refusée : « tout supprimer » n'est pas un geste qu'on veut à un
+// clic de distance, et l'agent perdrait aussi le dossier dans lequel il écrit.
+// Le dossier des discussions l'est aussi — depuis la vue « hors discussion », il
+// emporterait les fichiers de TOUTES les discussions d'un seul clic.
 func handleChatFileDelete(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Path string `json:"path"`
+		Path  string `json:"path"`
+		Scope string `json:"scope"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	if strings.TrimSpace(req.Path) == "" {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "chemin manquant"})
 		return
 	}
-	abs, ok := wsResolve(req.Path)
+	root, legacy := filesRoot(req.Scope)
+	abs, ok := wsResolve(root, req.Path)
 	if !ok {
 		sendJSON(w, 403, map[string]any{"ok": false, "error": "hors du dossier de travail"})
 		return
 	}
-	if abs == agentWorkspace() {
+	if abs == root {
 		sendJSON(w, 403, map[string]any{"ok": false, "error": "le dossier de travail lui-même ne se supprime pas"})
+		return
+	}
+	if legacy && abs == filepath.Join(agentWorkspace(), convFilesRoot) {
+		sendJSON(w, 403, map[string]any{"ok": false, "error": "les dossiers des discussions se suppriment discussion par discussion"})
 		return
 	}
 	st, err := os.Lstat(abs)

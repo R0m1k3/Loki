@@ -85,7 +85,9 @@ async function convRename(id, current){
 }
 
 async function convDelete(id, title){
-  if(!await askConfirm('Supprimer « ' + title + ' » ? Cette discussion et son historique seront perdus.',
+  // Le geste emporte aussi les fichiers de la discussion : ils lui appartiennent
+  // (un dossier par discussion côté serveur), autant le dire avant.
+  if(!await askConfirm('Supprimer « ' + title + ' » ? Son historique ET ses fichiers (pièces jointes, captures, fichiers écrits par l\'agent) seront perdus.',
                        {title:'Supprimer la discussion', okText:'Supprimer', danger:true})) return;
   try{
     const r = await jpost('/api/conversations/delete', {id});

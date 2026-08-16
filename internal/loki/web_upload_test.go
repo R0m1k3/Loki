@@ -48,6 +48,8 @@ func TestSafeUploadNameKeepsOrdinaryNames(t *testing.T) {
 }
 
 func TestChatUploadWritesFileAndAttachNote(t *testing.T) {
+	withWorkspace(t)
+
 	body, _ := json.Marshal(map[string]any{
 		"name": "../notes.txt",
 		"data": "data:text/plain;base64," + base64.StdEncoding.EncodeToString([]byte("bonjour")),
@@ -101,6 +103,8 @@ func TestChatUploadWritesFileAndAttachNote(t *testing.T) {
 // Le téléchargement est le point sensible : il lit des fichiers du serveur à
 // partir d'un chemin fourni par le client.
 func TestChatFileStaysInsideWorkspace(t *testing.T) {
+	withWorkspace(t)
+
 	dir, err := uploadsDir()
 	if err != nil {
 		t.Fatal(err)
@@ -181,6 +185,8 @@ func uploadChunk(t *testing.T, body map[string]any) (int, map[string]any) {
 // près. C'est ce découpage qui permet le gigaoctet : sans lui, tout le fichier
 // passait dans un seul corps JSON, gardé en mémoire des deux côtés.
 func TestChatUploadChunked(t *testing.T) {
+	withWorkspace(t)
+
 	part1 := strings.Repeat("A", 5000)
 	part2 := strings.Repeat("B", 3000)
 	part3 := "fin"
@@ -239,6 +245,8 @@ func TestChatUploadUnknownSessionRefused(t *testing.T) {
 // réponse en JSON, où du binaire ne survit pas. Le handler doit donc annoncer
 // qu'on est derrière le tunnel, puis savoir servir des tranches base64.
 func TestChatFileB64ForE2E(t *testing.T) {
+	withWorkspace(t)
+
 	dir, _ := uploadsDir()
 	// Des octets NON-UTF8 : c'est exactement ce que le réemballage JSON massacre.
 	raw := make([]byte, 5000)
@@ -308,6 +316,8 @@ func TestChatFileB64ForE2E(t *testing.T) {
 // jointe). Les sessions doivent donc être indépendantes : le verrou global ne
 // protège que la table, l'écriture se fait sous le verrou de la session.
 func TestChatUploadConcurrentSessions(t *testing.T) {
+	withWorkspace(t)
+
 	const files, chunks = 4, 6
 	var wg sync.WaitGroup
 	paths := make([]string, files)

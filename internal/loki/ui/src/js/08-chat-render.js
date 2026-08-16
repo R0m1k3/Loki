@@ -327,9 +327,18 @@ function addCopyButtons(root){
     pre.appendChild(btn);
   });
 }
-// Nouvelle conversation POUR TOUS LES APPAREILS : le serveur vide le fil et
+// Vider la discussion POUR TOUS LES APPAREILS : le serveur vide le fil et
 // diffuse un {reset} ; le flux d'abonnement nettoie alors l'affichage.
-function resetChat(){ jfetch('/api/chat/reset',{method:'POST'}).catch(()=>{}); toast('nouvelle conversation'); }
+//
+// Confirmé, car le geste emporte aussi les FICHIERS de la discussion (dépôts,
+// captures, ce que l'agent y a écrit) : ils n'appartiennent qu'à elle, et plus
+// un message ne les mentionnerait.
+async function resetChat(){
+  if(!await askConfirm('Le fil de cette discussion et ses fichiers (pièces jointes, captures, fichiers écrits par l\'agent) seront effacés.\n\nC\'est définitif.',
+      {title:'Vider la discussion', okText:'Vider', danger:true})) return;
+  jfetch('/api/chat/reset',{method:'POST'}).catch(()=>{});
+  toast('discussion vidée');
+}
 // Compaction : on demande à l'IA un résumé de la conversation destiné à la
 // reprendre dans une session neuve, puis on repart d'un contexte propre seedé
 // avec ce résumé. Réduit drastiquement les tokens tout en gardant le fil.

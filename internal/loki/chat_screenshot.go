@@ -30,28 +30,24 @@ import (
 	"time"
 )
 
-// captureDir : sous-dossier du workspace où atterrissent les captures. Elles
-// sont rangées PAR DISCUSSION (captures/<id>/…) pour que supprimer une
-// discussion supprime aussi ses images — sinon elles s'accumulaient sur le
-// disque sans qu'aucun écran ne les mentionne plus.
+// captureDir : sous-dossier où atterrissent les captures, À L'INTÉRIEUR du
+// dossier de la discussion (discussions/<id>/captures/…) — comme les dépôts.
+// Supprimer une discussion emporte donc ses images, qui sinon s'accumulaient
+// sur le disque sans qu'aucun écran ne les mentionne plus.
 const captureDir = "captures"
 
 // captureDirFor renvoie le dossier de captures d'une discussion (chemin absolu)
-// et son préfixe relatif, celui qui sert dans les URLs d'affichage.
+// et son préfixe relatif, celui qui sert dans les URLs d'affichage. Le relatif
+// part du dossier de la DISCUSSION : /api/chat/image résout d'abord là
+// (workspaceFile), et les liens des anciens messages — en captures/<id>/… —
+// continuent d'ouvrir leur image par le chemin de repli.
 func captureDirFor(convID string) (abs, rel string) {
-	rel = captureDir + "/" + convID
-	return filepath.Join(agentWorkspace(), captureDir, convID), rel
+	return filepath.Join(convDirFor(convID), captureDir), captureDir
 }
 
-// dropConvCaptures supprime les captures d'une discussion. Appelé quand on la
-// supprime ou qu'on la vide. Best-effort : un échec ne doit rien interrompre.
-func dropConvCaptures(convID string) {
-	if convID == "" {
-		return
-	}
-	abs, _ := captureDirFor(convID)
-	_ = os.RemoveAll(abs)
-}
+// Supprimer les captures d'une discussion n'a plus de fonction à soi : elles
+// vivent dans son dossier, et dropConvFiles (chat_convfiles.go) l'emporte en
+// entier — dépôts et fichiers écrits par l'agent compris.
 
 // screenshotTimeout : une page lente ne doit pas bloquer le tour. Playwright a
 // son propre délai interne, celui-ci est le garde-fou externe.
@@ -188,7 +184,10 @@ func screenshotImageMessage(relPath string) (Message, bool) {
 	if !visionEnabled() || !engineSeesImages() {
 		return Message{}, false
 	}
-	abs := filepath.Join(agentWorkspace(), filepath.FromSlash(relPath))
+	abs, ok := workspaceFile(relPath)
+	if !ok {
+		return Message{}, false
+	}
 	mime := imageMime(abs)
 	if mime == "" {
 		return Message{}, false
