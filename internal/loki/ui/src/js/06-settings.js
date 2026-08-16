@@ -44,6 +44,8 @@ async function loadPresets(){
   const sp = document.getElementById('status-preset');
   sp.textContent = act ? act.name : '';
   sp.title = act ? 'preset actif' : '';
+  // Sélecteur de modèle de l'en-tête : même donnée, autre point d'entrée.
+  if(typeof renderModelSwitch === 'function') renderModelSwitch(p, act);
   const cont=document.getElementById('presets');
   cont.innerHTML='';
   if(!p.length){ cont.innerHTML='<span class="muted">(aucun)</span>'; return; }

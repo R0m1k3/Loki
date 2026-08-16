@@ -8,31 +8,55 @@
 // Les titres viennent du premier message de l'utilisateur : ils sont construits
 // en DOM (jamais en innerHTML) pour qu'un titre contenant < > & " ne casse ni le
 // balisage ni les gestionnaires d'événement.
+//
+// La liste chargée est GARDÉE en mémoire (CONVS) pour que la recherche filtre
+// sans aller-retour serveur : elle ne porte que des métadonnées — identifiant,
+// titre, dates, nombre d'échanges — jamais les messages.
+
+let CONVS = [], CONV_ACTIVE = '';
 
 async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
+  CONVS = r.conversations || [];
+  CONV_ACTIVE = r.active || '';
+  renderConversations();
+}
+
+function renderConversations(){
   const cont = document.getElementById('conv-list');
   if(!cont) return;
-  cont.innerHTML = '';
-  const list = r.conversations || [];
-  if(!list.length){ cont.innerHTML = '<span class="muted">(aucune)</span>'; return; }
+  const q = (document.getElementById('conv-search')?.value || '').trim().toLowerCase();
+  cont.textContent = '';
+  const list = q
+    ? CONVS.filter(c => (c.title || 'Nouvelle discussion').toLowerCase().includes(q))
+    : CONVS;
+  if(!list.length){
+    const e = document.createElement('div');
+    e.className = 'conv-empty';
+    e.textContent = q ? 'aucune discussion ne correspond' : '(aucune)';
+    cont.appendChild(e);
+    syncTopbarTitle();
+    return;
+  }
   for(const c of list){
     const row = document.createElement('div');
-    row.className = 'preset' + (c.id === r.active ? ' active' : '');
+    row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '');
     row.onclick = () => convSwitch(c.id);
 
     const info = document.createElement('div'); info.className = 'preset-info';
     const nm = document.createElement('div'); nm.className = 'preset-name';
-    if(c.id === r.active){ const d = document.createElement('i'); d.className = 'preset-dot'; nm.appendChild(d); }
     const title = c.title || 'Nouvelle discussion';
     nm.appendChild(document.createTextNode(title));
-    nm.title = title;
-    const meta = document.createElement('div'); meta.className = 'preset-meta';
-    const when = document.createElement('span'); when.className = 'muted';
-    when.textContent = convWhen(c.updated) + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
-    meta.appendChild(when);
-    info.appendChild(nm); info.appendChild(meta);
+    nm.title = title + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
+    info.appendChild(nm);
+
+    // Heure à droite du titre, sur la même ligne (maquette). Elle s'efface au
+    // survol : renommer et supprimer prennent sa place, la ligne ne s'allonge
+    // donc jamais et rien ne se chevauche.
+    const when = document.createElement('span');
+    when.className = 'conv-when';
+    when.textContent = convWhen(c.updated);
 
     // Renommer / supprimer : stopPropagation, sinon le clic bascule aussi.
     const acts = document.createElement('div'); acts.className = 'conv-acts';
@@ -42,9 +66,21 @@ async function loadConversations(){
     del.title = 'supprimer'; del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
     acts.appendChild(ren); acts.appendChild(del);
 
-    row.appendChild(info); row.appendChild(acts);
+    row.append(info, when, acts);
     cont.appendChild(row);
   }
+  syncTopbarTitle();
+}
+
+// Titre de l'en-tête : celui de la discussion ouverte. Il dit de quoi on parle
+// quand la barre latérale est escamotée — c'est-à-dire quand on en a besoin.
+function syncTopbarTitle(){
+  const el = document.getElementById('topbar-title');
+  if(!el) return;
+  const cur = CONVS.find(c => c.id === CONV_ACTIVE);
+  const t = (cur && cur.title) || 'Nouvelle discussion';
+  el.textContent = t;
+  el.title = t;
 }
 
 // Date courte : l'heure pour aujourd'hui, la date sinon — une liste de
@@ -62,6 +98,8 @@ async function convNew(){
   try{
     await jpost('/api/conversations/new', {});
     toast('nouvelle discussion');
+    const s = document.getElementById('conv-search');
+    if(s) s.value = ''; // sinon la discussion toute neuve est masquée par le filtre
     loadConversations();
   }catch(_){ toast('erreur réseau'); }
 }

@@ -119,10 +119,10 @@ func newWebMux() *http.ServeMux {
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		w.Write(b)
 	})
-	// Polices embarquées (Bricolage Grotesque + IBM Plex Mono, sous-ensemble
-	// latin). Servies par Loki et non par Google Fonts : une instance locale ou
-	// derrière un réseau fermé doit s'afficher correctement sans appeler un tiers,
-	// et sans lui signaler qui consulte l'interface.
+	// Polices embarquées (Inter + JetBrains Mono, sous-ensemble latin). Servies
+	// par Loki et non par Google Fonts : une instance locale ou derrière un
+	// réseau fermé doit s'afficher correctement sans appeler un tiers, et sans
+	// lui signaler qui consulte l'interface.
 	mux.HandleFunc("/fonts/", func(w http.ResponseWriter, r *http.Request) {
 		name := path.Base(r.URL.Path)
 		if !strings.HasSuffix(name, ".woff2") {

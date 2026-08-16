@@ -24,11 +24,14 @@ function initTheme(){
 // Quatre interrupteurs indépendants. Chacun pose un attribut sur <html> ; le CSS
 // fait le reste, sauf « replier les bulles » qui est un comportement (voir
 // 08-chat-render).
+//
+// « barre latérale escamotable » a disparu d'ici : la refonte l'escamote pour de
+// bon (bouton de l'en-tête, data-side — voir 18-shell.js), au lieu de la
+// transformer en tiroir qui recouvre la conversation.
 const VIEW_OPTS=[
   {id:'hide-reasoning', label:'masquer le raisonnement'},
   {id:'hide-tools',     label:"masquer les appels d'outils"},
   {id:'fold-tools',     label:'garder les bulles repliées'},
-  {id:'hide-side',      label:'barre latérale escamotable'},
   {id:'hide-stats',     label:'masquer la vitesse de génération'},
 ];
 function viewOn(id){ return document.documentElement.getAttribute('data-'+id)==='1'; }
@@ -36,12 +39,6 @@ function applyView(id, on){
   document.documentElement.setAttribute('data-'+id, on?'1':'0');
   try{ localStorage.setItem('loki-'+id, on?'1':'0'); }catch(e){}
   const box=document.getElementById('view-'+id); if(box) box.checked=!!on;
-  // La barre latérale peut rester ouverte quand on repasse en mode fixe.
-  if(id==='hide-side' && !on){
-    document.getElementById('side').classList.remove('open');
-    document.getElementById('backdrop').classList.remove('open');
-    document.body.classList.remove('drawer-open');
-  }
 }
 function toggleView(id){ applyView(id, document.getElementById('view-'+id).checked); savePrefs(); }
 function initView(){
