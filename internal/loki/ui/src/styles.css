@@ -1563,7 +1563,6 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .perf-head{display:flex;align-items:center;gap:8px;margin-bottom:11px;
   font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.01em}
 .perf-row{margin:0 0 14px}
-.perf-row:last-child{margin-bottom:0}
 .perf-l{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--text);margin-bottom:6px}
 .perf-l b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-weight:400;color:var(--text)}
@@ -1810,3 +1809,45 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .subhead,.io-cap,.pages-bar .pages-title,.skillshead>span{
   font-family:var(--font);text-transform:none;letter-spacing:0;
   font-size:12.5px;font-weight:600;color:var(--dim)}
+
+/* --- Discussions et moniteur : le gabarit de carte des réglages ------
+   La maquette posait ces deux blocs à plat, pleine largeur. Dans l'application
+   réelle ils voisinent avec les sections de réglages, qui sont des CARTES : deux
+   traitements pour deux listes côte à côte, et la barre latérale se lisait comme
+   deux morceaux collés. On aligne donc sur la carte, qui est la forme dominante
+   de la colonne. */
+#side-scroll{padding:0 12px 12px}
+#side-scroll>details>summary,#side-settings>summary{padding:0 2px}
+#side-settings>.sidegroup{padding:0}
+@media (max-width:720px){
+  #side-scroll{padding-left:calc(12px + env(safe-area-inset-left))}
+}
+#conv-search{width:100%;margin:0 0 8px}
+/* La liste EST la carte, au MÊME gabarit que .sidegroup (les sections de
+   réglages) : fond de panneau, rayon de 20, ombre discrète. Les lignes sont
+   rognées par overflow au lieu d'arrondir la première et la dernière à la main. */
+#conv-list{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+  overflow:hidden;margin:0}
+.side .preset{border-radius:0;margin:0;padding:10px 12px}
+.side .preset:not(:last-child){border-bottom:1px solid var(--border)}
+.side .preset:last-child{border-bottom:0}
+/* Sélection : bande pleine largeur DANS la carte — un aplat suffit, un cadre
+   ferait un second contour à l'intérieur du premier. */
+.side .preset.active{background:var(--row-bg-on)}
+.side .preset:hover:not(.active){background:color-mix(in srgb,var(--text) 4%,transparent)}
+.side .preset .conv-acts{background:var(--row-bg-on)}
+.side .preset.active .conv-acts{background:var(--row-bg-on)}
+.conv-empty{padding:12px}
+/* Moniteur machine : titre en étiquette de groupe, jauges dans une carte — même
+   couple que « Paramètres » + sa liste dans les réglages. */
+#side-perf{padding:12px 12px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.perf-head{margin:0 2px 7px;font-size:12.5px;font-weight:600;color:var(--dim)}
+.perf-body{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+  padding:14px 15px 3px}
+/* ⚠️ Pas de remise à zéro sur :last-child — les jauges vivent dans DEUX
+   conteneurs (les cartes graphiques, puis la mémoire vive). La dernière jauge
+   de chaque conteneur s'y voyait retirer sa marge, et la mémoire vive venait
+   se coller à la VRAM. C'est le rembourrage bas de la carte qui absorbe la
+   dernière marge. */
+.perf-row{margin:0 0 12px}
+.perf-sub{padding:0 0 10px}
