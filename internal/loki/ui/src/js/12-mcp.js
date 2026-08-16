@@ -63,7 +63,8 @@ function renderMCP(r){
     sw.appendChild(cb); sw.appendChild(sl);
 
     const edit = document.createElement('button');
-    edit.className = 'mcp-edit'; edit.title = 'éditer'; edit.textContent = '✎';
+    edit.className = 'mcp-edit'; edit.title = 'éditer';
+    edit.setAttribute('aria-label', 'éditer ce serveur'); edit.appendChild(icon('pencil', 15));
     edit.onclick = (e)=>{ e.stopPropagation(); openMcp(s.name); };
 
     row.appendChild(dot); row.appendChild(info); row.appendChild(sw); row.appendChild(edit);
