@@ -156,7 +156,8 @@ Héritées d'AJEAN :
 - **Agent** : shell, fichiers, workspace (`agent on`).
 - **Serveurs MCP** : Node.js est inclus dans l'image pour les serveurs `npx`.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
-- **API OpenAI-compatible** exposable (`network on`, protégée par clé).
+- **API OpenAI-compatible** exposable, protégée par clé (voir ci-dessous — ce
+  fork la sert autrement que l'amont).
 
 Ajoutées par ce fork :
 
@@ -195,6 +196,25 @@ Ajoutées par ce fork :
   latérale s'escamote pour rendre toute la largeur au fil ; les discussions s'y
   cherchent au clavier et les jauges **GPU / VRAM / mémoire vive** restent
   visibles en pied de colonne.
+- **API OpenAI servie par Loki** : `/v1/*` est exposé **sur le port de
+  l'interface** (8090) et relayé vers llama-server, au lieu d'annoncer l'adresse
+  du moteur. Conséquence directe : l'API est joignable partout où l'interface
+  l'est — par l'IP du réseau local comme par un nom de domaine — sans publier de
+  second port ni ouvrir le moteur. L'amont annonçait `http://<ip>:8080/v1`, une
+  adresse injoignable en conteneur (le port 8080 n'y est pas publié, et l'IP
+  détectée est celle du bridge Docker).
+  - Authentification par la **clé API** du panneau (`Authorization: Bearer …`),
+    vérifiée par Loki **et** par le moteur. Sans clé, l'endpoint est ouvert et
+    l'interface le dit en rouge.
+  - **Adresse publique** : un champ où saisir son domaine, pour le cas du
+    reverse proxy où Loki ne voit qu'un appel interne. Laissé vide, l'adresse
+    affichée suit celle du navigateur.
+  - **TLS** : mettre un reverse proxy devant (Caddy, Nginx, Traefik). Loki
+    honore `X-Forwarded-Proto` pour annoncer une adresse en `https`.
+  - L'ancienne exposition publique via le relais de l'amont
+    (`<machine>.oai.ajean.link`) est retirée de l'interface : elle exigeait un
+    jeton de relais que ce fork ne permet plus d'obtenir, l'interrupteur ne
+    pouvait donc qu'échouer.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
 - **Paramètres** : les réglages d'application (identité, apparence, accès
@@ -227,6 +247,7 @@ Retirées par ce fork :
 | Choix du modèle | lien Hugging Face collé à la main | recherche intégrée + verdict VRAM + projecteur lié |
 | Historique de tchat | conversation unique | discussions multiples, titrées et persistées |
 | Accès distant | relais chiffré ajean.link | retiré de l'interface |
+| Endpoint OpenAI | `:8080/v1` du moteur, ouvert par `network on` | `/v1` servi par Loki sur le port de l'interface, protégé par la clé API |
 | Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
 
 Le reste — mémoire, outils, protocole, moteur d'inférence — est celui d'AJEAN.

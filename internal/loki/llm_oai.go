@@ -40,15 +40,67 @@ import (
 // oaiSuffix est le domaine sous lequel on autorise l'émission de certificats.
 const oaiSuffix = ".oai.ajean.link"
 
+// viaTunnelHeader marque une requête arrivée par le tunnel du relais (posé par
+// withLocalAuth, qui l'efface d'abord — un client ne peut donc pas le forger).
+// Il sert à garder la promesse du tunnel : hors du front TLS dédié, la surface
+// des complétions y reste fermée tant que oaiPublicEnabled() est faux.
+const viaTunnelHeader = "X-Loki-Via"
+
+// sendOAIError répond au format d'erreur d'OpenAI. Les SDK officiels lisent
+// body.error.message ; un {"error":"…"} plat leur fait afficher un message vide,
+// et certains clients (LiteLLM, LangChain) échouent carrément au décodage.
+func sendOAIError(w http.ResponseWriter, status int, msg, typ, code string) {
+	sendJSON(w, status, map[string]any{"error": map[string]any{
+		"message": msg, "type": typ, "param": nil, "code": code,
+	}})
+}
+
+// mountOAI branche la surface compatible OpenAI sur le mux de Loki, protégée par
+// la clé des complétions (web_auth.go).
+//
+// C'est ce qui rend l'API joignable par le nom de domaine ou l'IP de
+// L'INTERFACE, sans publier de second port : le moteur peut rester sur la boucle
+// locale, et un reverse proxy devant Loki suffit pour le TLS. L'adresse annoncée
+// auparavant (celle du moteur, port 8080) n'était joignable dans aucun
+// déploiement en conteneur, où ce port n'est pas publié.
+//
+// ⚠️ On ne monte QUE /v1/. Surtout pas /health, /props, /metrics ni /slots — que
+// oaiHandler autorise pour le tunnel : ils divulgueraient le modèle chargé, la
+// taille de contexte et l'état des slots, sans authentification quand aucune clé
+// n'est définie. Le filtre interne d'oaiHandler reste en seconde barrière.
+func mountOAI(mux *http.ServeMux) {
+	mux.Handle("/v1/", requireCompletionKey(oaiHandler()))
+}
+
 // oaiHandler construit le reverse-proxy vers llama-server, restreint à la surface
-// compatible OpenAI. On NE touche PAS à l'en-tête Authorization : le SaaS envoie
-// la vraie clé (.api_key), que llama-server valide lui-même (--api-key).
+// compatible OpenAI. On NE touche PAS à l'en-tête Authorization : le client
+// envoie la vraie clé, que llama-server valide lui-même (--api-key). Elle est
+// donc vérifiée deux fois — par Loki puis par le moteur — et c'est voulu : le
+// moteur reste protégé même si on l'expose un jour en direct.
 func oaiHandler() http.Handler {
-	llama := &url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", LLMPort())}
-	lp := httputil.NewSingleHostReverseProxy(llama)
-	lp.FlushInterval = -1 // streaming SSE des complétions
-	lp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
-		http.Error(w, "llama-server injoignable: "+e.Error(), http.StatusBadGateway)
+	lp := &httputil.ReverseProxy{
+		// FlushInterval négatif = on vide le tampon à chaque écriture : c'est ce
+		// qui fait arriver les tokens un par un chez le client au lieu d'un bloc
+		// en fin de génération.
+		// ⚠️ Ne JAMAIS envelopper le ResponseWriter sur ce chemin (compteur,
+		// journalisation…) : un wrapper qui n'implémente pas http.Flusher
+		// retransforme le flux en réponse bufferisée, sans autre symptôme qu'une
+		// attente inexplicable.
+		FlushInterval: -1,
+		// Rewrite (et non Director) : le port du moteur est relu À CHAQUE
+		// REQUÊTE. Capturé à la construction, il figeait l'ancienne valeur dès
+		// qu'on changeait PORT depuis l'interface, et le proxy visait dans le
+		// vide jusqu'au redémarrage de Loki. Rewrite n'hérite pas non plus des
+		// X-Forwarded-* entrants : un client ne peut pas les forger vers le
+		// moteur.
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(&url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", LLMPort())})
+			pr.Out.Host = pr.In.Host
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, e error) {
+			sendOAIError(w, http.StatusBadGateway,
+				"moteur injoignable : "+e.Error(), "api_error", "upstream_unavailable")
+		},
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
@@ -56,7 +108,8 @@ func oaiHandler() http.Handler {
 			lp.ServeHTTP(w, r)
 			return
 		}
-		http.Error(w, "not found (endpoint OpenAI: /v1/*)", http.StatusNotFound)
+		sendOAIError(w, http.StatusNotFound,
+			"chemin inconnu — l'endpoint compatible OpenAI est /v1/*", "invalid_request_error", "not_found")
 	})
 }
 
@@ -72,13 +125,13 @@ func runOAIFront(rawLn net.Listener, tlsCfg *tls.Config) error {
 	return srv.Serve(tls.NewListener(rawLn, tlsCfg))
 }
 
-// oaiPublicEnabled indique si l'accès OpenAI public est activé pour cette
-// machine. Piloté par l'UI et lu en direct → activable/coupable sans redémarrer
-// le service de lien.
+// oaiPublicEnabled indique si le front TLS du tunnel doit servir la surface
+// OpenAI. Drapeau désormais en LECTURE SEULE : plus aucune interface ne
+// l'allume, depuis que l'endpoint est servi par Loki sur son propre port (voir
+// mountOAI). Il ne subsiste que pour les installations migrées depuis AJEAN dont
+// le tunnel sert encore ce front — et pour son défaut, qui est le refus :
+// demuxTunnelStream ferme le flux quand il est absent.
 func oaiPublicEnabled() bool { return getBool(bkState, "oai_public") }
-
-// setOAIPublic active (on) ou coupe (off) l'accès OpenAI public.
-func setOAIPublic(on bool) error { return putBool(bkState, "oai_public", on) }
 
 // oaiTLSConfig renvoie une config TLS qui, à la demande, obtient/renouvelle via
 // Let's Encrypt (TLS-ALPN-01) le certificat de tout nom en *.oai.ajean.link, et

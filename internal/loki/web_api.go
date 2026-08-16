@@ -546,51 +546,59 @@ func handleAPIKey(w http.ResponseWriter, r *http.Request) {
 			_ = serviceAction("restart")
 		}
 	}
-	k := readAPIKey()
+	k, _ := effectiveAPIKeyErr()
 	sendJSON(w, 200, map[string]any{
 		"ok":     true,
 		"set":    k != "",
 		"key":    k,
 		"masked": maskAPIKey(k),
-		"port":   LLMPort(),
-		"host":   localIP(),
-		// Accès OpenAI PUBLIC via ajean.link (passthrough SNI, VPS aveugle) : si
-		// activé, l'URL publique est https://<machine>.oai.ajean.link/v1.
-		"oai_public": oaiPublicEnabled(),
-		"machine":    machineID(),
+		// L'adresse à coller dans un client tiers. Calculée côté serveur (voir
+		// web_public_url.go) : adresse publique enregistrée, sinon l'origine par
+		// laquelle cette requête est arrivée — donc le domaine ou l'IP que
+		// l'utilisateur a réellement tapés.
+		"url":        oaiBaseURL(r) + "/v1",
+		"public_url": publicURL(),
 	})
 }
 
-// handleOAIPublic pilote le drapeau d'accès OpenAI public (exposition via
-// ajean.link). GET renvoie l'état ; POST {enabled} l'active/coupe en direct
-// (aucun redémarrage : le démux du tunnel relit le drapeau à chaque connexion).
-func handleOAIPublic(w http.ResponseWriter, r *http.Request) {
+// handlePublicAddress lit et enregistre l'adresse publique de cette instance —
+// le nom de domaine ou l'IP par lesquels on l'atteint.
+//
+//	GET  → {ok, url, set}
+//	POST {url:"ia.exemple.fr"} → {ok, url} normalisée, ou 400 avec la raison
+//
+// Elle remplace l'ancien interrupteur d'exposition via le relais de l'amont :
+// ce chemin exigeait un jeton de relais que ce fork ne permet plus d'obtenir, et
+// l'interrupteur ne pouvait donc qu'échouer. Aucun redémarrage ici — c'est un
+// libellé d'affichage, pas un réglage du moteur.
+func handlePublicAddress(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var req struct {
-			Enabled *bool `json:"enabled"`
+			URL string `json:"url"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendJSON(w, 400, map[string]any{"ok": false, "error": "requête illisible"})
+			return
+		}
+		clean, err := setPublicURL(req.URL)
+		if err != nil {
 			sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
-		if req.Enabled != nil {
-			if err := setOAIPublic(*req.Enabled); err != nil {
-				sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
-				return
-			}
-		}
+		sendJSON(w, 200, map[string]any{"ok": true, "url": clean, "set": clean != ""})
+		return
 	}
-	sendJSON(w, 200, map[string]any{
-		"ok":      true,
-		"enabled": oaiPublicEnabled(),
-		"machine": machineID(),
-	})
+	u := publicURL()
+	sendJSON(w, 200, map[string]any{"ok": true, "url": u, "set": u != ""})
 }
 
 // localIP best-effort renvoie l'IPv4 LAN primaire de la machine (l'IP source du
-// trafic sortant), ou "localhost" à défaut. Sert à annoncer l'endpoint OpenAI
-// avec une adresse correcte sur le réseau local MÊME quand l'UI est atteinte via
-// le tunnel ajean.link (où location.hostname serait le domaine du relais, faux).
+// trafic sortant), ou "localhost" à défaut.
+//
+// ⚠️ Elle ne sert plus qu'à décrire l'écoute BRUTE DU MOTEUR dans `loki network`
+// (sys_network.go). L'endpoint annoncé à l'utilisateur, lui, est celui de Loki
+// et se calcule tout autrement (web_public_url.go) : en conteneur, cette IP est
+// celle du bridge Docker, que personne ne peut joindre.
 func localIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {

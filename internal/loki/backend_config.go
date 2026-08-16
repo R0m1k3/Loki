@@ -12,10 +12,41 @@ import (
 	"strings"
 )
 
+// readAPIKeyErr renvoie la clé Bearer des complétions en distinguant « aucune
+// clé » d'une LECTURE RATÉE — même nuance que readWebKeyErr, et pour la même
+// raison : sans clé, l'endpoint est OUVERT. Confondre les deux, c'est ouvrir
+// l'accès aux complétions parce que la base était momentanément verrouillée par
+// une commande CLI. requireCompletionKey refuse donc plutôt que d'ouvrir.
+func readAPIKeyErr() (string, error) {
+	b, err := getBytesErr(bkState, "api_key")
+	return string(b), err
+}
+
 // readAPIKey renvoie la clé Bearer de llama-server, ou "" si aucune n'est
-// définie. Elle est rangée hors de la configuration pour survivre aux
-// changements de preset, qui remplacent la configuration en bloc.
-func readAPIKey() string { return getStr(bkState, "api_key") }
+// définie (ou illisible). Elle est rangée hors de la configuration pour survivre
+// aux changements de preset, qui remplacent la configuration en bloc. Réservé à
+// l'affichage et aux appels internes ; toute décision d'accès passe par
+// effectiveAPIKeyErr.
+func readAPIKey() string { k, _ := readAPIKeyErr(); return k }
+
+// effectiveAPIKeyErr renvoie la clé que llama-server exige RÉELLEMENT : celle
+// rangée en base, sinon la clé résiduelle de config.env (repli rétro-compatible,
+// cf. backend_serve.go).
+//
+// Une seule source pour les deux côtés du relais. Quand la garde de Loki ne
+// regardait que la clé en base, un API_KEY oublié dans config.env donnait un
+// endpoint « ouvert » côté Loki et un 401 côté moteur — le client voyait un
+// refus sans jamais comprendre quelle clé fournir.
+func effectiveAPIKeyErr() (string, error) {
+	k, err := readAPIKeyErr()
+	if err != nil {
+		return "", err
+	}
+	if k != "" {
+		return k, nil
+	}
+	return strings.TrimSpace(ReadConfig()["API_KEY"]), nil
+}
 
 // authHeader sets the Authorization: Bearer header on req when an API key is
 // configured, so Loki's own internal calls (chat/web/bench/test) authenticate
