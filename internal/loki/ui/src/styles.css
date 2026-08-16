@@ -131,7 +131,6 @@ option,optgroup{background:var(--panel);color:var(--text)}
   .msg{max-width:92%}
   #chat .msg.assistant,#chat .msg.reasoning{max-width:100%}
   #inputbar{padding:8px;gap:4px}
-  #send,#stop{padding:0 12px}
   /* Petit écran (menu replié en tiroir) : on masque l'aide clavier — inutile et
      ça prend de la place. Elle reste visible sur desktop. */
   #sendhint{display:none}
@@ -644,7 +643,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 #sendhint.waiting{opacity:1;color:var(--dim)}
 #input{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit;resize:none;min-height:56px;max-height:200px;overflow-y:hidden}
 #input:focus{outline:none;border-color:var(--accent)}
-#send{padding:0 20px}
 .muted{color:var(--dim);font-size:13px}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;background:var(--panel);border:1px solid var(--border);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.18)}
 #toast.show{opacity:1}
@@ -676,7 +674,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
   /* PAS de font-size < 16px ici : iOS Safari zoome à la sélection du champ. On
      garde 16px (hérité de la règle anti-zoom) et on compacte via hauteur/padding. */
   #input{min-height:34px;max-height:120px;padding:6px 9px}
-  #send,#stop{padding:0 14px}
   #composer .muted{display:none}
   #ctxmeta{padding:3px 10px 0}
   h1{font-size:15px}
@@ -1074,9 +1071,6 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
 /* Pas de cadre qui s'assombrit au focus : la carte garde exactement la même
    bordure, seule la saisie change (curseur). */
 #input:focus{border-color:transparent}
-#send,#stop{border-radius:999px;height:36px;min-height:36px;padding:0 18px;margin:0}
-#send{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:600}
-#send:hover:not(:disabled){opacity:.85;color:var(--bg);border-color:var(--text)}
 /* Pied de carte : c'est LUI qui porte l'arrondi bas (26 px, comme en haut) et
    qui clippe la jauge. Un bandeau de 7 px ne peut pas dessiner un rayon de 26 px
    (le navigateur l'écrase, d'où les coins bizarres) : on laisse donc la carte
@@ -1287,10 +1281,6 @@ button:hover{border-color:var(--dim);color:var(--text)}
 /* Action principale en sauge : c'est la couleur d'action de la charte, et elle
    se distingue enfin du texte (le bouton reprenait --text, donc un brun sombre
    indistinct du reste). L'arrêt, lui, reste en terre cuite. */
-#send{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-#send:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--on-accent);opacity:.88}
-#stop{background:var(--err);border-color:var(--err);color:var(--on-err)}
-#stop:hover{background:var(--err);border-color:var(--err);color:var(--on-err);opacity:.88}
 
 /* --- Terre : largeur de lecture --------------------------------------
    La mesure était plafonnée à 760 px et centrée sur la fenêtre : sur un écran
@@ -1591,23 +1581,33 @@ button:active:not(:disabled){transform:translateY(1px)}
    maquette, et elle laisse toute la largeur au texte. Le mot « Envoyer » reste
    porté par aria-label et par l'infobulle — l'action n'est pas moins nommée
    pour un lecteur d'écran, elle l'est moins à l'écran. */
-#send,#stop{width:34px;height:34px;min-height:34px;padding:0;border-radius:999px;
-  display:inline-flex;align-items:center;justify-content:center;flex:none}
-#send svg,#stop svg{display:block}
-#send{background:transparent;border-color:transparent;color:var(--accent)}
-#send:hover:not(:disabled){opacity:1;transform:none;background:var(--accent-bg);color:var(--accent)}
-#send:active:not(:disabled){transform:scale(.92)}
-#send:disabled{background:transparent;color:var(--dim)}
-#stop{background:transparent;border-color:transparent;color:var(--err)}
-#stop:hover{opacity:1;background:var(--danger-bg);color:var(--err)}
+/* Les QUATRE boutons de la barre de saisie — joindre, fichiers, envoyer,
+   arrêter — sont un seul et même objet : 34x34, coins doux (jamais un rond :
+   la maquette n'en a pas), icône de 18 px centrée, fond seulement au survol.
+   Seule la couleur les distingue : atténué pour les secondaires, sauge pour
+   l'envoi, rouille pour l'arrêt.
+   ⚠️ Une seule règle pour les quatre. Il y en avait trois générations empilées
+   (pilule large « Envoyer », aplat noir, aplat sauge) : chaque état tirait sa
+   taille, sa forme et son alignement d'une couche différente. */
+#inputbar #attach,#inputbar #files-btn,#send,#stop{
+  width:34px;height:34px;min-height:34px;flex:none;margin:0;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;align-self:center;
+  border:0;border-radius:10px;background:transparent;color:var(--dim);
+  transition:background .15s ease,color .15s ease,transform .08s ease}
+#inputbar #attach svg,#inputbar #files-btn svg,#send svg,#stop svg{display:block;width:18px;height:18px}
+#inputbar #attach:hover,#inputbar #files-btn:hover{background:var(--row-bg-on);color:var(--text)}
+html[data-files="1"] #files-btn{color:var(--accent)}
+#send{color:var(--accent)}
+#send:hover:not(:disabled){background:var(--accent-bg);color:var(--accent);opacity:1;transform:none}
+#send:disabled{background:transparent;color:var(--dim);opacity:.45}
+#stop{color:var(--err)}
+#stop:hover{background:var(--danger-bg);color:var(--err);opacity:1}
+#inputbar #attach:active,#inputbar #files-btn:active,#send:active:not(:disabled),#stop:active{transform:scale(.92)}
 /* Les outils de la saisie (joindre, fichiers, envoyer) montent DANS la pilule,
    à droite du texte : c'est là qu'on les cherche, et le pied de carte redevient
    ce qu'il doit être — une jauge de contexte, rien d'autre. */
 #inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow-card)}
 #composer:focus-within #inputbar,#composer:focus-within #ctxmeta{border-color:var(--accent-soft)}
-#inputbar #attach,#inputbar #files-btn{width:34px;height:34px;min-height:34px;border-radius:999px;
-  align-self:center}
-#inputbar #attach svg,#inputbar #files-btn svg{width:16px;height:16px}
 #ctxmeta{padding-bottom:12px}
 #ctxtrack{border-radius:999px}
 
