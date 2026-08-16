@@ -241,7 +241,7 @@ Retirées par ce fork :
 |---|---|---|
 | Installation | binaire + `sudo ajean install` (systemd) | `docker compose up` |
 | Moteur llama.cpp | compilé sur la machine (`ajean llamacpp install`) | image officielle llama.cpp (`server-cuda`), précompilée |
-| Panneau « Moteur » | propose d'installer/compiler | annonce le moteur fourni par l'image, sans proposer d'install |
+| Panneau « Moteur » | propose d'installer/compiler | affiche la version qui tourne et la met à jour en un clic (sans rebuild) |
 | Supervision moteur | systemd / launchd / PID (Windows) | fichier PID (`LOKI_CONTAINER=1`) |
 | Configuration initiale | `ajean edit` ($EDITOR) | entrypoint + `loki config set` |
 | Choix du modèle | lien Hugging Face collé à la main | recherche intégrée + verdict VRAM + projecteur lié |
@@ -273,6 +273,44 @@ docker build --build-arg LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server-cuda-b
 
 Aucune compilation de llama.cpp n'a lieu : le moteur est maintenu et
 précompilé par l'équipe amont (toutes architectures GPU courantes).
+
+## Mettre à jour llama.cpp sans reconstruire l'image
+
+llama.cpp publie plusieurs versions par jour ; l'image de Loki, elle, ne se
+reconstruit qu'à une mise à jour de Loki. Le moteur y était donc figé à la date
+du dernier build, et le rattraper imposait un rebuild complet (2,6 Go) pour un
+composant de 170 Mo.
+
+**Réglages → Moteur** affiche désormais la version de llama.cpp qui tourne
+(`b10450`, avec son commit) et deux boutons :
+
+- **vérifier la version** — interroge le registre et dit s'il existe plus récent ;
+- **mettre à jour le moteur** — télécharge `llama-server` et ses bibliothèques
+  depuis l'image officielle, `ghcr.io/ggml-org/llama.cpp:server-cuda`.
+
+Ce qui est téléchargé n'est **pas l'image** : un manifeste OCI liste ses couches,
+et seules celles qui portent `/app` sont récupérées (~170 Mo). Le runtime CUDA
+(2 Go) et la base système sont déjà dans l'image de Loki. Le moteur atterrit dans
+`/data/engine/<version>/`, donc sur le volume de données : il survit à un
+`docker compose pull`.
+
+La variante est déduite du moteur en place (CUDA, Vulkan, SYCL, MUSA ou CPU) :
+une installation Vulkan ne se verra jamais proposer une image CUDA.
+
+**Le garde-fou.** La mise à jour apporte llama.cpp, pas le runtime CUDA, qui
+reste celui de l'image. Un llama.cpp compilé pour un CUDA plus récent ne
+chargerait pas son backend GPU ici — et le symptôme serait silencieux : tout
+fonctionne, mais sur le processeur. Le nouveau moteur est donc lancé à blanc
+avant toute bascule ; s'il ne démarre pas, ou s'il ne voit plus aucune carte
+alors que le moteur courant en voyait, la mise à jour est refusée et le moteur
+courant n'est pas touché. Le moteur livré par l'image reste par ailleurs intact :
+**revenir au moteur de l'image** y ramène en un clic, sans réseau.
+
+Quand cette limite est atteinte pour de bon (CUDA majeur trop ancien), la
+solution reste le rebuild avec un `LLAMACPP_IMAGE` récent, ci-dessus.
+
+Derrière un miroir de registre ou un réseau qui n'atteint pas ghcr.io :
+`LOKI_OCI_REGISTRY=https://mon-miroir.interne` dans l'environnement du conteneur.
 
 ## Licence
 

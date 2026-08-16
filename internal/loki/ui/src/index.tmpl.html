@@ -189,13 +189,24 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
          même sujet. Les trois modes sont des LIGNES de cette carte (elles
          étaient des cartes dans une carte). -->
     <div class="slist">
-    <!-- Moteur fourni par l'image Docker : aucun des trois modes ne s'applique
-         (rien à installer, et l'image n'embarque ni cmake ni compilateur). -->
+    <!-- Moteur fourni par l'image Docker : aucun des trois modes d'installation
+         ne s'applique (rien à compiler, et l'image n'embarque ni cmake ni
+         compilateur). En revanche llama.cpp publie plusieurs versions par jour,
+         et son moteur déjà compilé est téléchargeable seul (~170 Mo) : cette
+         carte le met à jour sans reconstruire l'image. -->
     <div id="lc-provided" class="rowbody" style="display:none">
-      <div style="font-size:12px;line-height:1.5">Moteur <b>fourni par l'image Docker</b> — llama.cpp officiel, déjà compilé.
-        <div class="muted" style="margin-top:4px">Rien à installer ni à mettre à jour ici : le moteur suit l'image.
-          Pour en changer (version épinglée, CPU, Vulkan), reconstruis l'image avec le build-arg <code>LLAMACPP_IMAGE</code>.</div>
+      <div style="font-size:12px;line-height:1.5">
+        <div>Moteur <b>llama.cpp</b> <span id="eng-build" class="mcp-tag eng-ver"></span> <span id="eng-source" class="mcp-tag"></span></div>
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
+        <div id="eng-latest" style="margin-top:6px"></div>
+        <div class="row" style="margin:8px 0 0">
+          <button onclick="engCheck()">vérifier la version</button>
+          <button onclick="engUpdate()">mettre à jour le moteur</button>
+          <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
+        </div>
+        <div class="muted" style="margin-top:6px">Télécharge llama-server et ses bibliothèques depuis l'image officielle
+          <code id="eng-repo"></code> (~170&nbsp;Mo), sans reconstruire l'image de Loki. Le nouveau moteur est essayé
+          avant d'être adopté ; celui de l'image reste intact et récupérable en un clic.</div>
       </div>
     </div>
     <!-- La pastille « conseillé » n'est PAS écrite ici : le bon choix dépend de

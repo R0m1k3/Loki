@@ -189,6 +189,13 @@ func newWebMux() *http.ServeMux {
 	api("/api/llamacpp/prebuilt", handleLlamacppPrebuilt)                // job : binaires officiels précompilés
 	api("/api/llamacpp/prebuilt/check", handleLlamacppPrebuiltCheck)     // dernière release officielle vs installée
 	api("/api/llamacpp/use", handleLlamacppUse)                          // bascule BIN entre versions déjà installées
+	// Moteur livré par l'image : mise à jour SANS reconstruire l'image, en
+	// extrayant /app de l'image officielle llama.cpp (voir web_engine.go).
+	api("/api/engine", handleEngineStatus)        // version qui tourne + versions installées
+	api("/api/engine/check", handleEngineCheck)   // dernier build publié vs courant
+	api("/api/engine/update", handleEngineUpdate) // job : téléchargement + essai + bascule
+	api("/api/engine/use", handleEngineUse)       // bascule vers une version installée (ou "image")
+	api("/api/engine/remove", handleEngineRemove) // supprime une version téléchargée
 	api("/api/presets", handlePresets)
 	api("/api/preset", handlePreset)
 	api("/api/preset/save", handlePresetSave)

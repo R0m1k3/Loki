@@ -440,8 +440,18 @@ func prebuiltInstall(logf, phasef func(string)) (string, error) {
 // downloadWithProgress télécharge url vers dest en journalisant la progression
 // par tranches de ~25 Mo.
 func downloadWithProgress(url, dest string, total int64, logf func(string)) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	return downloadRequest(req, dest, total, logf)
+}
+
+// downloadRequest est la même chose pour une requête déjà construite — un
+// registre OCI exige un en-tête d'autorisation, même en lecture anonyme.
+func downloadRequest(req *http.Request, dest string, total int64, logf func(string)) error {
 	client := &http.Client{Timeout: 0}
-	resp, err := client.Get(url)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

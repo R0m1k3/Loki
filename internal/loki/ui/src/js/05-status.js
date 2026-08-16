@@ -201,6 +201,12 @@ async function loadCfg(){
     // En conteneur, le moteur vient de l'image : le dire, plutôt que de le
     // ranger dans « personnalisé » qui laisse croire à un bricolage.
     if(lc && lc.provided && sameBinPath(c.BIN, lc.provided_bin)) v='llama.cpp de l\'image';
+    // Moteur mis à jour depuis l'image officielle (Réglages → Moteur) : c'est la
+    // voie normale en conteneur, pas un « personnalisé ».
+    else if(lc && lc.engine && lc.engine.in_use){
+      const b = (lc.engine.tag||'').match(/b\d+$/);
+      v = b ? 'llama.cpp '+b[0]+' (mis à jour)' : 'llama.cpp mis à jour';
+    }
     else if(lc && lc.prebuilt && lc.prebuilt.in_use) v='llama.cpp précompilé';
     else if(lc && lc.in_use) v='llama.cpp compilé';
     else v='llama.cpp personnalisé : '+c.BIN;
