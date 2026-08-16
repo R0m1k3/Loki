@@ -168,6 +168,15 @@ func handleLlamacpp(w http.ResponseWriter, r *http.Request) {
 	// Compilé », qui ne désignent rien ici.
 	out["provided"] = engineProvided()
 	out["provided_bin"] = providedEngineBin()
+	// Moteur téléchargé depuis l'image officielle llama.cpp (web_engine.go) : ni
+	// « précompilé », ni « compilé », ni « personnalisé ». Sans cette information,
+	// le bandeau d'état le rangeait dans « personnalisé », ce qui laisse croire à
+	// un bricolage alors que c'est la voie de mise à jour normale en conteneur.
+	out["engine"] = map[string]any{
+		"dir":    engineDir(),
+		"in_use": engineOwns(cfgBin),
+		"tag":    engineTagOf(cfgBin),
+	}
 
 	plan := detectBuildPlan()
 	out["plan"] = map[string]any{
@@ -224,8 +233,8 @@ func refuseIfProvided(w http.ResponseWriter) bool {
 		return false
 	}
 	sendJSON(w, 409, map[string]any{"ok": false, "error": "Le moteur est fourni par l'image Docker (" + bin +
-		") : il n'y a rien à installer ici, et l'image ne contient ni cmake ni compilateur. " +
-		"Pour changer de moteur, reconstruis l'image avec un autre build-arg LLAMACPP_IMAGE."})
+		") : il n'y a rien à compiler ici, et l'image ne contient ni cmake ni compilateur. " +
+		"Pour le mettre à jour, utilise « mettre à jour le moteur » dans Réglages → Moteur."})
 	return true
 }
 

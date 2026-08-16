@@ -56,7 +56,8 @@ async function loadLlamacpp(){
 let lcSeenEnd = false, lcEndShown = false;
 function lcChipLabel(action){
   return {install:'Compilation du moteur', update:'Mise à jour du moteur',
-          prebuilt:'Téléchargement du moteur', custom:'Installation du backend'}[action] || 'Installation du moteur';
+          prebuilt:'Téléchargement du moteur', engine:'Mise à jour du moteur',
+          custom:'Installation du backend'}[action] || 'Installation du moteur';
 }
 function lcChipSync(j){
   const chip = document.getElementById('lc-chip');
@@ -97,7 +98,7 @@ function lcRenderReco(reco){
   if(desc && reco && reco.why) desc.textContent = reco.why;
 }
 
-// Bascule entre « moteur de l'image » (une ligne d'état) et les trois modes
+// Bascule entre la carte « moteur de l'image » et les trois modes
 // d'installation gérés par Loki.
 function lcRenderProvided(s){
   const box = document.getElementById('lc-provided');
@@ -108,8 +109,87 @@ function lcRenderProvided(s){
   if(!s.provided) return;
   const bin = document.getElementById('lc-provided-bin');
   if(bin) bin.textContent = s.config_bin || '';
-  const job = document.getElementById('lc-job');
-  if(job) job.style.display = 'none';
+  loadEngine();
+  // Un job de mise à jour du moteur peut être en cours : le bloc de progression
+  // était masqué ici tant que la carte ne servait qu'à dire « rien à faire ».
+  if(s.job && s.job.exists && s.job.running && !lcPoll){
+    openDetails('lc-details');
+    lcStartPolling();
+  }
+  lcChipSync(s.job);
+}
+
+// --- Moteur de l'image : le mettre à jour sans reconstruire l'image ---------
+// llama.cpp publie plusieurs versions par jour ; son moteur déjà compilé vit
+// dans l'image officielle, dont on n'extrait que /app (~170 Mo). Voir
+// web_engine.go pour le détail, et pourquoi ce n'est pas une release GitHub :
+// llama.cpp n'en publie aucune pour CUDA/Linux.
+let engState = null;
+
+async function loadEngine(){
+  let s;
+  try{ s = await jget('/api/engine'); }catch(_){ return; }
+  engState = s;
+  const build = document.getElementById('eng-build');
+  if(build) build.textContent = s.build ? ('b'+s.build+(s.commit ? ' · '+s.commit : '')) : 'version inconnue';
+  const src = document.getElementById('eng-source');
+  if(src) src.textContent = {image:'fourni par l\'image', downloaded:'mis à jour par Loki',
+                             prebuilt:'précompilé', custom:'personnalisé'}[s.source] || '';
+  const repo = document.getElementById('eng-repo');
+  if(repo) repo.textContent = s.repo + ':' + (s.variant || 'server');
+  // Le retour arrière n'a de sens que si on n'est pas déjà dessus.
+  const revert = document.getElementById('eng-revert');
+  if(revert) revert.style.display = (s.image_bin && s.source !== 'image') ? '' : 'none';
+  engSay('');
+}
+
+// engSay écrit sous la ligne d'état : c'est le résultat d'une vérification, qui
+// doit rester lisible après le toast (on ne se souvient pas d'un toast).
+function engSay(html, cls){
+  const el = document.getElementById('eng-latest');
+  if(!el) return;
+  el.innerHTML = html;
+  el.className = cls || 'muted';
+  el.style.display = html ? '' : 'none';
+}
+
+async function engCheck(){
+  toast('vérification…');
+  let r;
+  try{ r = await jpost('/api/engine/check', {}); }catch(_){ toast('erreur réseau'); return; }
+  if(!r.ok){ engSay('✗ '+String(r.error||'').replace(/[<>&]/g,'')); toast('erreur'); return; }
+  if(r.update){
+    engSay('Version disponible : <b>b'+r.latest+'</b>'+(r.current ? ' (installée : b'+r.current+')' : '')
+           + ' — « mettre à jour le moteur » pour l\'installer.');
+    toast('mise à jour disponible : b'+r.latest);
+  } else {
+    engSay('Moteur à jour ✓ (b'+r.latest+')');
+    toast('moteur à jour ✓');
+  }
+}
+
+async function engUpdate(){
+  if(!await askConfirm('Télécharger la dernière version de llama.cpp (~170 Mo) et l\'utiliser à la place du moteur de l\'image.\n\n'
+      + 'Le moteur est essayé avant d\'être adopté ; celui de l\'image reste intact. Le moteur redémarre à la fin — la génération en cours sera coupée.',
+      {title:'Mettre à jour le moteur', okText:'Mettre à jour'})) return;
+  let r;
+  try{ r = await jpost('/api/engine/update', {}); }catch(_){ toast('erreur réseau'); return; }
+  if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
+  openDetails('lc-details');
+  lcStartPolling();
+}
+
+// Bascule vers une version déjà installée — « image » = celle d'origine.
+async function engUse(tag){
+  const image = tag === 'image';
+  if(!await askConfirm(image ? 'Repasser sur le moteur livré avec l\'image Docker. Le moteur redémarre.'
+                             : 'Utiliser la version « '+tag+' ». Le moteur redémarre.',
+      {title:'Changer de moteur', okText:'Basculer'})) return;
+  let r;
+  try{ r = await jpost('/api/engine/use', {tag}); }catch(_){ toast('erreur réseau'); return; }
+  if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
+  toast('moteur basculé — redémarrage en cours');
+  loadAll();
 }
 
 function lcRenderMode(mode, installed){
