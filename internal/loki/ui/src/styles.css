@@ -1717,8 +1717,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    La maquette n'a qu'un style de titre : casse normale, demi-gras, taille du
    texte courant (« Performance »). Le monospace en capitales de la charte
    précédente y jurait, et faisait crier des libellés qui n'ont rien à dire. */
-.side .stitle{font-family:var(--font);text-transform:none;letter-spacing:-.01em;
+/* Le panneau Fichiers porte les mêmes titres que la barre latérale : un seul
+   style de titre dans toute l'application, celui de la maquette. */
+.stitle{font-family:var(--font);text-transform:none;letter-spacing:-.01em;
   font-size:13.5px;font-weight:600;color:var(--text)}
+.side-sep{font-family:var(--font);text-transform:none;letter-spacing:0;
+  font-size:12px;font-weight:600;color:var(--dim)}
 #side-scroll>details>summary,#side-settings>summary{padding:0 14px}
 #side-settings{margin-top:0;border-top:1px solid var(--border)}
 #side-settings>.sidegroup{padding:0 12px}
@@ -1759,7 +1763,38 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .side .preset .conv-when{font-size:13px}
 .perf-head{font-size:16px;font-weight:700}
 .perf-l,.perf-l .perf-pct{font-size:14px;font-weight:500}
-.side .stitle{font-size:14px;font-weight:600}
+.stitle{font-size:14px;font-weight:600}
 /* Marque : « Loki v0.9.4 » en tête de colonne, à l'échelle des titres. */
 #brand svg{height:20px}
 #ver{font-size:13px;font-weight:500;margin-left:8px}
+
+/* --- Boutons-icônes : une seule géométrie --------------------------
+   Toutes ces commandes portaient un GLYPHE DE TEXTE, donc une taille et une
+   assiette décidées par la police du système. En SVG, elles se centrent
+   normalement — encore faut-il que leur bouton soit une boîte flex et non une
+   ligne de texte. */
+/* ⚠️ On NE touche PAS à `display` ici : plusieurs de ces boutons s'affichent et
+   se masquent par ce biais (#menubtn et .preset-add sont en display:none au
+   repos, #scrollbtn aussi). Une règle de centrage qui pose display:inline-flex
+   les rendrait visibles en permanence — le ☰ s'est ainsi retrouvé par-dessus
+   l'en-tête sur grand écran. Le centrage passe donc par le rembourrage, que la
+   taille connue de chaque bouton rend exact. */
+.modal-x,.mcp-edit,#files-refresh,#files-close,
+.files-acts .iconbtn,.conv-acts .iconbtn{
+  display:inline-flex;align-items:center;justify-content:center;line-height:1}
+#menubtn{padding:8px;line-height:0}
+#scrollbtn{padding:9px;line-height:0}
+.preset-add{padding:5px;line-height:0}
+#menubtn svg,#scrollbtn svg,.preset-add svg{display:block;margin:0 auto}
+.modal-x svg,.mcp-edit svg,#files-refresh svg,#files-close svg,.iconbtn svg{
+  display:block;width:auto;height:auto}
+/* La pastille du fil d'Ariane des fichiers n'est plus un caractère : elle a la
+   largeur de son dessin. */
+.files-ic{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center}
+.files-ic svg{display:block}
+.files-row.isdir .files-ic{color:var(--accent)}
+/* « Vider la discussion » : icône + libellé, alignés comme un seul bloc. */
+#chat-actions-clear,.row>button>svg{vertical-align:-2px}
+.row>button:has(svg){display:inline-flex;align-items:center;gap:7px}
+/* Le « + » des sections : même carré que les autres commandes de la barre. */
+.preset-add{width:26px;height:26px;border-radius:8px}

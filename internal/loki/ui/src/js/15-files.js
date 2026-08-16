@@ -142,7 +142,7 @@ function fileRow(e){
 
   const ic = document.createElement('span');
   ic.className = 'files-ic';
-  ic.textContent = e.dir ? '▸' : (e.image ? '▣' : '·');
+  ic.appendChild(icon(e.dir ? 'folder' : (e.image ? 'image' : 'file'), 16));
   row.appendChild(ic);
 
   const mid = document.createElement('span');
@@ -171,12 +171,14 @@ function fileRow(e){
   acts.className = 'files-acts';
   if(!e.dir){
     const dl = document.createElement('button');
-    dl.className = 'iconbtn'; dl.textContent = '↓'; dl.title = 'télécharger';
+    dl.className = 'iconbtn'; dl.appendChild(icon('download', 16));
+    dl.title = 'télécharger'; dl.setAttribute('aria-label', 'télécharger');
     dl.onclick = ev=>{ ev.stopPropagation(); downloadWorkspaceFile(e.path, e.name, row); };
     acts.appendChild(dl);
   }
   const rm = document.createElement('button');
-  rm.className = 'iconbtn'; rm.textContent = '🗑'; rm.title = 'supprimer';
+  rm.className = 'iconbtn'; rm.appendChild(icon('trash', 16));
+  rm.title = 'supprimer'; rm.setAttribute('aria-label', 'supprimer');
   rm.onclick = ev=>{ ev.stopPropagation(); removeFile(e); };
   acts.appendChild(rm);
   row.appendChild(acts);

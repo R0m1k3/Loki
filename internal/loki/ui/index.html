@@ -1748,8 +1748,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    La maquette n'a qu'un style de titre : casse normale, demi-gras, taille du
    texte courant (« Performance »). Le monospace en capitales de la charte
    précédente y jurait, et faisait crier des libellés qui n'ont rien à dire. */
-.side .stitle{font-family:var(--font);text-transform:none;letter-spacing:-.01em;
+/* Le panneau Fichiers porte les mêmes titres que la barre latérale : un seul
+   style de titre dans toute l'application, celui de la maquette. */
+.stitle{font-family:var(--font);text-transform:none;letter-spacing:-.01em;
   font-size:13.5px;font-weight:600;color:var(--text)}
+.side-sep{font-family:var(--font);text-transform:none;letter-spacing:0;
+  font-size:12px;font-weight:600;color:var(--dim)}
 #side-scroll>details>summary,#side-settings>summary{padding:0 14px}
 #side-settings{margin-top:0;border-top:1px solid var(--border)}
 #side-settings>.sidegroup{padding:0 12px}
@@ -1790,12 +1794,43 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .side .preset .conv-when{font-size:13px}
 .perf-head{font-size:16px;font-weight:700}
 .perf-l,.perf-l .perf-pct{font-size:14px;font-weight:500}
-.side .stitle{font-size:14px;font-weight:600}
+.stitle{font-size:14px;font-weight:600}
 /* Marque : « Loki v0.9.4 » en tête de colonne, à l'échelle des titres. */
 #brand svg{height:20px}
 #ver{font-size:13px;font-weight:500;margin-left:8px}
+
+/* --- Boutons-icônes : une seule géométrie --------------------------
+   Toutes ces commandes portaient un GLYPHE DE TEXTE, donc une taille et une
+   assiette décidées par la police du système. En SVG, elles se centrent
+   normalement — encore faut-il que leur bouton soit une boîte flex et non une
+   ligne de texte. */
+/* ⚠️ On NE touche PAS à `display` ici : plusieurs de ces boutons s'affichent et
+   se masquent par ce biais (#menubtn et .preset-add sont en display:none au
+   repos, #scrollbtn aussi). Une règle de centrage qui pose display:inline-flex
+   les rendrait visibles en permanence — le ☰ s'est ainsi retrouvé par-dessus
+   l'en-tête sur grand écran. Le centrage passe donc par le rembourrage, que la
+   taille connue de chaque bouton rend exact. */
+.modal-x,.mcp-edit,#files-refresh,#files-close,
+.files-acts .iconbtn,.conv-acts .iconbtn{
+  display:inline-flex;align-items:center;justify-content:center;line-height:1}
+#menubtn{padding:8px;line-height:0}
+#scrollbtn{padding:9px;line-height:0}
+.preset-add{padding:5px;line-height:0}
+#menubtn svg,#scrollbtn svg,.preset-add svg{display:block;margin:0 auto}
+.modal-x svg,.mcp-edit svg,#files-refresh svg,#files-close svg,.iconbtn svg{
+  display:block;width:auto;height:auto}
+/* La pastille du fil d'Ariane des fichiers n'est plus un caractère : elle a la
+   largeur de son dessin. */
+.files-ic{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center}
+.files-ic svg{display:block}
+.files-row.isdir .files-ic{color:var(--accent)}
+/* « Vider la discussion » : icône + libellé, alignés comme un seul bloc. */
+#chat-actions-clear,.row>button>svg{vertical-align:-2px}
+.row>button:has(svg){display:inline-flex;align-items:center;gap:7px}
+/* Le « + » des sections : même carré que les autres commandes de la barre. */
+.preset-add{width:26px;height:26px;border-radius:8px}
 </style></head><body>
-<button id="menubtn" onclick="toggleSide()">☰</button>
+<button id="menubtn" onclick="toggleSide()" title="menu" aria-label="ouvrir le menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
      fermé sur téléphone. Sans ce rappel, un rechargement de page donnait
      l'impression que l'installation avait disparu. -->
@@ -1821,7 +1856,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
        La recherche filtre CÔTÉ CLIENT : la liste est déjà entièrement chargée
        (métadonnées seules, sans les messages), un aller-retour serveur par
        frappe n'apporterait rien. -->
-  <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion">+</button></summary>
+  <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion" aria-label="nouvelle discussion"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></summary>
     <input id="conv-search" type="search" placeholder="rechercher une discussion…" oninput="renderConversations()" aria-label="rechercher une discussion">
     <div id="conv-list" class="slist"></div>
   </details>
@@ -1843,7 +1878,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div class="sidegroup">
   <details id="svc-log-box" ontoggle="if(this.open){loadSvcLog();showPaths()}"><summary><span class="stitle">Journal du moteur</span></summary>
     <div class="row" style="justify-content:flex-end;align-items:center">
-      <button onclick="loadSvcLog()" title="rafraîchir">↻</button>
+      <button onclick="loadSvcLog()" title="rafraîchir" aria-label="rafraîchir le journal"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5V9H15"/></svg></button>
     </div>
     <pre id="svc-log" class="muted" style="font-size:10px;line-height:1.45;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:6px 0 0"></pre>
     <!-- Emplacements : au même endroit que le journal, c'est le panneau où l'on
@@ -1856,7 +1891,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <details open id="cfg-details"><summary><span class="stitle">Config active</span></summary>
     <div id="cfg" class="slist">…</div>
   </details>
-  <details><summary><span class="stitle">Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter">+</button></summary>
+  <details><summary><span class="stitle">Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></summary>
     <div class="slist"><div id="presets" class="rowlist"></div></div>
   </details>
   <details><summary><span class="stitle">Mode agent</span><span id="agent-badge" class="sbadge"></span></summary>
@@ -2101,7 +2136,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <!-- Ligne 2 : bench + clear chat (seule action destructive, gardée en dernier). -->
       <div class="row" style="margin-bottom:0">
         <button id="btn-bench" onclick="runBenchUI()">bench</button>
-        <button onclick="resetChat()">⌫ clear chat</button>
+        <button onclick="resetChat()" title="vider la discussion"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5h9l1-12.5"/></svg><span>vider la discussion</span></button>
       </div>
     </div></div>
   </details>
@@ -2145,7 +2180,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
          pas de civilité ni d'accord qui obligerait à deviner. -->
     <div id="ce-title">On commence par quoi ?</div>
   </div>
-  <button id="scrollbtn" onclick="jumpBottom()" title="aller en bas">↓</button>
+  <button id="scrollbtn" onclick="jumpBottom()" title="aller en bas" aria-label="aller en bas"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg></button>
   <!-- Voile de dépôt : révélé pendant qu'on survole la fenêtre avec un fichier. -->
   <div id="dropveil" aria-hidden="true"><div>Déposer pour joindre au message</div></div>
   <div id="composer">
@@ -2202,8 +2237,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <!-- Titre court : le panneau est déjà nommé par son contexte, et le libellé
          complet reste porté par l'aria-label de la section. -->
     <span class="stitle">Fichiers</span>
-    <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
-    <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
+    <button id="files-refresh" onclick="loadFiles()" title="rafraîchir" aria-label="rafraîchir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5V9H15"/></svg></button>
+    <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
   </div>
   <!-- Fil d'Ariane : le dossier de la discussion a des sous-dossiers (uploads,
        captures), il faut pouvoir y descendre et en remonter. -->
@@ -2216,7 +2251,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:100%;max-width:480px;display:flex;flex-direction:column">
     <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <strong>Benchmark</strong>
-      <button onclick="closeBenchModal()" style="margin:0">×</button>
+      <button onclick="closeBenchModal()" style="margin:0" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
     </div>
     <div id="bench-body" style="padding:18px 20px;display:flex;flex-direction:column;gap:12px"></div>
     <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px">
@@ -2233,7 +2268,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div class="modal-card" style="max-width:460px">
     <div class="modal-head">
       <strong>Exporter la conversation</strong>
-      <button class="modal-x" onclick="closeExportModal()" title="fermer">×</button>
+      <button class="modal-x" onclick="closeExportModal()" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
     </div>
     <!-- Conversation vide : pas d'options à régler, un seul message. Proposer
          des réglages pour un fichier qui ne contiendrait rien n'a aucun sens. -->
@@ -2306,10 +2341,10 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div class="modal-card" style="max-width:560px">
     <div class="modal-head">
       <strong>Backends personnalisés</strong>
-      <button class="modal-x" onclick="closeCustomBackends()" aria-label="Fermer">×</button>
+      <button class="modal-x" onclick="closeCustomBackends()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
     </div>
     <div class="modal-body mform">
-      <div class="muted" style="font-size:12px;line-height:1.5">Compile un fork de llama.cpp depuis un dépôt Git — pour les modèles qui exigent un moteur spécial (quant ternaire, etc.). Un backend personnalisé <b>ne remplace pas</b> le moteur : vous le choisissez ensuite <b>par modèle</b> (bouton ✎ → section Moteur → « backend détecté »).</div>
+      <div class="muted" style="font-size:12px;line-height:1.5">Compile un fork de llama.cpp depuis un dépôt Git — pour les modèles qui exigent un moteur spécial (quant ternaire, etc.). Un backend personnalisé <b>ne remplace pas</b> le moteur : vous le choisissez ensuite <b>par modèle</b> (bouton crayon → section Moteur → « backend détecté »).</div>
       <div class="fld">
         <label class="fld-l">Installés</label>
         <div id="lc-custom-list" class="mcp-list"></div>
@@ -2336,7 +2371,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div class="modal-card" style="max-width:560px">
     <div class="modal-head">
       <strong id="mcp-modal-title">Serveur MCP</strong>
-      <button class="modal-x" onclick="closeMcp()" aria-label="Fermer">×</button>
+      <button class="modal-x" onclick="closeMcp()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
     </div>
     <div class="modal-body mform">
       <div class="fld">
@@ -2395,7 +2430,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <div class="modal-card">
     <div class="modal-head">
       <strong id="modal-title">Preset</strong>
-      <button class="modal-x" onclick="closeModal()" aria-label="Fermer">×</button>
+      <button class="modal-x" onclick="closeModal()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
     </div>
     <!-- Chargement : la modale s'ouvre tout de suite, mais son contenu n'arrive
          qu'après (jusqu'à 3 requêtes en accès distant). Ce voile se pose PAR-DESSUS
@@ -2443,7 +2478,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
               <span class="pe-row-l">Télécharger un modèle <span class="pe-sub">ou un projecteur mmproj — lien direct vers un .gguf</span></span>
               <div class="pe-inpbtn">
                 <input id="m-hf-url" class="pe-inp" placeholder="https://…/model.gguf">
-                <button id="m-hf-btn" onclick="startDownload()" title="Télécharger">↓</button>
+                <button id="m-hf-btn" onclick="startDownload()" title="Télécharger" aria-label="Télécharger"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 19.5h15"/></svg></button>
               </div>
               <div id="m-hf-bar" class="pe-bar" style="display:none"><i></i></div>
               <div id="m-hf-progress" class="pe-note" style="display:none"></div>
@@ -2771,6 +2806,57 @@ async function loadPrefs(){
   }catch(e){}
 }
 document.addEventListener('DOMContentLoaded', ()=>{ initTheme(); initView(); document.getElementById('sysprompt').value = localStorage.getItem('loki.sys') || ''; loadSys(); restoreChat(); });
+// ─── Jeu d'icônes ────────────────────────────────────────────────────────────
+// Un seul trait pour toute l'interface : 24 unités de côté, 1,8 d'épaisseur,
+// extrémités et jonctions arrondies — celui des deux icônes de la maquette
+// (dépôt et envoi), étendu au reste de l'application.
+//
+// Elles étaient jusqu'ici des GLYPHES DE TEXTE (↻ × ☰ 🗑 ✎ ↓ ▸). C'est le
+// système d'exploitation qui les dessinait : le même bouton sortait fin sur
+// macOS, gras et bleuté sur Windows (émojis en couleur), et carrément absent sur
+// un serveur sans police d'émojis. Aucune cohérence possible, et rien à régler
+// depuis la feuille de style. En SVG, elles suivent currentColor et la taille
+// qu'on leur donne.
+//
+// Ajouter une icône : une entrée ici, et rien d'autre — surtout pas un second
+// dessin ailleurs, c'est ainsi que le trait finit par diverger.
+const ICONS = {
+  menu:      '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+  close:     '<path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/>',
+  refresh:   '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5V9H15"/>',
+  pencil:    '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>',
+  trash:     '<path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5h9l1-12.5"/>',
+  download:  '<path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 19.5h15"/>',
+  arrowDown: '<path d="M12 5v14"/><path d="M6 13l6 6 6-6"/>',
+  folder:    '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  file:      '<path d="M13.5 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5z"/><path d="M13.5 3.5V8.5h5"/>',
+  image:     '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.4"/><path d="M4.5 17.5 10 12l3.5 3.5L16 13l3.5 3.5"/>',
+  plus:      '<path d="M12 5.5v13"/><path d="M5.5 12h13"/>',
+  chevron:   '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
+  search:    '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/>',
+  sun:       '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2"/><path d="M12 19.3v2.2"/><path d="M4.2 4.2l1.6 1.6"/><path d="M18.2 18.2l1.6 1.6"/><path d="M2.5 12h2.2"/><path d="M19.3 12h2.2"/><path d="M4.2 19.8l1.6-1.6"/><path d="M18.2 5.8l1.6-1.6"/>',
+};
+
+// iconHTML rend l'icône en chaîne, pour les endroits qui composent déjà du
+// balisage. `aria-hidden` : le sens est porté par le title/aria-label du bouton,
+// jamais par le dessin.
+function iconHTML(name, size){
+  const d = ICONS[name];
+  if(!d) return '';
+  const n = size || 18;
+  return '<svg viewBox="0 0 24 24" width="' + n + '" height="' + n + '" fill="none" '
+    + 'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+    + 'stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+}
+
+// icon rend l'icône en ÉLÉMENT, pour les listes construites en DOM (fichiers,
+// discussions) où l'on ne veut pas d'innerHTML.
+function icon(name, size){
+  const span = document.createElement('span');
+  span.className = 'icn';
+  span.innerHTML = iconHTML(name, size); // contenu constant, jamais de donnée
+  return span.firstElementChild || span;
+}
 // Pastille d'état d'une section du menu (mode agent, internet, MCP, distant).
 // `state` : true = actif (pilule pleine), false = inactif (contour), 'warn'/'err'
 // = état signalé, null = pastille masquée. Un seul endroit décide de leur allure.
@@ -5930,7 +6016,8 @@ function renderMCP(r){
     sw.appendChild(cb); sw.appendChild(sl);
 
     const edit = document.createElement('button');
-    edit.className = 'mcp-edit'; edit.title = 'éditer'; edit.textContent = '✎';
+    edit.className = 'mcp-edit'; edit.title = 'éditer';
+    edit.setAttribute('aria-label', 'éditer ce serveur'); edit.appendChild(icon('pencil', 15));
     edit.onclick = (e)=>{ e.stopPropagation(); openMcp(s.name); };
 
     row.appendChild(dot); row.appendChild(info); row.appendChild(sw); row.appendChild(edit);
@@ -6524,7 +6611,7 @@ function fileRow(e){
 
   const ic = document.createElement('span');
   ic.className = 'files-ic';
-  ic.textContent = e.dir ? '▸' : (e.image ? '▣' : '·');
+  ic.appendChild(icon(e.dir ? 'folder' : (e.image ? 'image' : 'file'), 16));
   row.appendChild(ic);
 
   const mid = document.createElement('span');
@@ -6553,12 +6640,14 @@ function fileRow(e){
   acts.className = 'files-acts';
   if(!e.dir){
     const dl = document.createElement('button');
-    dl.className = 'iconbtn'; dl.textContent = '↓'; dl.title = 'télécharger';
+    dl.className = 'iconbtn'; dl.appendChild(icon('download', 16));
+    dl.title = 'télécharger'; dl.setAttribute('aria-label', 'télécharger');
     dl.onclick = ev=>{ ev.stopPropagation(); downloadWorkspaceFile(e.path, e.name, row); };
     acts.appendChild(dl);
   }
   const rm = document.createElement('button');
-  rm.className = 'iconbtn'; rm.textContent = '🗑'; rm.title = 'supprimer';
+  rm.className = 'iconbtn'; rm.appendChild(icon('trash', 16));
+  rm.title = 'supprimer'; rm.setAttribute('aria-label', 'supprimer');
   rm.onclick = ev=>{ ev.stopPropagation(); removeFile(e); };
   acts.appendChild(rm);
   row.appendChild(acts);
@@ -6662,10 +6751,14 @@ function renderConversations(){
 
     // Renommer / supprimer : stopPropagation, sinon le clic bascule aussi.
     const acts = document.createElement('div'); acts.className = 'conv-acts';
-    const ren = document.createElement('button'); ren.className = 'iconbtn'; ren.textContent = '✎';
-    ren.title = 'renommer'; ren.onclick = e => { e.stopPropagation(); convRename(c.id, title); };
-    const del = document.createElement('button'); del.className = 'iconbtn'; del.textContent = '🗑';
-    del.title = 'supprimer'; del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
+    const ren = document.createElement('button'); ren.className = 'iconbtn';
+    ren.appendChild(icon('pencil', 15)); ren.title = 'renommer';
+    ren.setAttribute('aria-label', 'renommer la discussion');
+    ren.onclick = e => { e.stopPropagation(); convRename(c.id, title); };
+    const del = document.createElement('button'); del.className = 'iconbtn';
+    del.appendChild(icon('trash', 15)); del.title = 'supprimer';
+    del.setAttribute('aria-label', 'supprimer la discussion');
+    del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
     acts.appendChild(ren); acts.appendChild(del);
 
     row.append(info, when, acts);

@@ -60,10 +60,14 @@ function renderConversations(){
 
     // Renommer / supprimer : stopPropagation, sinon le clic bascule aussi.
     const acts = document.createElement('div'); acts.className = 'conv-acts';
-    const ren = document.createElement('button'); ren.className = 'iconbtn'; ren.textContent = '✎';
-    ren.title = 'renommer'; ren.onclick = e => { e.stopPropagation(); convRename(c.id, title); };
-    const del = document.createElement('button'); del.className = 'iconbtn'; del.textContent = '🗑';
-    del.title = 'supprimer'; del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
+    const ren = document.createElement('button'); ren.className = 'iconbtn';
+    ren.appendChild(icon('pencil', 15)); ren.title = 'renommer';
+    ren.setAttribute('aria-label', 'renommer la discussion');
+    ren.onclick = e => { e.stopPropagation(); convRename(c.id, title); };
+    const del = document.createElement('button'); del.className = 'iconbtn';
+    del.appendChild(icon('trash', 15)); del.title = 'supprimer';
+    del.setAttribute('aria-label', 'supprimer la discussion');
+    del.onclick = e => { e.stopPropagation(); convDelete(c.id, title); };
     acts.appendChild(ren); acts.appendChild(del);
 
     row.append(info, when, acts);
