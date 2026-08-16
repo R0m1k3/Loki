@@ -541,6 +541,18 @@ func newLinkHandler(mux *http.ServeMux) http.Handler {
 // à chaque requête de l'autre côté.
 func withLocalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ⚠️ Marquage AVANT tout : on efface d'abord, sinon un client forge
+		// l'en-tête et se fait passer pour du trafic de tunnel (ou l'inverse).
+		r.Header.Del(viaTunnelHeader)
+		r.Header.Set(viaTunnelHeader, "tunnel")
+		// La surface des complétions a SA clé (celle du moteur, fournie par le
+		// client). Y injecter la clé de PILOTAGE la ferait refuser par la garde,
+		// et surtout la relaierait à llama-server — un secret d'administration
+		// envoyé à un process qui n'en a aucun usage.
+		if strings.HasPrefix(r.URL.Path, "/v1/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if webKey := readWebKey(); webKey != "" && r.Header.Get("Authorization") == "" {
 			r.Header.Set("Authorization", "Bearer "+webKey)
 		}

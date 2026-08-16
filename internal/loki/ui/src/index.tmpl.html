@@ -283,35 +283,30 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     </div>
   </details>
   <details><summary><span class="stitle">Accès OpenAI</span></summary>
-    <div class="subhead">Endpoint compatible OpenAI<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Branchez n'importe quel client compatible OpenAI (OpenCode, Continue, Cursor…) sur ces adresses. Si une clé est définie, le client doit envoyer <code>Authorization: Bearer &lt;clé&gt;</code>.</span></span></div>
-    <!-- UNE carte pour tout l'endpoint : adresse locale, bascule « public » et
-         adresse publique sont un seul sujet — trois cartes accolées donnaient
-         trois îlots pour un même réglage. -->
+    <div class="subhead">Endpoint compatible OpenAI<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Branchez n'importe quel client compatible OpenAI (OpenCode, Continue, Cursor, Open WebUI…) sur cette adresse — le modèle s'y appelle <code>loki</code>. L'endpoint est servi par Loki <b>sur le port de cette interface</b> : aucun autre port à ouvrir. Si une clé est définie, le client doit envoyer <code>Authorization: Bearer &lt;clé&gt;</code>.</span></span></div>
     <div class="slist">
       <div class="rowbody">
-        <div class="muted" style="margin:0 0 6px">Adresse locale (réseau) — modèle <code>loki</code></div>
+        <div class="muted" style="margin:0 0 6px">Adresse de l'endpoint — modèle <code>loki</code></div>
         <div class="row" style="margin:0">
           <input id="oai-url" readonly class="io-input">
           <button class="iconbtn" onclick="copyText(document.getElementById('oai-url').value,'adresse copiée')" title="copier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
         </div>
       </div>
-      <!-- L'adresse ci-dessus ne sert à RIEN si le moteur n'écoute que sur la
-           boucle locale (le défaut sous Windows) : le chat du navigateur marche,
-           mais aucun logiciel du réseau ne peut s'y brancher. Cet interrupteur
-           règle HOST et pose la règle de pare-feu, voir sys_network.go. -->
-      <label class="switchrow"><span class="switch"><input type="checkbox" id="lan-toggle" onchange="toggleLAN()"><span class="slider"></span></span> joignable depuis le réseau local<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Éteint, le moteur n'écoute que sur <b>cette machine</b> : l'adresse ci-dessus ne répond qu'ici. Allumez-le pour brancher un logiciel depuis un autre ordinateur du réseau (sous Windows, la règle de pare-feu est posée en même temps). <b>Redémarre le moteur.</b></span></span></label>
-      <div id="lan-warn" class="rowbody" style="display:none"></div>
-      <label class="switchrow"><span class="switch"><input type="checkbox" id="oai-public-toggle" onchange="toggleOAIPublic()"><span class="slider"></span></span> exposer en public (ajean.link)<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Rend votre IA joignable depuis <b>n'importe où</b> via <code>https://&lt;machine&gt;.oai.ajean.link/v1</code> (pour brancher un SaaS). Le trafic est chiffré <b>de bout en bout</b> jusqu'à ce serveur — le relais ajean.link ne voit rien. Nécessite l'accès distant actif.</span></span></label>
-      <div id="oai-public-wrap" class="rowbody" style="display:none">
-        <div class="muted" style="margin:0 0 6px">Adresse publique — chiffrée de bout en bout, accessible partout</div>
+      <!-- Adresse publique : ce que Loki ne peut pas deviner. Vide, l'adresse
+           ci-dessus est celle par laquelle CE navigateur a ouvert l'interface —
+           déjà juste dans la plupart des cas. Renseignée, elle prend le pas :
+           c'est le cas du reverse proxy, où Loki ne voit qu'un appel interne. -->
+      <div class="rowbody">
+        <div class="muted" style="margin:0 0 6px">Adresse publique <span style="opacity:.7">— facultative</span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Le nom de domaine ou l'IP par lesquels on atteint cette interface, par exemple <code>ia.exemple.fr</code> ou <code>192.168.1.20:8090</code>. <b>Laissez vide</b> et l'adresse affichée suit celle de votre navigateur. Renseignez-la si vous passez par un <b>reverse proxy</b> ou un nom de domaine : Loki ne voit alors qu'un appel interne et ne peut pas la deviner. Sans <code>https://</code>, il est ajouté.</span></span></div>
         <div class="row" style="margin:0">
-          <input id="oai-public-url" readonly class="io-input">
-          <button class="iconbtn" onclick="copyText(document.getElementById('oai-public-url').value,'adresse publique copiée')" title="copier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+          <input id="public-addr" class="io-input" placeholder="ia.exemple.fr" onkeydown="if(event.key==='Enter')savePublicAddr()">
+          <button onclick="savePublicAddr()">enregistrer</button>
         </div>
       </div>
     </div>
-    <div class="subhead">Clé API<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Protège l'endpoint des complétions (llama-server). Indispensable avant d'exposer le serveur sur internet. Modifier la clé <b>redémarre</b> le service.</span></span></div>
+    <div class="subhead">Clé API<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Protège l'endpoint des complétions — vérifiée par Loki <b>et</b> par le moteur. Indispensable dès que l'adresse ci-dessus est joignable par d'autres. Modifier la clé <b>redémarre</b> le moteur.</span></span></div>
     <div class="slist"><div class="rowbody">
+      <div id="oai-open-warn" style="display:none;margin:0 0 8px;font-size:11.5px;line-height:1.5;color:var(--err)"></div>
       <div class="row" style="margin:0">
         <input id="oai-key" readonly class="io-input">
         <button id="oai-key-eye" onclick="toggleKeyReveal()" title="afficher / masquer">afficher</button>

@@ -231,26 +231,38 @@ async function copyText(txt, msg){
 function copyApiKey(){ copyText(OAI_KEY, OAI_KEY?'clé copiée':'aucune clé'); }
 function renderApiKey(d){
   OAI_KEY = d.key || '';
-  // URL de l'endpoint : llama-server tourne sur d.port (≠ port de l'UI web).
-  // On prend l'hôte annoncé par le serveur (IP LAN détectée côté Go) : dans le
-  // tunnel ajean.link, location.hostname serait le domaine du relais (faux) —
-  // l'accès OpenAI reste TOUJOURS l'adresse locale de la machine.
-  const host = d.host || location.hostname;
-  document.getElementById('oai-url').value = 'http://'+host+':'+d.port+'/v1';
-  // Endpoint PUBLIC (ajean.link) : affiché seulement si l'accès public est activé.
-  const tg = document.getElementById('oai-public-toggle');
-  if(tg) tg.checked = !!d.oai_public;
-  const pubWrap = document.getElementById('oai-public-wrap');
-  if(d.oai_public && d.machine){
-    document.getElementById('oai-public-url').value = 'https://'+d.machine+'.oai.ajean.link/v1';
-    pubWrap.style.display = '';
-  } else {
-    pubWrap.style.display = 'none';
+  // L'adresse vient du SERVEUR (web_public_url.go) : adresse publique
+  // enregistrée, sinon l'origine par laquelle cette page a été ouverte. Elle
+  // était auparavant recomposée ici — 'http://'+host+':'+port+'/v1' — à partir
+  // du port du MOTEUR et d'une IP détectée côté Go, ce qui donnait en conteneur
+  // une adresse que personne ne pouvait joindre (bridge Docker, port non publié).
+  // location.origin ne sert plus que de filet si le serveur ne dit rien.
+  document.getElementById('oai-url').value = d.url || (location.origin + '/v1');
+  // Champ d'adresse publique : on ne l'écrase pas pendant la frappe.
+  const pa = document.getElementById('public-addr');
+  if(pa && document.activeElement !== pa) pa.value = d.public_url || '';
+  // Sans clé, l'endpoint est ouvert — et il l'est maintenant partout où
+  // l'interface l'est. Ça ne se dit pas à voix basse.
+  const warn = document.getElementById('oai-open-warn');
+  if(warn){
+    warn.style.display = d.set ? 'none' : '';
+    warn.textContent = d.set ? '' :
+      '⚠ Aucune clé : toute personne capable de joindre cette adresse peut utiliser votre modèle.';
   }
   const inp=document.getElementById('oai-key');
-  if(!d.set){ inp.value='(aucune clé — serveur ouvert)'; inp.style.opacity=.6; }
+  if(!d.set){ inp.value='(aucune clé — endpoint ouvert)'; inp.style.opacity=.6; }
   else { inp.style.opacity=1; inp.value = OAI_REVEAL ? OAI_KEY : d.masked; }
   document.getElementById('oai-key-eye').style.display = d.set ? '' : 'none';
+}
+// Enregistre l'adresse publique. Le serveur normalise et refuse en clair : on
+// relaie sa raison telle quelle, elle est écrite pour être lue.
+async function savePublicAddr(){
+  const inp = document.getElementById('public-addr');
+  if(!inp) return;
+  const r = await jpost('/api/oai/public', {url: inp.value});
+  if(!r || !r.ok){ toast('adresse refusée : ' + ((r && r.error) || '')); return; }
+  toast(r.url ? 'adresse enregistrée' : 'adresse effacée — celle du navigateur sera utilisée');
+  loadApiKey();
 }
 async function loadApiKey(){ renderApiKey(await jget('/api/apikey')); }
 // --- Export de la conversation ---------------------------------------------
@@ -383,50 +395,11 @@ async function downloadExport(url){
     toast('exporté : ' + name);
   }catch(e){ toast('erreur : ' + e.message); }
 }
-// --- Écoute réseau du moteur (HOST + pare-feu) ------------------------------
-// Le retour d'utilisateur qui a motivé ce réglage : « à part le chat dans le
-// navigateur, impossible d'utiliser ton URL dans les logiciels en local ». Le
-// moteur écoutait sur 127.0.0.1 et rien ne le disait nulle part.
-function renderNetwork(st){
-  if(!st) return;
-  const cb = document.getElementById('lan-toggle');
-  if(cb) cb.checked = !!st.exposed;
-  const warn = document.getElementById('lan-warn');
-  if(!warn) return;
-  if(!st.exposed){
-    warn.style.display = '';
-    warn.innerHTML = '<div class="muted" style="margin:0">Le moteur n\'écoute que sur cette machine : l\'adresse ci-dessus ne répond pas depuis un autre ordinateur.</div>';
-    return;
-  }
-  // Exposé mais bloqué par le pare-feu : le cas le plus déroutant (« ça écoute
-  // partout » et pourtant rien ne passe). On donne la commande à coller.
-  if(st.hint){
-    warn.style.display = '';
-    // --err et non --warn : la palette est volontairement monochrome et --warn y
-    // est un gris, illisible comme alerte. Ici il y a une vraie action à faire.
-    warn.innerHTML = '<div style="margin:0;color:var(--err)">⚠ '
-      + escHtml(st.hint).replace(/\n/g,'<br>') + '</div>';
-    return;
-  }
-  warn.style.display = 'none';
-}
-async function loadNetwork(){
-  try{ const r = await jget('/api/network'); renderNetwork(r && r.status); }catch(e){}
-}
-async function toggleLAN(){
-  const cb = document.getElementById('lan-toggle');
-  const on = cb.checked;
-  const r = await jpost('/api/network', {exposed:on});
-  if(!r || !r.ok){ cb.checked = !on; toast('erreur : ' + ((r&&r.error)||'')); return; }
-  renderNetwork(r.status);
-  // llama-server ne lit --host qu'au lancement : sans redémarrage, l'interrupteur
-  // affiche un état que le moteur en cours ne respecte pas encore.
-  if(await askConfirm('Le moteur doit redémarrer pour appliquer ce changement (le modèle sera rechargé).',
-                      {title: on ? 'Ouvrir sur le réseau' : 'Fermer sur le réseau', okText:'Redémarrer'})){
-    await act('restart'); // même chemin que les boutons du panneau Moteur
-  }
-  loadApiKey();
-}
+// L'écoute réseau du moteur (HOST + pare-feu) n'a plus d'interrupteur : depuis
+// que Loki sert /v1 sur son propre port, ouvrir le moteur sur le réseau n'a plus
+// d'objet — et deux interrupteurs pour « rendre l'IA joignable » était
+// exactement la confusion qu'on voulait lever. La route /api/network et la
+// commande `loki network` restent, pour qui veut exposer le moteur en direct.
 function toggleKeyReveal(){ OAI_REVEAL=!OAI_REVEAL; const inp=document.getElementById('oai-key'); if(OAI_KEY) inp.value = OAI_REVEAL ? OAI_KEY : (OAI_KEY.slice(0,8)+'…'+OAI_KEY.slice(-4)); const eye=document.getElementById('oai-key-eye'); if(eye) eye.textContent = OAI_REVEAL ? 'masquer' : 'afficher'; }
 async function apiKeyAction(action){
   if(action==='clear' && !await askConfirm('Retirer la clé rend l\'endpoint OpenAI accessible SANS authentification. Le service va redémarrer.', {title:'Retirer la clé API ?', okText:'Retirer'})) return;
@@ -434,24 +407,6 @@ async function apiKeyAction(action){
   OAI_REVEAL=(action==='generate'); // révèle la clé fraîche pour qu'on puisse la copier
   toast('application…');
   renderApiKey(await jpost('/api/apikey', {action}));
-}
-async function toggleOAIPublic(){
-  const cb = document.getElementById('oai-public-toggle');
-  const on = cb.checked;
-  // L'accès OpenAI public passe par ajean.link (<machine>.oai.ajean.link) : il exige
-  // que l'accès distant soit activé sur ce serveur. Sinon, on annule et on explique.
-  if(on){
-    let linked = false;
-    try{ const s = await jget('/api/link/status'); linked = !!(s && s.linked); }catch(e){}
-    if(!linked){
-      cb.checked = false;
-      await askAlert('Vous devez activer l\'accès distant (ajean.link) pour bénéficier de cette fonctionnalité. Ouvrez le panneau « Accès distant » pour connecter ce serveur.', {title:'Accès distant requis'});
-      return;
-    }
-  }
-  await jpost('/api/oai/public', {enabled:on});
-  toast(on ? 'accès public activé' : 'accès public coupé');
-  loadApiKey();
 }
 async function apiKeySet(){
   const k = await askPrompt('Colle ta clé API (ou laisse vide pour annuler) :', {title:'Définir la clé API', placeholder:'sk-…'});
@@ -496,7 +451,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadNetwork(),loadPrefs(),loadLlamacpp()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }

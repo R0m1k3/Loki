@@ -59,6 +59,63 @@ func requireWebAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireCompletionKey protège la surface compatible OpenAI (/v1) avec la clé
+// des COMPLÉTIONS, et non avec la clé de pilotage. Trois raisons, dans l'ordre
+// d'importance :
+//
+//  1. Sémantique : c'est exactement la séparation décrite en tête de ce fichier
+//     — on veut pouvoir donner à une app tierce l'accès aux complétions sans lui
+//     donner le droit de redémarrer la machine.
+//  2. Technique : un client OpenAI n'a qu'UN en-tête Authorization. S'il y met la
+//     clé des complétions, une garde de pilotage le refuse ; s'il y met celle de
+//     pilotage, llama-server (qui reçoit l'en-tête tel quel) la refuse. Les deux
+//     gardes ne peuvent pas être satisfaites en même temps.
+//  3. Format : les SDK OpenAI lisent body.error.message ; un {"error":"…"} plat
+//     leur fait afficher un message vide.
+func requireCompletionKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Préflight CORS : un OPTIONS ne porte JAMAIS d'Authorization. Le refuser
+		// casse tout client tiers qui tourne dans un navigateur (playground web,
+		// interface de chat hébergée ailleurs). llama-server répond lui-même le
+		// préflight, ses en-têtes CORS traversent le proxy tels quels.
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Trafic venu du tunnel du relais : la surface OpenAI n'y est ouverte que
+		// si le drapeau historique l'autorise. Sans lui, le tunnel ne servait
+		// cette surface que par son front TLS dédié ; la monter sur le mux ne
+		// doit pas l'ouvrir en douce par le canal HTTP.
+		if r.Header.Get(viaTunnelHeader) == "tunnel" && !oaiPublicEnabled() {
+			sendOAIError(w, http.StatusNotFound,
+				"chemin inconnu — l'endpoint compatible OpenAI est /v1/*", "invalid_request_error", "not_found")
+			return
+		}
+		key, err := effectiveAPIKeyErr()
+		if err != nil {
+			// On ne sait pas si une clé protège cet endpoint : on ferme.
+			sendOAIError(w, http.StatusServiceUnavailable,
+				"configuration illisible — réessaie dans un instant", "api_error", "service_unavailable")
+			return
+		}
+		if key == "" {
+			// Aucune clé : endpoint ouvert, comme llama-server sans --api-key. Le
+			// panneau Accès OpenAI l'affiche en rouge, et cmdWeb le crie au
+			// démarrage — c'est le prix d'un réglage local sans friction.
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !checkBearer(r, key) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="loki"`)
+			sendOAIError(w, http.StatusUnauthorized,
+				"Clé API invalide ou absente — envoie l'en-tête Authorization: Bearer <clé>.",
+				"invalid_request_error", "invalid_api_key")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // checkBearer reports whether the request carries the expected key as an
 // "Authorization: Bearer <clé>" header. La comparaison est à temps constant.
 // PAS de repli ?key=<clé> en query string : une clé dans l'URL finit dans les

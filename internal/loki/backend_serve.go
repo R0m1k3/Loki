@@ -176,9 +176,7 @@ func cmdServe(args []string) error {
 	// exige alors l'en-tête "Authorization: Bearer <clé>". La clé est lue depuis
 	// $LOKI_HOME/.api_key en priorité (elle survit ainsi aux changements de preset
 	// qui réécrivent config.env), avec config.env comme repli rétro-compatible.
-	if k := readAPIKey(); k != "" {
-		llmArgs = append(llmArgs, "--api-key", k)
-	} else if k := cfg["API_KEY"]; k != "" {
+	if k, _ := effectiveAPIKeyErr(); k != "" {
 		llmArgs = append(llmArgs, "--api-key", k)
 	}
 	// EXTRA_ARGS is appended verbatim, split like the shell would — quotes kept

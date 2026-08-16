@@ -53,6 +53,14 @@ func cmdWeb(args []string) error {
 	} else {
 		fmt.Printf("%s API protégée par clé (Authorization: Bearer …)\n", green("[ok]"))
 	}
+	// Même avertissement pour la surface des complétions : depuis qu'elle est
+	// servie ici, elle est joignable partout où l'interface l'est.
+	if k, _ := effectiveAPIKeyErr(); k == "" {
+		fmt.Printf("%s endpoint OpenAI /v1 NON protégé (aucune clé) — quiconque joint cette adresse peut utiliser le modèle :\n", yellow("[!]"))
+		fmt.Printf("       %s\n", bold("loki set-api-key"))
+	} else {
+		fmt.Printf("%s endpoint OpenAI : http://%s/v1 (clé requise)\n", green("[oai]"), addr)
+	}
 
 	// Accès distant : le tunnel vers le relais est ouvert ICI, dans le process qui
 	// sert déjà l'UI, et avec le MÊME mux. C'est la condition d'une conversation
@@ -73,7 +81,9 @@ func cmdWeb(args []string) error {
 	// ReadHeaderTimeout : sans lui, une connexion qui n'envoie jamais sa requête
 	// immobilise une goroutine pour toujours — et ce port écoute sur 0.0.0.0.
 	// Surtout PAS de WriteTimeout ici : il couperait les flux SSE du chat, qui
-	// restent ouverts aussi longtemps que l'utilisateur regarde la page.
+	// restent ouverts aussi longtemps que l'utilisateur regarde la page — et
+	// depuis mountOAI, il couperait aussi les complétions en streaming des
+	// clients tiers, en plein milieu d'une génération.
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	return srv.Serve(ln)
 }
@@ -140,6 +150,12 @@ func newWebMux() *http.ServeMux {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		w.Write(b)
 	})
+	// Endpoint compatible OpenAI, servi par Loki SUR SON PORT et relayé vers
+	// llama-server (voir mountOAI). C'est ce qui le rend joignable par le nom de
+	// domaine ou l'IP de l'interface, sans publier de second port ni ouvrir le
+	// moteur sur le réseau. Il n'est PAS derrière requireWebAuth : il a sa propre
+	// clé, celle des complétions (web_auth.go).
+	mountOAI(mux)
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(h)) }
 	api("/api/ping", handlePing)
@@ -181,7 +197,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/agent/toggle", handleAgentToggle)
 	api("/api/agent/compact", handleCompactToggle)
 	api("/api/apikey", handleAPIKey)
-	api("/api/oai/public", handleOAIPublic)
+	api("/api/oai/public", handlePublicAddress)       // adresse publique (domaine/IP) de cette instance
 	api("/api/link/status", handleLinkStatus)         // état de l'accès distant (ajean.link)
 	api("/api/link/connect", handleLinkConnect)       // clé de liaison remise par connect.html → loki link
 	api("/api/link/start", handleLinkStart)           // (re)démarre le tunnel avec la clé déjà enregistrée
