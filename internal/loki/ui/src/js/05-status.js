@@ -137,7 +137,7 @@ function updateCtxMeter(){
 // Construit EN DOM et non en innerHTML : les noms de GPU viennent du pilote,
 // donc d'ailleurs. Même règle que pour les noms de fichiers et les titres de
 // discussions.
-function perfRow(label, pct, sub, title){
+function perfRow(label, pct, title){
   pct = Math.max(0, Math.min(100, Math.round(pct||0)));
   const row=document.createElement('div'); row.className='perf-row';
   if(title) row.title=title;
@@ -153,7 +153,6 @@ function perfRow(label, pct, sub, title){
   fill.style.width=pct+'%';
   track.appendChild(fill);
   row.append(l,track);
-  if(sub){ const s=document.createElement('div'); s.className='perf-sub'; s.textContent=sub; row.appendChild(s); }
   return row;
 }
 async function loadVram(){
@@ -166,14 +165,16 @@ async function loadVram(){
     box.appendChild(d);
     return;
   }
+  // Deux mesures par carte, deux jauges — une seule barre ne peut pas porter la
+  // charge du processeur ET le remplissage de la mémoire vidéo, et pour du LLM
+  // c'est la VRAM qui décide si un modèle tient. Sur une machine à UNE carte on
+  // retombe exactement sur les trois jauges de la maquette (GPU, VRAM, RAM).
+  const many = gpus.length > 1;
   gpus.forEach((g,i)=>{
-    // Le pourcentage affiché est la CHARGE du processeur graphique (ce que
-    // montre la maquette) ; la VRAM, elle, passe en détail sous la barre — deux
-    // mesures distinctes qu'une seule barre ne peut pas porter.
     const vram=(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' Gio';
-    box.appendChild(perfRow(
-      'GPU '+i+(gpus.length>1?'':'')+' — charge', g.util,
-      vram+' · '+g.temp+' °C', g.name));
+    box.appendChild(perfRow('GPU '+i, g.util, g.name+' · '+vram+' · '+g.temp+' °C'));
+    box.appendChild(perfRow(many ? 'VRAM '+i : 'VRAM', g.used*100/g.total,
+      g.name+' · '+vram));
   });
 }
 async function loadRam(){
@@ -185,7 +186,7 @@ async function loadRam(){
   const host=document.getElementById('ram');
   host.textContent='';
   host.appendChild(perfRow('Mémoire vive', m.used*100/m.total,
-    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio'));
+    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio utilisés'));
 }
 async function loadCfg(){
   // /api/llamacpp en parallèle : il indique si le BIN de la config correspond au

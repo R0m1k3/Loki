@@ -21,18 +21,6 @@ function toggleSideCollapse(){
   if(typeof syncGutter === 'function') requestAnimationFrame(syncGutter);
 }
 
-// Moniteur machine replié : le pied de barre latérale ne garde que son titre.
-function togglePerf(){
-  const on = document.documentElement.getAttribute('data-perf') !== '0';
-  document.documentElement.setAttribute('data-perf', on ? '0' : '1');
-  try{ localStorage.setItem('loki-perf', on ? '0' : '1'); }catch(_){}
-  const b = document.querySelector('#side-perf .perf-toggle');
-  if(b){
-    b.textContent = on ? '+' : '–';
-    b.title = on ? 'déplier le moniteur' : 'replier le moniteur';
-  }
-}
-
 // Bascule clair/sombre depuis l'en-tête. Elle passe par applyTheme + savePrefs
 // (01-theme.js) pour rester alignée avec l'interrupteur des réglages et avec le
 // serveur — deux chemins vers le même réglage, une seule source de vérité.
@@ -125,11 +113,3 @@ function paintModelSwitch(){
   // Une bascule en cours ne doit pas voir sa sélection sauter sous la souris.
   if(prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
-
-// État initial des libellés (le CSS, lui, est déjà appliqué par le <head>).
-document.addEventListener('DOMContentLoaded', () => {
-  if(document.documentElement.getAttribute('data-perf') === '0'){
-    const b = document.querySelector('#side-perf .perf-toggle');
-    if(b){ b.textContent = '+'; b.title = 'déplier le moniteur'; }
-  }
-});
