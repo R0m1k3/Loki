@@ -205,6 +205,9 @@ async function loadCfg(){
     else v='llama.cpp personnalisé : '+c.BIN;
     rows.push(row('MOTEUR', v, c.BIN));
   }
+  // Le modèle chargé alimente aussi le sélecteur de l'en-tête : c'est la seule
+  // source qui le connaisse quand aucun preset ne correspond à la configuration.
+  if(typeof setLoadedModel === 'function') setLoadedModel(c.MODEL || '');
   ['MODEL','CTX','BATCH','UBATCH','NGL'].filter(k=>c[k]).forEach(k=>{
     let v=c[k]; if(k==='MODEL') v=v.split('/').pop();
     rows.push(row(k, v));

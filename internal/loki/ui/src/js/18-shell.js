@@ -67,33 +67,63 @@ function onModelSwitch(sel){
   switchTo(n, name);
 }
 
-// Remplit le sélecteur à partir de la liste de presets déjà chargée par
-// loadPresets() — aucun appel réseau supplémentaire.
+// Le sélecteur affiche LE MODÈLE CHARGÉ, pas seulement le preset actif.
+//
+// Les deux ne coïncident pas toujours : un preset n'est « actif » que si son
+// empreinte correspond exactement à la configuration courante. Une configuration
+// écrite à la main, héritée d'une image, ou modifiée d'un cran depuis le dernier
+// preset ne correspond à AUCUN d'entre eux — et l'en-tête n'affichait alors rien
+// alors qu'un modèle était bel et bien chargé. On retombe donc sur le nom du
+// fichier de la configuration active.
+//
+// Deux sources, deux moments : loadPresets() donne la liste, loadCfg() donne le
+// modèle. Chacune dépose ce qu'elle sait et redemande le dessin — elles partent
+// en parallèle (loadAll), aucun ordre n'est garanti.
+let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '';
+
 function renderModelSwitch(presets, active){
+  MS_PRESETS = presets || []; MS_ACTIVE = active || null;
+  paintModelSwitch();
+}
+// Appelé par loadCfg avec la valeur MODEL de la configuration active.
+function setLoadedModel(name){
+  MS_MODEL = (name || '').trim();
+  paintModelSwitch();
+}
+// Nom lisible d'un fichier de modèle : sans dossier ni extension. Un .gguf
+// s'appelle « Qwen3-14B-Instruct-Q4_K_M.gguf » — le chemin et le suffixe
+// n'apprennent rien et mangent toute la place.
+function modelLabel(path){
+  const base = path.split(/[\\/]/).pop();
+  return base.replace(/\.gguf$/i, '');
+}
+function paintModelSwitch(){
   const sel = document.getElementById('model-switch');
   if(!sel) return;
+  const prev = sel.value;
   sel.textContent = '';
-  if(!presets || !presets.length){
+  // Ligne de tête : ce qui est RÉELLEMENT chargé, quand aucun preset ne le
+  // revendique. Value vide → onModelSwitch l'ignore, elle ne bascule rien.
+  if(!MS_ACTIVE){
     const o = document.createElement('option');
-    o.textContent = 'aucun preset'; o.value = '';
-    sel.appendChild(o); sel.disabled = true;
-    return;
+    o.value = '';
+    o.textContent = MS_MODEL ? modelLabel(MS_MODEL) : (MS_PRESETS.length ? 'aucun modèle actif' : 'aucun preset');
+    o.selected = true;
+    sel.appendChild(o);
   }
-  sel.disabled = false;
-  presets.forEach((p, i) => {
+  MS_PRESETS.forEach((p, i) => {
     const o = document.createElement('option');
     o.value = String(i + 1);
     o.textContent = p.name;
-    if(active && p.id === active.id) o.selected = true;
+    if(MS_ACTIVE && p.id === MS_ACTIVE.id) o.selected = true;
     sel.appendChild(o);
   });
-  // Aucun preset actif (configuration modifiée à la main) : on le dit, plutôt
-  // que de laisser le premier de la liste passer pour le modèle chargé.
-  if(!active){
-    const o = document.createElement('option');
-    o.value = ''; o.textContent = 'configuration hors preset'; o.selected = true;
-    sel.insertBefore(o, sel.firstChild);
-  }
+  sel.disabled = !MS_PRESETS.length;
+  sel.title = MS_MODEL
+    ? 'modèle chargé : ' + MS_MODEL + ' — changer de preset relance le moteur'
+    : 'aucun modèle configuré';
+  // Une bascule en cours ne doit pas voir sa sélection sauter sous la souris.
+  if(prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
 // État initial des libellés (le CSS, lui, est déjà appliqué par le <head>).

@@ -2,11 +2,14 @@ package loki
 
 // sys_brand_icon.go — l'icône de la marque Loki, rendue à la volée.
 //
-// RÉPLIQUE EXACTE du favicon de l'UI web : carré à coins arrondis NOIR + « j »
+// RÉPLIQUE EXACTE du favicon de l'UI web : carré à coins arrondis SAUGE + « j »
 // blanc (rects (6,3) (6,5) (4,7) sur une grille 12x12). Une seule source pour
 // tous les usages — zone de notification Windows, barre de menus macOS, icône du
 // .exe — pour qu'ils ne puissent plus diverger comme quand le favicon est passé
 // au noir en laissant les icônes système en bleu.
+//
+// La sauge est --accent de l'interface (#5E7F5A) : l'icône de l'onglet et celle
+// du bureau portent la couleur de l'app, pas un carré noir anonyme.
 //
 // Aucun asset binaire à committer : tout est dessiné ici, et l'icône du .exe est
 // produite par `go generate ./cmd/loki` (voir tools/gen-icon).
@@ -22,6 +25,8 @@ import (
 const trayIconSize = 32
 
 var (
+	// brandSage = --accent du thème clair. Le blanc du « j » s'y lit à 4,9:1.
+	brandSage  = color.RGBA{0x5e, 0x7f, 0x5a, 0xff}
 	brandBlack = color.RGBA{0x00, 0x00, 0x00, 0xff}
 	brandWhite = color.RGBA{0xff, 0xff, 0xff, 0xff}
 	brandClear = color.RGBA{0, 0, 0, 0}
@@ -80,9 +85,9 @@ func encodePNG(img *image.RGBA) []byte {
 	return buf.Bytes()
 }
 
-// BrandIconPNG rend l'icône de marque (noir + « j » blanc) en PNG de n pixels.
+// BrandIconPNG rend l'icône de marque (sauge + « j » blanc) en PNG de n pixels.
 // Exporté pour le générateur d'icône du .exe (tools/gen-icon).
-func BrandIconPNG(n int) []byte { return encodePNG(brandIconImage(n, brandBlack, brandWhite)) }
+func BrandIconPNG(n int) []byte { return encodePNG(brandIconImage(n, brandSage, brandWhite)) }
 
 // brandTemplatePNG rend la variante « template » attendue par macOS : seule la
 // couche alpha compte, le système colore la forme selon le thème de la barre de
