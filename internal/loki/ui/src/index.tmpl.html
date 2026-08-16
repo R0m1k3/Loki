@@ -27,7 +27,7 @@
    barre s'affiche puis se referme sous les yeux à chaque chargement. Ouverts par
    défaut — une valeur absente vaut « visible ». */
 document.documentElement.setAttribute('data-side',localStorage.getItem('loki-side')==='0'?'0':'1');
-document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-perf')==='0'?'0':'1');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
+}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 <style>
 @@CSS@@
 </style></head><body>
@@ -349,9 +349,7 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
        fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
        bloc entier se replie d'un clic. -->
   <div id="side-perf">
-    <div class="perf-head"><span>Performance</span>
-      <button class="perf-toggle" onclick="togglePerf()" title="replier le moniteur" aria-label="replier le moniteur">–</button>
-    </div>
+    <div class="perf-head"><span>Performance</span></div>
     <div class="perf-body"><div id="vram">…</div><div id="ram-details"><div id="ram"></div></div></div>
   </div>
 </div>

@@ -27,7 +27,7 @@
    barre s'affiche puis se referme sous les yeux à chaque chargement. Ouverts par
    défaut — une valeur absente vaut « visible ». */
 document.documentElement.setAttribute('data-side',localStorage.getItem('loki-side')==='0'?'0':'1');
-document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-perf')==='0'?'0':'1');}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
+}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 <style>
 /* ===== Polices =====================================================
    Inter (interface) + JetBrains Mono (chiffres, chemins, code). Servies par Loki
@@ -47,14 +47,22 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
    data-theme="dark" sur <html>. Toutes les couleurs de l'UI passent par ces
    variables ; rien d'autre ne code une couleur en dur.
 
-   ⚠️ Les valeurs sont RELEVÉES sur la maquette (projet Stitch « Loki AI Chat
-   Modern Redesign v1 », écrans clair et sombre), pas approchées à l'œil. Elles
-   posent une hiérarchie de surfaces que l'intuition inverse volontiers :
+   ⚠️ Les valeurs NOMMÉES viennent des deux planches officielles du projet Stitch
+   « Loki AI Chat Modern Redesign v1 » — « Official Palette for Loki AI v1 » et
+   « Official Dark Mode Palette for Loki AI » — pas d'une approximation à l'œil :
 
-     barre latérale  la plus SOMBRE des trois     #E4E8E9 / #0F1829
-     fil             la surface de référence      #EFF3F4 / #1E2834
-     carte           s'ÉCARTE du fil              #E5E9EA / #253141
-     saisie          la plus claire               #EFF3F6 / #1F2734
+     clair   Main BG #F5F6F8 · Sidebar BG #ECECEC · Primary Accent #95A899
+             Typography #333333
+     sombre  Deep Navy #0F172A · Slate Surface #1E293B · Sage Accent #84A98C
+
+   Le reste (carte de réponse, carte de saisie, piste de jauge, bulle sombre) est
+   relevé sur les écrans de la maquette, qui posent une hiérarchie de surfaces
+   que l'intuition inverse volontiers :
+
+     barre latérale  la plus SOMBRE des trois     #ECECEC / #0F172A
+     fil             la surface de référence      #F5F6F8 / #1E293B
+     carte           s'ÉCARTE du fil              #EAEBEE / #2A3646
+     saisie          la plus claire               #FBFBFD / #1B2436
 
    En clair la carte de réponse est donc plus sombre que le fil (et non blanche),
    en sombre plus claire : dans les deux cas elle se détache en s'éloignant du
@@ -77,28 +85,28 @@ document.documentElement.setAttribute('data-perf',localStorage.getItem('loki-per
 :root{color-scheme:light;
   --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --bg:#eff3f4;--panel:#eff3f6;--bubble:#e5e9ea;--border:rgba(30,41,59,.10);
-  --text:#1e293b;--dim:#64748b;
-  --accent:#4a7059;--accent-bg:rgba(126,165,138,.18);--on-accent:#ffffff;--on-err:#ffffff;
-  --accent-fill:#7ea58a;--accent-soft:#7ea58a;
-  --user-bg:#7ea58a;--on-user:#ffffff;
-  --side:#e4e8e9;--row-bg:#e9edee;--row-bg-on:#d8dcdf;--track:#d5d9dc;
-  --ok:#4a7059;--warn:#a86a2a;--err:#c0503f;--mag:#a86a2a;
-  --code-bg:#dbe0e2;--danger-bg:#f5e3e0;--warn-bg:#f2ece1;
-  --add:#4a7059;--add-bg:rgba(126,165,138,.18);--del:#c0503f;--del-bg:rgba(192,80,63,.12);
+  --bg:#f5f6f8;--panel:#fbfbfd;--bubble:#eaebee;--border:rgba(51,51,51,.11);
+  --text:#333333;--dim:#6b7280;
+  --accent:#587062;--accent-bg:rgba(149,168,153,.20);--on-accent:#ffffff;--on-err:#ffffff;
+  --accent-fill:#95a899;--accent-soft:#95a899;
+  --user-bg:#95a899;--on-user:#ffffff;
+  --side:#ececec;--row-bg:#f0f0f1;--row-bg-on:#e0e0e2;--track:#dadbdf;
+  --ok:#587062;--warn:#a86a2a;--err:#c0503f;--mag:#a86a2a;
+  --code-bg:#e2e3e7;--danger-bg:#f5e3e0;--warn-bg:#f2ece1;
+  --add:#587062;--add-bg:rgba(149,168,153,.20);--del:#c0503f;--del-bg:rgba(192,80,63,.12);
   --shadow:0 1px 2px rgba(15,23,42,.05);--shadow-lift:0 4px 16px rgba(15,23,42,.08);
   --shadow-card:0 2px 10px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04)}
 /* « Deep Dark » : fond #0F172A, cartes #1E293B. */
 [data-theme="dark"]{color-scheme:dark;
-  --bg:#1e2834;--panel:#1f2734;--bubble:#253141;--border:rgba(148,163,184,.16);
+  --bg:#1e293b;--panel:#1b2436;--bubble:#2a3646;--border:rgba(148,163,184,.16);
   --text:#e2e8f0;--dim:#94a3b8;
-  --accent:#9dbfa8;--accent-bg:rgba(119,150,132,.22);--on-accent:#0f1829;--on-err:#0f1829;
-  --accent-fill:#779684;--accent-soft:#779684;
-  --user-bg:#334257;--on-user:#e8eef5;
-  --side:#0f1829;--row-bg:#1a2231;--row-bg-on:#22293b;--track:#1e2738;
-  --ok:#9dbfa8;--warn:#d9a55f;--err:#e0705c;--mag:#d9a55f;
-  --code-bg:#151e2a;--danger-bg:#3a1f1c;--warn-bg:#33291b;
-  --add:#9dbfa8;--add-bg:rgba(119,150,132,.22);--del:#e0705c;--del-bg:rgba(224,112,92,.16);
+  --accent:#a3c4ab;--accent-bg:rgba(132,169,140,.22);--on-accent:#0f172a;--on-err:#0f172a;
+  --accent-fill:#84a98c;--accent-soft:#84a98c;
+  --user-bg:#334259;--on-user:#e8eef5;
+  --side:#0f172a;--row-bg:#1a2334;--row-bg-on:#232c3f;--track:#232a3a;
+  --ok:#a3c4ab;--warn:#d9a55f;--err:#e0705c;--mag:#d9a55f;
+  --code-bg:#16202f;--danger-bg:#3a1f1c;--warn-bg:#33291b;
+  --add:#a3c4ab;--add-bg:rgba(132,169,140,.22);--del:#e0705c;--del-bg:rgba(224,112,92,.16);
   --shadow:none;--shadow-lift:0 4px 16px rgba(0,0,0,.35);
   --shadow-card:0 2px 12px rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.20)}
 /* Safari iOS peint un rectangle gris/noir sur TOUT élément touché (bouton, lien,
@@ -1504,8 +1512,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    l'écran dès la dixième discussion. */
 .sidehead{flex:none;display:flex;align-items:center;gap:8px;margin:0;
   padding:14px 14px 10px;padding-top:calc(14px + env(safe-area-inset-top))}
-#side-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 12px 12px;
-  scrollbar-gutter:stable;display:flex;flex-direction:column;gap:2px}
+#side-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 0 12px;
+  scrollbar-gutter:stable;display:flex;flex-direction:column;gap:0}
 #side-perf{flex:none;border-top:1px solid var(--border);padding:12px 14px;
   padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 @media (max-width:720px){
@@ -1556,12 +1564,13 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* --- Discussions ----------------------------------------------------- */
 /* La liste EST la barre latérale : titre à gauche, heure à droite, une ligne.
    Le reste (réglages) descend sous un unique repli. */
-#conv-search{width:100%;font:inherit;font-size:12.5px;color:var(--text);
-  background:var(--panel);border:1px solid var(--border);border-radius:10px;
-  padding:7px 11px;margin:0 0 6px}
+#conv-search{width:calc(100% - 24px);font:inherit;font-size:12.5px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border);border-radius:9px;
+  padding:7px 11px;margin:0 12px 8px}
 #conv-search::placeholder{color:var(--dim)}
 #conv-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
-.side .preset{padding:8px 11px;margin:1px 0;gap:10px}
+.side .preset{padding:11px 14px;margin:0;gap:10px;border-radius:0;
+  border:0;border-bottom:1px solid var(--border)}
 .side .preset .preset-name{font-size:13px;font-weight:450;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;word-break:normal;overflow-wrap:normal}
 .side .preset.active .preset-name{font-weight:550}
@@ -1582,25 +1591,21 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #side-settings>.sidegroup{margin-top:2px}
 
 /* --- Moniteur machine (pied de barre latérale) ----------------------- */
-.perf-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;
-  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
-.perf-head .perf-toggle{margin-left:auto;border:0;background:transparent;color:var(--dim);
-  padding:0 2px;margin:0;font-size:11px;cursor:pointer;line-height:1}
-.perf-row{margin:0 0 9px}
+.perf-head{display:flex;align-items:center;gap:8px;margin-bottom:11px;
+  font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.01em}
+.perf-row{margin:0 0 14px}
 .perf-row:last-child{margin-bottom:0}
-.perf-l{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:var(--dim);margin-bottom:4px}
+.perf-l{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--text);margin-bottom:6px}
 .perf-l b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-weight:450;color:var(--text)}
-.perf-l .perf-pct{font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums}
+  font-weight:400;color:var(--text)}
+.perf-l .perf-pct{font-size:12.5px;color:var(--text);font-variant-numeric:tabular-nums}
 /* La jauge : 4 px, coins ronds, remplissage sauge. Elle passe à l'ambre puis au
    rouille quand la machine sature — c'est là que l'information devient utile. */
-.perf-track{height:4px;border-radius:999px;background:var(--row-bg-on);overflow:hidden}
+.perf-track{height:7px;border-radius:999px;background:var(--track);overflow:hidden}
 .perf-fill{height:100%;width:0;border-radius:999px;background:var(--accent-fill);
   transition:width .4s ease,background .4s ease}
 .perf-fill.hot{background:var(--warn)}
 .perf-fill.max{background:var(--err)}
-.perf-sub{margin-top:3px;font-family:var(--mono);font-size:9.5px;color:var(--dim);opacity:.85}
-html[data-perf="0"] .perf-body{display:none}
 
 /* --- Boutons : sans contour, micro-interaction au survol ------------- */
 button{border-color:transparent;background:var(--row-bg);border-radius:9px;
@@ -1613,13 +1618,13 @@ button:active:not(:disabled){transform:translateY(1px)}
 /* La maquette encadre la réponse de l'IA : sur un fond de fil coloré, du texte
    nu flotte sans ancrage, et la frontière entre deux réponses se perd. */
 #chat{padding-top:22px}
-#chat .msg.assistant{background:var(--bubble);border:1px solid var(--border);
-  border-radius:16px;padding:14px 18px;max-width:100%;box-shadow:var(--shadow-card)}
+#chat .msg.assistant{background:var(--bubble);border:0;
+  border-radius:10px;padding:15px 17px;max-width:100%;box-shadow:var(--shadow-card)}
 #chat .msg.assistant.errmsg{background:var(--danger-bg);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
 /* Question : aplat de sauge, coin bas-droit rentré. --on-accent garantit le
    contraste dans les DEUX variantes. */
-#chat .msg.user{background:var(--user-bg);color:var(--on-user);border-radius:18px 18px 6px 18px;
-  padding:11px 16px;max-width:75%;box-shadow:var(--shadow-card)}
+#chat .msg.user{background:var(--user-bg);color:var(--on-user);border-radius:10px;
+  padding:13px 16px;max-width:62%;box-shadow:var(--shadow-card)}
 #chat .msg.user .label{color:var(--on-user);opacity:.75}
 #chat .msg.user .body a{color:var(--on-user);text-decoration:underline}
 #chat .msg.user code{background:rgba(255,255,255,.18);color:inherit}
@@ -1658,8 +1663,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* Les outils de la saisie (joindre, fichiers, envoyer) montent DANS la pilule,
    à droite du texte : c'est là qu'on les cherche, et le pied de carte redevient
    ce qu'il doit être — une jauge de contexte, rien d'autre. */
-#inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow-card)}
-#composer:focus-within #inputbar,#composer:focus-within #ctxmeta{border-color:var(--accent-soft)}
+#inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow-card);
+  border-radius:14px 14px 0 0}
+#ctxmeta{border-radius:0 0 14px 14px}
 #ctxmeta{padding-bottom:12px}
 #ctxtrack{border-radius:999px}
 
@@ -1692,7 +1698,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    SURIMPRESSION à droite plutôt qu'en flux. En flux, elles réservaient leur
    largeur en permanence — invisibles mais présentes — et le titre était tronqué
    au tiers de la place disponible. */
-.side .preset{position:relative;border-radius:12px}
+.side .preset{position:relative}
 .side .preset .conv-acts{position:absolute;right:6px;top:50%;transform:translateY(-50%);
   margin:0;background:var(--row-bg-on);border-radius:9px;padding:1px}
 .side .preset.active .conv-acts{background:var(--row-bg)}
@@ -1738,6 +1744,56 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #chat .msg.assistant .body code{background:var(--code-bg);
   border:1px solid color-mix(in srgb,var(--text) 7%,transparent);border-radius:5px}
 #chat .msg.assistant .body pre code{border:0;background:transparent}
+/* --- Titres de la barre latérale ------------------------------------
+   La maquette n'a qu'un style de titre : casse normale, demi-gras, taille du
+   texte courant (« Performance »). Le monospace en capitales de la charte
+   précédente y jurait, et faisait crier des libellés qui n'ont rien à dire. */
+.side .stitle{font-family:var(--font);text-transform:none;letter-spacing:-.01em;
+  font-size:13.5px;font-weight:600;color:var(--text)}
+#side-scroll>details>summary,#side-settings>summary{padding:0 14px}
+#side-settings{margin-top:0;border-top:1px solid var(--border)}
+#side-settings>.sidegroup{padding:0 12px}
+/* La liste elle-même n'a pas de gouttière : ses lignes touchent les deux bords,
+   comme dans la maquette. Le filet du bas de la dernière ligne fait la
+   séparation avec ce qui suit. */
+#conv-list{margin:0}
+.side .preset:hover{background:var(--row-bg)}
+.side .preset .conv-acts{right:8px}
+/* Message d'absence de matériel : même famille que les jauges, en plus discret.
+   (La sous-ligne chiffrée, elle, a quitté l'affichage — le détail est en
+   infobulle, comme dans la maquette.) */
+.perf-sub{font-size:11.5px;color:var(--dim)}
+/* --- Carte de saisie : le trait sauge de la maquette -----------------
+   C'est le seul contour coloré de l'écran, et il désigne l'endroit où l'on
+   écrit. ⚠️ Posé EN FIN DE FEUILLE : la règle de coque plus haut
+   (`#inputbar,#ctxmeta{border-color:var(--border)}`) reprenait sinon la main et
+   le cadre retombait au gris commun.
+   La flèche d'envoi prend la MÊME sauge que la maquette — c'est un aplat plein
+   de 18 px, pas du texte. */
+@media (min-width:721px){
+  #inputbar,#ctxmeta{border-color:var(--accent-fill)}
+  #composer:focus-within #inputbar,#composer:focus-within #ctxmeta{border-color:var(--accent)}
+}
+#inputbar,#ctxmeta{border-color:var(--accent-fill)}
+#send{color:var(--accent-fill)}
+#send:hover:not(:disabled){color:var(--accent)}
+
+/* --- Échelle typographique des planches ------------------------------
+   « Typography: Inter » — Bold 24px pour les titres, Regular 16px pour le corps,
+   Medium 14px pour le texte secondaire. On l'applique là où elle a un sens
+   (le fil, la barre latérale) plutôt qu'en gonflant toute l'interface : les
+   panneaux de réglages sont des formulaires denses, pas du texte de lecture. */
+#chat .msg .body{font-size:16px}
+#chat .msg.user .body,#chat .msg.assistant .body{line-height:1.6}
+#input{font-size:16px}
+.side .preset .preset-name{font-size:14px}
+.side .preset .conv-when{font-size:13px}
+.perf-head{font-size:16px;font-weight:700}
+.perf-l,.perf-l .perf-pct{font-size:14px;font-weight:500}
+.side .stitle{font-size:14px;font-weight:600}
+/* Marque : « Loki v0.9.4 » en tête de colonne, à l'échelle des titres. */
+#brand svg{height:20px}
+#ver{font-size:13px;font-weight:500;margin-left:8px}
 </style></head><body>
 <button id="menubtn" onclick="toggleSide()">☰</button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
@@ -2057,9 +2113,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
        fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
        bloc entier se replie d'un clic. -->
   <div id="side-perf">
-    <div class="perf-head"><span>Performance</span>
-      <button class="perf-toggle" onclick="togglePerf()" title="replier le moniteur" aria-label="replier le moniteur">–</button>
-    </div>
+    <div class="perf-head"><span>Performance</span></div>
     <div class="perf-body"><div id="vram">…</div><div id="ram-details"><div id="ram"></div></div></div>
   </div>
 </div>
@@ -3000,7 +3054,7 @@ function updateCtxMeter(){
 // Construit EN DOM et non en innerHTML : les noms de GPU viennent du pilote,
 // donc d'ailleurs. Même règle que pour les noms de fichiers et les titres de
 // discussions.
-function perfRow(label, pct, sub, title){
+function perfRow(label, pct, title){
   pct = Math.max(0, Math.min(100, Math.round(pct||0)));
   const row=document.createElement('div'); row.className='perf-row';
   if(title) row.title=title;
@@ -3016,7 +3070,6 @@ function perfRow(label, pct, sub, title){
   fill.style.width=pct+'%';
   track.appendChild(fill);
   row.append(l,track);
-  if(sub){ const s=document.createElement('div'); s.className='perf-sub'; s.textContent=sub; row.appendChild(s); }
   return row;
 }
 async function loadVram(){
@@ -3029,14 +3082,16 @@ async function loadVram(){
     box.appendChild(d);
     return;
   }
+  // Deux mesures par carte, deux jauges — une seule barre ne peut pas porter la
+  // charge du processeur ET le remplissage de la mémoire vidéo, et pour du LLM
+  // c'est la VRAM qui décide si un modèle tient. Sur une machine à UNE carte on
+  // retombe exactement sur les trois jauges de la maquette (GPU, VRAM, RAM).
+  const many = gpus.length > 1;
   gpus.forEach((g,i)=>{
-    // Le pourcentage affiché est la CHARGE du processeur graphique (ce que
-    // montre la maquette) ; la VRAM, elle, passe en détail sous la barre — deux
-    // mesures distinctes qu'une seule barre ne peut pas porter.
     const vram=(g.used/1024).toFixed(1)+' / '+(g.total/1024).toFixed(1)+' Gio';
-    box.appendChild(perfRow(
-      'GPU '+i+(gpus.length>1?'':'')+' — charge', g.util,
-      vram+' · '+g.temp+' °C', g.name));
+    box.appendChild(perfRow('GPU '+i, g.util, g.name+' · '+vram+' · '+g.temp+' °C'));
+    box.appendChild(perfRow(many ? 'VRAM '+i : 'VRAM', g.used*100/g.total,
+      g.name+' · '+vram));
   });
 }
 async function loadRam(){
@@ -3048,7 +3103,7 @@ async function loadRam(){
   const host=document.getElementById('ram');
   host.textContent='';
   host.appendChild(perfRow('Mémoire vive', m.used*100/m.total,
-    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio'));
+    (m.used/1024).toFixed(1)+' / '+(m.total/1024).toFixed(1)+' Gio utilisés'));
 }
 async function loadCfg(){
   // /api/llamacpp en parallèle : il indique si le BIN de la config correspond au
@@ -6782,18 +6837,6 @@ function toggleSideCollapse(){
   if(typeof syncGutter === 'function') requestAnimationFrame(syncGutter);
 }
 
-// Moniteur machine replié : le pied de barre latérale ne garde que son titre.
-function togglePerf(){
-  const on = document.documentElement.getAttribute('data-perf') !== '0';
-  document.documentElement.setAttribute('data-perf', on ? '0' : '1');
-  try{ localStorage.setItem('loki-perf', on ? '0' : '1'); }catch(_){}
-  const b = document.querySelector('#side-perf .perf-toggle');
-  if(b){
-    b.textContent = on ? '+' : '–';
-    b.title = on ? 'déplier le moniteur' : 'replier le moniteur';
-  }
-}
-
 // Bascule clair/sombre depuis l'en-tête. Elle passe par applyTheme + savePrefs
 // (01-theme.js) pour rester alignée avec l'interrupteur des réglages et avec le
 // serveur — deux chemins vers le même réglage, une seule source de vérité.
@@ -6886,12 +6929,4 @@ function paintModelSwitch(){
   // Une bascule en cours ne doit pas voir sa sélection sauter sous la souris.
   if(prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
-
-// État initial des libellés (le CSS, lui, est déjà appliqué par le <head>).
-document.addEventListener('DOMContentLoaded', () => {
-  if(document.documentElement.getAttribute('data-perf') === '0'){
-    const b = document.querySelector('#side-perf .perf-toggle');
-    if(b){ b.textContent = '+'; b.title = 'déplier le moniteur'; }
-  }
-});
 </script></body></html>
