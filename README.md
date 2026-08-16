@@ -7,9 +7,10 @@
 > **un conteneur Docker GPU autonome**, là où l'amont s'installe en binaire +
 > systemd sur la machine hôte.
 
-Loki fait tourner un modèle de langage **100 % en local** : tchat, mémoire
-persistante, accès internet, outils MCP, agent (shell, fichiers), accès distant
-chiffré — serveur d'inférence llama.cpp compris, dans une seule image.
+Loki fait tourner un modèle de langage **100 % en local** : discussions
+multiples, mémoire persistante, accès internet, captures de pages web, outils
+MCP, agent (shell, fichiers) — serveur d'inférence llama.cpp compris, dans une
+seule image.
 
 ## Architecture
 
@@ -19,7 +20,9 @@ chiffré — serveur d'inférence llama.cpp compris, dans une seule image.
 │     │ pilote (fichier PID — pas de systemd)        │
 │  loki serve ──exec──► llama-server (CUDA, :8080)   │
 │                        ▲ modèles .gguf             │
-│  /data (config, bbolt, mémoire, workspace)         │
+│  chromium (Playwright) — captures de pages web     │
+│  /data (config, bbolt, presets, mémoire,           │
+│         workspace + captures, modèles installés)   │
 │  /models (GGUF déposés à la main)                  │
 └────────────────────────────────────────────────────┘
 ```
@@ -102,23 +105,90 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_NGL` | couches GPU initiales | `999` (tout) |
 | `LOKI_HOME` | données (volume) | `/data` |
 | `LOKI_MODEL_DIRS` | dossiers .gguf additionnels | `/models` |
+| `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint | — |
 
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `test`…).
 
-## Fonctionnalités (héritées d'AJEAN)
+### Données et persistance
 
-- **Tchat** avec streaming, raisonnement visible, pièces jointes, vision
-  (selon modèle), export de conversations.
+**Tout** l'état vit sous `/data` (= `LOKI_HOME`). Si ce chemin n'est pas un
+volume monté sur l'hôte, il disparaît au premier `docker compose down` — presets
+et modèles compris.
+
+| Chemin | Contenu |
+|---|---|
+| `/data/loki.db` | base bbolt : préférences, discussions, mémoire des réglages |
+| `/data/presets/` | un `.env` par preset (modèle, contexte, NGL, vision…) |
+| `/data/models/` | modèles téléchargés depuis l'interface |
+| `/data/memory/` | pages de mémoire persistante (`.md`) |
+| `/data/workspace/` | dossier de travail de l'agent |
+| `/data/workspace/captures/<id>/` | captures d'écran, un dossier par discussion |
+| `/data/loki-engine.log` | journal de `llama-server` (aussi via `loki logs`) |
+| `/models` | GGUF déposés à la main depuis l'hôte (volume séparé, `LOKI_MODEL_DIRS`) |
+
+Vérifier que le volume est bien là :
+
+```bash
+docker inspect loki --format '{{range .Mounts}}{{.Source}} → {{.Destination}}{{println}}{{end}}'
+```
+
+Sur Unraid, garde le **même** chemin hôte d'un lancement à l'autre : `/mnt/user/…`
+(partage, via FUSE) et `/mnt/cache/…` (disque de cache) désignent des
+emplacements différents dès que le partage n'est pas en cache-only ou que le
+*mover* est passé. Le compose fourni utilise `/mnt/user/appdata/loki/…`.
+
+Autre piège au redémarrage du serveur : Docker relance les conteneurs
+`restart: unless-stopped` **avant** que le plugin Nvidia Driver ait chargé ses
+modules. Le journal montre alors des `ERROR: init … result=11` et le moteur
+démarre sans GPU. Un `docker restart loki` une fois le pilote prêt suffit.
+
+## Fonctionnalités
+
+Héritées d'AJEAN :
+
+- **Tchat** avec streaming, raisonnement visible, pièces jointes, export de
+  conversations. La **vision** demande un modèle multimodal *et* son projecteur
+  `mmproj` — voir [Installer un modèle](#installer-un-modèle).
 - **Mémoire persistante** (`memory off|ondemand|always`).
 - **Accès internet** : recherche + lecture de pages, moteur Go intégré ou
   [Crawl4AI](https://github.com/unclecode/crawl4ai) pour les pages JS.
 - **Agent** : shell, fichiers, workspace (`agent on`).
 - **Serveurs MCP** : Node.js est inclus dans l'image pour les serveurs `npx`.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
-- **Accès distant chiffré** via le relais [ajean.link](https://ajean.link)
-  (service opéré par l'auteur de l'amont).
 - **API OpenAI-compatible** exposable (`network on`, protégée par clé).
+
+Ajoutées par ce fork :
+
+- **Discussions multiples** : historique complet dans la barre latérale, titre
+  repris du premier message (renommable), suppression. Supprimer une discussion
+  efface aussi ses captures d'écran (`workspace/captures/<id>/`), pour que le
+  disque ne se remplisse pas en silence.
+- **Recherche Hugging Face** intégrée avec verdict mémoire et installation liée
+  du projecteur vision (voir [Installer un modèle](#installer-un-modèle)).
+- **Captures de pages web** : l'agent dispose de l'outil `web_screenshot`
+  (Chromium via Playwright, inclus dans l'image). Les captures partent en JPEG
+  et sont plafonnées à 20 fichiers / 40 Mo par discussion. La description de
+  l'outil suit la capacité **réelle** du moteur, sondée sur `/props` : sans
+  vision effective, elle dit au modèle « tu ne vois pas l'image » plutôt que de
+  lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
+  la montrer, sans prétendre la décrire. L'image relayée au moteur reste
+  éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
+- **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
+  dans le fil.
+- **Paramètres** : les réglages d'application (identité, apparence, accès
+  OpenAI, actions) sont regroupés à part des réglages d'IA.
+
+Retirées par ce fork :
+
+- **Accès distant via [ajean.link](https://ajean.link)** : la section de
+  l'interface et son module JS sont supprimés — un conteneur derrière son
+  propre réseau n'en a pas l'usage. Le code serveur du relais reste en place
+  mais **inerte** (aucun jeton, aucune section pour en fournir un) : le retirer
+  créerait un conflit à chaque reprise de l'amont.
+- **Catalogue de modèles distant** : il interrogeait `ajean.link/models.json`,
+  sa route n'avait aucun consommateur et son repli embarqué datait de 2024. La
+  recherche Hugging Face le remplace.
 
 ## Différences avec l'amont
 
@@ -126,12 +196,16 @@ En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 |---|---|---|
 | Installation | binaire + `sudo ajean install` (systemd) | `docker compose up` |
 | Moteur llama.cpp | compilé sur la machine (`ajean llamacpp install`) | image officielle llama.cpp (`server-cuda`), précompilée |
+| Panneau « Moteur » | propose d'installer/compiler | annonce le moteur fourni par l'image, sans proposer d'install |
 | Supervision moteur | systemd / launchd / PID (Windows) | fichier PID (`LOKI_CONTAINER=1`) |
 | Configuration initiale | `ajean edit` ($EDITOR) | entrypoint + `loki config set` |
+| Choix du modèle | lien Hugging Face collé à la main | recherche intégrée + verdict VRAM + projecteur lié |
+| Historique de tchat | conversation unique | discussions multiples, titrées et persistées |
+| Accès distant | relais chiffré ajean.link | retiré de l'interface |
 | Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
 
-Le reste — UI, mémoire, outils, protocole — est celui d'AJEAN. Pour récupérer
-les évolutions de l'amont :
+Le reste — mémoire, outils, protocole, moteur d'inférence — est celui d'AJEAN.
+Pour récupérer les évolutions de l'amont :
 
 ```bash
 git fetch upstream && git merge upstream/main   # conflits de renommage à arbitrer
