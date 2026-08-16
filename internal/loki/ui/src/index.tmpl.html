@@ -361,12 +361,11 @@
       <span style="display:flex;align-items:center;gap:8px;margin-left:auto">
         <span id="ctx-text" class="muted">0 / 0</span>
         <button id="ctx-compact" onclick="compactContext()">compacter</button>
-        <!-- Postes distants : l'icône dit SUR QUOI l'IA agit. Écran = ce serveur
-             (cible locale) ; ondes wifi = un poste distant est la cible active.
-             Un clic ouvre la modale de gestion (cible, liste, appairage). -->
-        <button id="node-btn" onclick="openNodeHub()" title="Postes distants" aria-label="Postes distants">
-          <svg class="ic-here" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-          <svg class="ic-remote" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.55a11 11 0 0 1 14 0"/><path d="M8.5 16.1a6 6 0 0 1 7 0"/><path d="M12 20h.01"/></svg>
+        <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
+             gabarit que le trombone — ce sont les deux faces du même sujet,
+             ce qui entre et ce qui sort. -->
+        <button id="files-btn" onclick="toggleFiles()" title="Fichiers du dossier de travail" aria-label="Fichiers du dossier de travail" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         </button>
         <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
         <button id="attach" onclick="document.getElementById('attach-input').click()" title="joindre un fichier" aria-label="joindre un fichier">
@@ -388,6 +387,24 @@
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
 </div>
+<!-- Fichiers : ce que l'agent a écrit dans son dossier de travail. Panneau de
+     DROITE, symétrique des réglages à gauche, ouvert et fermé par le bouton
+     dossier du pied de carte. Il ne se remplit qu'à l'ouverture (loadFiles) —
+     un ReadDir à chaque chargement de page pour un panneau fermé serait payé
+     par tout le monde et utile à personne. -->
+<div id="files-backdrop" onclick="toggleFiles()"></div>
+<aside id="files" aria-label="Fichiers du dossier de travail">
+  <div class="files-head">
+    <span class="stitle">Fichiers</span>
+    <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
+    <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
+  </div>
+  <!-- Fil d'Ariane : le dossier de travail contient des sous-dossiers (captures
+       par discussion), il faut pouvoir y descendre et en remonter. -->
+  <div id="files-crumb" class="files-crumb"></div>
+  <div id="files-list" class="files-list"></div>
+  <div id="files-foot" class="files-foot muted"></div>
+</aside>
 <div id="toast"></div>
 <div id="bench-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeBenchModal()">
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:100%;max-width:480px;display:flex;flex-direction:column">
@@ -564,59 +581,6 @@
       <div class="foot-r">
         <button onclick="closeMcp()">annuler</button>
         <button class="btn-save" onclick="saveMcp()">enregistrer</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div id="node-hub-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)hideModal('node-hub-modal')">
-  <div class="modal-card">
-    <div class="modal-head">
-      <strong>Postes distants</strong>
-      <button class="modal-x" onclick="hideModal('node-hub-modal')" aria-label="Fermer">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:10px">
-        Pilote un <b>autre PC</b> depuis l'IA. Choisis sur quelle machine l'IA agit
-        (ses outils shell/fichiers) et appaire de nouveaux postes. Tu décides des
-        capacités et du dossier autorisé pour chaque poste.
-      </div>
-      <div id="node-hub-list" class="mcp-list"></div>
-      <button class="addbtn" style="margin-top:10px" onclick="openNodePair()">+ appairer un poste</button>
-    </div>
-  </div>
-</div>
-<div id="node-pair-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)hideModal('node-pair-modal')">
-  <div class="modal-card">
-    <div class="modal-head">
-      <strong>Appairer un poste distant</strong>
-      <button class="modal-x" onclick="hideModal('node-pair-modal')" aria-label="Fermer">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="fld">
-        <label class="fld-l">Capacités autorisées <span class="opt">(ce que l'IA pourra faire sur ce poste)</span></label>
-        <div id="node-pair-caps" class="node-caps"></div>
-      </div>
-      <div class="fld">
-        <label class="fld-l" for="node-pair-root">Dossier autorisé <span class="opt">(confine lecture/écriture ; laisser vide = dossier de travail par défaut du poste)</span></label>
-        <input id="node-pair-root" class="ctl" placeholder="C:\\Users\\moi\\loki ou /home/moi/loki" spellcheck="false">
-      </div>
-      <div id="node-pair-out" style="display:none">
-        <div class="subhead" style="margin-top:6px">Code d'appairage</div>
-        <div class="node-code" id="node-pair-code">——</div>
-        <div class="muted" style="font-size:12px;line-height:1.5">
-          Sur le PC à piloter, installe <b>loki</b> (ajean.link/download) puis lance — <b>accès à distance</b>, chiffré de bout en bout :
-          <pre class="node-cmd" id="node-pair-cmd"></pre>
-          <span style="opacity:.8">Ou en <b>réseau local</b> (connexion directe) :</span>
-          <pre class="node-cmd" id="node-pair-cmd-lan"></pre>
-          Le code expire dans <span id="node-pair-ttl">10</span> min et ne sert qu'une fois.
-        </div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <div class="foot-l"></div>
-      <div class="foot-r">
-        <button onclick="hideModal('node-pair-modal')">fermer</button>
-        <button class="btn-save" onclick="genNodeCode()">générer le code</button>
       </div>
     </div>
   </div>
