@@ -17,6 +17,11 @@ import (
 // chemins relatifs y sont résolus, et le shell y démarre. Les chemins ABSOLUS
 // restent honorés tels quels — quand l'utilisateur demande d'écrire dans un
 // dossier précis, ça doit marcher.
+//
+// agentWorkspace est la RACINE, commune à tout : le dossier de travail effectif
+// est celui de la discussion ouverte (convWorkspace, chat_convfiles.go), pour
+// qu'un fichier appartienne à la discussion où il est né et disparaisse avec
+// elle. La racine reste la borne de sécurité des téléchargements.
 
 const workspaceEnv = "LOKI_WORKSPACE"
 
@@ -69,7 +74,8 @@ func workspaceCandidates() []string {
 }
 
 // resolveAgentPath résout un chemin fourni par le modèle. Absolu → inchangé ;
-// "~/x" → dans le home de l'utilisateur ; relatif → dans le workspace.
+// "~/x" → dans le home de l'utilisateur ; relatif → dans le dossier de la
+// discussion ouverte.
 func resolveAgentPath(p string) string {
 	p = strings.TrimSpace(p)
 	if p == "" {
@@ -83,5 +89,5 @@ func resolveAgentPath(p string) string {
 	if filepath.IsAbs(p) {
 		return p
 	}
-	return filepath.Join(agentWorkspace(), filepath.FromSlash(p))
+	return filepath.Join(convWorkspace(), filepath.FromSlash(p))
 }

@@ -93,6 +93,9 @@ func newWebMux() *http.ServeMux {
 	// Un téléchargement de modèle coupé net (crash, restart du service) laisse un
 	// .part orphelin non reprenable : on nettoie au démarrage.
 	cleanStalePartFiles()
+	// Les fichiers des versions précédentes vivaient dans un pot commun : on les
+	// range dans le dossier de leur discussion (une fois par process).
+	migrateConvFiles()
 	// Idem pour un envoi de fichier coupé en plein transfert : les sessions vivent
 	// en mémoire, aucun .part ne survit utilement à l'arrêt du process.
 	cleanStaleUploadParts()
@@ -220,8 +223,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/chat", handleChat)                       // flux d'ABONNEMENT (SSE) : rejoue + suit le fil
 	api("/api/chat/send", handleChatSend)              // envoie un message (lance la génération détachée)
 	api("/api/chat/upload", handleChatUpload)          // dépose un fichier dans le workspace agent (joint au message suivant)
-	api("/api/chat/files", handleChatFiles)            // liste un dossier du dossier de travail (panneau Fichiers)
-	api("/api/chat/file/delete", handleChatFileDelete) // supprime un fichier ou un dossier du dossier de travail
+	api("/api/chat/files", handleChatFiles)            // liste un dossier de la discussion ouverte (panneau Fichiers)
+	api("/api/chat/file/delete", handleChatFileDelete) // supprime un fichier ou un dossier de la discussion
 	api("/api/chat/file", handleChatFile)              // télécharge un fichier produit par l'agent (dossier de travail only)
 	api("/api/chat/image", handleChatImage)            // affiche une IMAGE du dossier de travail (captures d'écran)
 	api("/api/chat/stop", handleChatStop)              // interrompt la génération en cours

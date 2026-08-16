@@ -364,7 +364,7 @@
         <!-- Fichiers produits par l'agent : ouvre le panneau de droite. Même
              gabarit que le trombone — ce sont les deux faces du même sujet,
              ce qui entre et ce qui sort. -->
-        <button id="files-btn" onclick="toggleFiles()" title="Fichiers du dossier de travail" aria-label="Fichiers du dossier de travail" aria-expanded="false">
+        <button id="files-btn" onclick="toggleFiles()" title="Fichiers de cette discussion" aria-label="Fichiers de cette discussion" aria-expanded="false">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         </button>
         <input type="file" id="attach-input" multiple style="display:none" onchange="onAttachPick(event)">
@@ -387,20 +387,21 @@
     <div id="sendhint" class="muted">Entrée pour envoyer · Maj+Entrée = nouvelle ligne</div>
   </div>
 </div>
-<!-- Fichiers : ce que l'agent a écrit dans son dossier de travail. Panneau de
-     DROITE, symétrique des réglages à gauche, ouvert et fermé par le bouton
-     dossier du pied de carte. Il ne se remplit qu'à l'ouverture (loadFiles) —
-     un ReadDir à chaque chargement de page pour un panneau fermé serait payé
-     par tout le monde et utile à personne. -->
+<!-- Fichiers : ce qui appartient à la DISCUSSION ouverte — pièces jointes
+     déposées, captures, ce que l'agent y a écrit. Panneau de DROITE, symétrique
+     des réglages à gauche, ouvert et fermé par le bouton dossier du pied de
+     carte. Il ne se remplit qu'à l'ouverture (loadFiles) — un ReadDir à chaque
+     chargement de page pour un panneau fermé serait payé par tout le monde et
+     utile à personne. -->
 <div id="files-backdrop" onclick="toggleFiles()"></div>
-<aside id="files" aria-label="Fichiers du dossier de travail">
+<aside id="files" aria-label="Fichiers de cette discussion">
   <div class="files-head">
-    <span class="stitle">Fichiers</span>
+    <span class="stitle">Fichiers de la discussion</span>
     <button id="files-refresh" onclick="loadFiles()" title="rafraîchir">↻</button>
     <button id="files-close" onclick="toggleFiles()" title="fermer" aria-label="Fermer">×</button>
   </div>
-  <!-- Fil d'Ariane : le dossier de travail contient des sous-dossiers (captures
-       par discussion), il faut pouvoir y descendre et en remonter. -->
+  <!-- Fil d'Ariane : le dossier de la discussion a des sous-dossiers (uploads,
+       captures), il faut pouvoir y descendre et en remonter. -->
   <div id="files-crumb" class="files-crumb"></div>
   <div id="files-list" class="files-list"></div>
   <div id="files-foot" class="files-foot muted"></div>

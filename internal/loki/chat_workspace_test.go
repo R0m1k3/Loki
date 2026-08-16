@@ -6,13 +6,18 @@ import (
 	"testing"
 )
 
-// Un chemin relatif du modèle doit atterrir dans le workspace, jamais dans le
-// répertoire courant du processus (Bureau, C:\ProgramData\loki\bin…).
+// Un chemin relatif du modèle doit atterrir dans le dossier de la DISCUSSION
+// ouverte, jamais dans le répertoire courant du processus (Bureau,
+// C:\ProgramData\loki\bin…) ni dans un dossier commun à toutes les discussions.
 func TestResolveAgentPathRelative(t *testing.T) {
+	ws := withWorkspace(t)
 	got := resolveAgentPath("meteo.json")
-	want := filepath.Join(agentWorkspace(), "meteo.json")
+	want := filepath.Join(ws, "meteo.json")
 	if got != want {
 		t.Fatalf("resolveAgentPath = %q, attendu %q", got, want)
+	}
+	if !strings.Contains(got, convFilesRoot) {
+		t.Fatalf("le fichier n'est pas rangé par discussion : %q", got)
 	}
 }
 
@@ -25,9 +30,10 @@ func TestResolveAgentPathAbsolute(t *testing.T) {
 }
 
 func TestResolveAgentPathSubdir(t *testing.T) {
+	ws := withWorkspace(t)
 	got := resolveAgentPath("notes/2026/a.txt")
-	if !strings.HasPrefix(got, agentWorkspace()) {
-		t.Fatalf("%q hors du workspace %q", got, agentWorkspace())
+	if !strings.HasPrefix(got, ws) {
+		t.Fatalf("%q hors du dossier de la discussion %q", got, ws)
 	}
 	if strings.Contains(got, "/") && filepath.Separator != '/' {
 		t.Fatalf("séparateurs non normalisés : %q", got)

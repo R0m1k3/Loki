@@ -22,7 +22,7 @@ seule image.
 │                        ▲ modèles .gguf             │
 │  chromium (Playwright) — captures de pages web     │
 │  /data (config, bbolt, presets, mémoire,           │
-│         workspace + captures, modèles installés)   │
+│         workspace par discussion, modèles)         │
 │  /models (GGUF déposés à la main)                  │
 └────────────────────────────────────────────────────┘
 ```
@@ -122,8 +122,8 @@ et modèles compris.
 | `/data/presets/` | un `.env` par preset (modèle, contexte, NGL, vision…) |
 | `/data/models/` | modèles téléchargés depuis l'interface |
 | `/data/memory/` | pages de mémoire persistante (`.md`) |
-| `/data/workspace/` | dossier de travail de l'agent |
-| `/data/workspace/captures/<id>/` | captures d'écran, un dossier par discussion |
+| `/data/workspace/` | racine du dossier de travail de l'agent |
+| `/data/workspace/discussions/<id>/` | fichiers d'UNE discussion : dépôts, captures, ce que l'agent y écrit |
 | `/data/loki-engine.log` | journal de `llama-server` (aussi via `loki logs`) |
 | `/models` | GGUF déposés à la main depuis l'hôte (volume séparé, `LOKI_MODEL_DIRS`) |
 
@@ -161,9 +161,12 @@ Héritées d'AJEAN :
 Ajoutées par ce fork :
 
 - **Discussions multiples** : historique complet dans la barre latérale, titre
-  repris du premier message (renommable), suppression. Supprimer une discussion
-  efface aussi ses captures d'écran (`workspace/captures/<id>/`), pour que le
-  disque ne se remplisse pas en silence.
+  repris du premier message (renommable), suppression. **Chaque discussion a son
+  dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes
+  déposées, les captures et ce que l'agent écrit y atterrissent, le shell et les
+  chemins relatifs du modèle y sont résolus. Changer de discussion change donc
+  les fichiers ; supprimer (ou vider) une discussion emporte les siens, pour que
+  le disque ne se remplisse pas en silence.
 - **Recherche Hugging Face** intégrée avec verdict mémoire et installation liée
   du projecteur vision (voir [Installer un modèle](#installer-un-modèle)).
 - **Captures de pages web** : l'agent dispose de l'outil `web_screenshot`
@@ -174,12 +177,15 @@ Ajoutées par ce fork :
   lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
   la montrer, sans prétendre la décrire. L'image relayée au moteur reste
   éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
-- **Panneau Fichiers** (bouton dossier du pied de carte) : ce que l'agent a
-  écrit dans son dossier de travail, avec navigation dans les sous-dossiers,
-  téléchargement et suppression. Un dossier affiche la taille de **tout** son
-  contenu — c'est ce qu'on libère en le supprimant. Le pied donne l'occupation
-  disque totale de l'agent. Les chemins sont bornés au dossier de travail, liens
-  symboliques résolus des deux côtés : rien du reste du disque n'est atteignable.
+- **Panneau Fichiers** (bouton dossier du pied de carte) : les fichiers de la
+  discussion ouverte — dépôts, captures, ce que l'agent y a écrit — avec
+  navigation dans les sous-dossiers, téléchargement et suppression. Un dossier
+  affiche la taille de **tout** son contenu, c'est ce qu'on libère en le
+  supprimant, et le pied donne l'occupation disque de la discussion. Les chemins
+  sont bornés à son dossier, liens symboliques résolus des deux côtés : ni le
+  reste du disque ni les autres discussions ne sont atteignables. Les fichiers
+  d'avant ce rangement que la migration n'a pas su rattacher restent joignables
+  par le bouton **hors discussion**, qui disparaît une fois le ménage fait.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
 - **Paramètres** : les réglages d'application (identité, apparence, accès

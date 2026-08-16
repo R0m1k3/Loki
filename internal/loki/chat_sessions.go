@@ -11,6 +11,10 @@ package loki
 //	bkChat/active     → identifiant de la discussion ouverte
 //	bkChat/conv:<id>  → l'état complet d'une discussion (JSON de Conversation)
 //
+// Les FICHIERS suivent le même découpage, sur le disque cette fois :
+// <workspace>/discussions/<id>/ (chat_convfiles.go). Supprimer une discussion
+// supprime donc aussi ses fichiers.
+//
 // Basculer = enregistrer la discussion courante, charger l'autre en mémoire et
 // incrémenter l'epoch : les abonnés SSE reçoivent alors {reset:true} et
 // rejouent le nouveau fil depuis zéro. C'est le mécanisme déjà utilisé par
@@ -228,9 +232,10 @@ func convDelete(id string) error {
 	}
 	convIndexSave(next)
 	_ = putBytes(bkChat, convKey(id), nil)
-	// Les captures de cette discussion n'ont plus rien qui les référence : les
-	// garder occuperait le disque pour toujours.
-	dropConvCaptures(id)
+	// Les fichiers de cette discussion — dépôts, captures, ce que l'agent y a
+	// écrit — n'ont plus rien qui les référence : les garder occuperait le disque
+	// pour toujours, et plus aucun écran ne permettrait de les retrouver.
+	dropConvFiles(id)
 	if id != getStr(bkChat, ckActive) {
 		return nil
 	}
