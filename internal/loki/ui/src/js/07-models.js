@@ -746,6 +746,20 @@ function populateSettings(){
     rzSub.textContent = rz ? 'réflexion étape par étape'
                            : 'réflexion étape par étape — non précisé : le modèle décide';
   }
+  // Intensité : passée telle quelle au gabarit jinja du modèle via
+  // `reasoning_effort`. Seuls les gabarits qui la lisent (gpt-oss et apparentés)
+  // changent de comportement ; ailleurs elle est ignorée sans erreur — le
+  // sous-titre le dit pour ne pas laisser croire à un effet garanti.
+  const eff = document.getElementById('s-reasoning-effort');
+  if(eff){
+    eff.value = (cfgReadKey('REASONING_EFFORT')||'').toLowerCase();
+    const effSub = document.getElementById('s-reasoning-effort-sub');
+    if(effSub){
+      effSub.textContent = eff.value
+        ? 'envoyée au gabarit du modèle — sans effet si son gabarit l\'ignore'
+        : 'envoyée au gabarit du modèle — auto = ne rien imposer';
+    }
+  }
   chk('s-flash', eaHasFlag('--flash-attn') && !/^off$/i.test(eaGetValued('--flash-attn')));
   chk('s-mlock', eaHasFlag('--mlock'));
   chk('s-nommap', eaHasFlag('--no-mmap'));

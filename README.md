@@ -154,13 +154,31 @@ Héritées d'AJEAN :
 - **Accès internet** : recherche + lecture de pages, moteur Go intégré ou
   [Crawl4AI](https://github.com/unclecode/crawl4ai) pour les pages JS.
 - **Agent** : shell, fichiers, workspace (`agent on`).
-- **Serveurs MCP** : Node.js est inclus dans l'image pour les serveurs `npx`.
+- **Serveurs MCP** : Node.js (`npx`) et uv (`uvx`) sont inclus dans l'image, pour
+  les serveurs écrits en JavaScript comme en Python.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **API OpenAI-compatible** exposable, protégée par clé (voir ci-dessous — ce
   fork la sert autrement que l'amont).
 
 Ajoutées par ce fork :
 
+- **Catalogue MCP** : le panneau *Serveurs MCP* offre un bouton **catalogue** —
+  une vingtaine de serveurs connus (filesystem, git, fetch, memory, sqlite,
+  playwright, context7, github…) avec leur commande déjà renseignée, classés par
+  catégorie. Choisir une entrée **n'installe rien** : ça remplit le formulaire
+  d'ajout, tu relis la commande — qui s'exécutera sur cette machine — puis tu
+  enregistres. Le catalogue est un JSON **embarqué dans le binaire**
+  (`internal/loki/mcp_catalog.json`), donc aucun appel à un annuaire distant :
+  pour en proposer d'autres, édite ce fichier et recompile. Une entrée dont le
+  runtime manque (`npx`/`uvx` absent) le signale au lieu d'échouer plus tard, et
+  celles qui réclament une clé d'API la rappellent avant l'enregistrement.
+- **Intensité du raisonnement** : en plus de l'interrupteur *Raisonnement*,
+  l'éditeur de preset expose un niveau — auto / aucune / basse / moyenne / haute
+  — envoyé à `llama-server` comme `reasoning_effort`. Réglage **par preset**,
+  donc de fait par modèle. `none` coupe le raisonnement ; les autres valeurs sont
+  passées au gabarit jinja du modèle, ce qui ne change le comportement que des
+  modèles qui les lisent (gpt-oss et apparentés) — ailleurs c'est ignoré sans
+  erreur, et le sous-titre du réglage le dit plutôt que de promettre un effet.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

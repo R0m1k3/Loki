@@ -1007,6 +1007,17 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .mcp-edit{flex:none;padding:2px 5px;font-size:13px;line-height:1;background:transparent;border:none;opacity:.5}
 .mcp-edit:hover{opacity:1;color:var(--accent)}
 /* Liste des outils MCP dans la modale */
+.mcp-actions{display:flex;gap:6px;margin-top:6px}
+.mcp-cat-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.mcp-cat{font-size:11px;padding:2px 9px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer}
+.mcp-cat:hover{border-color:var(--accent);color:var(--text)}
+.mcp-cat.on{border-color:var(--accent);color:var(--accent)}
+.mcp-cat-list{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto}
+.mcp-cat-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mcp-cat-row:hover{border-color:var(--accent)}
+.mcp-cat-desc{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
+.mcp-cat-cmd{font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
+.mcp-cat-use{flex:none}
 .mcp-tools-list{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px}
 .mcp-tool-row{display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:5px;cursor:pointer}
 .mcp-tool-row:hover{background:var(--panel)}

@@ -218,6 +218,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/node/revoke", handleNodeRevoke) // oublie la clé + déconnecte
 	api("/api/internet", handleInternet)
 	api("/api/mcp", handleMCP)
+	api("/api/mcp/catalog", handleMCPCatalog)
 	api("/api/mcp/save", handleMCPSave)
 	api("/api/mcp/delete", handleMCPDelete)
 	api("/api/mcp/toggle", handleMCPToggle)
