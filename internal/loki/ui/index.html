@@ -1610,10 +1610,22 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .perf-fill.hot{background:var(--warn)}
 .perf-fill.max{background:var(--err)}
 
-/* --- Boutons : sans contour, micro-interaction au survol ------------- */
-button{border-color:transparent;background:var(--row-bg);border-radius:9px;
-  transition:background .15s ease,color .15s ease,transform .08s ease}
-button:hover{background:var(--row-bg-on);border-color:transparent;color:var(--text)}
+/* --- Boutons : un cadre, et une micro-interaction au survol -----------
+   La refonte les avait voulus « sans contour » : contour transparent, et un
+   aplat pris sur --row-bg. Or c'est exactement le fond des blocs qui les
+   contiennent (.slist, .rowbody) : un bouton posé dessus n'avait plus ni trait
+   ni écart de valeur, et « démarrer / redémarrer / arrêter » ou « mettre à jour
+   le moteur » se lisaient comme du texte, pas comme des commandes.
+   On revient donc au cadre — celui d'avant la refonte : trait de 1 px et aplat
+   un ton AU-DESSUS du bloc, pour que le bouton se détache dans les deux cas.
+   La micro-interaction, elle, reste : elle est bonne, elle manquait juste de
+   quelque chose à animer.
+   ⚠️ Ne concerne pas les boutons-icônes de la saisie et de l'en-tête (#send,
+   #stop, #attach, #menubtn…) : ils posent `border:0` PLUS BAS dans la feuille
+   et gardent leur allure nue, qui est la bonne pour un pictogramme seul. */
+button{background:var(--panel);border-color:var(--border);border-radius:9px;
+  transition:background .15s ease,color .15s ease,border-color .15s ease,transform .08s ease}
+button:hover{background:var(--row-bg);border-color:var(--dim);color:var(--text)}
 button:active:not(:disabled){transform:translateY(1px)}
 .side .preset,.slist,#conv-search{transition:background .15s ease,border-color .15s ease}
 
