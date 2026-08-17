@@ -143,11 +143,11 @@ select{color-scheme:inherit}
 option,optgroup{background:var(--panel);color:var(--text)}
 .side{width:320px;border-right:1px solid var(--border);padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));overflow-y:auto;flex-shrink:0}
 .main{flex:1;display:flex;flex-direction:column;min-width:0}
-#menubtn{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));z-index:20;background:var(--panel);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:6px;font-size:18px;cursor:pointer}
+#menubtn{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));z-index:20;background:var(--panel);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:3px;font-size:18px;cursor:pointer}
 #backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10}
 /* Pastille « installation en cours » : suit exactement les règles d'affichage
    du bouton ☰ (elle ne sert que quand le panneau est en tiroir, donc caché). */
-#lc-chip{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(58px + env(safe-area-inset-left));z-index:20;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel);border:1px solid var(--accent);color:var(--accent);height:40px;padding:0 12px;border-radius:6px;font-size:12px;cursor:pointer}
+#lc-chip{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(58px + env(safe-area-inset-left));z-index:20;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel);border:1px solid var(--accent);color:var(--accent);height:40px;padding:0 12px;border-radius:3px;font-size:12px;cursor:pointer}
 #lc-chip.failed{border-color:var(--err);color:var(--err)}
 @media (max-width:720px){
   .side{position:fixed;inset:0 auto 0 0;width:80%;max-width:320px;z-index:15;transform:translateX(-100%);transition:transform .2s;background:var(--bg);padding-top:calc(16px + env(safe-area-inset-top));padding-left:calc(16px + env(safe-area-inset-left))}
@@ -170,7 +170,7 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:9px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:4px}
   .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
@@ -193,7 +193,7 @@ h1{margin:0;font-size:18px;color:var(--accent)}
    sans souris. */
 .conv-acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}
 .preset:hover .conv-acts,.preset:focus-within .conv-acts{opacity:1}
-.conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer}
+.conv-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;border:1px solid transparent;border-radius:3px;color:var(--dim);cursor:pointer}
 .conv-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
 /* Séparateur de groupe dans la barre latérale : sépare les réglages d'IA des
    réglages d'application, sans imbriquer un second niveau de repli (illisible
@@ -203,7 +203,7 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 /* Choix d'avatar : une grille de pastilles emoji, celle retenue encadrée. */
 .avpick{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .avpick button{font-size:15px;line-height:1;padding:5px 6px;background:var(--panel);
-  border:1px solid var(--border);border-radius:8px;cursor:pointer}
+  border:1px solid var(--border);border-radius:4px;cursor:pointer}
 .avpick button:hover{border-color:var(--accent)}
 .avpick button.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
 /* Avatar + nom en tête de bulle : l'emoji garde sa taille propre, le nom hérite
@@ -212,7 +212,7 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .msg .label .who{text-transform:none;letter-spacing:.04em;font-size:11px}
 /* Captures d'écran et images de l'agent : bornées à la largeur de la bulle, et
    cliquables pour ouvrir en grand dans un onglet. */
-.msg .body img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--border);display:block;margin:8px 0}
+.msg .body img{max-width:100%;height:auto;border-radius:4px;border:1px solid var(--border);display:block;margin:8px 0}
 /* pastille d'état service, en haut à droite de la barre latérale */
 .statuspill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--dim);font-weight:600;white-space:nowrap;cursor:pointer}
 .statuspill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
@@ -235,15 +235,15 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .pages-bar{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:7px 0;margin-top:4px}
 .pages-bar .pages-title{font-size:11.5px;color:var(--dim);font-weight:600}
 .pages-bar .addbtn{margin-left:auto}
-.mem-search{width:100%;box-sizing:border-box;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 9px;font:inherit;font-size:12px;margin:0 0 6px}
+.mem-search{width:100%;box-sizing:border-box;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:5px 9px;font:inherit;font-size:12px;margin:0 0 6px}
 .mem-search:focus{outline:none;border-color:var(--accent)}
 .mem-list{max-height:240px;overflow-y:auto;overscroll-behavior:contain}
 .mem-more{font-size:11px;color:var(--dim);text-align:center;padding:6px 0 2px}
 .ask-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
-.ask-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;width:100%;max-width:420px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.ask-box{background:var(--bg);border:1px solid var(--border);border-radius:4px;width:100%;max-width:420px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
 .ask-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px}
 .ask-msg{font-size:13px;color:var(--dim);line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.ask-input{width:100%;box-sizing:border-box;margin-top:12px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:9px 11px;font:inherit;font-size:13px}
+.ask-input{width:100%;box-sizing:border-box;margin-top:12px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:9px 11px;font:inherit;font-size:13px}
 .ask-input:focus{outline:none;border-color:var(--accent)}
 .ask-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .ask-actions button{margin:0;padding:7px 16px}
@@ -275,17 +275,17 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 .switch input:focus-visible + .slider{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
 h2{margin:20px 0 8px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 details>summary::-webkit-details-marker{display:none}
-.preset-add{display:none;font-size:14px;padding:0 8px;margin:0 8px 0 auto;line-height:1.4;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer}
+.preset-add{display:none;font-size:14px;padding:0 8px;margin:0 8px 0 auto;line-height:1.4;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;cursor:pointer}
 .preset-add:hover{border-color:var(--accent);color:var(--accent)}
 details[open]>summary>.preset-add{display:inline-block}
-.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:var(--panel);border:1px solid var(--border)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--panel);border:1px solid var(--border)}
 .tag.ok{color:var(--ok);border-color:var(--ok)}
 .tag.err{color:var(--err);border-color:var(--err)}
-button{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer;margin:2px}
+button{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:6px 10px;font:inherit;cursor:pointer;margin:2px}
 button:hover{border-color:var(--accent);color:var(--accent)}
 button:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;gap:4px;flex-wrap:wrap}
-.preset{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin:4px 0;cursor:pointer;background:var(--panel)}
+.preset{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:3px;margin:4px 0;cursor:pointer;background:var(--panel)}
 .preset:hover{border-color:var(--accent)}
 .preset.active{border-color:var(--accent);color:var(--accent);border-width:1.5px;padding:5.5px 9.5px}
 .preset>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -301,9 +301,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* La carte (.slist) laisse volontairement déborder son contenu (menus), elle ne
    rogne donc pas ses coins : c'est la LIGNE de bord qui porte l'arrondi, sinon
    le voile dépasse l'angle de la carte. */
-.rowlist:first-child>.preset:first-child{border-radius:8px 8px 0 0}
-.rowlist:last-child>.preset:last-child{border-radius:0 0 8px 8px}
-.rowlist:first-child:last-child>.preset:only-child{border-radius:8px}
+.rowlist:first-child>.preset:first-child{border-radius:4px 4px 0 0}
+.rowlist:last-child>.preset:last-child{border-radius:0 0 4px 4px}
+.rowlist:first-child:last-child>.preset:only-child{border-radius:4px}
 /* Liseré de gauche : un trait DROIT (pas un arc) qui court sur TOUTE la hauteur
    de la ligne. Donc pas de box-shadow interne (l'arrondi le courberait) mais un
    élément à part, aux bords francs, que l'arrondi de la ligne de bord se
@@ -355,15 +355,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
   margin:0 -2px 0 0;padding:4px;line-height:0;background:transparent;border:none;opacity:.55}
 .preset-edit:hover{opacity:1;color:var(--accent);background:transparent}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
-.qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:8px;letter-spacing:.03em;text-transform:uppercase}
-.rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:8px;letter-spacing:.03em}
-.btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:8px;letter-spacing:.03em}
+.qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
+.rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+.btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
 /* Petit « ? » d'aide : bulle au survol/clic au lieu d'un pavé de texte permanent. */
 .help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;flex-shrink:0;font-size:10px;font-weight:600;line-height:1;color:var(--dim);border:1px solid var(--border);border-radius:50%;cursor:help;user-select:none;vertical-align:middle}
 .help:hover{color:var(--accent);border-color:var(--accent)}
 /* La bulle est ancrée à la ligne (.switchrow position:relative), pas au « ? »,
    pour rester alignée au bord gauche du panneau et ne pas déborder. */
-.help>.tip{display:none;position:absolute;z-index:40;left:0;right:0;top:calc(100% + 2px);padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:400;line-height:1.4;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.15);white-space:normal;text-align:left;text-transform:none;letter-spacing:normal;font-family:var(--font);cursor:auto}
+.help>.tip{display:none;position:absolute;z-index:40;left:0;right:0;top:calc(100% + 2px);padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:3px;font-size:11px;font-weight:400;line-height:1.4;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.15);white-space:normal;text-align:left;text-transform:none;letter-spacing:normal;font-family:var(--font);cursor:auto}
 .help:hover>.tip,.help:focus>.tip,.help.open>.tip{display:block}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;min-height:38px;align-items:center}
 .kv span:first-child{color:var(--text);flex-shrink:0}
@@ -378,7 +378,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #chat{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px;display:flex;flex-direction:column;gap:14px}
 :root{--col:max(20px,calc(50% - 450px))}
 @media (max-width:720px){#chat{padding:60px 8px 12px}}
-.msg{max-width:80%;padding:10px 14px;border-radius:10px;white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
+.msg{max-width:80%;padding:10px 14px;border-radius:4px;white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
 .msg.assistant,.msg.reasoning{white-space:normal}
 .msg .body{overflow-wrap:anywhere;word-break:break-word}
 .msg.user{align-self:flex-end;background:var(--bubble);color:var(--text)}
@@ -394,8 +394,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .msg .body li{margin:.15em 0}
 .msg .body li>p{margin:0}
 .msg.assistant .body code{background:var(--code-bg);padding:1px 5px;border-radius:3px;font-size:.9em;overflow-wrap:anywhere;word-break:break-word}
-.msg.assistant .body pre,.msg.reasoning .body pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow-x:auto;max-width:100%;margin:.5em 0}
-.copybtn{position:absolute;bottom:6px;right:6px;font-size:11px;padding:3px 8px;margin:0;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:5px;opacity:.5;transition:opacity .15s,color .15s}
+.msg.assistant .body pre,.msg.reasoning .body pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:3px;padding:10px;overflow-x:auto;max-width:100%;margin:.5em 0}
+.copybtn{position:absolute;bottom:6px;right:6px;font-size:11px;padding:3px 8px;margin:0;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:3px;opacity:.5;transition:opacity .15s,color .15s}
 .msg.assistant .body pre:hover .copybtn,.msg.reasoning .body pre:hover .copybtn{opacity:1}
 .copybtn:hover{border-color:var(--accent);color:var(--accent)}
 .copybtn.done{color:var(--ok);border-color:var(--ok);opacity:1}
@@ -429,7 +429,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .diff-count .a{color:var(--add)}
 .diff-count .d{color:var(--del)}
 .msg.tool .tool-sub{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px}
-.msg.tool pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:auto;margin:0;max-height:280px}
+.msg.tool pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:3px;padding:8px 10px;overflow:auto;margin:0;max-height:280px}
 .msg.tool pre code{background:transparent;padding:0;font-size:.82em;line-height:1.4;white-space:pre}
 .msg.tool .tool-caret{color:var(--accent);animation:toolblink 1s step-end infinite}
 .msg.tool .tool-wait{font-size:12px;color:var(--dim);margin-top:8px;animation:toolblink 1.2s ease-in-out infinite}
@@ -567,7 +567,7 @@ details>summary+.subhead{margin-top:4px}
    rapport à la ligne, un débordement caché les TRONQUERAIT — elles doivent
    pouvoir déborder de la carte. Les lignes n'ont pas de fond propre, l'arrondi
    n'a donc rien à rogner. */
-.slist{background:var(--panel);border:1px solid var(--border);border-radius:9px;
+.slist{background:var(--panel);border:1px solid var(--border);border-radius:4px;
   overflow:visible;margin:0 0 8px}
 .slist:last-child{margin-bottom:0}
 /* Contenu libre (champ + boutons) : le rembourrage passe sur la carte. */
@@ -616,10 +616,10 @@ details>summary+.subhead{margin-top:4px}
 
 /* --- Champs et boutons --- */
 .sctl,.io-input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);
-  border-radius:7px;padding:7px 9px;font:inherit;font-size:12.5px}
+  border-radius:3px;padding:7px 9px;font:inherit;font-size:12.5px}
 .sctl:focus,.io-input:focus{outline:none;border-color:var(--dim)}
 textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
-.side button:not(.preset-edit):not(.addbtn):not(.preset-add):not(.copybtn):not(.iconbtn){font-size:12px;padding:6px 10px;border-radius:7px}
+.side button:not(.preset-edit):not(.addbtn):not(.preset-add):not(.copybtn):not(.iconbtn){font-size:12px;padding:6px 10px;border-radius:3px}
 .side .row{display:flex;gap:6px;align-items:center;margin:6px 0}
 .side .row .sctl,.side .row .io-input{flex:1;min-width:0}
 /* Bouton d'action à côté d'un champ (copier, ouvrir) : un CARRÉ à la hauteur du
@@ -627,7 +627,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    posait de travers et changeait de largeur d'une police à l'autre. */
 .iconbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;
   width:34px;height:34px;padding:0;margin:0;color:var(--dim);background:var(--panel);
-  border:1px solid var(--border);border-radius:9px;cursor:pointer}
+  border:1px solid var(--border);border-radius:4px;cursor:pointer}
 .iconbtn:hover{color:var(--text);border-color:var(--dim);background:var(--accent-bg)}
 .iconbtn svg{width:15px;height:15px;display:block}
 .side .btn-danger-o{border-color:var(--err);color:var(--err)}
@@ -670,10 +670,10 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 #sendhint{padding:0 12px 6px;font-size:10px;text-align:center;opacity:.7}
 /* Moteur pas encore prêt : l'aide clavier cède la place à l'état du chargement. */
 #sendhint.waiting{opacity:1;color:var(--dim)}
-#input{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit;resize:none;min-height:56px;max-height:200px;overflow-y:hidden}
+#input{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:10px;font:inherit;resize:none;min-height:56px;max-height:200px;overflow-y:hidden}
 #input:focus{outline:none;border-color:var(--accent)}
 .muted{color:var(--dim);font-size:13px}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;background:var(--panel);border:1px solid var(--border);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;background:var(--panel);border:1px solid var(--border);padding:8px 16px;border-radius:4px;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.18)}
 #toast.show{opacity:1}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 /* iOS Safari auto-zoome au focus sur tout champ < 16px. On force 16px sur les
@@ -697,7 +697,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
      rétrécit le contenu. Padding interne normal → largeur utile pleine. */
   .side{width:300px;max-width:300px;left:env(safe-area-inset-left);padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px}
   #chat{padding:48px 10px 6px;gap:7px}
-  .msg{padding:6px 10px;border-radius:8px;max-width:78%}
+  .msg{padding:6px 10px;border-radius:4px;max-width:78%}
   #chat .msg.assistant,#chat .msg.reasoning{max-width:88%}
   #inputbar{padding:5px 8px;gap:6px}
   /* PAS de font-size < 16px ici : iOS Safari zoome à la sélection du champ. On
@@ -724,7 +724,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .lc-mode-t{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px}
 /* « conseillé » : pilule PLEINE (texte inversé). En contour, elle héritait du
    gris atténué du thème monochrome et devenait illisible en mode sombre. */
-.lc-reco{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--text);color:var(--bg);border:1px solid var(--text);border-radius:8px;padding:1px 6px}
+.lc-reco{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--text);color:var(--bg);border:1px solid var(--text);border-radius:4px;padding:1px 6px}
 .lc-mode-d{font-size:11px;color:var(--dim);margin-top:3px}
 /* Hauteur réservée : la ligne d'état arrive après l'appel réseau, sans elle
    les trois cartes grandissaient d'un cran une fois l'état connu. */
@@ -753,7 +753,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    affichée avec une seule carte). */
 .pe-group[hidden]{display:none}
 .pe-gh{font-size:12px;font-weight:600;color:var(--dim);padding:0 6px}
-.pe-list{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pe-list{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden}
 /* Ligne : libellé à gauche, contrôle à droite, séparateur fin entre lignes. */
 .pe-row{display:flex;align-items:center;gap:14px;min-height:48px;padding:9px 15px}
 /* Séparateur porté par la ligne SUIVANTE (border-top), pas par la précédente
@@ -806,9 +806,9 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .gpu-legend i.alt{background:color-mix(in srgb,var(--accent) 42%,transparent)}
 .gpu-shares{display:flex;flex-wrap:wrap;gap:10px}
 .gpu-share{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
-.gpu-share input{width:62px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 7px;font:inherit;text-align:right}
+.gpu-share input{width:62px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:5px 7px;font:inherit;text-align:right}
 .gpu-share input:focus{outline:none;border-color:var(--accent)}
-.pe-inp{width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font:inherit;transition:border-color .12s,box-shadow .12s}
+.pe-inp{width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:9px 11px;font:inherit;transition:border-color .12s,box-shadow .12s}
 .pe-inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
 .pe-row.stack.plain .pe-inp{border:none;background:transparent;padding:6px 0;font-size:15px}
 .pe-row.stack.plain .pe-inp:focus{box-shadow:none}
@@ -819,13 +819,13 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 /* Le bouton reprend EXACTEMENT le cadre du champ (mêmes coins, même bordure) :
    sans ça, un thème qui arrondit tous les boutons (ChatGPT) le détachait du
    champ, avec un coin rond au milieu de la paire. */
-.pe-inpbtn button{flex:none;margin:0;border:1px solid var(--border);border-radius:0 8px 8px 0;background:var(--panel);color:var(--dim);padding:0 15px;cursor:pointer;font-size:15px;transition:color .12s,border-color .12s,background .12s}
+.pe-inpbtn button{flex:none;margin:0;border:1px solid var(--border);border-radius:0 4px 4px 0;background:var(--panel);color:var(--dim);padding:0 15px;cursor:pointer;font-size:15px;transition:color .12s,border-color .12s,background .12s}
 .pe-inpbtn button:hover:not(:disabled){color:var(--bg);background:var(--accent);border-color:var(--accent)}
 .pe-inpbtn:focus-within .pe-inp,.pe-inpbtn:focus-within button{border-color:var(--accent)}
 .pe-inpbtn button:disabled{opacity:.5;cursor:default}
 /* Contrôle segmenté (moteur) façon iOS. */
-.pe-seg{display:flex;gap:3px;background:color-mix(in srgb,var(--dim) 16%,transparent);border-radius:9px;padding:3px;width:100%}
-.pe-seg>label{flex:1;text-align:center;font-size:13px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;color:var(--dim);transition:background .12s,color .12s}
+.pe-seg{display:flex;gap:3px;background:color-mix(in srgb,var(--dim) 16%,transparent);border-radius:4px;padding:3px;width:100%}
+.pe-seg>label{flex:1;text-align:center;font-size:13px;font-weight:500;padding:7px 4px;border-radius:3px;cursor:pointer;color:var(--dim);transition:background .12s,color .12s}
 .pe-seg>label:has(input:checked){background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.22)}
 .pe-seg input{display:none}
 .pe-seg .be-note{display:none}
@@ -851,7 +851,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .pe-switch input:checked+.pe-sl::before{transform:translateX(16px);background:var(--bg)}
 .pe-switch input:focus-visible+.pe-sl{box-shadow:0 0 0 3px var(--accent-bg)}
 /* Repli « avancé » / config brute : une ligne cliquable dans un groupe. */
-.pe-adv{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pe-adv{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden}
 .pe-adv>summary{cursor:pointer;font-size:14px;color:var(--text);padding:13px 15px;list-style:none;display:flex;align-items:center;user-select:none}
 .pe-adv>summary::-webkit-details-marker{display:none}
 .pe-adv>summary::after{content:"";margin-left:auto;width:7px;height:7px;border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
@@ -874,7 +874,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
   align-items:center;gap:8px;flex-wrap:nowrap}
 .pe-foot .foot-l{display:flex;align-items:center;gap:8px;min-width:0}
 .pe-foot .foot-r{display:flex;gap:8px;flex:none}
-.pe-btn{margin:0;padding:7px 15px;font-size:12.5px;border-radius:8px;font-weight:600;cursor:pointer;
+.pe-btn{margin:0;padding:7px 15px;font-size:12.5px;border-radius:4px;font-weight:600;cursor:pointer;
   border:1px solid var(--border);background:var(--panel);color:var(--text);white-space:nowrap}
 .pe-btn:hover{border-color:var(--dim)}
 .pe-btn.primary{border-color:var(--accent);background:var(--accent);color:var(--bg)}
@@ -883,7 +883,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    autant que « enregistrer » alors que c'est l'action rare — et à trois boutons
    larges, le pied passait à deux lignes sur téléphone. */
 .pe-del{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
-  margin:0;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--err);cursor:pointer}
+  margin:0;padding:0;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--err);cursor:pointer}
 .pe-del svg{width:15px;height:15px;display:block}
 .pe-del:hover{background:var(--danger-bg);border-color:color-mix(in srgb,var(--err) 40%,transparent)}
 /* Option d'une confirmation : une PASTILLE à cocher, pas une case système suivie
@@ -914,7 +914,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 @media (prefers-reduced-motion:reduce){
   .modal-ov,.ask-overlay,.modal-card,.ask-box{transition:none}
 }
-.modal-card{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 16px 50px rgba(0,0,0,.18)}
+.modal-card{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:3px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 16px 50px rgba(0,0,0,.18)}
 .modal-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .modal-head strong{font-size:14px}
 /* Croix de fermeture : un CARRÉ, pas un rectangle. Avec un padding asymétrique
@@ -935,7 +935,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    preset au nouveau SOUS LES YEUX, une fois le chargement terminé. */
 .modal-ov.loading .pe-body *,.modal-ov.no-anim .pe-body *{transition:none!important}
 .modal-load{display:none;position:absolute;inset:var(--mh,52px) 0 0 0;z-index:2;
-  align-items:center;justify-content:center;background:var(--bg);border-radius:0 0 12px 12px}
+  align-items:center;justify-content:center;background:var(--bg);border-radius:0 0 5px 5px}
 .modal-ov.loading .modal-load{display:flex}
 /* visibility (et non display) : le formulaire garde sa place, donc la carte a
    déjà sa taille finale — la révéler ne provoque plus d'à-coup de hauteur. */
@@ -956,10 +956,10 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .fld-l{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dim)}
 .fld-l .opt{text-transform:none;letter-spacing:0;font-weight:400;opacity:.65}
 .fld-hint{font-size:11px;color:var(--dim);margin-top:2px}
-.ctl{width:100%;box-sizing:border-box;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font:inherit}
+.ctl{width:100%;box-sizing:border-box;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:9px 11px;font:inherit}
 .ctl:focus{outline:none;border-color:var(--accent)}
 .ta{min-height:220px;resize:vertical;line-height:1.5}
-.card{border:1px solid var(--border);border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:13px}
+.card{border:1px solid var(--border);border-radius:4px;padding:13px;display:flex;flex-direction:column;gap:13px}
 .card-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
 .row{display:flex;gap:6px}
 .row .ctl{flex:1;min-width:0}
@@ -969,7 +969,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .input-btn .btn-in{flex-shrink:0;margin:0;padding:9px 13px;border-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
 .input-btn .btn-in:hover{border-left:0}
 .seg{display:flex;gap:6px}
-.seg>label{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;min-height:46px;padding:6px 4px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;background:var(--panel);transition:border-color .12s,background .12s,color .12s}
+.seg>label{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;min-height:46px;padding:6px 4px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;background:var(--panel);transition:border-color .12s,background .12s,color .12s}
 .seg>label:hover{border-color:var(--accent)}
 .seg>label:has(input:checked){border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
 .seg input{display:none}
@@ -981,12 +981,12 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .lc-logbar{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12px;color:var(--dim);font-weight:600;padding:6px 0;margin-top:2px}
 .lc-logbar #lc-log-caret{font-size:9px;transition:transform .12s;display:inline-block}
 .lc-logbar.open #lc-log-caret{transform:rotate(90deg)}
-#lc-log{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:10px;line-height:1.45;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0}
+#lc-log{background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:8px;font-size:10px;line-height:1.45;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0}
 .lc-spin{display:inline-block;animation:spin 1s linear infinite}
 /* Serveurs MCP */
 .mcp-list{display:flex;flex-direction:column;gap:4px}
 
-.mcp-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--panel);cursor:pointer}
+.mcp-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:3px;background:var(--panel);cursor:pointer}
 .mcp-row:hover{border-color:var(--accent)}
 .mcp-row.off{opacity:.6}
 .mcp-dot{flex:none;width:8px;height:8px;border-radius:50%}
@@ -996,7 +996,7 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .mcp-info{flex:1;min-width:0}
 .mcp-name{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcp-meta{display:flex;align-items:center;gap:6px;margin-top:2px}
-.mcp-tag{font-size:10px;padding:1px 7px;border-radius:9px;border:1px solid var(--border);color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.mcp-tag{font-size:10px;padding:1px 7px;border-radius:4px;border:1px solid var(--border);color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
 /* Version du moteur : même pastille, mais SANS majuscules forcées — un numéro
    de build et un hash de commit se recopient et se comparent à l'œil, et
    « AAAA111 » n'est pas le commit « aaaa111 ». Le monospace vient de là aussi. */
@@ -1007,26 +1007,34 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .mcp-edit{flex:none;padding:2px 5px;font-size:13px;line-height:1;background:transparent;border:none;opacity:.5}
 .mcp-edit:hover{opacity:1;color:var(--accent)}
 /* Liste des outils MCP dans la modale */
+/* Sélecteur d'intensité du raisonnement, dans la barre de saisie. Discret par
+   défaut (même poids visuel que les icônes voisines), il ne s'affirme qu'au
+   survol ou quand une intensité est imposée. */
+#think-effort{flex:none;align-self:center;height:22px;padding:0 4px;font-size:11px;
+  color:var(--dim);background:transparent;border:1px solid transparent;border-radius:4px;cursor:pointer}
+#think-effort:hover:not(:disabled){color:var(--text);border-color:var(--border)}
+#think-effort:disabled{opacity:.4;cursor:not-allowed}
+
 .mcp-actions{display:flex;gap:6px;margin-top:6px}
 .mcp-cat-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.mcp-cat{font-size:11px;padding:2px 9px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer}
+.mcp-cat{font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer}
 .mcp-cat:hover{border-color:var(--accent);color:var(--text)}
 .mcp-cat.on{border-color:var(--accent);color:var(--accent)}
 .mcp-cat-list{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto}
-.mcp-cat-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mcp-cat-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:3px;background:var(--panel)}
 .mcp-cat-row:hover{border-color:var(--accent)}
 .mcp-cat-desc{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
 .mcp-cat-cmd{font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
 .mcp-cat-use{flex:none}
-.mcp-tools-list{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px}
-.mcp-tool-row{display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:5px;cursor:pointer}
+.mcp-tools-list{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:3px;padding:6px}
+.mcp-tool-row{display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:3px;cursor:pointer}
 .mcp-tool-row:hover{background:var(--panel)}
 .mcp-tool-switch{flex:none;transform:scale(.85)}
 .mcp-tool-name{font-size:12px;color:var(--text);word-break:break-all}
 
 /* Accès OpenAI / Accès distant : champs lecture seule (URL, clé) + libellés
    compacts, pour une présentation homogène et sans surcharge visuelle. */
-.io-input{flex:1;min-width:0;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px}
+.io-input{flex:1;min-width:0;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px 10px;font:inherit;font-size:13px}
 
 /* Modale MCP (ajout/édition) : les champs des groupes stdio/http n'avaient aucun
    espacement vertical (le conteneur n'est pas un flex à gap) → ils se touchaient.
@@ -1053,7 +1061,7 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 /* Réponses de l'assistant : pas de cadre, pas de fond — juste du texte. */
 #chat .msg.assistant{background:transparent;border:none;padding:0;max-width:100%;line-height:1.7}
 /* Question : pastille arrondie à droite, texte lisible sur fond clair OU sombre. */
-#chat .msg.user{background:var(--bubble);color:var(--text);border-radius:20px;padding:11px 18px;max-width:75%;line-height:1.6}
+#chat .msg.user{background:var(--bubble);color:var(--text);border-radius:3px;padding:11px 18px;max-width:75%;line-height:1.6}
 #chat .msg.user .label{color:var(--dim)}
 /* Libellés : l'amont les masquait tous ici, les mots « user » / « assistant »
    n'ajoutant rien à l'alignement. Ils portent désormais un avatar et un prénom
@@ -1079,10 +1087,10 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
 @keyframes statin{from{opacity:0;transform:translateY(3px)}to{opacity:.75;transform:none}}
 @media (prefers-reduced-motion:reduce){#chat .msg .statline-in{animation:none}}
 /* Raisonnement / outils : encart gris discret plutôt qu'un cadre pointillé. */
-#chat .msg.reasoning,#chat .msg.tool{background:var(--panel);border:1px solid var(--border);border-radius:14px;color:var(--dim);padding:12px 16px}
+#chat .msg.reasoning,#chat .msg.tool{background:var(--panel);border:1px solid var(--border);border-radius:3px;color:var(--dim);padding:12px 16px}
 #chat .msg.reasoning{color:var(--dim)}
 #chat .msg.tool .tool-head{color:var(--text)}
-#chat .msg.assistant .body pre,#chat .msg.reasoning .body pre,#chat .msg.tool pre{border-radius:12px;padding:12px 14px}
+#chat .msg.assistant .body pre,#chat .msg.reasoning .body pre,#chat .msg.tool pre{border-radius:3px;padding:12px 14px}
 #chat .msg.assistant .body a{text-decoration:underline;text-underline-offset:2px}
 /* Composer = UNE seule carte posée PAR-DESSUS le fil : la conversation
    continue de défiler DERRIÈRE elle et s'efface en fondu (dégradé vers le fond)
@@ -1110,7 +1118,7 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
    trou en PWA iOS. */
 #chat{padding-bottom:calc(var(--composer-h,170px) + 12px)}
 #scrollbtn{bottom:calc(var(--composer-h,170px) + 10px);border-radius:999px}
-#inputbar{order:1;margin:0 var(--col);padding:8px 8px 8px 16px;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:26px 26px 0 0}
+#inputbar{order:1;margin:0 var(--col);padding:8px 8px 8px 16px;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0}
 #input{background:transparent;border:none;border-radius:0;padding:9px 0;min-height:36px;line-height:18px;max-height:160px}
 /* Pas de cadre qui s'assombrit au focus : la carte garde exactement la même
    bordure, seule la saisie change (curseur). */
@@ -1120,7 +1128,7 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
    (le navigateur l'écrase, d'où les coins bizarres) : on laisse donc la carte
    découper la jauge dans sa propre forme — la barre est bien épaisse ET rognée
    exactement sur la courbe, symétrique du haut. */
-#ctxmeta{order:2;margin:0 var(--col);padding:6px 16px 15px;gap:10px;background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 26px 26px;overflow:hidden}
+#ctxmeta{order:2;margin:0 var(--col);padding:6px 16px 15px;gap:10px;background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden}
 /* ⚠️ NE PAS piloter la position du composer en JS quand le clavier s'ouvre
    (tenté puis retiré le 2026-07-28, deux fois) : ni asservir la hauteur de la
    coque à visualViewport.height, ni décaler le composer de la hauteur du
@@ -1206,16 +1214,16 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
 #dropveil{position:absolute;inset:0;z-index:20;display:none;align-items:center;
   justify-content:center;padding:24px;background:rgba(0,0,0,.28);pointer-events:none}
 #dropveil.show{display:flex}
-#dropveil>div{padding:22px 30px;border:2px dashed var(--border);border-radius:20px;
+#dropveil>div{padding:22px 30px;border:2px dashed var(--border);border-radius:3px;
   background:var(--panel);color:var(--text);font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
 /* Reste de l'UI : coins arrondis et contrastes doux, dans le même esprit. */
-button,.mem-search{border-radius:10px}
+button,.mem-search{border-radius:4px}
 /* Champ + bouton accolés : on ne garde l'arrondi que sur les coins extérieurs. */
-.pe-inpbtn .pe-inp{border-radius:10px 0 0 10px}
-.pe-inpbtn button{border-radius:0 10px 10px 0}
-.input-btn .ctl{border-radius:10px 0 0 10px}
-.input-btn .btn-in{border-radius:0 10px 10px 0}
-.preset{border-radius:12px}
+.pe-inpbtn .pe-inp{border-radius:4px 0 0 4px}
+.pe-inpbtn button{border-radius:0 4px 4px 0}
+.input-btn .ctl{border-radius:4px 0 0 4px}
+.input-btn .btn-in{border-radius:0 4px 4px 0}
+.preset{border-radius:3px}
 /* Les presets restent des cartes (fond + bordure) : à plat, sans fond ni
    cadre, la liste ne se lisait plus comme des lignes distinctes. L'actif se
    signale par sa bordure — un simple voile d'accent (7 % de blanc sur fond
@@ -1236,7 +1244,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
 
 /* ===== Fenêtres et sélecteurs =====================================
    Coins arrondis et ombre douce plutôt qu'un cadre marqué. */
-.modal-card,.ask-box,.modal-box,.pe-list,.pe-adv{border-radius:12px}
+.modal-card,.ask-box,.modal-box,.pe-list,.pe-adv{border-radius:3px}
 .modal-card,.ask-box{box-shadow:0 8px 30px rgba(0,0,0,.12)}
 /* Sélecteurs segmentés : noir plein quand c'est coché, pas de couleur. */
 .pe-seg>label:has(input:checked),.seg>label:has(input:checked){background:var(--text);border-color:var(--text);color:var(--bg)}
@@ -1279,7 +1287,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
   /* Barre latérale : pile de cartes, sans filet ni bordure de colonne. */
   .side{width:312px;border-right:0;padding:0;background:transparent;
     display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain}
-  .sidecard,.side>details{background:var(--panel);border:0;border-top:0;border-radius:20px;
+  .sidecard,.side>details{background:var(--panel);border:0;border-top:0;border-radius:3px;
     box-shadow:var(--shadow);margin:0;padding:2px 16px}
   .sidecard{padding:15px 18px 14px;display:flex;flex-direction:column;gap:2px}
   .side>details[open]{padding-bottom:14px}
@@ -1289,10 +1297,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
   .side-sep{border-top:0;margin:10px 0 0;padding:0 6px}
   /* Blocs encastrés DANS une carte : un ton plus chaud, sans bordure — deux
      cadres imbriqués alourdiraient inutilement. */
-  .side .slist{background:var(--row-bg);border-color:transparent;border-radius:14px}
+  .side .slist{background:var(--row-bg);border-color:transparent;border-radius:3px}
 
   /* Colonne principale : une seule grande carte qui contient fil et saisie. */
-  .main{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+  .main{background:var(--panel);border-radius:3px;box-shadow:var(--shadow);overflow:hidden}
   #chat{padding-top:26px;padding-inline:max(20px,calc(50% - 360px))}
   /* Le dégradé qui fait disparaître le fil sous la carte de saisie doit fondre
      vers le PANNEAU, pas vers le fond de la coque. */
@@ -1314,13 +1322,13 @@ button:hover{border-color:var(--dim);color:var(--text)}
      3 px sur le seul bord gauche se lisait mal et déséquilibrait la ligne. La
      bordure transparente est portée par tous les états : la sélection ne décale
      donc pas le contenu d'un pixel. */
-  .side .preset{border:1px solid transparent;border-radius:14px;background:transparent}
+  .side .preset{border:1px solid transparent;border-radius:3px;background:transparent}
   .side .preset.active{background:var(--row-bg-on);border-color:var(--accent)}
   .side .preset:hover{background:var(--row-bg)}
 
   /* Bulle de question : coin bas-droit rentré, comme une bulle qui pointe vers
      son auteur. */
-  #chat .msg.user{border-radius:20px 20px 6px 20px}
+  #chat .msg.user{border-radius:4px}
 }
 /* Action principale en sauge : c'est la couleur d'action de la charte, et elle
    se distingue enfin du texte (le bouton reprenait --text, donc un brun sombre
@@ -1359,7 +1367,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
    l'application de l'autre, tiennent maintenant chacune dans UNE carte, avec un
    filet discret entre les lignes. */
 @media (min-width:721px){
-  .sidegroup{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+  .sidegroup{background:var(--panel);border-radius:3px;box-shadow:var(--shadow);
     padding:2px 16px;display:flex;flex-direction:column}
   /* Dans un groupe, les sections ne sont plus des cartes : elles redeviennent
      des lignes, séparées par un filet — sauf la première. */
@@ -1376,7 +1384,7 @@ button:hover{border-color:var(--dim);color:var(--text)}
    quantifications, et la modale ne doit pas s'étirer jusqu'à sortir de
    l'écran. */
 .hf-list{display:flex;flex-direction:column;max-height:220px;overflow-y:auto;
-  border:1px solid var(--border);border-radius:12px;margin-top:6px}
+  border:1px solid var(--border);border-radius:3px;margin-top:6px}
 .hf-row{display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;
   border-top:1px solid var(--border);font-size:12px}
 .hf-row:first-child{border-top:0}
@@ -1412,12 +1420,12 @@ html[data-files="1"] #files{display:flex}
 .files-head{display:flex;align-items:center;gap:8px}
 .files-head .stitle{flex:1}
 #files-refresh,#files-close{margin:0;padding:2px 8px;min-height:0;font-size:12px;
-  background:transparent;border:1px solid transparent;color:var(--dim);border-radius:8px}
+  background:transparent;border:1px solid transparent;color:var(--dim);border-radius:4px}
 #files-refresh:hover,#files-close:hover{border-color:var(--border);color:var(--text)}
 /* Fil d'Ariane : il doit pouvoir revenir à la ligne — un identifiant de
    discussion dans le chemin dépasse largement 320 px. */
 .files-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:11px}
-.files-crumb-b{margin:0;padding:2px 6px;min-height:0;font-size:11px;border:0;border-radius:7px;
+.files-crumb-b{margin:0;padding:2px 6px;min-height:0;font-size:11px;border:0;border-radius:3px;
   background:transparent;color:var(--dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .files-crumb-b:hover:not(:disabled){background:var(--row-bg-on);color:var(--text)}
 .files-crumb-b.on{color:var(--text);cursor:default}
@@ -1427,7 +1435,7 @@ html[data-files="1"] #files{display:flex}
 /* Une ligne = pastille, nom + méta, actions. Les actions n'apparaissent qu'au
    survol : au repos on veut lire des noms de fichiers, pas une grille de
    boutons. Sur écran tactile (pas de survol) elles restent visibles. */
-.files-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;font-size:12px}
+.files-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:3px;font-size:12px}
 .files-row:hover{background:var(--row-bg-on)}
 .files-ic{flex:none;width:12px;text-align:center;color:var(--dim)}
 .files-row.isdir .files-ic{color:var(--accent)}
@@ -1438,7 +1446,7 @@ html[data-files="1"] #files{display:flex}
 .files-row:hover .files-acts,.files-row:focus-within .files-acts{opacity:1}
 @media (hover:none){.files-acts{opacity:1}}
 .files-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;
-  border:1px solid transparent;border-radius:6px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
+  border:1px solid transparent;border-radius:3px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
 .files-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
 .files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border);
   display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1446,7 +1454,7 @@ html[data-files="1"] #files{display:flex}
    secours pour les fichiers d'avant le rangement par discussion, pas une vue
    qu'on propose au même rang que la discussion ouverte. */
 .files-scope{margin:0;padding:2px 6px;min-height:0;font-family:var(--mono);font-size:10px;
-  background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--dim)}
+  background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--dim)}
 .files-scope:hover{color:var(--text);background:var(--row-bg-on)}
 /* Téléchargement en cours : downloadWorkspaceFile pose .busy sur la ligne. */
 .files-row.busy{opacity:.55;pointer-events:none}
@@ -1469,7 +1477,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 }
 @media (min-width:721px){
   /* Dans la charte « Terre », le panneau est une carte comme les autres. */
-  #files{background:var(--panel);border-left-color:transparent;border-radius:20px;
+  #files{background:var(--panel);border-left-color:transparent;border-radius:3px;
     box-shadow:var(--shadow);margin:0}
 }
 
@@ -1525,7 +1533,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #topbar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-size:13.5px;font-weight:500;color:var(--text)}
 #topbar .iconbtn{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;
-  justify-content:center;border:0;border-radius:9px;background:transparent;color:var(--dim);
+  justify-content:center;border:0;border-radius:4px;background:transparent;color:var(--dim);
   cursor:pointer;margin:0;padding:0;transition:background .15s,color .15s,transform .1s}
 #topbar .iconbtn:hover{background:var(--row-bg-on);color:var(--text)}
 #topbar .iconbtn:active{transform:scale(.92)}
@@ -1549,7 +1557,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* La liste EST la barre latérale : titre à gauche, heure à droite, une ligne.
    Le reste (réglages) descend sous un unique repli. */
 #conv-search{width:calc(100% - 24px);font:inherit;font-size:12.5px;color:var(--text);
-  background:var(--panel);border:1px solid var(--border);border-radius:9px;
+  background:var(--panel);border:1px solid var(--border);border-radius:4px;
   padding:7px 11px;margin:0 12px 8px}
 #conv-search::placeholder{color:var(--dim)}
 #conv-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
@@ -1603,7 +1611,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    ⚠️ Ne concerne pas les boutons-icônes de la saisie et de l'en-tête (#send,
    #stop, #attach, #menubtn…) : ils posent `border:0` PLUS BAS dans la feuille
    et gardent leur allure nue, qui est la bonne pour un pictogramme seul. */
-button{background:var(--panel);border-color:var(--border);border-radius:9px;
+button{background:var(--panel);border-color:var(--border);border-radius:4px;
   transition:background .15s ease,color .15s ease,border-color .15s ease,transform .08s ease}
 button:hover{background:var(--row-bg);border-color:var(--dim);color:var(--text)}
 button:active:not(:disabled){transform:translateY(1px)}
@@ -1614,11 +1622,11 @@ button:active:not(:disabled){transform:translateY(1px)}
    nu flotte sans ancrage, et la frontière entre deux réponses se perd. */
 #chat{padding-top:22px}
 #chat .msg.assistant{background:var(--bubble);border:0;
-  border-radius:10px;padding:15px 17px;max-width:100%;box-shadow:var(--shadow-card)}
+  border-radius:4px;padding:15px 17px;max-width:100%;box-shadow:var(--shadow-card)}
 #chat .msg.assistant.errmsg{background:var(--danger-bg);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
 /* Question : aplat de sauge, coin bas-droit rentré. --on-accent garantit le
    contraste dans les DEUX variantes. */
-#chat .msg.user{background:var(--user-bg);color:var(--on-user);border-radius:10px;
+#chat .msg.user{background:var(--user-bg);color:var(--on-user);border-radius:4px;
   padding:13px 16px;max-width:62%;box-shadow:var(--shadow-card)}
 #chat .msg.user .label{color:var(--on-user);opacity:.75}
 #chat .msg.user .body a{color:var(--on-user);text-decoration:underline}
@@ -1644,7 +1652,7 @@ button:active:not(:disabled){transform:translateY(1px)}
 #inputbar #attach,#inputbar #files-btn,#send,#stop{
   width:34px;height:34px;min-height:34px;flex:none;margin:0;padding:0;
   display:inline-flex;align-items:center;justify-content:center;align-self:center;
-  border:0;border-radius:10px;background:transparent;color:var(--dim);
+  border:0;border-radius:4px;background:transparent;color:var(--dim);
   transition:background .15s ease,color .15s ease,transform .08s ease}
 /* Envoyer / arrêter : un seul des deux à la fois, décidé par data-busy (posé par
    syncSendBtn). C'est la feuille qui garde la main sur `display` — un style
@@ -1665,8 +1673,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    à droite du texte : c'est là qu'on les cherche, et le pied de carte redevient
    ce qu'il doit être — une jauge de contexte, rien d'autre. */
 #inputbar{align-items:flex-end;padding:8px 8px 8px 18px;gap:4px;box-shadow:var(--shadow-card);
-  border-radius:14px 14px 0 0}
-#ctxmeta{border-radius:0 0 14px 14px}
+  border-radius:3px 3px 0 0}
+#ctxmeta{border-radius:0 0 5px 5px}
 #ctxmeta{padding-bottom:12px}
 #ctxtrack{border-radius:999px}
 
@@ -1687,8 +1695,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   #side-scroll>details,#side-scroll>.sidegroup{background:transparent;box-shadow:none;
     border-radius:0;padding:0;margin:0}
   #side-scroll>details>summary{height:34px}
-  .side .slist{background:transparent;border-color:transparent;border-radius:12px}
-  .side #side-settings .slist{background:var(--row-bg);border-radius:12px}
+  .side .slist{background:transparent;border-color:transparent;border-radius:3px}
+  .side #side-settings .slist{background:var(--row-bg);border-radius:3px}
   /* Le fil n'est plus une carte : il EST la page. */
   .main{background:transparent;border-radius:0;box-shadow:none;overflow:visible}
   #composer{background:linear-gradient(to bottom,transparent 0,var(--bg) var(--fade))}
@@ -1701,7 +1709,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    au tiers de la place disponible. */
 .side .preset{position:relative}
 .side .preset .conv-acts{position:absolute;right:6px;top:50%;transform:translateY(-50%);
-  margin:0;background:var(--row-bg-on);border-radius:9px;padding:1px}
+  margin:0;background:var(--row-bg-on);border-radius:4px;padding:1px}
 .side .preset.active .conv-acts{background:var(--row-bg)}
 .side .preset .preset-info{overflow:hidden}
 /* La sélection est un aplat, pas un cadre : un liseré autour d'une ligne de
@@ -1723,10 +1731,10 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* Le ☰ suit la charte des boutons : pas de contour, un fond qui apparaît au
    survol. Il flotte au-dessus de l'en-tête, il doit donc en reprendre le fond
    pour ne pas laisser voir le fil défiler dessous. */
-#menubtn{background:var(--bg);border:0;color:var(--dim);border-radius:10px;
+#menubtn{background:var(--bg);border:0;color:var(--dim);border-radius:4px;
   width:34px;height:34px;font-size:16px;top:calc(11px + env(safe-area-inset-top));left:9px}
 #menubtn:hover{background:var(--row-bg-on);color:var(--text)}
-#lc-chip{border-radius:10px;height:34px;top:calc(11px + env(safe-area-inset-top));left:calc(50px + env(safe-area-inset-left))}
+#lc-chip{border-radius:4px;height:34px;top:calc(11px + env(safe-area-inset-top));left:calc(50px + env(safe-area-inset-left))}
 /* Jauges : la piste doit se VOIR, sinon une barre presque vide ressemble à un
    trait souligné sous l'intitulé. Valeurs relevées sur la maquette. */
 .perf-track{background:var(--track)}
@@ -1743,7 +1751,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #chat .msg.assistant .body pre,#chat .msg.reasoning .body pre,#chat .msg.tool pre{
   background:var(--code-bg);border:1px solid color-mix(in srgb,var(--text) 10%,transparent)}
 #chat .msg.assistant .body code{background:var(--code-bg);
-  border:1px solid color-mix(in srgb,var(--text) 7%,transparent);border-radius:5px}
+  border:1px solid color-mix(in srgb,var(--text) 7%,transparent);border-radius:3px}
 #chat .msg.assistant .body pre code{border:0;background:transparent}
 /* --- Titres de la barre latérale ------------------------------------
    La maquette n'a qu'un style de titre : casse normale, demi-gras, taille du
@@ -1829,7 +1837,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #chat-actions-clear,.row>button>svg{vertical-align:-2px}
 .row>button:has(svg){display:inline-flex;align-items:center;gap:7px}
 /* Le « + » des sections : même carré que les autres commandes de la barre. */
-.preset-add{width:26px;height:26px;border-radius:8px}
+.preset-add{width:26px;height:26px;border-radius:4px}
 /* Étiquettes de groupe : même traitement que les titres de section — la
    maquette n'a qu'un style de titre, et le monospace en capitales de la charte
    précédente criait au milieu des formulaires. */
@@ -1861,7 +1869,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* La liste EST la carte, au MÊME gabarit que .sidegroup (les sections de
    réglages) : fond de panneau, rayon de 20, ombre discrète. Les lignes sont
    rognées par overflow au lieu d'arrondir la première et la dernière à la main. */
-#conv-list{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+#conv-list{background:var(--panel);border-radius:3px;box-shadow:var(--shadow);
   overflow:hidden;margin:0}
 .side .preset{border-radius:0;margin:0;padding:10px 12px}
 .side .preset:not(:last-child){border-bottom:1px solid var(--border)}
@@ -1877,7 +1885,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    couple que « Paramètres » + sa liste dans les réglages. */
 #side-perf{padding:12px 12px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .perf-head{margin:0 2px 7px;font-size:12.5px;font-weight:600;color:var(--dim)}
-.perf-body{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);
+.perf-body{background:var(--panel);border-radius:3px;box-shadow:var(--shadow);
   padding:14px 15px 3px}
 /* ⚠️ Pas de remise à zéro sur :last-child — les jauges vivent dans DEUX
    conteneurs (les cartes graphiques, puis la mémoire vive). La dernière jauge

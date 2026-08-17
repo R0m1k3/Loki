@@ -755,9 +755,12 @@ function populateSettings(){
     eff.value = (cfgReadKey('REASONING_EFFORT')||'').toLowerCase();
     const effSub = document.getElementById('s-reasoning-effort-sub');
     if(effSub){
+      // Deux emplacements, deux portées : ici c'est le défaut ENREGISTRÉ avec le
+      // preset (donc rattaché au modèle) ; la liste de la barre de saisie le
+      // dévie pour la suite de la session, jusqu'au prochain preset appliqué.
       effSub.textContent = eff.value
-        ? 'envoyée au gabarit du modèle — sans effet si son gabarit l\'ignore'
-        : 'envoyée au gabarit du modèle — auto = ne rien imposer';
+        ? 'défaut de ce preset — sans effet si le gabarit du modèle l\'ignore'
+        : 'défaut de ce preset — ajustable à la volée depuis la barre de saisie';
     }
   }
   chk('s-flash', eaHasFlag('--flash-attn') && !/^off$/i.test(eaGetValued('--flash-attn')));

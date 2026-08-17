@@ -703,6 +703,49 @@ func handleMCP(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"ok": true, "servers": list})
 }
 
+// handleReasoningEffort lit (GET) ou règle (POST) l'intensité du raisonnement.
+//
+// Même rôle que le sélecteur de l'éditeur de preset, mais applicable depuis la
+// barre de saisie sans rouvrir les réglages : la valeur part dans la config
+// vivante, elle est relue à chaque requête au moteur (llm_client.go). Aucun
+// redémarrage du moteur — `reasoning_effort` voyage dans le corps de la requête.
+//
+// Attention : appliquer un preset réécrit TOUTE la config, donc la valeur du
+// preset reprend la main à ce moment-là. C'est voulu — le réglage reste attaché
+// au modèle, la barre de saisie ne fait que le changer à la volée.
+func handleReasoningEffort(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var req struct {
+			Value string `json:"value"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		v := strings.ToLower(strings.TrimSpace(req.Value))
+		// Liste blanche : cette clé finit dans une requête au moteur, on n'y
+		// laisse pas passer une chaîne arbitraire venue du navigateur.
+		ok := v == ""
+		for _, allowed := range ReasoningEfforts {
+			if v == allowed {
+				ok = true
+			}
+		}
+		if !ok {
+			sendJSON(w, 400, map[string]any{"ok": false, "error": "valeur inconnue : " + v})
+			return
+		}
+		if err := SetConfigKey("REASONING_EFFORT", v); err != nil {
+			sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+	}
+	cfg := ReadConfig()
+	sendJSON(w, 200, map[string]any{
+		"ok":      true,
+		"value":   reasoningEffortValue(cfg["REASONING_EFFORT"]),
+		"on":      reasoningActive(cfg["REASONING"]),
+		"choices": ReasoningEfforts,
+	})
+}
+
 // handleMCPCatalog renvoie le catalogue embarqué de serveurs MCP connus.
 // Lecture seule : rien n'est installé ici, l'UI ne fait que préremplir la modale
 // d'ajout avec la commande de l'entrée choisie.

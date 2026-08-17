@@ -225,7 +225,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/mcp/tool", handleMCPTool)
 	api("/api/mcp/test", handleMCPTest)
 	api("/api/memory", handleMemoryMode)
-	api("/api/network", handleNetwork) // écoute LAN du moteur + pare-feu (Windows)
+	api("/api/reasoning-effort", handleReasoningEffort) // intensité réglable depuis la barre de saisie
+	api("/api/network", handleNetwork)                  // écoute LAN du moteur + pare-feu (Windows)
 	api("/api/prefs", handleWebPrefs)
 	api("/api/sysprompt", handleSysPrompt)
 	// Alias rétro-compat : l'ancien portail ajean.link (dépôt loki-relay) pilote
