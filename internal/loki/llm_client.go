@@ -574,7 +574,11 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// reasoning is enabled we split that out ourselves so the UI's reasoning
 	// bubble works regardless of backend. The ik_llama.cpp fork already sends
 	// reasoning_content, in which case we leave content untouched.
-	reasoningOn := reasoningActive(ReadConfig()["REASONING"])
+	chatCfg := ReadConfig()
+	reasoningOn := reasoningActive(chatCfg["REASONING"])
+	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
+	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
+	reasoningEffort := reasoningEffortValue(chatCfg["REASONING_EFFORT"])
 	// When llama.cpp fails to parse a model-generated tool call (HTTP 500), we
 	// retry the same turn once with tools removed so the model answers in plain
 	// text from the tool results already gathered, instead of dying mid-chat.
@@ -610,6 +614,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// ne compte que les tokens nouvellement traités. Sert au comptage exact du
 			// contexte (sinon le system prompt déjà en cache n'est pas recompté).
 			"stream_options": map[string]any{"include_usage": true},
+		}
+		if reasoningEffort != "" {
+			payload["reasoning_effort"] = reasoningEffort
 		}
 		if len(tools) > 0 && !disableTools {
 			payload["tools"] = tools

@@ -703,6 +703,18 @@ func handleMCP(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"ok": true, "servers": list})
 }
 
+// handleMCPCatalog renvoie le catalogue embarqué de serveurs MCP connus.
+// Lecture seule : rien n'est installé ici, l'UI ne fait que préremplir la modale
+// d'ajout avec la commande de l'entrée choisie.
+func handleMCPCatalog(w http.ResponseWriter, r *http.Request) {
+	entries, err := MCPCatalog()
+	if err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "catalog": entries})
+}
+
 // handleMCPSave ajoute ou remplace un serveur MCP.
 func handleMCPSave(w http.ResponseWriter, r *http.Request) {
 	var req mcpSaveReq

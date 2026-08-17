@@ -168,7 +168,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <!-- Même texte que celui rendu après chargement quand il n'y a aucun
                serveur : sinon la carte partait vide puis grandissait d'une ligne. -->
           <div id="mcp-list" class="mcp-list"><div class="muted" style="font-size:12px">(aucun serveur — ajoute un serveur fichiers, une base de données, une API…)</div></div>
-          <button class="addbtn" style="margin-top:6px" onclick="openMcp('')">+ ajouter un serveur</button>
+          <div class="mcp-actions">
+            <button class="addbtn" onclick="openMcpCatalog()">catalogue</button>
+            <button class="addbtn" onclick="openMcp('')">+ ajouter un serveur</button>
+          </div>
         </div>
       </div>
     </div>
@@ -574,6 +577,23 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     </div>
   </div>
 </div>
+<div id="mcp-catalog-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeMcpCatalog()">
+  <div class="modal-card" style="max-width:640px">
+    <div class="modal-head">
+      <strong>Catalogue MCP</strong>
+      <button class="modal-x" onclick="closeMcpCatalog()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="muted" style="font-size:12px;margin-bottom:8px">
+        Serveurs connus, embarqués dans Loki — aucun appel réseau pour cette liste.
+        « Utiliser » remplit le formulaire d'ajout : la commande s'exécutera sur
+        cette machine, relis-la avant d'enregistrer.
+      </div>
+      <div id="mcp-catalog-tabs" class="mcp-cat-tabs"></div>
+      <div id="mcp-catalog-list" class="mcp-cat-list"></div>
+    </div>
+  </div>
+</div>
 <div id="mcp-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeMcp()">
   <div class="modal-card" style="max-width:560px">
     <div class="modal-head">
@@ -820,6 +840,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <div class="pe-row">
             <span class="pe-row-l">Raisonnement<span class="pe-sub" id="s-reasoning-sub">réflexion étape par étape</span></span>
             <span class="pe-row-c"><label class="pe-switch"><input type="checkbox" id="s-reasoning" onchange="cfgWriteKey('REASONING', this.checked?'on':'off')"><span class="pe-sl"></span></label></span>
+          </div>
+          <div class="pe-row" id="s-reasoning-effort-row">
+            <span class="pe-row-l">Intensité du raisonnement<span class="pe-sub" id="s-reasoning-effort-sub">envoyée au gabarit du modèle — auto = ne rien imposer</span></span>
+            <span class="pe-row-c">
+              <select id="s-reasoning-effort" class="pe-val" onchange="cfgWriteKey('REASONING_EFFORT', this.value)">
+                <option value="">auto</option>
+                <option value="none">aucune</option>
+                <option value="low">basse</option>
+                <option value="medium">moyenne</option>
+                <option value="high">haute</option>
+              </select>
+            </span>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Flash attention<span class="pe-sub">plus rapide, moins de VRAM</span></span>

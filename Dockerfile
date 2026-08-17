@@ -43,6 +43,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# uv/uvx : lanceur des serveurs MCP écrits en Python (mcp-server-git, -fetch,
+# -time, sqlite, docker…). Sans lui, une bonne partie du catalogue embarqué
+# s'affiche mais ne peut pas démarrer. Deux binaires statiques, ~35 Mo.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 # Playwright + Chromium : l'outil web_screenshot capture une page RENDUE
 # (JavaScript exécuté), ce que le moteur web intégré ne sait pas faire.
 # Coût assumé : ~500 Mo à 1 Go d'image. Mettre PLAYWRIGHT=0 pour bâtir une image

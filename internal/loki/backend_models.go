@@ -70,6 +70,34 @@ func reasoningActive(v string) bool {
 	return true
 }
 
+// ReasoningEfforts liste les valeurs proposées par l'UI pour REASONING_EFFORT.
+// "" (auto) n'y figure pas : c'est l'absence de réglage.
+var ReasoningEfforts = []string{"none", "low", "medium", "high"}
+
+// reasoningEffortValue normalise REASONING_EFFORT en une valeur envoyable telle
+// quelle à llama-server, ou "" pour ne rien envoyer du tout.
+//
+// llama-server accepte `reasoning_effort` dans /v1/chat/completions : la valeur
+// `none` coupe le raisonnement, toute autre valeur est simplement passée au
+// gabarit jinja du modèle. Un gabarit qui ne la lit pas l'ignore sans erreur —
+// c'est pourquoi il n'y a pas de repli à prévoir ici, contrairement à un backend
+// qui rejetterait la requête. En pratique seuls les modèles dont le gabarit
+// gère `reasoning_effort` (gpt-oss et apparentés) changent de comportement.
+func reasoningEffortValue(v string) string {
+	switch s := strings.ToLower(strings.TrimSpace(v)); s {
+	case "", "auto", "default":
+		return "" // rien envoyé : le gabarit garde son comportement
+	case "off", "false", "0", "no", "disable", "disabled", "none":
+		return "none"
+	case "low", "medium", "high":
+		return s
+	default:
+		// Valeur inconnue (éditée à la main) : on ne l'invente pas, on la laisse
+		// passer au gabarit, qui l'ignorera s'il ne la connaît pas.
+		return s
+	}
+}
+
 // detectQuant returns the quantization tag for a preset: an explicit QUANT= line
 // (manual override, with or without a leading '#') wins; otherwise it is
 // auto-detected from the MODEL= filename. Returns "" when unknown.

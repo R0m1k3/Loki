@@ -78,6 +78,118 @@ async function toggleMcp(name, on){
   toast(on ? 'serveur activé' : 'serveur désactivé');
 }
 
+// ─── Catalogue ───────────────────────────────────────────────────────────────
+// Liste embarquée de serveurs connus, servie par /api/mcp/catalog. Choisir une
+// entrée n'installe RIEN : ça ouvre la modale d'ajout préremplie, l'utilisateur
+// relit la commande (qui s'exécutera sur cette machine) puis enregistre.
+let mcpCatalog = [];
+let mcpCatalogFilter = 'Tous';
+
+async function openMcpCatalog(){
+  showModal('mcp-catalog-modal');
+  const list = document.getElementById('mcp-catalog-list');
+  if(!mcpCatalog.length){
+    list.innerHTML = '<div class="muted" style="font-size:12px">chargement…</div>';
+    const r = await jget('/api/mcp/catalog');
+    mcpCatalog = (r && r.catalog) || [];
+  }
+  renderMcpCatalog();
+}
+
+function closeMcpCatalog(){ hideModal('mcp-catalog-modal'); }
+
+function renderMcpCatalog(){
+  const list = document.getElementById('mcp-catalog-list');
+  const tabs = document.getElementById('mcp-catalog-tabs');
+  list.textContent = '';
+  tabs.textContent = '';
+
+  if(!mcpCatalog.length){
+    list.innerHTML = '<div class="muted" style="font-size:12px">(catalogue vide)</div>';
+    return;
+  }
+
+  const cats = ['Tous'].concat([...new Set(mcpCatalog.map(e=>e.category))].sort());
+  cats.forEach(c=>{
+    const b = document.createElement('button');
+    b.className = 'mcp-cat'+(c===mcpCatalogFilter?' on':'');
+    b.textContent = c;
+    b.onclick = ()=>{ mcpCatalogFilter = c; renderMcpCatalog(); };
+    tabs.appendChild(b);
+  });
+
+  mcpCatalog
+    .filter(e=>mcpCatalogFilter==='Tous' || e.category===mcpCatalogFilter)
+    .forEach(e=>{
+      const row = document.createElement('div');
+      row.className = 'mcp-cat-row';
+
+      const info = document.createElement('div'); info.className = 'mcp-info';
+      const nm = document.createElement('div'); nm.className = 'mcp-name';
+      nm.textContent = e.name;
+      if(e.installed){
+        const tag = document.createElement('span'); tag.className = 'mcp-tag';
+        tag.textContent = 'installé'; tag.style.marginLeft = '6px';
+        nm.appendChild(tag);
+      }
+      const desc = document.createElement('div'); desc.className = 'mcp-cat-desc';
+      desc.textContent = e.description;
+      const meta = document.createElement('div'); meta.className = 'mcp-meta';
+      const cmd = document.createElement('code'); cmd.className = 'mcp-cat-cmd';
+      cmd.textContent = [e.command].concat(e.args||[]).join(' ');
+      cmd.title = cmd.textContent;
+      meta.appendChild(cmd);
+      if(!e.runtimeOk){
+        const w = document.createElement('span'); w.className = 'mcp-err';
+        w.textContent = 'runtime '+(e.runtime||'?')+' absent';
+        w.title = e.runtime==='python'
+          ? "uv/uvx n'est pas installé sur cette machine : ce serveur ne pourra pas démarrer."
+          : "npx n'est pas installé sur cette machine : ce serveur ne pourra pas démarrer.";
+        meta.appendChild(w);
+      }
+      if((e.secrets||[]).length){
+        const s = document.createElement('span'); s.className = 'mcp-tag';
+        s.textContent = 'clé requise'; s.title = e.secrets.join(', ');
+        meta.appendChild(s);
+      }
+      info.appendChild(nm); info.appendChild(desc); info.appendChild(meta);
+
+      const use = document.createElement('button');
+      use.className = 'addbtn mcp-cat-use';
+      use.textContent = e.installed ? 'revoir' : 'utiliser';
+      use.onclick = ()=>{ closeMcpCatalog(); openMcpFromCatalog(e); };
+
+      row.appendChild(info); row.appendChild(use);
+      list.appendChild(row);
+    });
+}
+
+// Préremplit la modale d'ajout à partir d'une entrée du catalogue. Le nom du
+// serveur = l'id de l'entrée, pour que « déjà installé » se détecte ensuite.
+function openMcpFromCatalog(e){
+  openMcp(mcpServers.some(s=>s.name===e.id) ? e.id : '');
+  if(!mcpServers.some(s=>s.name===e.id)){
+    document.getElementById('mcp-name').value = e.id;
+    document.querySelector('input[name="mcp-transport"][value="stdio"]').checked = true;
+    mcpTransportUI('stdio');
+    document.getElementById('mcp-command').value = e.command || '';
+    document.getElementById('mcp-args').value = (e.args||[]).join('\n');
+    document.getElementById('mcp-env').value =
+      Object.entries(e.env||{}).map(([k,v])=>k+'='+v).join('\n');
+    document.getElementById('mcp-url').value = '';
+    document.getElementById('mcp-headers').value = '';
+    document.getElementById('mcp-modal-title').textContent = e.name+' — depuis le catalogue';
+  }
+  const st = document.getElementById('mcp-modal-status');
+  if((e.secrets||[]).length){
+    st.textContent = 'renseigne '+e.secrets.join(', ')+' avant d\'enregistrer';
+    st.style.color = 'var(--err)';
+  } else if(!e.runtimeOk){
+    st.textContent = '⚠ runtime '+(e.runtime||'?')+' absent : le serveur ne démarrera pas ici';
+    st.style.color = 'var(--err)';
+  }
+}
+
 // Ouvre la modale d'ajout (name='') ou d'édition (nom existant).
 function openMcp(name){
   mcpEditing = name || '';
