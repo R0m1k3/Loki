@@ -105,6 +105,11 @@ func screenshotVisionNote() string {
 // modèle, ou avec un modèle sans vision (gpt-oss), le gabarit sérialise le
 // base64 de l'image en TEXTE — la requête vue en production pesait 55 000
 // tokens pour 32 768 de contexte, et tous les tours suivants échouaient.
+//
+// La sonde est un appel interne comme les autres : elle DOIT s'authentifier.
+// Sans l'en-tête Bearer, un moteur protégé par API_KEY répond 401 et la sonde
+// conclut « pas de vision » — le projecteur était bien chargé, les images ne
+// partaient jamais et le modèle brodait à partir du seul chemin de fichier.
 var (
 	visionProbeMu   sync.Mutex
 	visionProbeAt   time.Time
@@ -120,7 +125,12 @@ func engineSeesImages() bool {
 	visionProbeAt = time.Now()
 	visionProbeSeen = false
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://localhost:%d/props", LLMPort()))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%d/props", LLMPort()), nil)
+	if err != nil {
+		return false
+	}
+	authHeader(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return false
 	}
