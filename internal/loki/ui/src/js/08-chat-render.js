@@ -191,6 +191,13 @@ function hydrateImages(root){
     img.dataset.hydrated = '1';
     const src = img.getAttribute('src');
     img.classList.add('chatimg');
+    // Nom lisible pour la loupe : la fin du chemin visé, pas l'URL d'API.
+    let name = img.getAttribute('alt') || '';
+    if(!name){
+      const m = /[?&]path=([^&]*)/.exec(src);
+      if(m){ try{ name = decodeURIComponent(m[1]).split('/').pop(); }catch(_){ name = m[1]; } }
+    }
+    bindZoom(img, name);
     const cached = IMG_CACHE.get(src);
     if(cached){ img.src = cached; return; }
     try{

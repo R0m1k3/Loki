@@ -1201,9 +1201,48 @@ html[data-hide-stats="1"] #chat .msg .statline{display:none}
    alignée à droite comme elle. Rangée et bulle restent deux objets distincts,
    séparés par l'espacement normal du fil — les rapprocher les faisait lire comme
    une seule bulle difforme qui déborde vers le haut. */
+/* align-items:flex-start : depuis que la rangée peut contenir une VIGNETTE, une
+   pastille texte voisine s'étirait à sa hauteur (étirement par défaut du flex) —
+   et, arrondie à 999px, se retrouvait en gros ovale. Chaque objet garde sa
+   hauteur propre. */
 #chat .msg-files{align-self:flex-end;display:flex;flex-wrap:wrap;justify-content:flex-end;
-  gap:6px;max-width:75%}
+  align-items:flex-start;gap:6px;max-width:75%}
 #chat .msg-files .chip-file{background:var(--bubble);max-width:100%}
+/* Vignette dans une pastille (composeur) : assez grande pour reconnaître la
+   capture qu'on vient de coller, assez petite pour que la rangée reste une
+   rangée de pastilles et pas une planche-contact. */
+.chip-file .cf-thumb{flex:none;width:26px;height:26px;object-fit:cover;border-radius:3px;
+  background:var(--panel)}
+.chip-file.has-thumb{padding-left:4px}
+/* Pièce jointe IMAGE d'un message envoyé : la vignette remplace la pastille.
+   Plafonnée pour ne pas déséquilibrer le fil ; cliquable pour la voir en grand. */
+#chat .msg-files .msg-img{display:flex;max-width:100%;border-radius:4px;overflow:hidden;
+  border:1px solid var(--border);background:var(--panel)}
+/* margin/border remis à zéro : .chatimg (posée par hydrateImages) s'applique
+   aussi ici, or le cadre est déjà porté par la tuile. */
+#chat .msg-files .msg-img img{display:block;max-width:200px;max-height:160px;
+  width:auto;height:auto;object-fit:contain;cursor:zoom-in;margin:0;border:none;border-radius:0}
+/* Images posées par l'IA dans sa réponse (captures, /api/chat/image). Sans ce
+   plafond elles sortaient à leur taille NATIVE : une capture d'écran remplissait
+   la colonne entière et poussait le texte hors de vue. */
+#chat .chatimg{display:block;max-width:100%;max-height:280px;width:auto;height:auto;
+  margin:6px 0;border:1px solid var(--border);border-radius:4px;cursor:zoom-in}
+/* Loupe : l'image reprend toute la fenêtre, moins une marge. Le fond ferme au
+   clic (curseur zoom-out), l'image non — on veut pouvoir la regarder de près. */
+#lightbox{position:fixed;inset:0;z-index:80;display:none;align-items:center;
+  justify-content:center;padding:28px;background:rgba(0,0,0,.72);cursor:zoom-out;
+  opacity:0;transition:opacity .16s ease}
+#lightbox.show{opacity:1}
+#lightbox img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;
+  border-radius:4px;box-shadow:0 16px 50px rgba(0,0,0,.45);cursor:default}
+#lightbox .lb-x{position:absolute;top:10px;right:14px;margin:0;padding:0;
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;border:none;border-radius:50%;
+  background:rgba(0,0,0,.35);color:#fff}
+#lightbox .lb-x:hover{background:rgba(0,0,0,.6)}
+#lightbox .lb-name{position:absolute;left:0;right:0;bottom:10px;text-align:center;
+  color:#fff;opacity:.72;font-size:12px;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#lightbox{transition:none}}
 /* Lien de téléchargement dans une réponse : un lien normal, mais la flèche dit
    qu'il ramène un fichier plutôt qu'il n'ouvre une page. */
 #chat .msg .filelink{cursor:pointer}

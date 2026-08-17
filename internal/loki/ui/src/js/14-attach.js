@@ -26,12 +26,28 @@ function fmtSize(n){
   if(n >= 1024) return Math.round(n/1024)+' Ko';
   return n+' o';
 }
+// Un nom de fichier ne dit pas ce qu'on a joint : pour une image, on montre
+// l'image. Reconnaissance à l'extension — le serveur, lui, renifle le CONTENU
+// (handleChatImage) et répond 415 si ça n'en est pas une, donc au pire on affiche
+// une vignette cassée qui retombe sur son texte de repli.
+const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|ico|heic|heif|tiff?)$/i;
+function isImageName(name){ return IMG_EXT.test(String(name||'')); }
 // Pastille de fichier, partagée par le composeur et les bulles du fil : même
 // objet visuel des deux côtés, seul le contexte (CSS) change.
+//
+// opts.thumb = URL d'aperçu : la pastille porte alors une vignette à gauche du
+// nom. Le composeur s'en sert avec un objectURL local (rien n'est encore parti
+// vers le serveur à ce stade).
 function fileChip(name, size, opts){
   opts=opts||{};
   const chip=document.createElement('div');
   chip.className='chip-file'+(opts.cls?' '+opts.cls:'');
+  if(opts.thumb){
+    const t=document.createElement('img');
+    t.className='cf-thumb'; t.src=opts.thumb; t.alt='';
+    chip.appendChild(t);
+    chip.classList.add('has-thumb');
+  }
   const n=document.createElement('span');
   n.className='cf-name'; n.textContent=name; n.title=opts.title||name;
   const s=document.createElement('span');
@@ -49,12 +65,31 @@ function fileChip(name, size, opts){
 // Fichiers joints à un message DÉJÀ envoyé : posés AU-DESSUS de la bulle, dans
 // leur propre rangée. Les mettre dedans étirait la bulle vers le haut et donnait
 // un bloc bâtard, moitié texte moitié pastilles.
+// Vignette d'une image DÉJÀ déposée : on la redemande au serveur par son chemin
+// de travail. hydrateImages fait le fetch authentifié et pose le blob: — une
+// balise <img> ne peut pas porter la clé de pilotage.
+function msgImgTile(f){
+  const box=document.createElement('div');
+  box.className='msg-img';
+  const img=document.createElement('img');
+  img.src='/api/chat/image?path='+encodeURIComponent(f.path);
+  img.alt=f.name||''; img.title=f.name||'';
+  box.appendChild(img);
+  return box;
+}
 function addMsgFiles(el, files){
   if(!el || !files || !files.length) return;
   const box=document.createElement('div');
   box.className='msg-files';
-  for(const f of files) box.appendChild(fileChip(f.name, f.size, {title:f.path||f.name}));
+  for(const f of files){
+    // Image : la vignette REMPLACE la pastille texte. Deux objets pour un seul
+    // fichier (une vignette + son nom en pastille) doublerait la rangée sans rien
+    // apprendre — le nom vit dans l'infobulle et dans la loupe.
+    if(f.path && isImageName(f.name)) box.appendChild(msgImgTile(f));
+    else box.appendChild(fileChip(f.name, f.size, {title:f.path||f.name}));
+  }
   el.parentNode.insertBefore(box, el);
+  hydrateImages(box);
   // Envoi sans un mot : la bulle serait un rectangle vide sous les pastilles.
   markEmptyMsg(el);
   return box;
@@ -202,11 +237,18 @@ function renderAttach(){
       sizeText: a.state==='err' ? 'échec'
         : (a.state==='up' && a.size>ATTACH_CHUNK) ? Math.round((a.sent||0)*100/a.size)+' %'
         : fmtSize(a.size),
-      onRemove: ()=>{ ATTACH=ATTACH.filter(o=>o.id!==a.id); renderAttach(); }
+      thumb: a.thumb,
+      onRemove: ()=>{ ATTACH=ATTACH.filter(o=>o.id!==a.id); dropThumb(a); renderAttach(); }
     }));
   }
 }
-function clearAttach(){ ATTACH=[]; renderAttach(); }
+// L'aperçu du composeur vit sur un objectURL local : il meurt avec sa pastille,
+// sinon chaque fichier retiré laisse son image en mémoire jusqu'au rechargement.
+// (La bulle envoyée, elle, repart du serveur — elle ne dépend pas de cet URL.)
+function dropThumb(a){
+  if(a && a.thumb){ URL.revokeObjectURL(a.thumb); a.thumb=null; }
+}
+function clearAttach(){ for(const a of ATTACH) dropThumb(a); ATTACH=[]; renderAttach(); }
 // Ce qui part avec le message, pour l'afficher dans sa bulle.
 function attachSent(){ return ATTACH.filter(a=>a.state==='ok').map(a=>({name:a.name,size:a.size,path:a.path})); }
 
@@ -277,7 +319,11 @@ function addFiles(files){
   for(const f of files||[]){
     if(f.size>ATTACH_MAX){ toast('« '+f.name+' » fait '+fmtSize(f.size)+' — maximum '+fmtSize(ATTACH_MAX)); continue; }
     if(!f.size){ toast('« '+f.name+' » est vide'); continue; }
-    ATTACH.push({id:++ATTACH_SEQ, name:f.name||'fichier', size:f.size, file:f, path:null, state:'queued'});
+    // Aperçu tout de suite, depuis le fichier local : rien n'est encore parti
+    // vers le serveur (le dépôt n'a lieu qu'à l'envoi), donc c'est la seule
+    // source d'image disponible à ce stade.
+    const thumb = isImageName(f.name) ? URL.createObjectURL(f) : null;
+    ATTACH.push({id:++ATTACH_SEQ, name:f.name||'fichier', size:f.size, file:f, path:null, state:'queued', thumb:thumb});
   }
   renderAttach();
 }
