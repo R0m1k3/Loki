@@ -173,6 +173,20 @@ function renderStats(el, s){
   if(el.classList.contains('collapsible')) setLabel(el, ['reasoning'].concat(workLabel()||[], parts).join('  ·  '));
   else paintStats(el, parts.join('  ·  '));
 }
+// --- Compteurs de bulle -----------------------------------------------------
+// Ils sont PAR BULLE, jamais par tour. Un tour d'agent en ouvre une nouvelle
+// après CHAQUE appel d'outil (le flux repasse T.contentEl à null) ; les
+// compteurs, eux, n'étaient jamais remis à zéro. Chaque bulle affichait donc le
+// CUMUL de tout le tour, divisé par le temps écoulé depuis le tout premier
+// token — exécution des outils, pages web et prefill compris.
+//
+// Sur un tour agentique d'une heure, ça donnait une vitesse qui décroissait
+// mécaniquement de 17 tok/s à 0,9 : le moteur n'avait pas ralenti, le compteur
+// mesurait « tokens générés ÷ durée totale du tour ». La remise à zéro est faite
+// à la CRÉATION de la bulle : tout chemin qui en ouvre une neuve est couvert,
+// aujourd'hui comme demain.
+function resetContentStats(){ T.contentTok=0; T.contentFirstTs=0; T.contentLastTs=0; T.speedText=''; }
+function resetReasonStats(){ T.reasonTok=0; T.reasonFirstTs=0; T.reasonLastTs=0; }
 // Label d'une bulle : nombre de tokens + vitesse. La vitesse est calculée à
 // partir des HORODATAGES SERVEUR (firstTs→lastTs) : le temps réel de génération,
 // donc correct aussi bien en direct qu'au replay (où les deltas arrivent d'un
@@ -297,11 +311,11 @@ function handleDelta(d){
     return; }
   if(d.reasoning_content){
     killTyping('reasoning');
-    if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; T.turnCollapsibles.push(T.reasonEl); }
+    if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; resetReasonStats(); T.turnCollapsibles.push(T.reasonEl); }
     // d.replace : le serveur renvoie le bloc ENTIER alors qu'on en affichait déjà
     // le début (voir decorateEvent/coalesceReplay côté serveur) → on repart de zéro
     // au lieu de concaténer, sinon le texte apparaît en double.
-    if(d.replace){ T.fullReason=''; T.reasonTok=0; T.reasonFirstTs=0; }
+    if(d.replace){ T.fullReason=''; resetReasonStats(); }
     showTyping('reasoning'); T.fullReason+=d.reasoning_content; renderBody(T.reasonEl, T.fullReason);
     // d.toks/d.ts0 présents quand l'événement est coalescé (replay) : plusieurs
     // tokens d'un coup. Sinon (direct), 1 token, ts0=ts.
@@ -310,8 +324,8 @@ function handleDelta(d){
     return; }
   if(d.content){
     removeTyping();
-    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; }
-    if(d.replace){ T.fullContent=''; T.contentTok=0; T.contentFirstTs=0; }
+    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; resetContentStats(); }
+    if(d.replace){ T.fullContent=''; resetContentStats(); }
     T.fullContent+=d.content; renderBody(T.contentEl, T.fullContent);
     if(!T.contentFirstTs) T.contentFirstTs=d.ts0||d.ts||0; T.contentLastTs=d.ts||T.contentLastTs; T.contentTok+=(d.toks||1);
     labelTokens(T.contentEl, 'assistant', T.contentTok, T.contentFirstTs, T.contentLastTs);

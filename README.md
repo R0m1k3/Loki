@@ -237,6 +237,15 @@ Ajoutées par ce fork :
     (`<machine>.oai.ajean.link`) est retirée de l'interface : elle exigeait un
     jeton de relais que ce fork ne permet plus d'obtenir, l'interrupteur ne
     pouvait donc qu'échouer.
+- **Budget d'appels d'outils** : un tour d'agent n'a aucun plafond — couper une
+  recherche légitime est pire que la laisser durer — mais au-delà de 24 appels
+  sur un même tour, Loki rappelle au modèle combien il en a déjà faits et lui
+  demande de conclure. Le rappel revient tous les 24 appels, en durcissant le
+  ton ; il ne coupe jamais le tour, c'est de la pression, pas une barrière.
+  Sans lui, un petit modèle qui tourne en rond n'avait rien en face de lui sauf
+  le bouton stop (vu en production : 50 appels, 55 minutes, à relire cinq fois
+  les mêmes fichiers). Réglable par `AGENT_BUDGET` dans `config.env` —
+  `AGENT_BUDGET=off` le désactive complètement.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
 - **Paramètres** : les réglages d'application (identité, apparence, accès
