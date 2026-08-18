@@ -153,13 +153,21 @@ function setLabelCounts(el, add, del){
   if(del) cnt.appendChild(Object.assign(document.createElement('span'),{className:'d',textContent:'-'+del}));
   lab.appendChild(cnt);
 }
-// Ligne de mesures sous une réponse (prefill / decode). Les étiquettes VOUS/Loki
-// sont masquées dans cette mise en page, donc les chiffres qu'on y écrivait
-// avaient disparu : ils ont leur propre ligne, discrète, sous le texte. Masquée
-// par la préférence d'affichage « masquer la vitesse de génération » (CSS).
-function setStats(el, text){
+// Ligne de mesures sous une réponse. Les étiquettes VOUS/Loki sont masquées dans
+// cette mise en page, donc les chiffres qu'on y écrivait avaient disparu : ils
+// ont leur propre ligne, discrète, sous le texte.
+//
+// Deux informations de nature différente y cohabitent, d'où deux éléments :
+//   .worktime — le TEMPS DE TRAVAIL du tour (de la question à la fin de la
+//               réponse, outils et raisonnement compris) ;
+//   .spd      — les mesures de vitesse (prefill / decode).
+// Seule la seconde est escamotée par « masquer la vitesse de génération » : la
+// durée n'est pas une mesure de moteur, c'est ce que la réponse a coûté en
+// temps. La ligne entière disparaît si elle ne porte plus que de la vitesse.
+function setStats(el, work, speed){
   if(!el) return;
   let s = el.querySelector(':scope > .statline');
+  if(!work && !speed){ if(s) s.textContent=''; return; }
   if(!s){
     s=document.createElement('div'); s.className='statline';
     // Apparition en fondu, à la PREMIÈRE pose seulement : la ligne arrive une fois
@@ -169,7 +177,18 @@ function setStats(el, text){
     if(!(typeof REPLAYING!=='undefined' && REPLAYING)) s.classList.add('statline-in');
     el.appendChild(s);
   }
-  s.textContent = text;
+  // Les deux travées sont RÉUTILISÉES d'un rafraîchissement à l'autre : la ligne
+  // est repeinte à chaque token reçu, y recréer des éléments ferait travailler la
+  // mise en page des dizaines de fois par seconde pour rien.
+  let w = s.querySelector(':scope > .worktime');
+  let p = s.querySelector(':scope > .spd');
+  if(!w){ w=document.createElement('span'); w.className='worktime'; s.appendChild(w); }
+  if(!p){ p=document.createElement('span'); p.className='spd'; s.appendChild(p); }
+  w.textContent = work || '';
+  // Le séparateur voyage AVEC la vitesse : masquer celle-ci ne doit pas laisser
+  // un « · » orphelin en bout de durée.
+  p.textContent = speed ? ((work ? '  \u00b7  ' : '') + speed) : '';
+  s.classList.toggle('has-work', !!work);
 }
 function bodyOf(el){ return el.querySelector('.body'); }
 // Render markdown into a message body in place; safe because md() escapes HTML.

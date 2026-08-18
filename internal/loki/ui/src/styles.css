@@ -444,7 +444,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
    mini-bannière au-dessus de la saisie doublonnait les 3 points animés — deux
    éléments pour un seul état d'attente. Ici les points passent en accent et un
    libellé apparaît à côté : un seul objet à l'écran, au bon endroit. */
-.msg.typing.compacting span:not(.tlabel){background:var(--accent)}
+.msg.typing.compacting span:not(.tlabel):not(.wclock){background:var(--accent)}
+/* Compteur de travail sur l'indicateur « … » : il annule la mise en forme de
+   pastille que `.msg.typing span` applique à TOUT span de la bulle. */
+.msg.typing .wclock{width:auto;height:auto;border-radius:0;background:none;animation:none;
+  font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--dim);
+  margin-left:7px;white-space:nowrap}
 .msg.typing .tlabel{width:auto;height:auto;border-radius:0;background:none;animation:tlabelfade 1.6s ease-in-out infinite;font-size:12px;color:var(--accent);margin-left:3px;white-space:nowrap}
 @keyframes tlabelfade{0%,100%{opacity:.6}50%{opacity:1}}
 /* Trace laissée DANS le fil quand le contexte a été compacté : un séparateur
@@ -1079,7 +1084,12 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 #chat .msg .statline{margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;
   color:var(--dim);opacity:.75}
 #chat .msg .statline:empty{display:none}
-html[data-hide-stats="1"] #chat .msg .statline{display:none}
+/* « Masquer la vitesse de génération » ne masque QUE la vitesse : le temps de
+   travail du tour (.worktime) n'est pas une mesure de moteur, c'est ce que la
+   réponse a coûté. Une ligne qui ne portait que de la vitesse disparaît en
+   entier — sans .has-work il ne resterait qu'un blanc. */
+html[data-hide-stats="1"] #chat .msg .statline>.spd{display:none}
+html[data-hide-stats="1"] #chat .msg .statline:not(.has-work){display:none}
 /* Arrivée en fondu montant plutôt qu'un surgissement sec. L'opacité finale (.75)
    est celle de la règle ci-dessus : l'animation doit y ATTERRIR, sinon la ligne
    clignote en repassant à sa valeur de repos. */
@@ -1614,6 +1624,25 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   color:var(--dim);letter-spacing:-.01em;overflow:visible}
 .side .preset:hover .conv-when{opacity:0}
 .conv-empty{font-size:12px;color:var(--dim);padding:8px 11px}
+/* Discussion au travail : un anneau qui tourne, à gauche du titre. C'est le seul
+   élément animé de la liste — il désigne sans ambiguïté le fil sur lequel un
+   agent est en train de travailler, y compris depuis un autre appareil. */
+/* ⚠️ Sélecteur en DEUX classes : `.preset>span` (plus haut) pose flex:1 sur tout
+   span enfant d'une ligne — l'anneau prenait sinon la moitié de la largeur et
+   écrasait le titre, exactement comme l'heure avant lui. */
+.preset>.conv-spin,#topbar>.conv-spin{flex:none;display:inline-flex;align-items:center;
+  justify-content:center;line-height:0;color:var(--accent)}
+.conv-spin svg{animation:conv-spin 900ms linear infinite}
+@keyframes conv-spin{to{transform:rotate(360deg)}}
+/* Mouvement réduit : l'anneau ne tourne plus mais respire — l'information reste,
+   le mouvement de rotation disparaît. */
+@media (prefers-reduced-motion:reduce){
+  .conv-spin svg{animation:conv-breathe 1.6s ease-in-out infinite}
+  @keyframes conv-breathe{0%,100%{opacity:1}50%{opacity:.25}}
+}
+/* Dans l'en-tête, l'anneau précède le titre : même gabarit que les boutons
+   voisins pour ne pas décaler la ligne quand il apparaît et disparaît. */
+#topbar>.conv-spin{width:18px}
 /* Repli des réglages : tout ce qui n'est pas la conversation tient sous cette
    seule ligne, pour que la barre latérale de la maquette (discussions +
    machine) reste la vue par défaut. */

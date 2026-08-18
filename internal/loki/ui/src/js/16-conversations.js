@@ -14,12 +14,18 @@
 // titre, dates, nombre d'échanges — jamais les messages.
 
 let CONVS = [], CONV_ACTIVE = '';
+// Vrai quand le SERVEUR dit qu'un tour tourne sur la discussion active. Sert au
+// premier affichage : le flux SSE n'a pas encore rejoué son journal, mais la
+// ligne doit déjà s'animer si un agent travaille (page rechargée en cours de
+// route, ou ouverte depuis un autre appareil).
+let CONV_BUSY = false;
 
 async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
   CONVS = r.conversations || [];
   CONV_ACTIVE = r.active || '';
+  CONV_BUSY = !!r.busy;
   renderConversations();
 }
 
@@ -37,11 +43,16 @@ function renderConversations(){
     e.textContent = q ? 'aucune discussion ne correspond' : '(aucune)';
     cont.appendChild(e);
     syncTopbarTitle();
+    convSyncBusy();
     return;
   }
   for(const c of list){
     const row = document.createElement('div');
     row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '');
+    // L'identifiant est porté par la ligne : convSyncBusy retrouve ainsi CELLE
+    // qui travaille sans redessiner la liste (un redessin relancerait
+    // l'animation de l'anneau à chaque événement du flux).
+    row.dataset.conv = c.id;
     row.onclick = () => convSwitch(c.id);
 
     const info = document.createElement('div'); info.className = 'preset-info';
@@ -74,6 +85,57 @@ function renderConversations(){
     cont.appendChild(row);
   }
   syncTopbarTitle();
+  convSyncBusy();
+}
+
+// --- Discussion au travail : anneau qui tourne ------------------------------
+// Une seule génération tourne à la fois, et c'est forcément sur la discussion
+// OUVERTE (le serveur n'a qu'un fil en mémoire) : l'indicateur va donc sur la
+// ligne active. Deux sources le renseignent — le flux SSE (`busy`, instantané)
+// et la liste (`CONV_BUSY`, utile avant que le rejeu ait rattrapé). Une fois le
+// rattrapage fini, l'état local fait foi : il est plus frais que la liste, qui
+// n'est rechargée qu'en fin de tour.
+function convBusyNow(){
+  const live = (typeof busy !== 'undefined') && busy;
+  if(typeof REPLAYING !== 'undefined' && !REPLAYING) return !!live;
+  return CONV_BUSY || !!live;
+}
+
+// Pose ou retire l'anneau dans un conteneur, SANS toucher au reste de son
+// contenu : réécrire l'hôte remettrait l'animation à zéro.
+function convSpinToggle(host, on, before){
+  if(!host) return;
+  let sp = host.querySelector(':scope > .conv-spin');
+  if(on && !sp){
+    sp = document.createElement('span');
+    sp.className = 'conv-spin';
+    sp.title = 'l\u2019agent travaille sur cette discussion\u2026';
+    sp.setAttribute('role', 'img');
+    sp.setAttribute('aria-label', 'génération en cours');
+    sp.appendChild(icon('spinner', 14));
+    if(before) host.insertBefore(sp, before); else host.appendChild(sp);
+  } else if(!on && sp){
+    sp.remove();
+  }
+}
+
+// Rafraîchit l'indicateur partout où il se montre : la ligne de la discussion
+// concernée, et l'en-tête (la barre latérale est escamotée sur téléphone — sans
+// ça, rien ne dirait que ça travaille).
+function convSyncBusy(){
+  const on = convBusyNow();
+  const cont = document.getElementById('conv-list');
+  if(cont){
+    for(const row of cont.querySelectorAll('.preset')){
+      const mine = on && row.dataset.conv === CONV_ACTIVE;
+      row.classList.toggle('working', mine);
+      convSpinToggle(row, mine, row.firstChild);
+    }
+  }
+  // Dans l'en-tête, l'anneau est un FRÈRE du titre : celui-ci tronque son texte
+  // à l'ellipse, un enfant y serait rogné avec lui sur un titre long.
+  const tb = document.getElementById('topbar-title');
+  convSpinToggle(tb && tb.parentNode, on, tb);
 }
 
 // Titre de l'en-tête : celui de la discussion ouverte. Il dit de quoi on parle

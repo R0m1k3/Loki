@@ -289,6 +289,15 @@ func (c *Conversation) state() map[string]any {
 	return map[string]any{"seq": c.Seq, "generating": c.Generating, "ctx_used": c.CtxUsed, "turns": turns}
 }
 
+// isGenerating dit si un tour est en cours. Sert à la LISTE des discussions :
+// elle doit pouvoir montrer laquelle travaille dès le chargement de la page,
+// sans attendre que le rejeu du flux SSE ait rattrapé son retard.
+func (c *Conversation) isGenerating() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Generating
+}
+
 // ErrBusy : une génération est déjà en cours (un seul tour à la fois).
 var ErrBusy = fmt.Errorf("génération en cours")
 

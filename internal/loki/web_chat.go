@@ -130,7 +130,11 @@ func handleConvList(w http.ResponseWriter, r *http.Request) {
 	if list == nil {
 		list = []convMeta{}
 	}
-	sendJSON(w, 200, map[string]any{"conversations": list, "active": active})
+	// `busy` = un tour est en cours SUR LA DISCUSSION ACTIVE (il n'y a qu'une
+	// génération à la fois, sur le fil ouvert). L'UI s'en sert pour animer la
+	// ligne concernée dès le chargement, avant même que le flux SSE ait rejoué
+	// le journal — sinon la page reste muette pendant qu'un agent travaille.
+	sendJSON(w, 200, map[string]any{"conversations": list, "active": active, "busy": conv.isGenerating()})
 }
 
 func handleConvNew(w http.ResponseWriter, r *http.Request) {
