@@ -4,7 +4,16 @@
 set -eu
 
 : "${LOKI_HOME:=/data}"
+export LOKI_HOME   # les sous-commandes loki doivent voir le MEME dossier
 mkdir -p "$LOKI_HOME"
+
+# Garde-fou persistance : si /data n'est pas un point de montage, tout ce que
+# l'utilisateur fera (modèles, discussions, fichiers) mourra avec le conteneur.
+# On le dit au premier écran du journal — l'UI l'affiche aussi en bandeau.
+if ! grep -qs " $LOKI_HOME " /proc/self/mountinfo; then
+    echo "[entrypoint] ⚠️  $LOKI_HOME n'est pas un volume monté : les données seront PERDUES à la recréation du conteneur."
+    echo "[entrypoint]     Ajoute « -v /chemin/hote/data:/data » (docker run) ou le mapping volumes du docker-compose."
+fi
 
 # Le chemin du moteur est imposé par l'image (llama-server précompilé de
 # l'image officielle llama.cpp, dans /app) : on le (re)pose à chaque boot,

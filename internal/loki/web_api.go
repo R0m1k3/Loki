@@ -44,6 +44,16 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	if !health {
 		loadErr = modelLoadError()
 	}
+	// Alerte de persistance : /data non monté en conteneur = données perdues à
+	// la prochaine recréation. Même bandeau que les autres avertissements.
+	warn := appWarning()
+	if dv := dataVolumeWarning(); dv != "" {
+		if warn != "" {
+			warn += " — " + dv
+		} else {
+			warn = dv
+		}
+	}
 	sendJSON(w, 200, map[string]any{
 		"state":      state,
 		"active":     active,
@@ -51,7 +61,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"port":       LLMPort(),
 		"ctx":        ctx,
 		"version":    Version,
-		"warn":       appWarning(), // ex. App Translocation macOS — vide si tout va bien
+		"warn":       warn, // App Translocation macOS, /data non monté… — vide si tout va bien
 		"load_error": loadErr,      // modèle qui ne charge pas (incompat moteur…) — vide sinon
 	})
 }
