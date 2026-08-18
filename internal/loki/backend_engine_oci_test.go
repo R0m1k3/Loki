@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -202,7 +203,10 @@ func TestInstallationMoteurDepuisImage(t *testing.T) {
 	if isDir(filepath.Join(dir, "etc")) || isDir(filepath.Join(dir, "usr")) {
 		t.Error("des fichiers hors /app ont été extraits")
 	}
-	if st, err := os.Stat(bin); err != nil || st.Mode()&0o100 == 0 {
+	// Windows n'a pas de bit exécutable : Stat y renvoie 0666/0444 quoi qu'il
+	// arrive, et l'assertion échouait toujours — alors que l'installation, elle,
+	// est correcte (le bit est bien posé côté Linux, là où le moteur tourne).
+	if st, err := os.Stat(bin); err != nil || (runtime.GOOS != "windows" && st.Mode()&0o100 == 0) {
 		t.Errorf("llama-server non exécutable : %v", err)
 	}
 
