@@ -98,6 +98,44 @@ func reasoningEffortValue(v string) string {
 	}
 }
 
+// reasoningTemplateKwargs construit les `chat_template_kwargs` à joindre à une
+// requête de chat pour que « aucune » coupe VRAIMENT le raisonnement.
+//
+// Pourquoi ce doublon avec `reasoning_effort` : ce champ n'agit que sur les
+// gabarits qui le LISENT (gpt-oss et apparentés). Un modèle hybride à la Qwen3
+// ne connaît que `enable_thinking` — on lui envoie `reasoning_effort: none`, son
+// gabarit l'ignore, et il continue de réfléchir alors que l'interface affiche
+// « aucune ». Les llama-server récents traduisent eux-mêmes `none` en
+// `enable_thinking=false`, mais pas les binaires plus anciens, qui laissent
+// simplement tomber le champ.
+//
+// D'où la règle : quand le raisonnement doit être coupé, on le dit dans la
+// langue que TOUS les gabarits comprennent. `chat_template_kwargs` est passé tel
+// quel au gabarit jinja ; une clé qu'il n'utilise pas est ignorée sans erreur.
+// Même procédé que la compaction (chat_compact.go), qui coupe déjà la réflexion
+// de cette façon.
+//
+// off = REASONING explicitement à off. Clé absente ≠ off : sans consigne on ne
+// touche à rien, le gabarit garde son défaut.
+// Renvoie nil quand il n'y a rien à imposer.
+func reasoningTemplateKwargs(off bool, effort string) map[string]any {
+	if off || effort == "none" {
+		return map[string]any{"enable_thinking": false}
+	}
+	if effort != "" {
+		// Niveau explicite : les vieux binaires ne relaient pas le champ de haut
+		// niveau au gabarit, celui-ci passe toujours.
+		return map[string]any{"reasoning_effort": effort}
+	}
+	return nil
+}
+
+// reasoningExplicitlyOff dit si REASONING interdit le raisonnement. Une clé
+// absente ou vide n'est PAS une interdiction : c'est l'absence de consigne.
+func reasoningExplicitlyOff(v string) bool {
+	return strings.TrimSpace(v) != "" && !reasoningActive(v)
+}
+
 // detectQuant returns the quantization tag for a preset: an explicit QUANT= line
 // (manual override, with or without a leading '#') wins; otherwise it is
 // auto-detected from the MODEL= filename. Returns "" when unknown.

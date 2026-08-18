@@ -79,3 +79,40 @@ func TestReasoningEffortValue(t *testing.T) {
 		}
 	}
 }
+
+func TestReasoningExplicitlyOff(t *testing.T) {
+	// Clé absente ou vide = pas de consigne, surtout pas une interdiction.
+	for _, v := range []string{"", "   ", "on", "auto", "deepseek"} {
+		if reasoningExplicitlyOff(v) {
+			t.Errorf("reasoningExplicitlyOff(%q) = true, attendu false", v)
+		}
+	}
+	for _, v := range []string{"off", "none", "0", "false", " Disabled "} {
+		if !reasoningExplicitlyOff(v) {
+			t.Errorf("reasoningExplicitlyOff(%q) = false, attendu true", v)
+		}
+	}
+}
+
+func TestReasoningTemplateKwargs(t *testing.T) {
+	// « aucune » doit parler aux gabarits hybrides, pas seulement à ceux qui
+	// lisent reasoning_effort : sinon le modèle réfléchit quand même.
+	if got := reasoningTemplateKwargs(false, "none"); got == nil || got["enable_thinking"] != false {
+		t.Errorf("effort none : %v, attendu enable_thinking=false", got)
+	}
+	if got := reasoningTemplateKwargs(true, ""); got == nil || got["enable_thinking"] != false {
+		t.Errorf("REASONING=off : %v, attendu enable_thinking=false", got)
+	}
+	// Un niveau explicite voyage aussi dans les kwargs : les binaires anciens ne
+	// relaient pas le champ de haut niveau au gabarit.
+	if got := reasoningTemplateKwargs(false, "high"); got == nil || got["reasoning_effort"] != "high" {
+		t.Errorf("effort high : %v, attendu reasoning_effort=high", got)
+	}
+	if _, ok := reasoningTemplateKwargs(false, "high")["enable_thinking"]; ok {
+		t.Error("un niveau explicite ne doit pas couper le raisonnement")
+	}
+	// Auto = aucune consigne : on n'écrit rien dans la requête.
+	if got := reasoningTemplateKwargs(false, ""); got != nil {
+		t.Errorf("auto : %v, attendu nil", got)
+	}
+}
