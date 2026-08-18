@@ -344,6 +344,7 @@ type StreamEvent struct {
 	// ajouter.
 	NewHistory []Message
 }
+
 // AskEvent : l'outil ask — question structurée posée à l'utilisateur, rendue
 // par l'UI comme une carte à boutons. Le tour se termine juste après.
 type AskEvent struct {

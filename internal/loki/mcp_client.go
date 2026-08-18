@@ -3,10 +3,12 @@ package loki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -37,6 +39,13 @@ const (
 	// mcpConnectTimeout borne l'établissement d'une session (handshake initialize
 	// + tools/list). Un serveur qui rame ne doit pas figer le tour de chat.
 	mcpConnectTimeout = 20 * time.Second
+	// mcpConnectTimeoutCold : npx et uvx TÉLÉCHARGENT le paquet du serveur au
+	// premier lancement (le catalogue les utilise tous les deux). Sur un réseau
+	// ou un disque lents, ça dépasse largement 20 s, et l'utilisateur voyait
+	// « enregistré mais connexion échouée : context deadline exceeded » pour un
+	// serveur parfaitement sain. Les lancements suivants profitent du cache et
+	// retombent dans le régime normal.
+	mcpConnectTimeoutCold = 3 * time.Minute
 	// mcpCallTimeout borne un appel d'outil MCP.
 	mcpCallTimeout = 120 * time.Second
 	// mcpMaxOutput cap la sortie renvoyée au modèle (cohérent avec toolMaxOutput).
@@ -174,11 +183,11 @@ func (m *mcpManager) ensure(name string, cfg MCPServerConfig) *mcpSession {
 	m.mu.Unlock()
 
 	// Connexion hors-lock (peut être lente).
-	ctx, cancel := context.WithTimeout(context.Background(), mcpConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), mcpTimeoutFor(cfg))
 	defer cancel()
 	sess, err := mcpConnect(ctx, name, cfg)
 	if err != nil {
-		s.err = err
+		s.err = mcpFriendlyErr(err, cfg)
 	} else {
 		s.sess = sess
 		lt, lerr := sess.ListTools(ctx, nil)
@@ -508,4 +517,31 @@ func MCPStatus() ([]MCPServerStatus, error) {
 		out = append(out, st)
 	}
 	return out, nil
+}
+
+// mcpTimeoutFor choisit le délai de connexion d'un serveur : long pour un
+// lanceur qui télécharge son paquet à la volée (npx, uvx), court sinon.
+func mcpTimeoutFor(cfg MCPServerConfig) time.Duration {
+	base := strings.ToLower(filepath.Base(cfg.Command))
+	base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
+	if base == "npx" || base == "uvx" {
+		return mcpConnectTimeoutCold
+	}
+	return mcpConnectTimeout
+}
+
+// mcpFriendlyErr habille l'erreur de connexion la plus vécue : le délai
+// dépassé d'un npx/uvx en plein téléchargement. L'erreur brute (« context
+// deadline exceeded ») envoyait l'utilisateur chercher un bug de config alors
+// qu'il suffit souvent de réessayer une fois le paquet en cache.
+func mcpFriendlyErr(err error, cfg MCPServerConfig) error {
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	base := strings.ToLower(filepath.Base(cfg.Command))
+	base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
+	if base == "npx" || base == "uvx" {
+		return fmt.Errorf("délai dépassé — %s télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)", base)
+	}
+	return fmt.Errorf("délai dépassé — le serveur n'a pas répondu au handshake en %s", mcpConnectTimeout)
 }

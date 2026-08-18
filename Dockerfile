@@ -25,7 +25,11 @@ COPY tools/ tools/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
 # gopls : serveur LSP Go, consommé par le vérificateur de code du mode code
 # (lsp.go). Compilé ici parce que l'image finale n'a pas de toolchain Go.
-RUN GOBIN=/out go install golang.org/x/tools/gopls@latest
+# GOTOOLCHAIN=auto : gopls@latest exige régulièrement un Go plus récent que
+# celui de l'image (v0.23 veut ≥ 1.26 quand l'image est en 1.25) ; en local,
+# l'installation échouait net. Auto télécharge le toolchain requis — coût
+# limité à cette étape de build.
+RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime

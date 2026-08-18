@@ -61,8 +61,8 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"port":       LLMPort(),
 		"ctx":        ctx,
 		"version":    Version,
-		"warn":       warn, // App Translocation macOS, /data non monté… — vide si tout va bien
-		"load_error": loadErr,      // modèle qui ne charge pas (incompat moteur…) — vide sinon
+		"warn":       warn,    // App Translocation macOS, /data non monté… — vide si tout va bien
+		"load_error": loadErr, // modèle qui ne charge pas (incompat moteur…) — vide sinon
 	})
 }
 

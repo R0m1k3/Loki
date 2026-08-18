@@ -165,7 +165,10 @@ Héritées d'AJEAN :
   [Crawl4AI](https://github.com/unclecode/crawl4ai) pour les pages JS.
 - **Agent** : shell, fichiers, workspace (`agent on`).
 - **Serveurs MCP** : Node.js (`npx`) et uv (`uvx`) sont inclus dans l'image, pour
-  les serveurs écrits en JavaScript comme en Python.
+  les serveurs écrits en JavaScript comme en Python. Au **premier** lancement,
+  `npx`/`uvx` téléchargent le paquet du serveur — Loki attend jusqu'à 3 minutes
+  ce coup-là (au lieu d'échouer sur « context deadline exceeded ») ; les
+  lancements suivants partent du cache en quelques secondes.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **API OpenAI-compatible** exposable, protégée par clé (voir ci-dessous — ce
   fork la sert autrement que l'amont).
@@ -307,6 +310,7 @@ Retirées par ce fork :
 | Configuration initiale | `ajean edit` ($EDITOR) | entrypoint + `loki config set` |
 | Choix du modèle | lien Hugging Face collé à la main | recherche intégrée + verdict VRAM + projecteur lié |
 | Historique de tchat | conversation unique | discussions multiples, titrées et persistées |
+| Agent de code | — | mode Code : critères d'acceptation, passe de vérification, LSP, outils git |
 | Accès distant | relais chiffré ajean.link | retiré de l'interface |
 | Endpoint OpenAI | `:8080/v1` du moteur, ouvert par `network on` | `/v1` servi par Loki sur le port de l'interface, protégé par la clé API |
 | Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
