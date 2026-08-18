@@ -41,8 +41,15 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	// doit être signalée clairement plutôt que de laisser un « chargement… »
 	// perpétuel / un crash-loop muet.
 	loadErr := ""
+	loadPct := -1
 	if !health {
 		loadErr = modelLoadError()
+		// Modèle en cours de chargement (service actif, pas d'échec relevé) :
+		// pourcentage estimé par les octets lus du .gguf (sys_loadpct_linux.go),
+		// pour que « chargement… » bouge au lieu de laisser croire à un plantage.
+		if active && loadErr == "" {
+			loadPct = engineLoadPct()
+		}
 	}
 	// Alerte de persistance : /data non monté en conteneur = données perdues à
 	// la prochaine recréation. Même bandeau que les autres avertissements.
@@ -63,6 +70,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"version":    Version,
 		"warn":       warn,    // App Translocation macOS, /data non monté… — vide si tout va bien
 		"load_error": loadErr, // modèle qui ne charge pas (incompat moteur…) — vide sinon
+		"load_pct":   loadPct, // % estimé du chargement en cours (-1 = non mesurable)
 	})
 }
 

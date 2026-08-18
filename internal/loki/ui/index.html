@@ -2199,7 +2199,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
-          <button onclick="engCheck()">vérifier la version</button>
+          <!-- Pas de bouton « vérifier la version » : la mise à jour fait sa
+               propre vérification et dit s'il n'y a rien de neuf. Un bouton de
+               moins pour la même information. -->
           <button onclick="engUpdate()">mettre à jour le moteur</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
         </div>
@@ -2752,7 +2754,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <label id="be-lab-image" style="display:none"><input type="radio" name="m-be" value="image" onchange="onBackendMode('image')"><span>Image</span><span class="be-note" id="be-image-note"></span></label>
             <label id="be-lab-fast"><input type="radio" name="m-be" value="fast" onchange="onBackendMode('fast')"><span>Précompilé</span><span class="be-note" id="be-fast-note"></span></label>
             <label id="be-lab-opt"><input type="radio" name="m-be" value="opt" onchange="onBackendMode('opt')"><span>Compilé</span><span class="be-note" id="be-opt-note"></span></label>
-            <label><input type="radio" name="m-be" value="custom" onchange="onBackendMode('custom')"><span>Personnalisé</span></label>
+            <label id="be-lab-custom"><input type="radio" name="m-be" value="custom" onchange="onBackendMode('custom')"><span>Personnalisé</span></label>
           </div>
           <div id="m-backend-custom" class="pe-list" style="display:none;margin-top:8px">
             <div class="pe-row">
@@ -3267,7 +3269,12 @@ async function loadStatus(){
   let cls='err', txt='arrêté';
   if(s.active && s.health){ cls='ok'; txt='prêt'; }
   else if(s.load_error){ cls='err'; txt='erreur'; }
-  else if(s.active){ cls='loading'; txt='chargement…'; }
+  else if(s.active){
+    cls='loading'; txt='chargement…';
+    // Pourcentage estimé (octets du modèle déjà lus) : voir « ça avance »
+    // plutôt qu'un « chargement… » figé qui ressemble à un plantage.
+    if(typeof s.load_pct==='number' && s.load_pct>=0) txt='chargement '+s.load_pct+' %';
+  }
   el.className='statuspill '+cls;
   el.innerHTML='<span class="dot"></span>'+txt;
   MODEL_READY = !!(s.active && s.health);
@@ -4340,6 +4347,9 @@ async function populateBackend(){
   document.getElementById('be-lab-image').style.display = beImagePath ? '' : 'none';
   document.getElementById('be-lab-fast').style.display  = beImagePath ? 'none' : '';
   document.getElementById('be-lab-opt').style.display   = beImagePath ? 'none' : '';
+  // En conteneur, « Personnalisé » ne mène nulle part (rien à compiler, et le
+  // moteur se met à jour par la carte Moteur des réglages) : on le retire.
+  document.getElementById('be-lab-custom').style.display = beImagePath ? 'none' : '';
   document.getElementById('be-image-note').textContent  = beImagePath ? 'llama.cpp officiel' : '';
   // Menu « backend détecté » du mode personnalisé : tout ce qu'on trouve dans
   // le dossier backends de loki (l'utilisateur peut y déposer son propre build).
@@ -4354,8 +4364,11 @@ async function populateBackend(){
   const cur = currentBinInTextarea();
   let mode = 'custom';
   // Un preset sans BIN hérite du moteur global : en conteneur c'est celui de
-  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ».
+  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ». Et comme
+  // l'option Personnalisé n'y est plus proposée, TOUT BIN non reconnu retombe
+  // aussi sur l'image (un vieux preset pointant un chemin mort redevient sain).
   if(beImagePath && (sameBinPath(cur, beImagePath) || !cur)) mode = 'image';
+  else if(beImagePath) mode = 'image';
   else if(sameBinPath(cur, beFastPath) || underDir(cur, beFastDir)) mode = 'fast';
   else if(sameBinPath(cur, beOptPath)) mode = 'opt';
   const radio = document.querySelector('input[name=m-be][value='+mode+']');

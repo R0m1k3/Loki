@@ -203,7 +203,9 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
-          <button onclick="engCheck()">vérifier la version</button>
+          <!-- Pas de bouton « vérifier la version » : la mise à jour fait sa
+               propre vérification et dit s'il n'y a rien de neuf. Un bouton de
+               moins pour la même information. -->
           <button onclick="engUpdate()">mettre à jour le moteur</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
         </div>
@@ -756,7 +758,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <label id="be-lab-image" style="display:none"><input type="radio" name="m-be" value="image" onchange="onBackendMode('image')"><span>Image</span><span class="be-note" id="be-image-note"></span></label>
             <label id="be-lab-fast"><input type="radio" name="m-be" value="fast" onchange="onBackendMode('fast')"><span>Précompilé</span><span class="be-note" id="be-fast-note"></span></label>
             <label id="be-lab-opt"><input type="radio" name="m-be" value="opt" onchange="onBackendMode('opt')"><span>Compilé</span><span class="be-note" id="be-opt-note"></span></label>
-            <label><input type="radio" name="m-be" value="custom" onchange="onBackendMode('custom')"><span>Personnalisé</span></label>
+            <label id="be-lab-custom"><input type="radio" name="m-be" value="custom" onchange="onBackendMode('custom')"><span>Personnalisé</span></label>
           </div>
           <div id="m-backend-custom" class="pe-list" style="display:none;margin-top:8px">
             <div class="pe-row">

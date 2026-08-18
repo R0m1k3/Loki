@@ -399,6 +399,9 @@ async function populateBackend(){
   document.getElementById('be-lab-image').style.display = beImagePath ? '' : 'none';
   document.getElementById('be-lab-fast').style.display  = beImagePath ? 'none' : '';
   document.getElementById('be-lab-opt').style.display   = beImagePath ? 'none' : '';
+  // En conteneur, « Personnalisé » ne mène nulle part (rien à compiler, et le
+  // moteur se met à jour par la carte Moteur des réglages) : on le retire.
+  document.getElementById('be-lab-custom').style.display = beImagePath ? 'none' : '';
   document.getElementById('be-image-note').textContent  = beImagePath ? 'llama.cpp officiel' : '';
   // Menu « backend détecté » du mode personnalisé : tout ce qu'on trouve dans
   // le dossier backends de loki (l'utilisateur peut y déposer son propre build).
@@ -413,8 +416,11 @@ async function populateBackend(){
   const cur = currentBinInTextarea();
   let mode = 'custom';
   // Un preset sans BIN hérite du moteur global : en conteneur c'est celui de
-  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ».
+  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ». Et comme
+  // l'option Personnalisé n'y est plus proposée, TOUT BIN non reconnu retombe
+  // aussi sur l'image (un vieux preset pointant un chemin mort redevient sain).
   if(beImagePath && (sameBinPath(cur, beImagePath) || !cur)) mode = 'image';
+  else if(beImagePath) mode = 'image';
   else if(sameBinPath(cur, beFastPath) || underDir(cur, beFastDir)) mode = 'fast';
   else if(sameBinPath(cur, beOptPath)) mode = 'opt';
   const radio = document.querySelector('input[name=m-be][value='+mode+']');

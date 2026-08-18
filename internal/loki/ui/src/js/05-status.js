@@ -9,7 +9,12 @@ async function loadStatus(){
   let cls='err', txt='arrêté';
   if(s.active && s.health){ cls='ok'; txt='prêt'; }
   else if(s.load_error){ cls='err'; txt='erreur'; }
-  else if(s.active){ cls='loading'; txt='chargement…'; }
+  else if(s.active){
+    cls='loading'; txt='chargement…';
+    // Pourcentage estimé (octets du modèle déjà lus) : voir « ça avance »
+    // plutôt qu'un « chargement… » figé qui ressemble à un plantage.
+    if(typeof s.load_pct==='number' && s.load_pct>=0) txt='chargement '+s.load_pct+' %';
+  }
   el.className='statuspill '+cls;
   el.innerHTML='<span class="dot"></span>'+txt;
   MODEL_READY = !!(s.active && s.health);
