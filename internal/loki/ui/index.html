@@ -7210,6 +7210,16 @@ function renderFoot(foot, r){
   n.textContent = r.count + (r.count > 1 ? ' fichiers · ' : ' fichier · ') + fmtSize(r.total);
   foot.appendChild(n);
   foot.title = r.root || '';
+  // Tout emporter d'un coup : la discussion entière (dossiers et sous-dossiers
+  // compris) en une archive .zip. Absent quand il n'y a rien à archiver.
+  if(r.count > 0){
+    const z = document.createElement('button');
+    z.className = 'files-scope';
+    z.textContent = '.zip';
+    z.title = 'tout télécharger en une archive .zip';
+    z.onclick = ()=>downloadFilesZip(z);
+    foot.appendChild(z);
+  }
   if(FILES_SCOPE !== 'legacy' && !r.legacy) return;
   const b = document.createElement('button');
   b.className = 'files-scope';
@@ -7321,6 +7331,51 @@ async function removeFile(e){
   if(!r.ok){ toast('suppression impossible : '+(r.error||'')); return; }
   toast('supprimé — '+fmtSize(r.freed||0)+' libérés');
   loadFiles();
+}
+
+// Télécharge TOUT le contenu affiché (discussion ou hors-discussion) en .zip.
+// Même danse que downloadWorkspaceFile (14-attach.js) : la fiche meta d'abord —
+// c'est elle qui CONSTRUIT l'archive côté serveur — puis le brut en direct, ou
+// les tranches base64 derrière le tunnel chiffré.
+async function downloadFilesZip(btn){
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  try{
+    const m = await jfetch('/api/chat/files/zip?meta=1&scope='+encodeURIComponent(FILES_SCOPE));
+    const meta = await m.json().catch(()=>({}));
+    if(!m.ok || !meta.ok){ toast('archive impossible : '+(meta.error||('HTTP '+m.status))); return; }
+    let blob;
+    if(meta.e2e){
+      blob = await fetchZipB64(meta.size||0);
+    } else {
+      const r = await jfetch('/api/chat/files/zip?scope='+encodeURIComponent(FILES_SCOPE));
+      if(!r.ok){ let msg='HTTP '+r.status; try{ msg=(await r.json()).error||msg; }catch(_){} toast('archive impossible : '+msg); return; }
+      blob = await r.blob();
+    }
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u; a.download = meta.name || 'loki-fichiers.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u), 10000);
+    toast(meta.files + ' fichier'+(meta.files>1?'s':'')+' archivé'+(meta.files>1?'s':''));
+  }catch(e){ toast('archive impossible : '+((e&&e.message)||'erreur')); }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = '.zip'; } }
+}
+
+// Tranches base64 du zip (tunnel chiffré) — cousin de fetchFileB64.
+async function fetchZipB64(size){
+  const parts = [];
+  let off = 0;
+  do{
+    const r = await jfetch('/api/chat/files/zip?b64=1&len='+DL_CHUNK+'&offset='+off+'&scope='+encodeURIComponent(FILES_SCOPE));
+    const j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error||('HTTP '+r.status));
+    const bytes = b64ToBytes(j.data||'');
+    parts.push(bytes);
+    if(!bytes.length && !j.eof) throw new Error('transfert interrompu');
+    off = (j.offset||0) + bytes.length;
+    if(j.eof) break;
+  } while(off < size);
+  return new Blob(parts, {type:'application/zip'});
 }
 
 // Changement de discussion (bascule, « vider »), signalé par le flux SSE :
