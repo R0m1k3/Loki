@@ -1,0 +1,17 @@
+[
+  {
+    "id": "go",
+    "command": ["gopls", "serve"],
+    "extensions": [".go"]
+  },
+  {
+    "id": "typescript",
+    "command": ["typescript-language-server", "--stdio"],
+    "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+  },
+  {
+    "id": "python",
+    "command": ["pyright-langserver", "--stdio"],
+    "extensions": [".py"]
+  }
+]

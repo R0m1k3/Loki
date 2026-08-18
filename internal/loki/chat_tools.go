@@ -44,6 +44,18 @@ func baseSystemPrompt(caps Caps) string {
 	// « Loki » avec une majuscule : c'est un nom propre, et le modèle recopie
 	// littéralement la casse d'ici quand il se présente (« je suis loki »).
 	b.WriteString("You are Loki, an expert assistant operating directly on this machine with real tools.")
+	// Mode code : le prompt du rôle (builder/planner/verifier…) prend la suite
+	// de l'identité. Court par construction (voir code_roles.go) — la règle
+	// « ne pas regonfler » vaut aussi pour lui.
+	if caps.Code {
+		role := caps.Role
+		if role == "" {
+			role = "builder"
+		}
+		if rp := rolePrompt(role); rp != "" {
+			b.WriteString("\n\n" + rp)
+		}
+	}
 	if caps.Mem == MemAlways {
 		b.WriteString(" You evolve with every conversation: you actively maintain a persistent memory so nothing useful is lost between sessions.")
 	}
@@ -258,6 +270,10 @@ func fileWrite(path, content string) string {
 		return "[erreur] chemin vide"
 	}
 	path = resolveAgentPath(path)
+	// Sérialise les écritures concurrentes sur un même fichier (code_policy.go).
+	mu := fileMu(path)
+	mu.Lock()
+	defer mu.Unlock()
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return "[erreur] " + err.Error()
@@ -292,16 +308,28 @@ func fileEdit(path, oldText, newText string) string {
 		return "[erreur] old vide"
 	}
 	path = resolveAgentPath(path)
+	// Sérialise les écritures concurrentes sur un même fichier (code_policy.go).
+	mu := fileMu(path)
+	mu.Lock()
+	defer mu.Unlock()
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "[erreur] " + err.Error()
 	}
 	content := string(b)
-	n := strings.Count(content, oldText)
+	// Fichier en CRLF, modèle en LF : la recherche exacte échouait toujours.
+	// On compare alors en LF normalisé, et on réécrit dans le style du fichier
+	// (préservation des fins de ligne — repris des tests line-ending d'OpenFox).
+	crlf := strings.Contains(content, "\r\n")
+	search, oldN, newN := content, oldText, newText
+	if crlf && !strings.Contains(oldText, "\r\n") {
+		search = strings.ReplaceAll(content, "\r\n", "\n")
+	}
+	n := strings.Count(search, oldN)
 	if n == 0 {
 		// Modification déjà en place : on le dit clairement plutôt que de renvoyer
 		// une erreur, sinon le modèle croit avoir échoué et recommence.
-		if newText != "" && strings.Contains(content, newText) {
+		if newN != "" && strings.Contains(search, newN) {
 			return "[ok] déjà à jour — le fichier contient déjà cette modification"
 		}
 		return "[erreur] old introuvable dans le fichier"
@@ -309,7 +337,11 @@ func fileEdit(path, oldText, newText string) string {
 	if n > 1 {
 		return fmt.Sprintf("[erreur] old apparaît %d fois — ajoute du contexte pour le rendre unique", n)
 	}
-	updated := strings.Replace(content, oldText, newText, 1)
+	updated := strings.Replace(search, oldN, newN, 1)
+	if search != content {
+		// La comparaison s'est faite en LF : on remet le fichier en CRLF.
+		updated = strings.ReplaceAll(updated, "\n", "\r\n")
+	}
 	// Préserve les permissions d'origine (un script 0755 doit rester exécutable).
 	mode := os.FileMode(0o644)
 	if fi, err := os.Stat(path); err == nil {

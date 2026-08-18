@@ -330,6 +330,15 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	if strings.TrimSpace(prompt) == "" {
 		prompt = "Prends-en connaissance."
 	}
+	// Mode code : fige le rôle du tour (plan demandé → planner, sinon builder).
+	// La détection de bascule (puce « passer en mode Code ? ») est émise après
+	// la bulle utilisateur, plus bas.
+	if caps.Code && caps.Role == "" {
+		caps.Role = "builder"
+		if wantsPlan(text) {
+			caps.Role = "planner"
+		}
+	}
 	// Content = simple texte d'ordinaire ; format multimodal (texte + images) quand
 	// la vision est active et qu'une pièce jointe est une image (userMessageContent).
 	c.Messages = append(c.Messages, Message{Role: "user", Content: userMessageContent(files, prompt)})
@@ -344,6 +353,11 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 		delta["files"] = files
 	}
 	c.appendDelta(epoch, delta)
+	// En mode chat, un message qui ressemble à une tâche de code fait
+	// apparaître la puce « passer en mode Code ? » (une fois par discussion).
+	if !caps.Code {
+		maybeCodeHint(c, epoch, text)
+	}
 	c.persist()
 	if temperature == 0 {
 		temperature = 0.7
@@ -455,6 +469,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 				c.mu.Unlock()
 			}
 			c.appendDelta(epoch, map[string]any{"stats": ev.Stats})
+		case ev.Ask != nil:
+			// Question structurée (outil ask) : carte à boutons dans l'UI.
+			c.appendDelta(epoch, map[string]any{"ask": ev.Ask})
 		case ev.DropReasoning:
 			c.appendDelta(epoch, map[string]any{"drop_reasoning": true})
 		case ev.Reasoning != "":
@@ -484,6 +501,18 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	ctxUsed = c.CtxUsed
 	stale := c.epoch != epoch
 	c.mu.Unlock()
+
+	// Boucle du contrat (mode code) : vérification indépendante des critères,
+	// corrections, re-vérification — AVANT de rendre la main. Voir
+	// code_verify.go. No-op hors mode code ou sans critères.
+	if !stale && ctx.Err() == nil {
+		c.codeVerifyLoop(ctx, caps, temperature, epoch)
+		c.mu.Lock()
+		msgs = append([]Message(nil), c.Messages...)
+		ctxUsed = c.CtxUsed
+		stale = c.epoch != epoch
+		c.mu.Unlock()
+	}
 
 	// Compaction de FIN DE TOUR. C'était LE trou : le seuil n'était testé qu'au
 	// DÉBUT d'un tour, avec le contexte du tour précédent. Le tour qui fait

@@ -47,6 +47,11 @@ func cmdWeb(args []string) error {
 		}
 	}
 	fmt.Printf("[loki web] http://%s  (Ctrl-C pour arrêter)\n", addr)
+	// Perte de données imminente ? Le dire AU DÉMARRAGE, en rouge, dans le
+	// journal du conteneur — l'endroit qu'on regarde quand ça va mal.
+	if dv := dataVolumeWarning(); dv != "" {
+		fmt.Println(red(dv))
+	}
 	if readWebKey() == "" {
 		fmt.Printf("%s API de pilotage NON protégée (aucune clé). Avant de l'exposer sur internet :\n", yellow("[!]"))
 		fmt.Printf("       %s\n", bold("loki set-web-key"))
@@ -260,6 +265,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/conversations/switch", handleConvSwitch)
 	api("/api/conversations/rename", handleConvRename)
 	api("/api/conversations/delete", handleConvDelete)
+	api("/api/chat/mode", handleChatMode)         // GET mode+critères / POST bascule Chat|Code
+	api("/api/chat/criteria", handleChatCriteria) // édition manuelle des critères (mode code)
 	api("/api/chat/compact", handleChatCompact) // compaction manuelle du contexte
 	api("/api/chat/state", handleChatState)     // instantané léger {seq, generating, ctx_used}
 	api("/api/chat/export", handleChatExport)   // téléchargement du fil (?format=md|json)

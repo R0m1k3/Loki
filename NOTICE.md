@@ -19,6 +19,14 @@ La licence d'origine est conservée à l'identique dans [`LICENSE`](LICENSE).
   pour que l'UI puisse redémarrer le moteur (changement de modèle).
 - **`loki config get/set`** : lecture/écriture non interactive de la
   configuration, utilisée par l'entrypoint Docker.
+- **Mode code** (`internal/loki/code_*.go`, `lsp.go`, `agents/`) : agent de
+  code avec critères d'acceptation, passe de vérification indépendante,
+  outils read/grep/glob, politique d'exécution, diagnostics LSP, outils git,
+  jobs d'arrière-plan et relance sur appel d'outil textuel. La conception
+  (contrat builder/verifier, tracker « lu avant d'écrire », auto-retry
+  patterns, table languages.json) est reprise
+  d'**[OpenFox](https://github.com/co-l/openfox)** (MIT) et réécrite en Go
+  pour ce fork ; les prompts de rôles sont des réécritures originales.
 
 ## Services externes
 

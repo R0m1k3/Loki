@@ -395,6 +395,14 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
   <div id="dropveil" aria-hidden="true"><div>Déposer pour joindre au message</div></div>
   <div id="composer">
     <div id="ctxmeta">
+      <!-- Mode de la discussion : Chat (assistant généraliste) ou Code (agent
+           de code : critères, vérification, LSP). Dans le pied de carte, pas
+           dans la barre de saisie déjà chargée — ça se règle par discussion,
+           pas par message. -->
+      <div id="mode-seg" role="group" aria-label="Mode de la discussion">
+        <button type="button" data-mode="chat" class="on" onclick="setMode('chat')">Chat</button>
+        <button type="button" data-mode="code" onclick="setMode('code')">Code</button>
+      </div>
       <div id="ctxtrack"><div id="ctx-fill"></div></div>
       <span id="status-preset" class="muted" style="font-size:10px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
       <!-- Pied de carte, à droite : le décompte de contexte, compacter, puis le

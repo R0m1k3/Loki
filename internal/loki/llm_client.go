@@ -194,6 +194,14 @@ type Caps struct {
 	// Mem = mode d'accès à la mémoire persistante (off / ondemand / always),
 	// indépendant du mode agent. Voir MemMode.
 	Mem MemMode
+	// Code = mode code actif pour cette discussion (sélecteur Chat/Code) :
+	// ajoute les outils codeur (read/grep/glob, git, critères, jobs) et le
+	// prompt de rôle. Requiert Agent.
+	Code bool
+	// Role = rôle du tour en mode code : "" ou "builder" (défaut), "planner",
+	// "verifier" (passe de vérification, seule autorisée à marquer un critère
+	// passed), "explorer", "code-reviewer". Voir code_roles.go.
+	Role string
 }
 
 // globalCaps reads the machine-wide config — the default when a request doesn't
@@ -264,8 +272,19 @@ func steerSystem(msgs []Message, hint string) []Message {
 // EnabledTools returns the tools to advertise on the next inference call.
 func EnabledTools(caps Caps) []Tool {
 	tools := []Tool{}
+	// Passe de VÉRIFICATION du mode code : jeu d'outils fermé, en lecture
+	// seule + bash (lancer les tests) + critères. Ni write/edit (elle ne
+	// corrige pas), ni mémoire ni web (hors sujet, et chaque schéma coûte du
+	// contexte).
+	if caps.Code && caps.Role == "verifier" {
+		return []Tool{bashTool(), readTool(), grepTool(), globTool(), gitStatusTool(), gitDiffTool(), criteriaTool()}
+	}
 	if caps.Agent {
 		tools = append(tools, bashTool(), writeTool(), editTool())
+	}
+	if caps.Code {
+		tools = append(tools, readTool(), grepTool(), globTool(), askTool(),
+			bashBgTool(), bashTailTool(), gitStatusTool(), gitDiffTool(), gitCloneTool(), criteriaTool())
 	}
 	// Mémoire = axe indépendant du mode agent : les outils mem_* sont fournis dès
 	// que le mode mémoire n'est pas « off » (que l'agent soit actif ou non).
@@ -305,6 +324,7 @@ type StreamEvent struct {
 	Reasoning string
 	ToolUsed  *ToolUsedEvent
 	Stats     *StatsEvent
+	Ask       *AskEvent
 	Err       error
 	// DropReasoning demande à l'UI de retirer la dernière bulle de raisonnement :
 	// le modèle a « pensé sans agir » et on relance le tour, ce raisonnement-là
@@ -324,6 +344,13 @@ type StreamEvent struct {
 	// ajouter.
 	NewHistory []Message
 }
+// AskEvent : l'outil ask — question structurée posée à l'utilisateur, rendue
+// par l'UI comme une carte à boutons. Le tour se termine juste après.
+type AskEvent struct {
+	Question string   `json:"question"`
+	Options  []string `json:"options,omitempty"`
+}
+
 type ToolUsedEvent struct {
 	Name   string
 	Label  string // user-visible summary (skill name or the command)
@@ -604,6 +631,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// (ni réponse, ni tool_call). On relance alors UNE fois le tour avec un nudge
 	// explicite au lieu d'afficher « pas de réponse ».
 	nudged := false
+	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : une seule
+	// relance par tour, comme le nudge.
+	patternRetried := false
 	// Budget SOUPLE d'appels d'outils (llm_budget.go). Toujours pas de plafond
 	// d'itérations : couper un tour cassait des recherches légitimes. Mais au-delà
 	// d'un palier on RAPPELLE au modèle combien d'appels il a déjà faits et on lui
@@ -799,9 +829,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					switch cur.Function.Name {
 					case "mem_search", "web_search":
 						key = "query"
-					case "mem_read", "mem_add", "mem_edit", "edit", "write":
+					case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
 						key = "file"
 					case "web_open", "web_read", "web_grep":
+						key = "url"
+					case "grep", "glob":
+						key = "pattern"
+					case "ask":
+						key = "question"
+					case "criteria":
+						key = "action"
+					case "bash_tail":
+						key = "id"
+					case "git_clone":
 						key = "url"
 					}
 					p := previewArg(cur.Function.Arguments, key)
@@ -973,10 +1013,20 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				switch tc.Function.Name {
 				case "mem_search", "web_search":
 					label, _ = args["query"].(string)
-				case "mem_read", "mem_add", "mem_edit", "edit", "write":
+				case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
 					label, _ = args["file"].(string)
-				case "bash":
+				case "bash", "bash_bg":
 					label, _ = args["command"].(string)
+				case "grep", "glob":
+					label, _ = args["pattern"].(string)
+				case "ask":
+					label, _ = args["question"].(string)
+				case "criteria":
+					label, _ = args["action"].(string)
+				case "bash_tail":
+					label, _ = args["id"].(string)
+				case "git_clone":
+					label, _ = args["url"].(string)
 				case "web_open", "web_read":
 					label, _ = args["url"].(string)
 				case "web_grep":
@@ -1063,10 +1113,14 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						// Cible = un poste distant : on écrit LÀ-BAS. Pas de diff (on
 						// n'a pas l'ancien contenu du fichier distant).
 						result = nodeCall(tgt, nodeCapWrite, map[string]any{"path": label, "content": content})
+					} else if msg := codeWriteGuard(caps, label, true); msg != "" {
+						result = msg
 					} else {
 						result = fileWrite(label, content)
 						if !strings.HasPrefix(result, "[erreur]") {
 							diff = addedDiff(content)
+							trackerNoteWrite(resolveAgentPath(label))
+							result += lspDiagBlock(resolveAgentPath(label), caps)
 						}
 					}
 				case "edit":
@@ -1074,13 +1128,41 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					newText, _ := args["new"].(string)
 					if tgt := agentTargetSlug(); tgt != "" {
 						result = nodeEditRemote(tgt, label, oldText, newText)
+					} else if msg := codeWriteGuard(caps, label, false); msg != "" {
+						result = msg
 					} else {
 						result = fileEdit(label, oldText, newText)
 						// Diff seulement si l'édition a réussi (sinon le fichier n'a pas bougé).
 						if !strings.HasPrefix(result, "[erreur]") {
 							diff = lineDiff(oldText, newText)
+							trackerNoteWrite(resolveAgentPath(label))
+							result += lspDiagBlock(resolveAgentPath(label), caps)
 						}
 					}
+				case "read":
+					result = toolRead(args, caps.Code)
+				case "grep":
+					result = toolGrep(args, caps.Code)
+				case "glob":
+					result = toolGlob(args, caps.Code)
+				case "ask":
+					result = toolAsk(args)
+					if !strings.HasPrefix(result, "[erreur]") {
+						q, _ := args["question"].(string)
+						cb(StreamEvent{Ask: &AskEvent{Question: q, Options: askOptions(args)}})
+					}
+				case "bash_bg":
+					result = toolBashBg(args)
+				case "bash_tail":
+					result = toolBashTail(args)
+				case "git_status":
+					result = toolGitStatus(ctx)
+				case "git_diff":
+					result = toolGitDiff(ctx, args)
+				case "git_clone":
+					result = toolGitClone(ctx, args)
+				case "criteria":
+					result = toolCriteria(args, caps.Role == "verifier")
 				case "bash":
 					to := 0
 					switch v := args["timeout"].(type) {
@@ -1088,6 +1170,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						to = int(v)
 					case int:
 						to = v
+					}
+					// Politique de sécurité : les commandes catastrophiques sont
+					// refusées AVANT toute exécution, cible distante comprise.
+					if reason := dangerousCommand(label); reason != "" {
+						result = refusedCommandResult(reason)
+						break
 					}
 					if tgt := agentTargetSlug(); tgt != "" {
 						// Cible = un poste distant : la commande s'exécute LÀ-BAS via le
@@ -1162,6 +1250,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
 				}
 			}
+			continue
+		}
+		// Appel d'outil TEXTUEL (halluciné, jamais exécuté) dans la réponse
+		// finale : on relance le tour UNE fois avec la consigne corrective
+		// (code_retry.go). Le texte fautif reste affiché — le remplacer serait
+		// mentir sur ce qui s'est passé — mais l'historique du modèle garde la
+		// trace ET la correction, donc la vraie réponse suit immédiatement.
+		if !patternRetried && len(tools) > 0 && !disableTools && textualToolCall(assistantContent.String()) {
+			patternRetried = true
+			bad := Message{Role: "assistant", Content: assistantContent.String()}
+			fix := Message{Role: "user", Content: retryCorrective}
+			messages = append(messages, bad, fix)
+			extra = append(extra, bad, fix)
 			continue
 		}
 		// Normal end of turn. If the model produced no visible answer at all

@@ -138,6 +138,16 @@ Sur Unraid, garde le **même** chemin hôte d'un lancement à l'autre : `/mnt/us
 emplacements différents dès que le partage n'est pas en cache-only ou que le
 *mover* est passé. Le compose fourni utilise `/mnt/user/appdata/loki/…`.
 
+**Tu perds modèles, discussions et fichiers à chaque redémarrage ?** C'est le
+signe que `/data` n'est **pas monté** : le conteneur écrit alors dans sa couche
+éphémère, détruite à chaque recréation (mise à jour d'image, `compose down`,
+redémarrage de l'array). Vérifie avec la commande `docker inspect` ci-dessus :
+il doit y avoir une ligne `… → /data` **et** une `… → /models`. S'il n'y en a
+pas, ton conteneur a été lancé sans mapping (template Docker Unraid incomplet,
+`docker run` sans `-v`) — recrée-le avec les volumes du compose fourni. Depuis
+cette version, Loki le détecte au démarrage : bandeau rouge dans l'UI et
+avertissement en tête du journal du conteneur.
+
 Autre piège au redémarrage du serveur : Docker relance les conteneurs
 `restart: unless-stopped` **avant** que le plugin Nvidia Driver ait chargé ses
 modules. Le journal montre alors des `ERROR: init … result=11` et le moteur
@@ -162,6 +172,26 @@ Héritées d'AJEAN :
 
 Ajoutées par ce fork :
 
+- **Mode Code** : chaque discussion a un sélecteur **Chat | Code** dans le pied
+  de la carte de saisie. En mode Code, Loki devient un agent de code : outils
+  `read`/`grep`/`glob` (lecture bornée, numéros de ligne — et un fichier doit
+  avoir été LU avant d'être modifié), outils git (`git_status`, `git_diff`,
+  `git_clone` — le clone atterrit dans le dossier de la discussion), jobs
+  d'arrière-plan (`bash_bg`/`bash_tail` pour un serveur de dev ou un build
+  long), et **critères d'acceptation** : le modèle pose le contrat (2-6
+  critères testables, éditables dans le panneau au-dessus de la saisie), puis
+  une **passe de vérification indépendante** — même modèle, contexte isolé,
+  seule habilitée à marquer un critère « passé » — contrôle le diff et relance
+  la correction jusqu'à ce que tout passe (2 corrections max). Les fichiers
+  modifiés passent au **LSP** (gopls, typescript-language-server, pyright —
+  inclus dans l'image) : les erreurs de compilation reviennent dans le résultat
+  de l'outil, sans lancer de build. Sécurité : commandes catastrophiques
+  refusées (rm -rf /, mkfs, reboot…), chemins bornés au dossier de la
+  discussion en mode Code. En mode Chat, un message qui ressemble à une tâche
+  de code fait apparaître une puce « passer en mode Code ? » — suggestion,
+  jamais bascule automatique. Conception reprise
+  d'[OpenFox](https://github.com/co-l/openfox) (MIT), réécrite en Go — voir
+  `NOTICE.md`.
 - **Catalogue MCP** : le panneau *Serveurs MCP* offre un bouton **catalogue** —
   une vingtaine de serveurs connus (filesystem, git, fetch, memory, sqlite,
   playwright, context7, github…) avec leur commande déjà renseignée, classés par

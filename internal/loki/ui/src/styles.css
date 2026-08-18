@@ -1962,3 +1962,36 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    dernière marge. */
 .perf-row{margin:0 0 12px}
 .perf-sub{padding:0 0 10px}
+
+/* --- Mode Chat/Code (20-mode.js) ------------------------------------------
+   Sélecteur segmenté dans le pied de la carte du composeur, puce de
+   suggestion, panneau des critères, badge de rôle, carte de question. */
+#mode-seg{display:inline-flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex:none}
+#mode-seg button{border:0;background:transparent;color:var(--dim);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;cursor:pointer;font-family:inherit}
+#mode-seg button.on{background:var(--accent-bg);color:var(--accent)}
+#mode-seg button:not(.on):hover{color:var(--text)}
+
+#code-hint{display:flex;align-items:center;gap:8px;margin:0 auto 6px;max-width:820px;padding:6px 10px;border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:3px;background:var(--panel);color:var(--dim);font-size:12px}
+#code-hint button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit}
+#code-hint button:hover{background:var(--accent-bg)}
+#code-hint #code-hint-no{border-color:var(--border);color:var(--dim);margin-left:auto}
+
+#criteria-box{margin:0 auto 6px;max-width:820px;border:1px solid var(--border);border-radius:3px;background:var(--panel);font-size:12px;overflow:hidden}
+#criteria-box.allpass{border-left:2px solid var(--accent)}
+#criteria-head{padding:5px 10px;color:var(--dim);cursor:pointer;user-select:none;letter-spacing:.03em}
+#criteria-box.allpass #criteria-head{color:var(--accent)}
+#criteria-box.folded #criteria-list{display:none}
+#criteria-list{list-style:none;margin:0;padding:0 10px 6px}
+#criteria-list li{padding:2px 0;color:var(--text)}
+#criteria-list li.crit-passed{color:var(--accent)}
+#criteria-list li.crit-failed{color:var(--err,#b3564d)}
+#criteria-list li.crit-pending{color:var(--dim)}
+
+.rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
+.msg[data-agent-role="verifier"]{border-left:2px solid var(--accent)}
+
+.askcard .body{display:flex;flex-direction:column;gap:8px}
+.askopts{display:flex;flex-wrap:wrap;gap:6px}
+.askopts button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit}
+.askopts button:hover:not(:disabled){background:var(--accent-bg)}
+.askopts button:disabled{opacity:.5;cursor:default}

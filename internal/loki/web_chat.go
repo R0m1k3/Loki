@@ -36,6 +36,10 @@ func capsFromBody(body chatReq) Caps {
 	if !caps.Agent {
 		caps.Internet = false
 	}
+	// Mode code : réglage PAR DISCUSSION (sélecteur Chat/Code du composeur),
+	// pas une surcharge de requête — même logique de fermeture que le reste :
+	// sans agent, pas de mode code.
+	caps.Code = caps.Agent && convCodeMode()
 	return caps
 }
 

@@ -23,6 +23,9 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY tools/ tools/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
+# gopls : serveur LSP Go, consommé par le vérificateur de code du mode code
+# (lsp.go). Compilé ici parce que l'image finale n'a pas de toolchain Go.
+RUN GOBIN=/out go install golang.org/x/tools/gopls@latest
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime
@@ -42,6 +45,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Serveurs LSP du mode code (lsp.go) : TypeScript/JavaScript et Python via
+# npm, Go via gopls compilé à l'étape 1. Un serveur absent désactive juste son
+# langage — mais autant livrer l'image complète.
+RUN npm install -g --no-audit --no-fund typescript typescript-language-server pyright     && npm cache clean --force
 
 # uv/uvx : lanceur des serveurs MCP écrits en Python (mcp-server-git, -fetch,
 # -time, sqlite, docker…). Sans lui, une bonne partie du catalogue embarqué
@@ -71,6 +79,7 @@ RUN if [ "$PLAYWRIGHT" = "1" ]; then \
     fi
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
+COPY --from=gobuild /out/gopls /usr/local/bin/gopls
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data /models
 

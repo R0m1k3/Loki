@@ -232,6 +232,11 @@ func convDelete(id string) error {
 	}
 	convIndexSave(next)
 	_ = putBytes(bkChat, convKey(id), nil)
+	// Mode code : les jobs d'arrière-plan de la discussion s'arrêtent avec
+	// elle, et ses critères/mode/puce partent avec ses messages.
+	stopConvJobs(id)
+	critDrop(id)
+	dropConvMode(id)
 	// Les fichiers de cette discussion — dépôts, captures, ce que l'agent y a
 	// écrit — n'ont plus rien qui les référence : les garder occuperait le disque
 	// pour toujours, et plus aucun écran ne permettrait de les retrouver.

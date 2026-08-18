@@ -391,6 +391,12 @@ func newShellCmd(ctx context.Context, command string) *exec.Cmd {
 	return hideCmd(exec.CommandContext(ctx, "cmd", "/C", command))
 }
 
+// newShellCmdDetached : commande shell SANS contexte, pour les jobs
+// d'arrière-plan (bash_bg) qui doivent survivre au tour qui les a lancés.
+func newShellCmdDetached(command string) *exec.Cmd {
+	return hideCmd(exec.Command("cmd", "/C", command))
+}
+
 // ramUsageMB renvoie (utilisée, totale) en Mo pour /api/ram (GlobalMemoryStatusEx).
 func ramUsageMB() (used, total int) {
 	var m struct {

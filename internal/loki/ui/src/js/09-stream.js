@@ -261,7 +261,14 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ stopWorkTimer(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); return; }
+  if(d.reset!==undefined){ stopWorkTimer(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  // --- Mode code (20-mode.js) -----------------------------------------------
+  if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
+  if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
+  if(d.criteria!==undefined){ if(typeof renderCriteria==='function') renderCriteria(d.criteria); return; }
+  if(d.role!==undefined){ ROLE_BADGE = d.role || ''; T.contentEl=null; T.reasonEl=null; return; }
+  if(d.ask){ if(typeof renderAskCard==='function') renderAskCard(d.ask); return; }
+  if(d.verify_done){ if(typeof onVerifyDone==='function') onVerifyDone(d.verify_done); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;

@@ -56,9 +56,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 });
 
+// Badge de rôle du mode code (builder / verifier) : posé par 09-stream.js à
+// réception d'un delta {role}, repris par addMsg sur les bulles suivantes.
+let ROLE_BADGE='';
 function addMsg(role, text){
   const el=document.createElement('div');
   el.className='msg '+role;
+  if(ROLE_BADGE && (role==='assistant'||role==='reasoning'||role==='tool')) el.dataset.agentRole=ROLE_BADGE;
   const collapsible = (role==='reasoning' || role==='tool');
   // .body must be a real block so <p>/<pre>/<ul> margins behave properly.
   if(collapsible){
@@ -71,6 +75,11 @@ function addMsg(role, text){
     // reasoning et tool gardent leur libellé technique.
     if((role==='user'||role==='assistant') && typeof paintLabel==='function'){
       paintLabel(el.querySelector('.label'), role);
+    }
+    // Badge visible sur la bulle assistant pendant une passe de rôle.
+    if(ROLE_BADGE && role==='assistant'){
+      const b=document.createElement('span'); b.className='rolebadge'; b.textContent=ROLE_BADGE==='verifier'?'vérification':ROLE_BADGE;
+      el.querySelector('.label').appendChild(b);
     }
   }
   el.querySelector('.body').textContent=text;
