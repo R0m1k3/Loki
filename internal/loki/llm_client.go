@@ -579,6 +579,11 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
 	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
 	reasoningEffort := reasoningEffortValue(chatCfg["REASONING_EFFORT"])
+	// Ce que le gabarit du modèle doit savoir, dans SA langue : `reasoning_effort`
+	// ne parle qu'aux gabarits qui le lisent, `enable_thinking` parle aux modèles
+	// hybrides (Qwen3 & co). Sans ça, « aucune » n'avait aucun effet sur eux : le
+	// modèle réfléchissait pendant que l'interface annonçait le contraire.
+	reasoningKwargs := reasoningTemplateKwargs(reasoningExplicitlyOff(chatCfg["REASONING"]), reasoningEffort)
 	// When llama.cpp fails to parse a model-generated tool call (HTTP 500), we
 	// retry the same turn once with tools removed so the model answers in plain
 	// text from the tool results already gathered, instead of dying mid-chat.
@@ -626,6 +631,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		}
 		if reasoningEffort != "" {
 			payload["reasoning_effort"] = reasoningEffort
+		}
+		if reasoningKwargs != nil {
+			payload["chat_template_kwargs"] = reasoningKwargs
 		}
 		if len(tools) > 0 && !disableTools {
 			payload["tools"] = tools
