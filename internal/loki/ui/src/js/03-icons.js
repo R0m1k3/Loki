@@ -26,6 +26,9 @@ const ICONS = {
   plus:      '<path d="M12 5.5v13"/><path d="M5.5 12h13"/>',
   chevron:   '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
   search:    '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/>',
+  // Anneau ouvert : c'est la ROTATION (CSS) qui en fait un indicateur d'activité,
+  // le dessin reste au même trait que le reste du jeu.
+  spinner:   '<path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5"/>',
   sun:       '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2"/><path d="M12 19.3v2.2"/><path d="M4.2 4.2l1.6 1.6"/><path d="M18.2 18.2l1.6 1.6"/><path d="M2.5 12h2.2"/><path d="M19.3 12h2.2"/><path d="M4.2 19.8l1.6-1.6"/><path d="M18.2 5.8l1.6-1.6"/>',
 };
 

@@ -599,11 +599,20 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// (ni réponse, ni tool_call). On relance alors UNE fois le tour avec un nudge
 	// explicite au lieu d'afficher « pas de réponse ».
 	nudged := false
-	// Pas de plafond d'itérations ni d'anti-boucle : ils coupaient des tours
-	// parfaitement légitimes (une recherche enchaîne facilement des dizaines
-	// d'appels, parfois identiques). Le seul frein est le bouton stop, qui annule
-	// le contexte — c'est un choix assumé.
+	// Budget SOUPLE d'appels d'outils (llm_budget.go). Toujours pas de plafond
+	// d'itérations : couper un tour cassait des recherches légitimes. Mais au-delà
+	// d'un palier on RAPPELLE au modèle combien d'appels il a déjà faits et on lui
+	// demande de conclure — de la pression, pas une barrière. Sans ça, un modèle
+	// qui tourne en rond n'avait rien en face de lui sauf le bouton stop.
+	toolRuns, budgetNudges, budget := 0, 0, agentBudget()
 	for iter := 0; ; iter++ {
+		// Rappel injecté EN FIN d'historique : le préfixe déjà en cache côté
+		// llama-server reste valide, seul le nouveau message est à traiter.
+		if msg := budgetNudge(toolRuns, budget, budgetNudges); msg != "" {
+			budgetNudges++
+			logBudget(toolRuns, budget, budgetNudges)
+			messages = append(messages, Message{Role: "user", Content: msg})
+		}
 		payload := map[string]any{
 			"model":       "loki",
 			"messages":    messages,
@@ -946,6 +955,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if ctx.Err() != nil {
 					return extra, nil
 				}
+				toolRuns++ // alimente le budget souple (voir budgetNudge)
 				var args map[string]any
 				_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
 				// Derive the human label (command / skill name) up front so we can

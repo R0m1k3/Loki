@@ -51,8 +51,67 @@ function confirmPending(text){
 let REPLAYING=true;
 // État de rendu du tour courant, délimité par les événements user / turn_done.
 let T=null;
-function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0 }; }
+function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'' }; }
 newTurn();
+
+// --- Temps de travail du tour ------------------------------------------------
+// « Combien de temps l'IA a-t-elle travaillé ? » se lit sous la réponse, de la
+// question envoyée à la fin du tour — raisonnement, appels d'outils et attentes
+// compris. La mesure est prise sur les HORODATAGES SERVEUR (l'événement `user`
+// puis `turn_done`) : elle est donc exacte en direct comme au rejeu du journal,
+// où tout arrive d'un bloc côté client.
+//
+// Pendant le tour il n'y a pas encore de `turn_done` : le compteur avance à la
+// seconde. Il ne peut pas se baser sur l'horloge du navigateur telle quelle (un
+// téléphone n'est pas à la même heure que la machine), on garde donc l'ÉCART
+// entre les deux, réévalué à chaque événement reçu en direct.
+let TS_SKEW = 0;                       // horloge client − horloge serveur (ms)
+function nowServer(){ return Date.now() - TS_SKEW; }
+let WORK_TIMER = null;
+function startWorkTimer(){ if(WORK_TIMER || REPLAYING) return; WORK_TIMER=setInterval(tickWork, 1000); }
+function stopWorkTimer(){ if(WORK_TIMER){ clearInterval(WORK_TIMER); WORK_TIMER=null; } }
+function tickWork(){ if(T.contentEl) paintStats(T.contentEl); paintTypingClock(); }
+// Le compteur se montre AUSSI sur l'indicateur « … » : pendant un appel d'outil
+// ou un long prefill il n'y a encore aucune réponse sous laquelle écrire, et
+// c'est précisément le moment où l'on se demande si ça avance.
+function paintTypingClock(){
+  const el = T.typingEl;
+  if(!el || el.classList.contains('compacting')) return; // le compactage a son propre libellé
+  if(!T.startTs) return;
+  const ms = nowServer() - T.startTs;
+  if(!(ms > 1500)) return;                               // pas de compteur pour une réponse immédiate
+  let c = el.querySelector('.wclock');
+  if(!c){ c=document.createElement('span'); c.className='wclock'; el.appendChild(c); }
+  c.textContent = fmtDur(ms);
+}
+// Durée lisible : dixièmes sous 10 s (un tour court se juge à la fraction),
+// secondes rondes ensuite, puis minutes et heures. Le séparateur décimal reste
+// le POINT — la durée voisine des « 21.5 tok/s » sur la même ligne, une virgule
+// y ferait deux conventions à trois mots d'écart.
+function fmtDur(ms){
+  if(!(ms > 0)) return '';
+  if(ms < 10000) return (ms/1000).toFixed(1) + ' s';
+  const t = Math.round(ms/1000);
+  if(t < 60) return t + ' s';
+  const m = Math.floor(t/60), sec = t % 60;
+  if(m < 60) return m + ' min ' + String(sec).padStart(2, '0') + ' s';
+  return Math.floor(m/60) + ' h ' + String(m % 60).padStart(2, '0') + ' min';
+}
+// Libellé de durée du tour courant, vide tant qu'il n'y a rien à montrer (tour
+// non commencé, ou horloges trop désaccordées pour que l'écart ait un sens).
+function workLabel(){
+  if(!T.startTs) return '';
+  const ms = (T.doneTs || nowServer()) - T.startTs;
+  if(!(ms > 300)) return '';
+  return 'travail ' + fmtDur(ms);
+}
+// Repeint la ligne de mesures de la réponse : durée d'abord, vitesse ensuite.
+// `speed` non fourni = on garde le dernier libellé de vitesse connu (c'est le
+// cas du tic de seconde, qui ne fait avancer que la durée).
+function paintStats(el, speed){
+  if(speed !== undefined) T.speedText = speed;
+  setStats(el, workLabel(), T.speedText);
+}
 const simpleMode=()=>document.documentElement.getAttribute('data-display')==='simple';
 function removeTyping(){ if(T.typingEl){ T.typingEl.remove(); T.typingEl=null; } }
 // Compactage : on ÉTIQUETTE l'indicateur de frappe déjà à l'écran au lieu
@@ -111,9 +170,23 @@ function renderStats(el, s){
   // Réponse de l'assistant : ligne de mesures dédiée sous le texte (son étiquette
   // est masquée dans cette mise en page). Bulle repliable : l'étiquette EST le
   // bouton de repli, on y écrit comme avant.
-  if(el.classList.contains('collapsible')) setLabel(el, ['reasoning'].concat(parts).join('  ·  '));
-  else setStats(el, parts.join('  ·  '));
+  if(el.classList.contains('collapsible')) setLabel(el, ['reasoning'].concat(workLabel()||[], parts).join('  ·  '));
+  else paintStats(el, parts.join('  ·  '));
 }
+// --- Compteurs de bulle -----------------------------------------------------
+// Ils sont PAR BULLE, jamais par tour. Un tour d'agent en ouvre une nouvelle
+// après CHAQUE appel d'outil (le flux repasse T.contentEl à null) ; les
+// compteurs, eux, n'étaient jamais remis à zéro. Chaque bulle affichait donc le
+// CUMUL de tout le tour, divisé par le temps écoulé depuis le tout premier
+// token — exécution des outils, pages web et prefill compris.
+//
+// Sur un tour agentique d'une heure, ça donnait une vitesse qui décroissait
+// mécaniquement de 17 tok/s à 0,9 : le moteur n'avait pas ralenti, le compteur
+// mesurait « tokens générés ÷ durée totale du tour ». La remise à zéro est faite
+// à la CRÉATION de la bulle : tout chemin qui en ouvre une neuve est couvert,
+// aujourd'hui comme demain.
+function resetContentStats(){ T.contentTok=0; T.contentFirstTs=0; T.contentLastTs=0; T.speedText=''; }
+function resetReasonStats(){ T.reasonTok=0; T.reasonFirstTs=0; T.reasonLastTs=0; }
 // Label d'une bulle : nombre de tokens + vitesse. La vitesse est calculée à
 // partir des HORODATAGES SERVEUR (firstTs→lastTs) : le temps réel de génération,
 // donc correct aussi bien en direct qu'au replay (où les deltas arrivent d'un
@@ -122,18 +195,25 @@ function labelTokens(el, role, n, firstTs, lastTs){
   if(!el) return;
   const secs=(lastTs-firstTs)/1000;
   const m = (secs>0.05 && n>1) ? n+' tok  ·  '+(n/secs).toFixed(1)+' tok/s' : n+' tok';
+  // Bulle de raisonnement : sa propre durée de génération, comme le « réfléchi
+  // pendant… » d'un fil de discussion — elle reste lisible une fois repliée.
+  const d = (secs>0.05 && n>1) ? fmtDur(lastTs-firstTs) : '';
   // Bulle technique : son étiquette EST le bouton de repli, les mesures y vont.
   // Réponse de l'assistant : son étiquette porte l'avatar et le nom, les mesures
   // vont dans la ligne dédiée — comme le font déjà les stats de fin de tour
   // (applyStats). Sans ce partage, le libellé « Loki » était remplacé en direct
   // par « assistant · 75 tok · 21.5 tok/s », et ne revenait qu'au rechargement.
-  if(el.classList.contains('collapsible')) setLabel(el, role+'  ·  '+m);
-  else setStats(el, m);
+  if(el.classList.contains('collapsible')) setLabel(el, [role].concat(d||[], m).join('  ·  '));
+  else paintStats(el, m);
 }
 // Pendant le replay on met à jour l'état `busy` mais on NE touche PAS aux boutons
 // (sinon user→stop puis turn_done→send à chaque tour rejoué = flottement visible).
 // L'état final est appliqué une seule fois au caught_up via syncSendBtn().
-function setBusy(on){ busy=on; if(!REPLAYING) syncSendBtn(); }
+function setBusy(on){ busy=on; if(!REPLAYING) syncSendBtn();
+  // La liste des discussions montre laquelle travaille : elle doit suivre l'état
+  // MÊME pendant le rejeu (une page rechargée en cours de génération doit voir
+  // l'anneau tourner sans attendre le premier événement en direct).
+  if(typeof convSyncBusy==='function') convSyncBusy(); }
 function syncSendBtn(){
   const sb=document.getElementById('send');
   // ⚠️ L'état passe par un ATTRIBUT, jamais par un style inline. Ces deux
@@ -160,11 +240,19 @@ function syncSendBtn(){
 // piloté par le serveur et rejouable à l'identique.
 function handleDelta(d){
   if(typeof d.seq==='number' && d.seq>lastSeq) lastSeq=d.seq;
+  // Recalage de l'horloge : un événement reçu en DIRECT vient d'être émis, son
+  // `ts` serveur et l'heure locale désignent donc le même instant. Surtout pas
+  // pendant le rejeu, où les `ts` sont vieux de plusieurs heures.
+  if(!REPLAYING && typeof d.ts==='number' && d.ts>0) TS_SKEW = Date.now() - d.ts;
   if(d.caught_up){
     // Fin du replay initial : on saute en bas puis on révèle (une seule fois — pas
     // sur les reconnexions, pour ne pas te ramener en bas si tu lisais plus haut).
     setChatLoading(null);
     if(REPLAYING){ REPLAYING=false; jumpBottom(); syncSendBtn(); const c=chatEl(); c.style.transition='opacity .15s'; c.style.opacity='1'; }
+    // Le chrono ne démarre pas pendant le rejeu (aucun tic n'aurait de sens sur
+    // des tours déjà finis) : si le dernier tour rejoué est ENCORE en cours, il
+    // faut le lancer maintenant, sinon la durée resterait figée à l'écran.
+    if(busy && T.startTs && !T.doneTs) startWorkTimer();
     // Fil vide : aucune bulle n'a été rejouée, donc aucune mutation ne viendra
     // déclencher la synchro — c'est ici qu'on décide d'afficher l'accueil.
     syncChatEmpty();
@@ -173,7 +261,7 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); return; }
+  if(d.reset!==undefined){ stopWorkTimer(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); return; }
   if(d.user!==undefined){
     newTurn();
     let el=PENDING;
@@ -182,11 +270,20 @@ function handleDelta(d){
     // porte déjà (posées à l'envoi), on ne les ajoute donc qu'au replay/à une
     // bulle neuve — sinon elles apparaîtraient en double.
     if(d.files && !hasMsgFiles(el)) addMsgFiles(el, d.files);
-    setBusy(true); T.typingEl=addTyping(); return; }
+    // Départ du chronomètre : l'horodatage SERVEUR du message, pas l'heure
+    // locale — c'est ce qui rend la durée juste au rejeu comme en direct.
+    T.startTs = d.ts || 0; T.doneTs = 0;
+    setBusy(true); startWorkTimer(); T.typingEl=addTyping(); return; }
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
-  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats); setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
+  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
+    // La durée se fige ICI : au-delà, plus rien ne bouge, la ligne doit montrer
+    // le temps réellement passé et non continuer d'avancer.
+    T.doneTs = d.ts || T.doneTs || 0;
+    if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats);
+    else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
+    setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
   if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
@@ -214,11 +311,11 @@ function handleDelta(d){
     return; }
   if(d.reasoning_content){
     killTyping('reasoning');
-    if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; T.turnCollapsibles.push(T.reasonEl); }
+    if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; resetReasonStats(); T.turnCollapsibles.push(T.reasonEl); }
     // d.replace : le serveur renvoie le bloc ENTIER alors qu'on en affichait déjà
     // le début (voir decorateEvent/coalesceReplay côté serveur) → on repart de zéro
     // au lieu de concaténer, sinon le texte apparaît en double.
-    if(d.replace){ T.fullReason=''; T.reasonTok=0; T.reasonFirstTs=0; }
+    if(d.replace){ T.fullReason=''; resetReasonStats(); }
     showTyping('reasoning'); T.fullReason+=d.reasoning_content; renderBody(T.reasonEl, T.fullReason);
     // d.toks/d.ts0 présents quand l'événement est coalescé (replay) : plusieurs
     // tokens d'un coup. Sinon (direct), 1 token, ts0=ts.
@@ -227,8 +324,8 @@ function handleDelta(d){
     return; }
   if(d.content){
     removeTyping();
-    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; }
-    if(d.replace){ T.fullContent=''; T.contentTok=0; T.contentFirstTs=0; }
+    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; resetContentStats(); }
+    if(d.replace){ T.fullContent=''; resetContentStats(); }
     T.fullContent+=d.content; renderBody(T.contentEl, T.fullContent);
     if(!T.contentFirstTs) T.contentFirstTs=d.ts0||d.ts||0; T.contentLastTs=d.ts||T.contentLastTs; T.contentTok+=(d.toks||1);
     labelTokens(T.contentEl, 'assistant', T.contentTok, T.contentFirstTs, T.contentLastTs);
