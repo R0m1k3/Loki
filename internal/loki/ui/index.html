@@ -5377,6 +5377,17 @@ function renderToolMsg(el, tu){
     web_open:   {lbl:'page web',  head:'ouverture'},
     web_read:   {lbl:'page web',  head:'lecture'},
     web_grep:   {lbl:'page web',  head:'recherche'},
+    // Outils du mode code : chacun son étiquette, pas le fallback mémoire.
+    read:       {lbl:'lecture',   head:'lecture'},
+    grep:       {lbl:'recherche', head:'grep'},
+    glob:       {lbl:'fichiers',  head:'glob'},
+    criteria:   {lbl:'critères',  head:'critères'},
+    ask:        {lbl:'question',  head:'question'},
+    bash_bg:    {lbl:'terminal',  head:'commande (fond)'},
+    bash_tail:  {lbl:'terminal',  head:'suivi de job'},
+    git_status: {lbl:'git',       head:'git status'},
+    git_diff:   {lbl:'git',       head:'git diff'},
+    git_clone:  {lbl:'git',       head:'git clone'},
   };
   // Outils MCP (nom mcp__<serveur>__<outil>) : en-tête = nom du serveur, libellé lisible,
   // pas le fallback mémoire. On extrait serveur et outil du nom namespacé.
