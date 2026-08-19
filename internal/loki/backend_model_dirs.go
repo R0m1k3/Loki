@@ -264,10 +264,12 @@ func handleModelDirs(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"ok": true})
 		return
 	}
-	out := []map[string]any{{"path": modelsDir(), "home": true, "count": modelDirCount(modelsDir()), "exists": true, "free": diskFree(modelsDir())}}
+	out := []map[string]any{{"path": modelsDir(), "home": true, "count": modelDirCount(modelsDir()), "exists": true,
+		"free": diskFree(modelsDir()), "free_exact": diskFreeReliable(modelsDir())}}
 	for _, d := range extraModelDirs() {
 		n := modelDirCount(d)
-		out = append(out, map[string]any{"path": d, "home": false, "count": n, "exists": n >= 0, "free": diskFree(d)})
+		out = append(out, map[string]any{"path": d, "home": false, "count": n, "exists": n >= 0,
+			"free": diskFree(d), "free_exact": diskFreeReliable(d)})
 	}
 	sendJSON(w, 200, map[string]any{"ok": true, "dirs": out, "env": os.Getenv("LOKI_MODEL_DIRS") != ""})
 }

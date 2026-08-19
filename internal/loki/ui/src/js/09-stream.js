@@ -324,6 +324,10 @@ function handleDelta(d){
   if(d.compact_noop){ setCompacting(false); if(!REPLAYING) toast('rien à compacter (contexte déjà minimal)'); return; }
   if(d.ctx_used!==undefined){ setCtxUsed(d.ctx_used); return; }
   if(d.stats){ T.serverStats=d.stats;
+    // prompt_tokens_total = comptage exact du moteur (include_usage). Absent sur
+    // certains llama-server récents : le serveur publie alors un `ctx_used`
+    // estimé en fin de tour, traité plus bas — on ne remet donc PAS la jauge à
+    // zéro ici, on la laisse simplement inchangée.
     if(d.stats.prompt_tokens_total){ setCtxUsed((d.stats.prompt_tokens_total||0)+(d.stats.gen_tokens||0)); }
     if(T.contentEl||T.reasonEl) renderStats(T.contentEl||T.reasonEl, d.stats); return; }
   if(d.tool_used){

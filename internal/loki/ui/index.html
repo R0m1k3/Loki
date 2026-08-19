@@ -1492,26 +1492,36 @@ button:hover{border-color:var(--dim);color:var(--text)}
    la place qui reste — le fil se resserre, il ne passe pas dessous.
    Le panneau est retiré du flux quand il est fermé (et non simplement décalé) :
    sinon il conserverait sa gouttière et le fil resterait décentré. */
+/* Le panneau ne défile PAS en entier : seule la liste le fait. Avec un
+   overflow sur le panneau, l'en-tête, le fil d'Ariane et le pied (occupation
+   disque, bouton .zip) s'en allaient vers le haut dès qu'il y avait quelques
+   fichiers — on perdait les repères et les actions en même temps. */
 #files{display:none;width:320px;flex-shrink:0;border-left:1px solid var(--border);
   background:var(--panel);padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));
-  overflow-y:auto;flex-direction:column;gap:10px}
+  overflow:hidden;flex-direction:column;gap:10px}
 html[data-files="1"] #files{display:flex}
 #files-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:14}
-.files-head{display:flex;align-items:center;gap:8px}
+.files-head{display:flex;align-items:center;gap:8px;flex:none}
 .files-head .stitle{flex:1}
 #files-refresh,#files-close{margin:0;padding:2px 8px;min-height:0;font-size:12px;
   background:transparent;border:1px solid transparent;color:var(--dim);border-radius:4px}
 #files-refresh:hover,#files-close:hover{border-color:var(--border);color:var(--text)}
 /* Fil d'Ariane : il doit pouvoir revenir à la ligne — un identifiant de
    discussion dans le chemin dépasse largement 320 px. */
-.files-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:11px}
+.files-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:11px;flex:none}
 .files-crumb-b{margin:0;padding:2px 6px;min-height:0;font-size:11px;border:0;border-radius:3px;
   background:transparent;color:var(--dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .files-crumb-b:hover:not(:disabled){background:var(--row-bg-on);color:var(--text)}
 .files-crumb-b.on{color:var(--text);cursor:default}
 .files-crumb-s{color:var(--dim);opacity:.5}
-.files-list{display:flex;flex-direction:column;flex:1;min-height:0}
-.files-empty{font-size:12px;line-height:1.5;padding:10px 2px}
+.files-list{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+  /* La barre de défilement ne doit pas décoller les lignes du bord : on lui
+     rend la gouttière plutôt que d'ajouter une marge que le panneau sans
+     défilement paierait aussi. */
+  scrollbar-gutter:stable}
+/* État vide : centré dans la hauteur disponible plutôt que collé en haut d'un
+   grand vide — c'est le cas le plus fréquent à l'ouverture d'une discussion. */
+.files-empty{font-size:12px;line-height:1.5;padding:24px 2px;text-align:center;margin:auto 0}
 /* Une ligne = pastille, nom + méta, actions. Les actions n'apparaissent qu'au
    survol : au repos on veut lire des noms de fichiers, pas une grille de
    boutons. Sur écran tactile (pas de survol) elles restent visibles. */
@@ -1528,8 +1538,8 @@ html[data-files="1"] #files{display:flex}
 .files-acts .iconbtn{font-size:11px;line-height:1;padding:4px 6px;background:transparent;
   border:1px solid transparent;border-radius:3px;color:var(--dim);cursor:pointer;margin:0;min-height:0}
 .files-acts .iconbtn:hover{border-color:var(--border);color:var(--text)}
-.files-foot{font-family:var(--mono);font-size:10px;padding-top:2px;border-top:1px solid var(--border);
-  display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.files-foot{font-family:var(--mono);font-size:10px;padding-top:6px;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none;margin-top:auto}
 /* Détour « hors discussion » : discret, en pied de panneau — c'est une sortie de
    secours pour les fichiers d'avant le rangement par discussion, pas une vue
    qu'on propose au même rang que la discussion ouverte. */
@@ -4245,7 +4255,9 @@ async function populateModelDirs(){
     const info = document.createElement('span');
     info.className = 'muted';
     const n = x.count >= 0 ? (x.count + ' modèle' + (x.count>1?'s':'')) : 'illisible';
-    const free = x.free >= 0 ? ', ' + fmtSize(x.free) + ' libres' : '';
+    // « ~ » quand le système de fichiers approxime (FUSE/shfs d'Unraid,
+    // overlay, réseau) : le chiffre est indicatif, il ne bloque plus rien.
+    const free = x.free >= 0 ? ', ' + (x.free_exact === false ? '~' : '') + fmtSize(x.free) + ' libres' : '';
     info.textContent = '(' + n + free + (x.home ? ', dossier loki' : '') + ')';
     row.append(p, info);
     if(!x.home){
@@ -4874,7 +4886,7 @@ async function populateDlDirs(){
   for(const x of dlDirList){
     const o = document.createElement('option');
     o.value = x.path;
-    o.textContent = x.path + (x.free >= 0 ? ' — ' + fmtSize(x.free) + ' libres' : '');
+    o.textContent = x.path + (x.free >= 0 ? ' — ' + (x.free_exact === false ? '~' : '') + fmtSize(x.free) + ' libres' : '');
     sel.append(o);
   }
   if(prev && dlDirList.some(x => samePath(x.path, prev))) sel.value = prev;
@@ -4912,7 +4924,9 @@ async function startDownloadURL(url){
   // p.size couvre TOUTES les tranches : un modèle découpé annonce ses 45 Go, pas
   // les 15 Go du fichier dont le lien a été collé.
   const nparts = p.parts > 1 ? ' en '+p.parts+' fichiers' : '';
-  e.prog.textContent = fmtSize(p.size)+nparts+' à télécharger — '+fmtSize(p.free)+' libres';
+  e.prog.textContent = fmtSize(p.size)+nparts+' à télécharger — '
+    + (p.free_exact === false ? '~' : '') + fmtSize(p.free) + ' libres'
+    + (p.free_exact === false ? ' (estimation : partage réseau ou agrégé)' : '');
   const r = await jpost('/api/models/download', {url, dir});
   if(!r.ok){
     e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+(r.error||'')+'</span>';
@@ -5980,6 +5994,10 @@ function handleDelta(d){
   if(d.compact_noop){ setCompacting(false); if(!REPLAYING) toast('rien à compacter (contexte déjà minimal)'); return; }
   if(d.ctx_used!==undefined){ setCtxUsed(d.ctx_used); return; }
   if(d.stats){ T.serverStats=d.stats;
+    // prompt_tokens_total = comptage exact du moteur (include_usage). Absent sur
+    // certains llama-server récents : le serveur publie alors un `ctx_used`
+    // estimé en fin de tour, traité plus bas — on ne remet donc PAS la jauge à
+    // zéro ici, on la laisse simplement inchangée.
     if(d.stats.prompt_tokens_total){ setCtxUsed((d.stats.prompt_tokens_total||0)+(d.stats.gen_tokens||0)); }
     if(T.contentEl||T.reasonEl) renderStats(T.contentEl||T.reasonEl, d.stats); return; }
   if(d.tool_used){

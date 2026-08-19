@@ -273,7 +273,9 @@ async function populateModelDirs(){
     const info = document.createElement('span');
     info.className = 'muted';
     const n = x.count >= 0 ? (x.count + ' modèle' + (x.count>1?'s':'')) : 'illisible';
-    const free = x.free >= 0 ? ', ' + fmtSize(x.free) + ' libres' : '';
+    // « ~ » quand le système de fichiers approxime (FUSE/shfs d'Unraid,
+    // overlay, réseau) : le chiffre est indicatif, il ne bloque plus rien.
+    const free = x.free >= 0 ? ', ' + (x.free_exact === false ? '~' : '') + fmtSize(x.free) + ' libres' : '';
     info.textContent = '(' + n + free + (x.home ? ', dossier loki' : '') + ')';
     row.append(p, info);
     if(!x.home){
@@ -902,7 +904,7 @@ async function populateDlDirs(){
   for(const x of dlDirList){
     const o = document.createElement('option');
     o.value = x.path;
-    o.textContent = x.path + (x.free >= 0 ? ' — ' + fmtSize(x.free) + ' libres' : '');
+    o.textContent = x.path + (x.free >= 0 ? ' — ' + (x.free_exact === false ? '~' : '') + fmtSize(x.free) + ' libres' : '');
     sel.append(o);
   }
   if(prev && dlDirList.some(x => samePath(x.path, prev))) sel.value = prev;
@@ -940,7 +942,9 @@ async function startDownloadURL(url){
   // p.size couvre TOUTES les tranches : un modèle découpé annonce ses 45 Go, pas
   // les 15 Go du fichier dont le lien a été collé.
   const nparts = p.parts > 1 ? ' en '+p.parts+' fichiers' : '';
-  e.prog.textContent = fmtSize(p.size)+nparts+' à télécharger — '+fmtSize(p.free)+' libres';
+  e.prog.textContent = fmtSize(p.size)+nparts+' à télécharger — '
+    + (p.free_exact === false ? '~' : '') + fmtSize(p.free) + ' libres'
+    + (p.free_exact === false ? ' (estimation : partage réseau ou agrégé)' : '');
   const r = await jpost('/api/models/download', {url, dir});
   if(!r.ok){
     e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+(r.error||'')+'</span>';

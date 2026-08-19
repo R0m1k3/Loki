@@ -403,6 +403,13 @@ func checkDiskSpace(dir string, size int64) error {
 	if size <= 0 || free < 0 {
 		return nil
 	}
+	// Système de fichiers dont statfs approxime (FUSE/shfs d'Unraid, overlay,
+	// réseau) : le chiffre reste affiché, mais il ne peut plus REFUSER un
+	// téléchargement. Vécu : « 11,9 Go libres » annoncés sur un partage Unraid
+	// qui en avait des centaines, et l'installation du modèle bloquée.
+	if !diskFreeReliable(dir) {
+		return nil
+	}
 	if free < size+dlSpaceMargin {
 		return fmt.Errorf("espace insuffisant sur %s : %s libres, %s nécessaires", dir, humanBytes(free), humanBytes(size+dlSpaceMargin))
 	}
@@ -459,7 +466,8 @@ func handleModelDownloadProbe(w http.ResponseWriter, r *http.Request) {
 		}
 		total += n
 	}
-	out := map[string]any{"ok": true, "filename": name, "dir": dir, "size": total, "free": diskFree(dir), "enough": true, "parts": len(urls)}
+	out := map[string]any{"ok": true, "filename": name, "dir": dir, "size": total,
+		"free": diskFree(dir), "free_exact": diskFreeReliable(dir), "enough": true, "parts": len(urls)}
 	if err := checkDiskSpace(dir, total); err != nil {
 		out["enough"] = false
 		out["error"] = err.Error()

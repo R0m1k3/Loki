@@ -423,6 +423,13 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Non-nil = elle remplace l'historique (elle contient déjà le tour en cours).
 	var newBase []Message
 	var content strings.Builder
+	// Le comptage EXACT du contexte vient de `usage.prompt_tokens` (option
+	// include_usage). Tous les moteurs ne le renvoient pas — un llama-server
+	// récent a cessé de le faire, et la jauge est restée bloquée à zéro sur des
+	// discussions de plusieurs dizaines de milliers de tokens. On note donc si
+	// l'usage est arrivé ; sinon on retombe sur l'estimation (celle qui pilote
+	// déjà la compaction), approximative mais jamais absente.
+	sawUsage := false
 	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
 		switch {
 		case ev.Err != nil:
@@ -465,6 +472,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			// Taille réelle du contexte (usage.prompt_tokens + généré) pour le compteur
 			// et la décision de compactage au tour suivant.
 			if ev.Stats.PromptTokensTotal > 0 {
+				sawUsage = true
 				c.mu.Lock()
 				if c.epoch == epoch {
 					c.CtxUsed = ev.Stats.PromptTokensTotal + ev.Stats.GenTokens
@@ -504,6 +512,20 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	ctxUsed = c.CtxUsed
 	stale := c.epoch != epoch
 	c.mu.Unlock()
+
+	// Moteur muet sur l'usage : on publie l'estimation, sinon la jauge reste à
+	// zéro et l'utilisateur ne voit jamais son contexte se remplir — ni la
+	// compaction arriver.
+	if !stale && !sawUsage {
+		est := estimateTokens(msgs)
+		c.mu.Lock()
+		if c.epoch == epoch {
+			c.CtxUsed = est
+		}
+		c.mu.Unlock()
+		c.appendDelta(epoch, map[string]any{"ctx_used": est})
+		ctxUsed = est
+	}
 
 	// Boucle du contrat (mode code) : vérification indépendante des critères,
 	// corrections, re-vérification — AVANT de rendre la main. Voir
@@ -793,6 +815,16 @@ func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[st
 		}
 	}
 	if !emit(map[string]any{"caught_up": true}) {
+		return
+	}
+	// Taille du contexte connue MAINTENANT : le journal ne rejoue que les
+	// événements du fil, et `ctx_used` n'y figure qu'aux tours où il a changé —
+	// souvent hors de la fenêtre rejouée. Sans cet envoi, toute page rechargée
+	// affichait « 0 / N (0 %) » sur une discussion pourtant bien remplie.
+	c.mu.Lock()
+	used := c.CtxUsed
+	c.mu.Unlock()
+	if used > 0 && !emit(map[string]any{"ctx_used": used}) {
 		return
 	}
 	// Le padding doit venir APRÈS caught_up, pas dessus. Un proxy (Cloudflare) garde
