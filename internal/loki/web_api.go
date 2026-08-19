@@ -115,6 +115,27 @@ func modelLoadError() string {
 			if reason == "" {
 				reason = "échec du chargement du modèle"
 			}
+		case strings.Contains(low, "out of memory"),
+			strings.Contains(low, "cudamalloc failed"),
+			strings.Contains(low, "failed to allocate"):
+			// Prioritaire sur l'échec générique : la cause mémoire doit gagner.
+			reason = "mémoire GPU insuffisante (VRAM) — réduis le contexte (CTX) ou prends une quantification plus petite"
+		case strings.Contains(low, "ggml_cuda error"), strings.Contains(low, "cuda error"):
+			if reason == "" {
+				reason = "erreur CUDA — GPU indisponible ? (après un redémarrage du serveur : docker restart loki)"
+			}
+		// Backtrace = le moteur a PLANTÉ, pas « il charge encore ». Les motifs
+		// couvrent le dump de llama.cpp (signal + pile libc) : sans eux, un
+		// crash-loop s'affichait « chargement… » pour l'éternité. PAS de motif
+		// « libggml » : les logs de chargement normaux citent les .so
+		// (« loaded CUDA backend from /app/libggml-cuda.so »).
+		case strings.Contains(low, "__libc_start_main"),
+			strings.Contains(l, "SIGSEGV"), strings.Contains(l, "SIGABRT"),
+			strings.Contains(low, "segmentation fault"),
+			strings.Contains(low, "aborted (core dumped)"):
+			if reason == "" {
+				reason = "le moteur a planté au démarrage (backtrace dans le journal)"
+			}
 		}
 	}
 	if loaded || reason == "" {
