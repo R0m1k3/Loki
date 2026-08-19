@@ -1663,12 +1663,18 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    écrasait le titre, exactement comme l'heure avant lui. */
 .preset>.conv-spin,#topbar>.conv-spin{flex:none;display:inline-flex;align-items:center;
   justify-content:center;line-height:0;color:var(--accent)}
-.conv-spin svg{animation:conv-spin 900ms linear infinite}
+/* L'animation porte sur le CONTENEUR (élément HTML), pas sur le <svg> : sur un
+   élément SVG, l'origine de la rotation dépend de transform-box, dont le défaut
+   a changé au fil des versions — l'anneau restait figé chez certains. Un span
+   inline-flex tourne partout, sans ambiguïté. Les deux propriétés restent
+   posées sur le svg pour le cas où une règle le viserait encore. */
+.conv-spin{animation:conv-spin 900ms linear infinite;transform-origin:center}
+.conv-spin svg{transform-box:fill-box;transform-origin:center}
 @keyframes conv-spin{to{transform:rotate(360deg)}}
 /* Mouvement réduit : l'anneau ne tourne plus mais respire — l'information reste,
    le mouvement de rotation disparaît. */
 @media (prefers-reduced-motion:reduce){
-  .conv-spin svg{animation:conv-breathe 1.6s ease-in-out infinite}
+  .conv-spin{animation:conv-breathe 1.6s ease-in-out infinite}
   @keyframes conv-breathe{0%,100%{opacity:1}50%{opacity:.25}}
 }
 /* Dans l'en-tête, l'anneau précède le titre : même gabarit que les boutons
@@ -2002,17 +2008,30 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #mode-seg button.on{background:var(--accent-bg);color:var(--accent)}
 #mode-seg button:not(.on):hover{color:var(--text)}
 
-#code-hint{display:flex;align-items:center;gap:8px;margin:0 auto 6px;max-width:820px;padding:6px 10px;border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:3px;background:var(--panel);color:var(--dim);font-size:12px}
+/* Bandeaux du composeur (chrono du tour, puce mode code, critères). Ils vivent
+   DANS #composer — qui est en position:absolute — et suivent donc sa colonne
+   (--col). Posés avant lui dans le DOM, ils restaient dans le flux de la page
+   et disparaissaient SOUS la carte de saisie. */
+.composer-banner{margin:0 var(--col) 6px;padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;font-family:var(--mono)}
+#turn-clock{display:flex;align-items:center;gap:6px;letter-spacing:.03em}
+#turn-clock::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);animation:tcpulse 1.4s ease-in-out infinite}
+#turn-clock.done{color:var(--accent)}
+#turn-clock.done::before{animation:none;opacity:.6}
+@keyframes tcpulse{0%,100%{opacity:.25}50%{opacity:1}}
+
+#code-hint{display:flex;align-items:center;gap:8px;font-size:12px}
 #code-hint button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit}
 #code-hint button:hover{background:var(--accent-bg)}
 #code-hint #code-hint-no{border-color:var(--border);color:var(--dim);margin-left:auto}
 
-#criteria-box{margin:0 auto 6px;max-width:820px;border:1px solid var(--border);border-radius:3px;background:var(--panel);font-size:12px;overflow:hidden}
-#criteria-box.allpass{border-left:2px solid var(--accent)}
-#criteria-head{padding:5px 10px;color:var(--dim);cursor:pointer;user-select:none;letter-spacing:.03em}
+#criteria-box{padding:0;overflow:hidden;max-height:38vh;overflow-y:auto}
+#criteria-box.allpass{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+#criteria-head{padding:6px 12px;color:var(--dim);cursor:pointer;user-select:none;letter-spacing:.03em;position:sticky;top:0;background:var(--panel)}
+#criteria-head::after{content:' ▾';opacity:.5}
+#criteria-box.folded #criteria-head::after{content:' ▸'}
 #criteria-box.allpass #criteria-head{color:var(--accent)}
 #criteria-box.folded #criteria-list{display:none}
-#criteria-list{list-style:none;margin:0;padding:0 10px 6px}
+#criteria-list{list-style:none;margin:0;padding:0 12px 8px}
 #criteria-list li{padding:2px 0;color:var(--text)}
 #criteria-list li.crit-passed{color:var(--accent)}
 #criteria-list li.crit-failed{color:var(--err,#b3564d)}
@@ -5707,7 +5726,28 @@ function nowServer(){ return Date.now() - TS_SKEW; }
 let WORK_TIMER = null;
 function startWorkTimer(){ if(WORK_TIMER || REPLAYING) return; WORK_TIMER=setInterval(tickWork, 1000); }
 function stopWorkTimer(){ if(WORK_TIMER){ clearInterval(WORK_TIMER); WORK_TIMER=null; } }
-function tickWork(){ if(T.contentEl) paintStats(T.contentEl); paintTypingClock(); }
+function tickWork(){ if(T.contentEl) paintStats(T.contentEl); paintTypingClock(); paintTurnClock(); }
+
+// Chrono du TOUR COMPLET, affiché au-dessus de la carte de saisie : le temps
+// entre l'envoi du message et le moment où l'on peut reparler — outils, passes
+// de vérification et compaction compris. Les durées portées par les cartes ne
+// disent que la génération de texte ; celle-ci répond à « ça a pris combien de
+// temps, en tout ? ».
+function paintTurnClock(){
+  const composer = document.getElementById('composer');
+  if(!composer || !T.startTs) return;
+  let el = document.getElementById('turn-clock');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'turn-clock';
+    el.className = 'composer-banner';
+    composer.insertBefore(el, composer.firstChild);
+  }
+  const ms = (T.doneTs || nowServer()) - T.startTs;
+  if(!(ms > 0)){ el.remove(); return; }
+  el.textContent = (T.doneTs ? 'tour terminé en ' : 'en cours — ') + fmtDur(ms);
+  el.classList.toggle('done', !!T.doneTs);
+}
 // Le compteur se montre AUSSI sur l'indicateur « … » : pendant un appel d'outil
 // ou un long prefill il n'y a encore aucune réponse sous laquelle écrire, et
 // c'est précisément le moment où l'on se demande si ça avance.
@@ -5898,7 +5938,7 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ stopWorkTimer(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.reset!==undefined){ stopWorkTimer(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
@@ -5917,7 +5957,7 @@ function handleDelta(d){
     // Départ du chronomètre : l'horodatage SERVEUR du message, pas l'heure
     // locale — c'est ce qui rend la durée juste au rejeu comme en direct.
     T.startTs = d.ts || 0; T.doneTs = 0;
-    setBusy(true); startWorkTimer(); T.typingEl=addTyping(); return; }
+    setBusy(true); startWorkTimer(); paintTurnClock(); T.typingEl=addTyping(); return; }
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
@@ -5927,6 +5967,7 @@ function handleDelta(d){
     T.doneTs = d.ts || T.doneTs || 0;
     if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats);
     else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
+    paintTurnClock();                               // fige le total au-dessus de la carte
     setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
   if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
@@ -7949,14 +7990,28 @@ async function modeOnConvChange(){
 // Émise par le serveur (delta code_hint) quand un message de mode chat
 // ressemble à une tâche de code. Ignorable, jamais bloquante.
 
+// Insère un bandeau DANS le composeur, au-dessus de la barre de saisie.
+// #composer est en position:absolute : un élément posé AVANT lui dans le DOM
+// reste dans le flux normal de la page et se retrouve donc CACHÉ dessous. Ses
+// enfants, eux, suivent sa colonne (--col) et son empilement.
+function composerBanner(id){
+  const composer = document.getElementById('composer');
+  if(!composer) return null;
+  let el = document.getElementById(id);
+  if(!el){
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'composer-banner';
+    composer.insertBefore(el, composer.firstChild);
+  }
+  return el;
+}
+
 function showCodeHint(){
   if(CURRENT_MODE==='code' || document.getElementById('code-hint')) return;
-  const composer = document.getElementById('composer');
-  if(!composer) return;
-  const chip = document.createElement('div');
-  chip.id = 'code-hint';
+  const chip = composerBanner('code-hint');
+  if(!chip) return;
   chip.innerHTML = 'ça ressemble à une tâche de code — <button type="button" id="code-hint-yes">passer en mode Code</button><button type="button" id="code-hint-no" title="ignorer" aria-label="ignorer">✕</button>';
-  composer.parentNode.insertBefore(chip, composer);
   chip.querySelector('#code-hint-yes').onclick = ()=>{ setMode('code'); };
   chip.querySelector('#code-hint-no').onclick = hideCodeHint;
 }
@@ -7974,14 +8029,15 @@ function renderCriteria(list){
   let box = document.getElementById('criteria-box');
   if(!list || !list.length){ if(box) box.remove(); return; }
   if(CURRENT_MODE!=='code'){ if(box) box.remove(); return; }
-  if(!box){
-    const composer = document.getElementById('composer');
-    if(!composer) return;
-    box = document.createElement('div');
-    box.id = 'criteria-box';
+  const fresh = !box;
+  box = composerBanner('criteria-box');
+  if(!box) return;
+  if(fresh){
     box.innerHTML = '<div id="criteria-head"></div><ul id="criteria-list"></ul>';
-    composer.parentNode.insertBefore(box, composer);
     box.querySelector('#criteria-head').onclick = ()=> box.classList.toggle('folded');
+    // Repliée par défaut : cinq critères dépliés mangeaient la moitié de
+    // l'écran au-dessus de la saisie. L'en-tête porte déjà le compteur.
+    box.classList.add('folded');
   }
   box.style.display='';
   const passed = list.filter(c=>c.status==='passed').length;

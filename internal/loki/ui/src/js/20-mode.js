@@ -51,14 +51,28 @@ async function modeOnConvChange(){
 // Émise par le serveur (delta code_hint) quand un message de mode chat
 // ressemble à une tâche de code. Ignorable, jamais bloquante.
 
+// Insère un bandeau DANS le composeur, au-dessus de la barre de saisie.
+// #composer est en position:absolute : un élément posé AVANT lui dans le DOM
+// reste dans le flux normal de la page et se retrouve donc CACHÉ dessous. Ses
+// enfants, eux, suivent sa colonne (--col) et son empilement.
+function composerBanner(id){
+  const composer = document.getElementById('composer');
+  if(!composer) return null;
+  let el = document.getElementById(id);
+  if(!el){
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'composer-banner';
+    composer.insertBefore(el, composer.firstChild);
+  }
+  return el;
+}
+
 function showCodeHint(){
   if(CURRENT_MODE==='code' || document.getElementById('code-hint')) return;
-  const composer = document.getElementById('composer');
-  if(!composer) return;
-  const chip = document.createElement('div');
-  chip.id = 'code-hint';
+  const chip = composerBanner('code-hint');
+  if(!chip) return;
   chip.innerHTML = 'ça ressemble à une tâche de code — <button type="button" id="code-hint-yes">passer en mode Code</button><button type="button" id="code-hint-no" title="ignorer" aria-label="ignorer">✕</button>';
-  composer.parentNode.insertBefore(chip, composer);
   chip.querySelector('#code-hint-yes').onclick = ()=>{ setMode('code'); };
   chip.querySelector('#code-hint-no').onclick = hideCodeHint;
 }
@@ -76,14 +90,15 @@ function renderCriteria(list){
   let box = document.getElementById('criteria-box');
   if(!list || !list.length){ if(box) box.remove(); return; }
   if(CURRENT_MODE!=='code'){ if(box) box.remove(); return; }
-  if(!box){
-    const composer = document.getElementById('composer');
-    if(!composer) return;
-    box = document.createElement('div');
-    box.id = 'criteria-box';
+  const fresh = !box;
+  box = composerBanner('criteria-box');
+  if(!box) return;
+  if(fresh){
     box.innerHTML = '<div id="criteria-head"></div><ul id="criteria-list"></ul>';
-    composer.parentNode.insertBefore(box, composer);
     box.querySelector('#criteria-head').onclick = ()=> box.classList.toggle('folded');
+    // Repliée par défaut : cinq critères dépliés mangeaient la moitié de
+    // l'écran au-dessus de la saisie. L'en-tête porte déjà le compteur.
+    box.classList.add('folded');
   }
   box.style.display='';
   const passed = list.filter(c=>c.status==='passed').length;

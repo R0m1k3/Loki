@@ -70,7 +70,28 @@ function nowServer(){ return Date.now() - TS_SKEW; }
 let WORK_TIMER = null;
 function startWorkTimer(){ if(WORK_TIMER || REPLAYING) return; WORK_TIMER=setInterval(tickWork, 1000); }
 function stopWorkTimer(){ if(WORK_TIMER){ clearInterval(WORK_TIMER); WORK_TIMER=null; } }
-function tickWork(){ if(T.contentEl) paintStats(T.contentEl); paintTypingClock(); }
+function tickWork(){ if(T.contentEl) paintStats(T.contentEl); paintTypingClock(); paintTurnClock(); }
+
+// Chrono du TOUR COMPLET, affiché au-dessus de la carte de saisie : le temps
+// entre l'envoi du message et le moment où l'on peut reparler — outils, passes
+// de vérification et compaction compris. Les durées portées par les cartes ne
+// disent que la génération de texte ; celle-ci répond à « ça a pris combien de
+// temps, en tout ? ».
+function paintTurnClock(){
+  const composer = document.getElementById('composer');
+  if(!composer || !T.startTs) return;
+  let el = document.getElementById('turn-clock');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'turn-clock';
+    el.className = 'composer-banner';
+    composer.insertBefore(el, composer.firstChild);
+  }
+  const ms = (T.doneTs || nowServer()) - T.startTs;
+  if(!(ms > 0)){ el.remove(); return; }
+  el.textContent = (T.doneTs ? 'tour terminé en ' : 'en cours — ') + fmtDur(ms);
+  el.classList.toggle('done', !!T.doneTs);
+}
 // Le compteur se montre AUSSI sur l'indicateur « … » : pendant un appel d'outil
 // ou un long prefill il n'y a encore aucune réponse sous laquelle écrire, et
 // c'est précisément le moment où l'on se demande si ça avance.
@@ -261,7 +282,7 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ stopWorkTimer(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.reset!==undefined){ stopWorkTimer(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
@@ -280,7 +301,7 @@ function handleDelta(d){
     // Départ du chronomètre : l'horodatage SERVEUR du message, pas l'heure
     // locale — c'est ce qui rend la durée juste au rejeu comme en direct.
     T.startTs = d.ts || 0; T.doneTs = 0;
-    setBusy(true); startWorkTimer(); T.typingEl=addTyping(); return; }
+    setBusy(true); startWorkTimer(); paintTurnClock(); T.typingEl=addTyping(); return; }
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
@@ -290,6 +311,7 @@ function handleDelta(d){
     T.doneTs = d.ts || T.doneTs || 0;
     if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats);
     else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
+    paintTurnClock();                               // fige le total au-dessus de la carte
     setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
   if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
