@@ -13,3 +13,12 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# Ancienne application Python/React (fork pré-Go), plus utilisée : elle traîne
+# encore sur certains postes de développement et ne doit JAMAIS revenir dans le
+# dépôt — un « git add -A » distrait y a déjà versé 94 Mo de node_modules.
+/backend/
+/frontend/
+.pytest_cache/
+__pycache__/
+node_modules/
