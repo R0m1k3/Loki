@@ -326,6 +326,21 @@ function renderToolMsg(el, tu){
     // la ligne en cours (max-height côté CSS l'empêche de pousser le fil).
     pre.scrollTop = pre.scrollHeight;
   }
+  // Capture d'écran : l'image est rendue ICI, dans la bulle de l'outil. Elle ne
+  // dépend donc plus de la bonne volonté du modèle à recopier la ligne markdown
+  // — il l'oubliait, et l'utilisateur ne voyait jamais ce qu'il avait demandé.
+  if(tu.image){
+    const wrap=document.createElement('div'); wrap.className='tool-shot';
+    const img=document.createElement('img');
+    // src (et non data-src) : hydrateImages sélectionne sur src, puis le
+    // remplace par un blob obtenu avec la clé de pilotage.
+    img.setAttribute('src', '/api/chat/image?path='+encodeURIComponent(tu.image));
+    img.alt = tu.image.split('/').pop();
+    img.loading = 'lazy';
+    wrap.appendChild(img);
+    body.appendChild(wrap);
+    hydrateImages(wrap);
+  }
   // Diff d'une écriture (fichier ou page de mémoire) : lignes ajoutées en vert,
   // retirées en rouge, contexte en gris — comme un diff de terminal.
   if(tu.diff && tu.diff.length){

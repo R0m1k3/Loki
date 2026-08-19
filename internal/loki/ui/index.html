@@ -2026,6 +2026,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .askopts button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit}
 .askopts button:hover:not(:disabled){background:var(--accent-bg)}
 .askopts button:disabled{opacity:.5;cursor:default}
+
+/* Capture d'écran rendue dans la bulle de l'outil (web_screenshot) : l'image
+   ne dépend plus du modèle qui pense — ou non — à la recopier dans sa réponse. */
+.tool-shot{margin-top:8px}
+.tool-shot img{max-width:100%;max-height:420px;border:1px solid var(--border);border-radius:4px;display:block;cursor:zoom-in}
 </style></head><body>
 <button id="menubtn" onclick="toggleSide()" title="menu" aria-label="ouvrir le menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
@@ -5457,6 +5462,21 @@ function renderToolMsg(el, tu){
     // Le bloc est re-créé à chaque événement : on le recale en bas pour suivre
     // la ligne en cours (max-height côté CSS l'empêche de pousser le fil).
     pre.scrollTop = pre.scrollHeight;
+  }
+  // Capture d'écran : l'image est rendue ICI, dans la bulle de l'outil. Elle ne
+  // dépend donc plus de la bonne volonté du modèle à recopier la ligne markdown
+  // — il l'oubliait, et l'utilisateur ne voyait jamais ce qu'il avait demandé.
+  if(tu.image){
+    const wrap=document.createElement('div'); wrap.className='tool-shot';
+    const img=document.createElement('img');
+    // src (et non data-src) : hydrateImages sélectionne sur src, puis le
+    // remplace par un blob obtenu avec la clé de pilotage.
+    img.setAttribute('src', '/api/chat/image?path='+encodeURIComponent(tu.image));
+    img.alt = tu.image.split('/').pop();
+    img.loading = 'lazy';
+    wrap.appendChild(img);
+    body.appendChild(wrap);
+    hydrateImages(wrap);
   }
   // Diff d'une écriture (fichier ou page de mémoire) : lignes ajoutées en vert,
   // retirées en rouge, contexte en gris — comme un diff de terminal.

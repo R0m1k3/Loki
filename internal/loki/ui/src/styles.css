@@ -1995,3 +1995,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .askopts button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit}
 .askopts button:hover:not(:disabled){background:var(--accent-bg)}
 .askopts button:disabled{opacity:.5;cursor:default}
+
+/* Capture d'écran rendue dans la bulle de l'outil (web_screenshot) : l'image
+   ne dépend plus du modèle qui pense — ou non — à la recopier dans sa réponse. */
+.tool-shot{margin-top:8px}
+.tool-shot img{max-width:100%;max-height:420px;border:1px solid var(--border);border-radius:4px;display:block;cursor:zoom-in}

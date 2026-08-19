@@ -370,6 +370,12 @@ type ToolUsedEvent struct {
 	// Diff : lignes ajoutées/retirées quand l'outil a MODIFIÉ quelque chose
 	// (edit, mem_add, mem_edit). L'UI les affiche en vert (+) et rouge (-).
 	Diff []DiffLine
+	// Image : chemin (relatif au dossier de travail) d'une image PRODUITE par
+	// l'outil — aujourd'hui la capture de web_screenshot. L'UI l'affiche dans la
+	// bulle de l'outil. Sans ça, la capture n'apparaissait QUE si le modèle
+	// pensait à recopier la ligne markdown rendue par l'outil : un petit modèle
+	// l'oublie, et l'utilisateur ne voyait jamais l'image qu'il avait demandée.
+	Image string
 }
 
 // shownDisplayMax borne ce qu'un résultat d'outil occupe dans le FLUX vers l'UI.
@@ -1210,7 +1216,13 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if !strings.HasPrefix(result, "[erreur]") {
 					doneCalls[callKey] = result
 				}
-				cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true, Diff: diff}})
+				// Capture d'écran : l'image part avec l'événement pour être
+				// affichée dans la bulle, quoi que le modèle en fasse ensuite.
+				shot := ""
+				if tc.Function.Name == "web_screenshot" {
+					shot = capturedRelPath(result)
+				}
+				cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true, Diff: diff, Image: shot}})
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)

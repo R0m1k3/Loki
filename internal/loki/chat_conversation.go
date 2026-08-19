@@ -442,6 +442,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			if len(ev.ToolUsed.Diff) > 0 {
 				tu["diff"] = ev.ToolUsed.Diff
 			}
+			if ev.ToolUsed.Image != "" {
+				tu["image"] = ev.ToolUsed.Image
+			}
 			c.appendDelta(epoch, map[string]any{"tool_used": tu})
 		case ev.NewHistory != nil:
 			// Compaction faite en cours de tour : elle remplace la base au lieu de
