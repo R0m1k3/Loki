@@ -108,6 +108,14 @@ func cmdServe(args []string) error {
 		"-ub", get("UBATCH", "512"),
 		"--host", get("HOST", "0.0.0.0"),
 		"--port", get("PORT", "8080"),
+		// --parallel 1 EXPLICITE : les llama-server récents ouvrent 4 slots par
+		// défaut, soit des tampons de calcul GPU ×4 — pour un serveur mono-
+		// utilisateur comme Loki, c'est de la VRAM brûlée pour rien. Vécu : une
+		// config 27B/60k ctx qui tournait très bien est morte en « cudaMalloc
+		// failed: out of memory » après une mise à jour du moteur, uniquement à
+		// cause de ce nouveau défaut. PARALLEL=n dans le preset pour qui veut
+		// vraiment servir plusieurs requêtes à la fois.
+		"--parallel", get("PARALLEL", "1"),
 	}
 	// NGL=auto : on n'envoie PAS -ngl, et llama.cpp choisit lui-même combien de
 	// couches tiennent dans la VRAM libre (common_fit_params). Il s'en abstient
