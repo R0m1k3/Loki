@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -242,7 +243,7 @@ func safeSlug(s string) string {
 	return s
 }
 
-func toolWebScreenshot(args map[string]any) string {
+func toolWebScreenshot(args map[string]any, caps Caps) string {
 	bin := playwrightBin()
 	if bin == "" {
 		return "[erreur] Playwright n'est pas installé dans cette image (bâtie avec PLAYWRIGHT=0)."
@@ -254,6 +255,13 @@ func toolWebScreenshot(args map[string]any) string {
 	}
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		return "[erreur] url invalide : elle doit commencer par http:// ou https://"
+	}
+	// Accès internet coupé : la capture reste offerte au MODE CODE, mais bornée
+	// aux adresses locales — voir sa propre page de dev, pas le web. Sans cette
+	// borne, l'outil rouvrirait par la fenêtre ce que l'interrupteur ferme.
+	if !caps.Internet && !isLocalURL(url) {
+		return "[refusé] L'accès internet est coupé : la capture ne marche que sur une adresse locale " +
+			"(localhost / 127.0.0.1), par exemple ton serveur de dev. Active l'accès internet pour le web."
 	}
 	// width n'est plus déclaré dans le schéma (budget de préambule), mais reste
 	// honoré s'il arrive quand même : un modèle qui l'invente obtient le
@@ -396,4 +404,20 @@ func lastLines(s string, n int) string {
 		keep = keep[len(keep)-n:]
 	}
 	return strings.Join(keep, " · ")
+}
+
+// isLocalURL : l'adresse désigne-t-elle cette machine ? Sert de borne quand
+// l'accès internet est coupé mais que le mode code doit pouvoir photographier
+// son propre serveur de dev.
+func isLocalURL(raw string) bool {
+	u, err := neturl.Parse(raw)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	switch host {
+	case "localhost", "127.0.0.1", "::1", "0.0.0.0":
+		return true
+	}
+	return strings.HasSuffix(host, ".localhost")
 }

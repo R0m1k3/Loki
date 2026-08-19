@@ -296,12 +296,16 @@ func EnabledTools(caps Caps) []Tool {
 	// donc prompt et outils restent cohérents — pas de web_search halluciné.
 	if caps.Agent && caps.Internet {
 		tools = append(tools, webSearchTool(), webOpenTool(), webReadTool(), webGrepTool())
-		// Capture d'écran : seulement si Playwright est réellement présent dans
-		// l'image. Annoncer un outil absent enverrait le modèle en boucle de
-		// réessai sur un échec systématique.
-		if screenshotAvailable() {
-			tools = append(tools, webScreenshotTool())
-		}
+	}
+	// Capture d'écran : seulement si Playwright est réellement présent dans
+	// l'image (annoncer un outil absent enverrait le modèle en boucle de
+	// réessai). Offerte aussi SANS accès internet quand le mode code est actif :
+	// photographier son propre serveur de dev est une vérification locale, pas
+	// une sortie sur le web — et sans elle, le modèle croyait n'avoir aucun
+	// navigateur et perdait des minutes à installer puppeteer. La borne aux
+	// adresses locales vit dans toolWebScreenshot.
+	if caps.Agent && (caps.Internet || caps.Code) && screenshotAvailable() {
+		tools = append(tools, webScreenshotTool())
 	}
 	// Outils MCP : serveurs tiers configurés par le propriétaire de la machine.
 	// Comme bash, ils exécutent du code arbitraire côté hôte → réservés au mode
@@ -1195,7 +1199,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				case "web_grep":
 					result = capWebOutput(toolWebGrep(args))
 				case "web_screenshot":
-					result = toolWebScreenshot(args)
+					result = toolWebScreenshot(args, caps)
 				default:
 					if isMCPTool(tc.Function.Name) {
 						result = mcpCall(tc.Function.Name, args)
