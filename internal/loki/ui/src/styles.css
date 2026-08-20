@@ -662,6 +662,10 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    défilant toute seule (voir flushRender, 09-stream.js). L'animation de repli
    garde son overflow:hidden via la hauteur inline — les deux cohabitent. */
 .msg.reasoning .bodywrap,.msg.tool .bodywrap{max-height:280px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+/* Une capture d'écran ne se lit pas par le trou d'une serrure : la carte qui en
+   porte une échappe au plafond (l'image a déjà son propre max-height à 420 px,
+   cliquable plein écran via la visionneuse). */
+.msg.tool .bodywrap:has(.tool-shot){max-height:none}
 .msg.collapsible .bodywrap>.body{min-width:0}
 .msg.collapsible.collapsed .bodywrap{opacity:0;margin-top:0}
 /* Composer = un seul bloc cohérent : barre de contexte intégrée en tête (fine

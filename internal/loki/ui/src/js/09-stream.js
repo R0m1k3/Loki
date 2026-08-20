@@ -485,8 +485,14 @@ function handleDelta(d){
     // tour continue, et rien d'autre n'est visible). Sinon, comportement inchangé.
     if(!tu.done || viewOn('hide-tools')) showTyping('tool');
     // Résultat arrivé : la carte est finie, elle se replie tout de suite (en
-    // direct seulement — au rejeu elle est déjà née repliée).
-    if(tu.done){ if(!REPLAYING && T.pendingToolEl) collapseBody(T.pendingToolEl); T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
+    // direct seulement — au rejeu elle est déjà née repliée). SAUF une capture
+    // d'écran : l'image EST le résultat, la replier la cacherait sitôt prise.
+    if(tu.done){
+      if(!REPLAYING && T.pendingToolEl && !tu.image) collapseBody(T.pendingToolEl);
+      // Carte à image : retirée de la liste du tour, sinon le repli de fin de
+      // tour (collapseAll) la fermerait quand même.
+      if(tu.image && T.pendingToolEl){ const i=T.turnCollapsibles.indexOf(T.pendingToolEl); if(i>=0) T.turnCollapsibles.splice(i,1); }
+      T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
     return; }
   if(d.drop_reasoning){
     smoothReset(); cancelRender(); // le bloc raisonnement disparaît : rien à rendre
