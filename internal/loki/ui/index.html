@@ -2069,7 +2069,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    Deux volets : nav des sections à gauche, LE panneau choisi à droite. Les
    panneaux réutilisent tels quels les gabarits de la barre latérale (.slist,
    .switchrow, .subhead…), seuls la coque et le routage sont neufs. */
-#side-settings-btn{display:flex;align-items:center;gap:8px;width:100%;margin:8px 0 0;padding:10px 12px;
+#side-settings-btn{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:10px 14px;flex:none;
   background:none;border:0;border-top:1px solid var(--border);border-radius:0;box-shadow:none;
   font-size:13px;color:var(--text);cursor:pointer;text-align:left}
 #side-settings-btn:hover{background:var(--bubble)}
@@ -2205,15 +2205,16 @@ html[data-files="1"] #files-btn{color:var(--accent)}
        latérale par défaut, c'est les discussions et la machine. Les sections
        ouvertes par programme (journal du moteur, installation llama.cpp)
        passent par openDetails(), qui déplie aussi les parents. -->
-  <!-- Réglages : tout vit désormais dans une modale (nav de sections à gauche,
-       panneau à droite) — la barre latérale ne garde que les discussions et le
-       moniteur machine. Voir js/22-settings-modal.js ; les ids historiques des
-       sections (svc-log-box, lc-details…) sont conservés sur les panneaux. -->
+  </div><!-- /#side-scroll -->
+  <!-- Réglages : tout vit dans une modale (nav de sections à gauche, panneau à
+       droite) — voir js/22-settings-modal.js ; les ids historiques des sections
+       (svc-log-box, lc-details…) sont conservés sur les panneaux. Le bouton est
+       ANCRÉ en pied de barre, juste au-dessus du moniteur machine : toujours au
+       même endroit, quel que soit le nombre de discussions. -->
   <button id="side-settings-btn" onclick="openSettings()" aria-haspopup="dialog">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.3 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.06c.26.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg>
     <span>Réglages</span>
   </button>
-  </div><!-- /#side-scroll -->
   <!-- Moniteur machine : charge GPU, VRAM et mémoire vive. Posé en pied, en
        jauges fines — visible en permanence sans jamais disputer la place au
        fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
@@ -4300,7 +4301,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -8102,13 +8103,12 @@ async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
   CONVS = r.conversations || [];
-  // La plus récente EN TÊTE. Le serveur trie déjà par date d'activité, mais son
-  // tri STABLE laissait une discussion toute neuve SOUS celle qu'on vient de
-  // quitter (les deux sont touchées dans la même seconde) : on départage par la
-  // date de création, puis par l'ordre du fichier d'index (création croissante).
+  // Ordre de CRÉATION, la plus récente en tête : une discussion garde sa place
+  // dans la liste quoi qu'il arrive — écrire dans un vieux fil ne le fait pas
+  // remonter (le serveur, lui, trie par activité). Départage par l'ordre du
+  // fichier d'index pour les créations dans la même seconde.
   const ord = new Map(CONVS.map((c, i) => [c.id, i]));
-  CONVS.sort((a, b) => (b.updated || 0) - (a.updated || 0)
-                    || (b.created || 0) - (a.created || 0)
+  CONVS.sort((a, b) => (b.created || 0) - (a.created || 0)
                     || ord.get(b.id) - ord.get(a.id));
   CONV_ACTIVE = r.active || '';
   CONV_BUSY = !!r.busy;
@@ -8433,13 +8433,36 @@ function openDetails(el){
 // à cliquer la ligne correspondante dans les réglages (switchTo demande
 // confirmation puis relance le moteur).
 function onModelSwitch(sel){
-  const n = parseInt(sel.value, 10);
+  const v = sel.value;
+  // Entrée du groupe « Modèles » : charger CE .gguf, sans preset — la config
+  // active garde son contexte et son échantillonnage, seul MODEL change.
+  if(v && v.startsWith('m:')){
+    switchModelFile(v.slice(2), sel.options[sel.selectedIndex].textContent);
+    return;
+  }
+  const n = parseInt(v, 10);
   if(!n) return;
   const name = sel.options[sel.selectedIndex].textContent;
   // La liste est repeinte par loadPresets() une fois la bascule faite (ou
   // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
   // pendant les quelques secondes du redémarrage.
   switchTo(n, name);
+}
+
+// Bascule directe vers un fichier de modèle (POST /api/models/use) : confirme,
+// écrit MODEL, le service redémarre derrière. Annulé ou en échec, la sélection
+// revient sur le modèle réellement chargé.
+async function switchModelFile(value, name){
+  if(!await askConfirm('Charger « ' + name + ' » et redémarrer le moteur ?', {title:'Changer de modèle', okText:'Charger'})){
+    paintModelSwitch();
+    return;
+  }
+  toast('changement de modèle…');
+  let r = null;
+  try{ r = await jpost('/api/models/use', {value}); }catch(_){}
+  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); paintModelSwitch(); return; }
+  toast('modèle en cours de chargement…');
+  loadAll();
 }
 
 // Le sélecteur affiche LE MODÈLE CHARGÉ, pas seulement le preset actif.
@@ -8454,10 +8477,20 @@ function onModelSwitch(sel){
 // Deux sources, deux moments : loadPresets() donne la liste, loadCfg() donne le
 // modèle. Chacune dépose ce qu'elle sait et redemande le dessin — elles partent
 // en parallèle (loadAll), aucun ordre n'est garanti.
-let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '';
+let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '', MS_FILES = [];
 
 function renderModelSwitch(presets, active){
   MS_PRESETS = presets || []; MS_ACTIVE = active || null;
+  paintModelSwitch();
+}
+// Les fichiers .gguf découverts sur le disque : le sélecteur doit permettre de
+// CHARGER un modèle, pas seulement de rappeler un preset — sans preset créé,
+// il n'offrait aucun choix. Chargé par loadAll(), rafraîchi avec le reste.
+async function loadModelSwitchFiles(){
+  try{
+    const r = await jget('/api/models');
+    MS_FILES = Array.isArray(r) ? r : [];
+  }catch(_){ return; }
   paintModelSwitch();
 }
 // Appelé par loadCfg avec la valeur MODEL de la configuration active.
@@ -8486,14 +8519,31 @@ function paintModelSwitch(){
     o.selected = true;
     sel.appendChild(o);
   }
-  MS_PRESETS.forEach((p, i) => {
-    const o = document.createElement('option');
-    o.value = String(i + 1);
-    o.textContent = p.name;
-    if(MS_ACTIVE && p.id === MS_ACTIVE.id) o.selected = true;
-    sel.appendChild(o);
-  });
-  sel.disabled = !MS_PRESETS.length;
+  if(MS_PRESETS.length){
+    const g = document.createElement('optgroup'); g.label = 'Presets';
+    MS_PRESETS.forEach((p, i) => {
+      const o = document.createElement('option');
+      o.value = String(i + 1);
+      o.textContent = p.name;
+      if(MS_ACTIVE && p.id === MS_ACTIVE.id) o.selected = true;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+  // Modèles du disque : en choisir un le CHARGE (voir switchModelFile). Un
+  // preset règle tout (contexte, sampling…) ; un modèle ne change que MODEL.
+  if(MS_FILES.length){
+    const g = document.createElement('optgroup'); g.label = 'Modèles (.gguf)';
+    for(const m of MS_FILES){
+      const o = document.createElement('option');
+      o.value = 'm:' + m.value;
+      o.textContent = modelLabel(m.name);
+      if(m.missing && m.missing.length) o.disabled = true; // tranches manquantes
+      g.appendChild(o);
+    }
+    sel.appendChild(g);
+  }
+  sel.disabled = !MS_PRESETS.length && !MS_FILES.length;
   sel.title = MS_MODEL
     ? 'modèle chargé : ' + MS_MODEL + ' — changer de preset relance le moteur'
     : 'aucun modèle configuré';

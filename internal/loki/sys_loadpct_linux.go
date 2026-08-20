@@ -20,6 +20,24 @@ import (
 	"strings"
 )
 
+// procVmRSS lit la mémoire résidente (octets) d'un process — /proc/<pid>/status,
+// ligne « VmRSS:  N kB ». 0 si illisible.
+func procVmRSS(pid int) int64 {
+	b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(line, "VmRSS:"); ok {
+			v = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(v), "kB"))
+			if n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64); err == nil {
+				return n * 1024
+			}
+		}
+	}
+	return 0
+}
+
 // engineLoadPct renvoie le pourcentage estimé de chargement du modèle, ou -1
 // quand il n'est pas mesurable (pas de PID, /proc illisible, taille inconnue).
 func engineLoadPct() int {
@@ -53,6 +71,16 @@ func engineLoadPct() int {
 	}
 	if read < 0 {
 		return -1
+	}
+	// Modèle déjà dans le cache disque (redémarrage à chaud) : llama-server ne
+	// LIT plus rien sur le disque — les pages viennent du cache, read_bytes
+	// reste à zéro et le pourcentage restait figé à 0 jusqu'au « prêt ». La
+	// mémoire résidente (VmRSS), elle, grandit quoi qu'il arrive : les pages du
+	// .gguf touchées via mmap y comptent, cache ou pas. On prend le plus avancé
+	// des deux — approximatif (l'offload GPU peut relâcher des pages), mais le
+	// compteur BOUGE au lieu de mentir.
+	if rss := procVmRSS(pid); rss > read {
+		read = rss
 	}
 	pct := int(read * 100 / size)
 	if pct > 99 {

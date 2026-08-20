@@ -179,6 +179,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/models", handleModels)
 	api("/api/models/delete", handleModelDelete)
 	api("/api/models/dirs", handleModelDirs) // dossiers de modèles (disque externe…)
+	api("/api/models/use", handleModelUse)   // charger CE .gguf (sélecteur de l'en-tête)
 	api("/api/models/download", handleModelDownload)
 	api("/api/models/download/probe", handleModelDownloadProbe) // taille + espace libre avant de lancer
 	api("/api/models/download/status", handleModelDownloadStatus)

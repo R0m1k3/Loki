@@ -24,13 +24,12 @@ async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
   CONVS = r.conversations || [];
-  // La plus récente EN TÊTE. Le serveur trie déjà par date d'activité, mais son
-  // tri STABLE laissait une discussion toute neuve SOUS celle qu'on vient de
-  // quitter (les deux sont touchées dans la même seconde) : on départage par la
-  // date de création, puis par l'ordre du fichier d'index (création croissante).
+  // Ordre de CRÉATION, la plus récente en tête : une discussion garde sa place
+  // dans la liste quoi qu'il arrive — écrire dans un vieux fil ne le fait pas
+  // remonter (le serveur, lui, trie par activité). Départage par l'ordre du
+  // fichier d'index pour les créations dans la même seconde.
   const ord = new Map(CONVS.map((c, i) => [c.id, i]));
-  CONVS.sort((a, b) => (b.updated || 0) - (a.updated || 0)
-                    || (b.created || 0) - (a.created || 0)
+  CONVS.sort((a, b) => (b.created || 0) - (a.created || 0)
                     || ord.get(b.id) - ord.get(a.id));
   CONV_ACTIVE = r.active || '';
   CONV_BUSY = !!r.busy;

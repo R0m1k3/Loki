@@ -2038,7 +2038,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
    Deux volets : nav des sections à gauche, LE panneau choisi à droite. Les
    panneaux réutilisent tels quels les gabarits de la barre latérale (.slist,
    .switchrow, .subhead…), seuls la coque et le routage sont neufs. */
-#side-settings-btn{display:flex;align-items:center;gap:8px;width:100%;margin:8px 0 0;padding:10px 12px;
+#side-settings-btn{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:10px 14px;flex:none;
   background:none;border:0;border-top:1px solid var(--border);border-radius:0;box-shadow:none;
   font-size:13px;color:var(--text);cursor:pointer;text-align:left}
 #side-settings-btn:hover{background:var(--bubble)}

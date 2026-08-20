@@ -451,7 +451,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
