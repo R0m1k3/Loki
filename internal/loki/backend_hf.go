@@ -67,6 +67,11 @@ type hfRepo struct {
 	ID        string `json:"id"`
 	Downloads int    `json:"downloads"`
 	Likes     int    `json:"likes"`
+	// Gated : le dépôt exige d'avoir accepté ses conditions ET un jeton. Il se
+	// LIT pourtant sans rien (arborescence en 200), et ne refuse qu'au moment du
+	// transfert : sans cette pastille, l'interface propose des quants avec leur
+	// verdict mémoire et le téléchargement échoue en 401 sans prévenir.
+	Gated bool `json:"gated"`
 }
 
 // hfEntry — un .gguf installable. Shards > 1 signale une famille de tranches :
@@ -85,6 +90,7 @@ type hfEntry struct {
 // hfListing — le contenu utile d'un dépôt, trié.
 type hfListing struct {
 	Repo       string    `json:"repo"`
+	Gated      bool      `json:"gated"`
 	Models     []hfEntry `json:"models"`
 	Projectors []hfEntry `json:"projectors"`
 	Drafts     []hfEntry `json:"drafts"`
@@ -95,11 +101,113 @@ type hfListing struct {
 // transfert : sans lui un dépôt gated répond 401 et Loki afficherait « aucun
 // résultat » là où il faudrait dire « dépôt à accès restreint ».
 func hfAuth(req *http.Request) {
-	if k := os.Getenv("HF_TOKEN"); k != "" {
+	if k := hfToken(); k != "" {
 		req.Header.Set("Authorization", "Bearer "+k)
 	}
 	req.Header.Set("User-Agent", "loki/"+Version)
 	req.Header.Set("Accept", "application/json")
+}
+
+// ---- Jeton Hugging Face -----------------------------------------------------
+//
+// Le jeton vivait UNIQUEMENT dans la variable d'environnement HF_TOKEN. En
+// conteneur, c'était l'exiger au mauvais moment : on découvre qu'un dépôt est
+// verrouillé depuis l'interface, et il faudrait éditer un docker-compose puis
+// recréer le conteneur pour y répondre. Il se règle donc aussi dans l'interface,
+// et se range là où sont déjà les secrets (base d'état) — pas dans config.env,
+// que le changement de preset réécrit en bloc.
+//
+// Priorité : le jeton enregistré d'abord, la variable d'environnement ensuite.
+// Rien d'enregistré = comportement d'avant, à l'octet près.
+
+// hfToken renvoie le jeton effectivement utilisé, ou "".
+func hfToken() string {
+	if t := strings.TrimSpace(getStr(bkState, "hf_token")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv("HF_TOKEN"))
+}
+
+// hfTokenSource dit D'OÙ vient le jeton : « config » (enregistré ici), « env »
+// (HF_TOKEN du conteneur) ou "" (aucun). L'interface en a besoin pour ne pas
+// proposer d'effacer un jeton qu'elle ne peut pas effacer.
+func hfTokenSource() string {
+	switch {
+	case strings.TrimSpace(getStr(bkState, "hf_token")) != "":
+		return "config"
+	case strings.TrimSpace(os.Getenv("HF_TOKEN")) != "":
+		return "env"
+	}
+	return ""
+}
+
+// hfTokenSet dit si un jeton est disponible, pour que l'interface distingue
+// « il faut en poser un » de « celui qui est posé ne suffit pas ».
+func hfTokenSet() bool { return hfToken() != "" }
+
+// writeHFToken enregistre (ou efface, tok == "") le jeton. Le cache des réponses
+// Hugging Face est vidé au passage : il contient des listes obtenues SANS jeton,
+// où un dépôt verrouillé peut manquer ou paraître illisible.
+func writeHFToken(tok string) error {
+	if err := putStr(bkState, "hf_token", strings.TrimSpace(tok)); err != nil {
+		return err
+	}
+	hfCacheMu.Lock()
+	hfCache = map[string]hfCacheItem{}
+	hfCacheMu.Unlock()
+	return nil
+}
+
+// maskHFToken n'affiche qu'assez de caractères pour reconnaître le jeton posé.
+// Il n'est jamais renvoyé en clair : contrairement à la clé API du serveur,
+// personne n'a besoin de le recopier depuis Loki.
+func maskHFToken(t string) string {
+	t = strings.TrimSpace(t)
+	if t == "" {
+		return ""
+	}
+	if len(t) <= 8 {
+		return "…" + t[len(t)-2:]
+	}
+	return t[:3] + "…" + t[len(t)-4:]
+}
+
+// hfWhoAmI vérifie un jeton auprès de Hugging Face et renvoie le nom du compte.
+// Enregistrer un jeton sans le vérifier, c'est déplacer l'échec : on croirait le
+// problème réglé jusqu'au prochain 401, quinze minutes de téléchargement plus
+// tard.
+func hfWhoAmI(ctx context.Context, tok string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, hfTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", hfHost+"/api/whoami-v2", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(tok))
+	req.Header.Set("User-Agent", "loki/"+Version)
+	req.Header.Set("Accept", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Hugging Face injoignable : %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return "", fmt.Errorf("jeton refusé par Hugging Face (expiré, révoqué ou mal copié)")
+	}
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("Hugging Face a répondu %d", resp.StatusCode)
+	}
+	var who struct {
+		Name string `json:"name"`
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal(raw, &who); err != nil {
+		return "", err
+	}
+	return who.Name, nil
 }
 
 // hfCache : mémo commun à la recherche et aux arborescences, clé = l'URL
@@ -172,27 +280,97 @@ func hfSearch(ctx context.Context, q string) ([]hfRepo, error) {
 	if len(q) > hfMaxQuery {
 		q = q[:hfMaxQuery]
 	}
+	// `expand[]` remplace les champs par défaut de la réponse : `gated` s'y
+	// ajoute, mais downloads et likes doivent alors être redemandés
+	// explicitement, sinon ils disparaissent et la liste perd son classement
+	// lisible.
 	endpoint := hfHost + "/api/models?" + url.Values{
 		"search":    {q},
 		"filter":    {"gguf"},
 		"limit":     {fmt.Sprint(hfMaxRepos)},
 		"sort":      {"downloads"},
 		"direction": {"-1"},
+		"expand[]":  {"gated", "downloads", "likes"},
 	}.Encode()
 
 	var raw []struct {
 		ID        string `json:"id"`
 		Downloads int    `json:"downloads"`
 		Likes     int    `json:"likes"`
+		Gated     any    `json:"gated"`
 	}
 	if err := hfGetJSON(ctx, endpoint, hfSearchTTL, &raw); err != nil {
 		return nil, err
 	}
 	out := make([]hfRepo, 0, len(raw))
 	for _, r := range raw {
-		out = append(out, hfRepo{ID: r.ID, Downloads: r.Downloads, Likes: r.Likes})
+		out = append(out, hfRepo{ID: r.ID, Downloads: r.Downloads, Likes: r.Likes, Gated: hfGatedFlag(r.Gated)})
 	}
 	return out, nil
+}
+
+// hfGatedFlag lit le champ `gated` de l'API, qui n'est PAS un booléen : il vaut
+// false, "auto" (accepter les conditions suffit) ou "manual" (l'auteur valide
+// chaque demande). Les deux dernières valeurs verrouillent le téléchargement de
+// la même façon ; seule la présence d'un verrou nous intéresse ici.
+func hfGatedFlag(v any) bool {
+	switch g := v.(type) {
+	case bool:
+		return g
+	case string:
+		switch strings.ToLower(strings.TrimSpace(g)) {
+		case "", "false", "none", "no":
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// hfRepoGated dit si un dépôt est verrouillé. L'arborescence (hfFiles) ne porte
+// pas l'information : elle se lit sur la fiche du dépôt, en un appel séparé et
+// mis en cache comme elle. Une erreur ici ne doit RIEN casser — au pire on
+// n'affiche pas l'avertissement, et le téléchargement dira lui-même pourquoi il
+// a été refusé.
+func hfRepoGated(ctx context.Context, repo string) bool {
+	var info struct {
+		Gated any `json:"gated"`
+	}
+	endpoint := hfHost + "/api/models/" + repo + "?" + url.Values{"expand[]": {"gated"}}.Encode()
+	if err := hfGetJSON(ctx, endpoint, hfFilesTTL, &info); err != nil {
+		return false
+	}
+	return hfGatedFlag(info.Gated)
+}
+
+// isHFHost dit si un hôte appartient à Hugging Face. Sert à décider qui a le
+// droit de recevoir le jeton.
+func isHFHost(host string) bool {
+	h := strings.ToLower(host)
+	if i := strings.IndexByte(h, ':'); i >= 0 {
+		h = h[:i]
+	}
+	return h == "huggingface.co" || strings.HasSuffix(h, ".huggingface.co") ||
+		h == "hf.co" || strings.HasSuffix(h, ".hf.co")
+}
+
+// hfRepoFromURL retrouve « auteur/dépôt » dans un lien de téléchargement
+// Hugging Face, pour pouvoir le nommer dans un message d'erreur. Renvoie "" si
+// le lien pointe ailleurs.
+func hfRepoFromURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || !strings.Contains(u.Host, "huggingface.co") {
+		return ""
+	}
+	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segs) < 4 || (segs[2] != "resolve" && segs[2] != "blob") {
+		return ""
+	}
+	repo := segs[0] + "/" + segs[1]
+	if !hfRepoRe.MatchString(repo) {
+		return ""
+	}
+	return repo
 }
 
 // hfFiles liste les .gguf d'un dépôt et les range par famille.
@@ -229,7 +407,9 @@ func hfFiles(ctx context.Context, repo string) (hfListing, error) {
 		}
 		files = append(files, hfFile{Path: f.Path, Size: n})
 	}
-	return hfClassify(repo, files), nil
+	out := hfClassify(repo, files)
+	out.Gated = hfRepoGated(ctx, repo)
+	return out, nil
 }
 
 // hfFile — une entrée d'arborescence, réduite à ce dont le classement a besoin.

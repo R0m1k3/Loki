@@ -1,6 +1,10 @@
 package loki
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -203,5 +207,153 @@ func TestFitVerdict(t *testing.T) {
 	long, _ := fitVerdict(hardwareInfo{VRAMGB: 24}, 21*gb, 0, 262144)
 	if court == long {
 		t.Errorf("le contexte ne change rien au verdict (%q dans les deux cas)", court)
+	}
+}
+
+// Le champ `gated` de l'API n'est pas un booléen : false, "auto" ou "manual".
+// Le lire comme un bool laissait passer les deux valeurs qui verrouillent
+// vraiment le téléchargement.
+func TestHFGatedFlag(t *testing.T) {
+	for _, c := range []struct {
+		in   any
+		want bool
+	}{
+		{nil, false},
+		{false, false},
+		{true, true},
+		{"auto", true},
+		{"manual", true},
+		{"false", false},
+		{"", false},
+	} {
+		if got := hfGatedFlag(c.in); got != c.want {
+			t.Errorf("hfGatedFlag(%#v) = %v, attendu %v", c.in, got, c.want)
+		}
+	}
+}
+
+// hfRepoFromURL sert à NOMMER le dépôt dans le message d'erreur : un lien qui
+// ne vient pas de Hugging Face ne doit rien produire plutôt qu'un nom inventé.
+func TestHFRepoFromURL(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"https://huggingface.co/orcarouter/Qwen3.8-27B-Uncensored-GGUF/resolve/main/m.gguf", "orcarouter/Qwen3.8-27B-Uncensored-GGUF"},
+		{"https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/blob/main/sub/dir/m.gguf", "ggml-org/Qwen3.8-27B-GGUF"},
+		{"https://example.com/ggml-org/Qwen3.8-27B-GGUF/resolve/main/m.gguf", ""},
+		{"https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF", ""},
+		{"pas une url", ""},
+	} {
+		if got := hfRepoFromURL(c.in); got != c.want {
+			t.Errorf("hfRepoFromURL(%q) = %q, attendu %q", c.in, got, c.want)
+		}
+	}
+}
+
+// Le jeton enregistré dans l'interface prime sur HF_TOKEN, et son absence
+// rend exactement le comportement d'avant : la variable d'environnement.
+func TestHFTokenPrecedence(t *testing.T) {
+	testHome(t)
+	t.Setenv("HF_TOKEN", "")
+	if hfToken() != "" || hfTokenSource() != "" || hfTokenSet() {
+		t.Fatalf("sans rien : jeton=%q source=%q", hfToken(), hfTokenSource())
+	}
+	t.Setenv("HF_TOKEN", "hf_env")
+	if hfToken() != "hf_env" || hfTokenSource() != "env" {
+		t.Fatalf("HF_TOKEN seul : jeton=%q source=%q", hfToken(), hfTokenSource())
+	}
+	if err := writeHFToken("  hf_enregistre  "); err != nil {
+		t.Fatal(err)
+	}
+	if hfToken() != "hf_enregistre" || hfTokenSource() != "config" {
+		t.Fatalf("jeton enregistré : jeton=%q source=%q", hfToken(), hfTokenSource())
+	}
+	// Retiré ici, la variable du conteneur reprend la main plutôt que de laisser
+	// Loki sans jeton alors que l'environnement en fournit un.
+	if err := writeHFToken(""); err != nil {
+		t.Fatal(err)
+	}
+	if hfToken() != "hf_env" || hfTokenSource() != "env" {
+		t.Fatalf("après retrait : jeton=%q source=%q", hfToken(), hfTokenSource())
+	}
+}
+
+// Le jeton ne doit jamais ressortir en clair de l'interface.
+func TestMaskHFToken(t *testing.T) {
+	if got := maskHFToken("hf_abcdefghijklmnop"); got != "hf_…mnop" {
+		t.Errorf("masque = %q", got)
+	}
+	if got := maskHFToken(""); got != "" {
+		t.Errorf("masque d'un jeton absent = %q", got)
+	}
+	if strings.Contains(maskHFToken("hf_abcdefghijklmnop"), "efghij") {
+		t.Error("le masque laisse voir le milieu du jeton")
+	}
+}
+
+// Un secret ne part QUE vers Hugging Face : un lien collé vers un autre
+// hébergeur ne doit pas recevoir le jeton du compte.
+func TestDLRequestTokenOnlyToHuggingFace(t *testing.T) {
+	testHome(t)
+	t.Setenv("HF_TOKEN", "hf_secret")
+	for _, c := range []struct {
+		url  string
+		want bool
+	}{
+		{"https://huggingface.co/a/b/resolve/main/m.gguf", true},
+		{"https://cdn-lfs.huggingface.co/a/b/m.gguf", true},
+		{"https://hf.co/a/b/resolve/main/m.gguf", true},
+		{"https://example.com/m.gguf", false},
+		{"https://huggingface.co.evil.example/m.gguf", false},
+	} {
+		req, err := dlRequest(context.Background(), c.url, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := req.Header.Get("Authorization") != ""; got != c.want {
+			t.Errorf("%s : en-tête Authorization présent=%v, attendu %v", c.url, got, c.want)
+		}
+	}
+}
+
+// La route décrit le jeton sans jamais le rendre, et l'efface sans appeler
+// Hugging Face (un jeton vide n'a rien à vérifier).
+func TestHandleHFTokenGetAndClear(t *testing.T) {
+	testHome(t)
+	t.Setenv("HF_TOKEN", "")
+	if err := writeHFToken("hf_abcdefghijklmnop"); err != nil {
+		t.Fatal(err)
+	}
+
+	call := func(method, body string) map[string]any {
+		t.Helper()
+		r := httptest.NewRequest(method, "http://placeholder/api/hf/token", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		handleHFToken(w, r)
+		if w.Code != 200 {
+			t.Fatalf("%s → HTTP %d : %s", method, w.Code, w.Body.String())
+		}
+		var out map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	got := call("GET", "")
+	if got["set"] != true || got["source"] != "config" {
+		t.Fatalf("état lu = %v", got)
+	}
+	if s, _ := got["masked"].(string); s == "" || strings.Contains(s, "efghij") {
+		t.Fatalf("masque inattendu : %q", s)
+	}
+	if strings.Contains(fmt.Sprint(got), "hf_abcdefghijklmnop") {
+		t.Fatalf("le jeton ressort en clair : %v", got)
+	}
+
+	got = call("POST", `{"token":""}`)
+	if got["set"] != false || got["source"] != "" {
+		t.Fatalf("après effacement = %v", got)
+	}
+	if hfToken() != "" {
+		t.Fatalf("jeton toujours présent : %q", hfToken())
 	}
 }

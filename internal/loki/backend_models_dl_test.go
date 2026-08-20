@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -133,5 +134,92 @@ func TestRunDownloadParallelAndFallback(t *testing.T) {
 		if _, err := os.Stat(dest + ".part"); !os.IsNotExist(err) {
 			t.Fatalf("ranges=%v: .part laissé derrière", ranges)
 		}
+	}
+}
+
+// Un dépôt Hugging Face verrouillé répond 401 sur le .gguf alors que son
+// arborescence se lit sans jeton. « HTTP 401 depuis la source » n'apprenait
+// rien : le message doit nommer le verrou, le dépôt, et le geste à faire.
+func TestDLSourceErrorExplainsGatedRepo(t *testing.T) {
+	const gated = "https://huggingface.co/orcarouter/Qwen3.8-27B-Uncensored-GGUF/resolve/main/m.gguf"
+	resp := func(status int, code string) *http.Response {
+		r := &http.Response{StatusCode: status, Header: http.Header{}}
+		if code != "" {
+			r.Header.Set("X-Error-Code", code)
+		}
+		return r
+	}
+	for _, c := range []struct {
+		name   string
+		token  string
+		resp   *http.Response
+		url    string
+		want   []string
+		absent []string
+	}{
+		{
+			name: "gated sans jeton", resp: resp(401, "GatedRepo"), url: gated,
+			want: []string{"accès restreint", "orcarouter/Qwen3.8-27B-Uncensored-GGUF", "HF_TOKEN"},
+		},
+		{
+			name: "gated avec jeton refusé", token: "hf_xxx", resp: resp(401, "GatedRepo"), url: gated,
+			want:   []string{"accès restreint", "n'y donne pas accès"},
+			absent: []string{"renseigne le jeton"},
+		},
+		{
+			name: "dépôt privé ou absent", resp: resp(401, "RepoNotFound"), url: gated,
+			want: []string{"privé ou inexistant", "HF_TOKEN"},
+		},
+		{
+			name: "fichier absent", resp: resp(404, "EntryNotFound"), url: gated,
+			want: []string{"absent du dépôt", "404"},
+		},
+		{
+			name: "source hors Hugging Face", resp: resp(403, ""), url: "https://example.com/m.gguf",
+			want:   []string{"accès refusé par la source"},
+			absent: []string{"huggingface.co"},
+		},
+		{
+			name: "panne de la source", resp: resp(503, ""), url: gated,
+			want: []string{"en panne", "503"},
+		},
+		{
+			name: "code inconnu", resp: resp(418, ""), url: gated,
+			want: []string{"HTTP 418 depuis la source"},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("HF_TOKEN", c.token)
+			got := dlSourceError(c.resp, c.url).Error()
+			for _, w := range c.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("message %q ne contient pas %q", got, w)
+				}
+			}
+			for _, a := range c.absent {
+				if strings.Contains(got, a) {
+					t.Errorf("message %q contient %q alors qu'il ne devrait pas", got, a)
+				}
+			}
+		})
+	}
+}
+
+// La sonde est le premier appel réseau d'une installation : c'est elle qui doit
+// remonter le refus expliqué, pas un code HTTP nu.
+func TestDLProbeSurfacesExplainedError(t *testing.T) {
+	t.Setenv("HF_TOKEN", "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Error-Code", "GatedRepo")
+		w.WriteHeader(401)
+	}))
+	defer srv.Close()
+
+	_, _, err := dlProbe(context.Background(), srv.URL+"/m.gguf")
+	if err == nil {
+		t.Fatal("un 401 doit faire échouer la sonde")
+	}
+	if !strings.Contains(err.Error(), "HF_TOKEN") {
+		t.Errorf("message %q sans indication sur le jeton", err)
 	}
 }

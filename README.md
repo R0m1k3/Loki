@@ -77,6 +77,22 @@ Le champ **Télécharger un modèle** reste disponible pour coller un lien direc
 (dépôt privé, fichier hors des conventions). Un dépôt à accès restreint demande
 la variable d'environnement `HF_TOKEN`.
 
+Certains dépôts sont **à accès restreint** (« gated ») : leur arborescence se lit
+sans rien, mais chaque `.gguf` répond `401` tant que les conditions du dépôt
+n'ont pas été acceptées sur huggingface.co **et** qu'un jeton n'est pas fourni.
+Loki les marque « accès restreint » dès la liste des résultats et rappelle le
+geste à faire, plutôt que de laisser choisir une quantification pour échouer au
+lancement du transfert.
+
+Le jeton se règle **dans l'interface** : éditeur de preset → *Modèle* → **Jeton
+Hugging Face**. Il est vérifié auprès de Hugging Face avant d'être enregistré
+(le compte associé s'affiche), rangé avec les autres secrets sous `/data` — donc
+il survit aux redémarrages et aux changements de preset — et il sert aussi bien à
+la recherche qu'au téléchargement. À défaut, la variable d'environnement
+`HF_TOKEN` reste lue comme avant ; le jeton enregistré dans l'interface a la
+priorité. Un jeton en **lecture** suffit (huggingface.co/settings/tokens), et il
+n'est envoyé qu'aux adresses Hugging Face.
+
 ## Installation sur Unraid
 
 L'image est construite et publiée par GitHub Actions sur GHCR
@@ -105,7 +121,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_NGL` | couches GPU initiales | `999` (tout) |
 | `LOKI_HOME` | données (volume) | `/data` |
 | `LOKI_MODEL_DIRS` | dossiers .gguf additionnels | `/models` |
-| `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint | — |
+| `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint (repli : le jeton réglé dans l'UI prime) | — |
 
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `test`…).

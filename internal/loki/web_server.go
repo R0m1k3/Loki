@@ -184,6 +184,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/models/download/cancel", handleModelDownloadCancel)
 	api("/api/hf/search", handleHFSearch) // chercher un modèle GGUF sur Hugging Face
 	api("/api/hf/files", handleHFFiles)   // quants et projecteurs d'un dépôt
+	api("/api/hf/token", handleHFToken)   // jeton pour les dépôts à accès restreint
 	api("/api/backends", handleBackends)
 	api("/api/backends/custom", handleBackendsCustom)                    // backends custom uniquement (hors ⚡/🔧)
 	api("/api/backends/devices", handleBackendDevices)                   // GPU vus par CE moteur (noms/ordre propres au backend)

@@ -1480,6 +1480,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
 .hf-fit.ok{color:var(--ok);border-color:var(--ok)}
 .hf-fit.juste{color:var(--warn);border-color:var(--warn)}
 .hf-fit.trop{color:var(--err);border-color:var(--err)}
+/* Verrou d'accès : ce n'est pas un verdict mémoire, mais ça se lit au même
+   endroit et ça décide autant de la suite — un dépôt gated ne se télécharge
+   pas sans jeton. */
+.hf-fit.gated{color:var(--warn);border-color:var(--warn);text-transform:none}
 .hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
@@ -2936,6 +2940,23 @@ html[data-files="1"] #files-btn{color:var(--accent)}
               </div>
               <div class="pe-note">Ces dossiers servent aussi de destination de téléchargement.</div>
             </div>
+            <!-- Jeton Hugging Face. Replié comme « Dossiers de modèles » : on n'y
+                 touche qu'une fois, le jour où un dépôt à accès restreint refuse
+                 le téléchargement. Il vaut aussi pour la recherche, d'où sa place
+                 dans ce groupe plutôt qu'à côté de la clé API du serveur, qui ne
+                 parle pas du tout de la même chose. -->
+            <div id="m-hft-toggle" class="pe-row" style="cursor:pointer" onclick="toggleHFToken()">
+              <span class="pe-row-l">Jeton Hugging Face<span class="pe-sub">dépôts à accès restreint (« gated ») ou privés</span></span>
+              <span class="pe-row-c"><span id="m-hft-state" class="pe-sub"></span><span id="m-hft-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-hft-body" class="pe-row stack" style="display:none">
+              <div class="pe-inpbtn">
+                <input id="m-hft-input" class="pe-inp" type="password" autocomplete="off" spellcheck="false" placeholder="hf_…" onkeydown="if(event.key==='Enter'){event.preventDefault();saveHFToken();}">
+                <button id="m-hft-save" onclick="saveHFToken()" title="Vérifier et enregistrer" aria-label="Enregistrer">✓</button>
+              </div>
+              <div id="m-hft-note" class="pe-note"></div>
+              <button id="m-hft-clear" class="pe-link" onclick="clearHFToken()" style="display:none">Retirer le jeton</button>
+            </div>
           </div>
         </div>
 
@@ -4300,6 +4321,10 @@ async function openItem(kind, key){
     // Dossiers de modèles : replié par défaut (réglage rare), chargé à l'ouverture.
     document.getElementById('m-dir-path').value = '';
     setModelDirsOpen(false);
+    // Jeton Hugging Face : même traitement, mais son ÉTAT est lu tout de suite —
+    // c'est lui qui s'affiche sur la ligne repliée (« aucun », « enregistré »).
+    setHFTokenOpen(false);
+    loadHFToken();
   } else {
     modelRow.style.display = 'none';
     settingsRow.style.display = 'none';
@@ -4439,6 +4464,70 @@ function setModelDirsOpen(open){
 }
 function toggleModelDirs(){
   setModelDirsOpen(document.getElementById('m-dirs-body').style.display === 'none');
+}
+
+// ---- Jeton Hugging Face ----------------------------------------------------
+// Un dépôt « gated » se lit sans jeton mais ne se télécharge pas. Le jeton se
+// posait uniquement par la variable d'environnement HF_TOKEN : en conteneur, ça
+// voulait dire éditer un docker-compose et recréer le conteneur pour répondre à
+// un 401 découvert ici. Il se règle donc à l'endroit où le problème apparaît.
+function setHFTokenOpen(open){
+  const b = document.getElementById('m-hft-body');
+  const c = document.getElementById('m-hft-caret');
+  if(!b) return;
+  b.style.display = open ? '' : 'none';
+  if(c) c.classList.toggle('open', open);
+}
+function toggleHFToken(){
+  setHFTokenOpen(document.getElementById('m-hft-body').style.display === 'none');
+}
+async function loadHFToken(){
+  let d = {};
+  try{ d = await jget('/api/hf/token'); }catch(_){ return; }
+  renderHFToken(d);
+}
+// Le jeton n'est jamais renvoyé en clair par le serveur : on n'affiche que sa
+// forme masquée et sa provenance. « env » se signale à part — l'interface ne
+// peut pas effacer une variable du conteneur, promettre le contraire par un
+// bouton « Retirer » serait mentir.
+function renderHFToken(d){
+  const st = document.getElementById('m-hft-state');
+  const note = document.getElementById('m-hft-note');
+  const clear = document.getElementById('m-hft-clear');
+  const inp = document.getElementById('m-hft-input');
+  if(!st || !note || !clear || !inp) return;
+  inp.value = '';
+  const src = (d && d.source) || '';
+  st.textContent = src ? (d.masked || 'enregistré') : 'aucun';
+  clear.style.display = src === 'config' ? '' : 'none';
+  if(src === 'env'){
+    note.textContent = 'Jeton fourni par la variable d’environnement HF_TOKEN. En enregistrer un ici le remplacera.';
+  } else if(src === 'config'){
+    note.textContent = 'Jeton enregistré' + (d.account ? ' — compte ' + d.account : '')
+      + '. Un dépôt à accès restreint exige EN PLUS d’avoir accepté ses conditions sur huggingface.co avec ce compte.';
+  } else {
+    note.textContent = 'Sans jeton, les dépôts à accès restreint répondent 401 au téléchargement. Crée un jeton en lecture sur huggingface.co/settings/tokens, accepte les conditions du dépôt, puis colle-le ici.';
+  }
+}
+// Vérifié côté serveur AVANT d'être enregistré : un jeton mal collé accepté en
+// silence rendrait exactement le 401 qu'on cherche à expliquer.
+async function saveHFToken(){
+  const inp = document.getElementById('m-hft-input');
+  const tok = (inp.value || '').trim();
+  if(!tok){ toast('colle un jeton (hf_…)'); return; }
+  toast('vérification du jeton…');
+  const r = await jpost('/api/hf/token', {token: tok});
+  if(!r || !r.ok){ toast('jeton refusé : ' + ((r && r.error) || '')); return; }
+  renderHFToken(r);
+  toast(r.account ? 'jeton enregistré — compte ' + r.account : 'jeton enregistré');
+}
+async function clearHFToken(){
+  if(!await askConfirm('Les dépôts à accès restreint répondront de nouveau 401 au téléchargement.',
+      {title:'Retirer le jeton Hugging Face ?', okText:'Retirer'})) return;
+  const r = await jpost('/api/hf/token', {token: ''});
+  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || '')); return; }
+  renderHFToken(r);
+  toast('jeton retiré');
 }
 async function populateModelDirs(){
   const box = document.getElementById('m-dirs-list');
@@ -5272,9 +5361,27 @@ async function hfSearch(){
     const m = document.createElement('span'); m.className = 'hf-meta';
     m.textContent = fmtCount(rep.downloads)+' ↓';
     row.append(n, m);
+    // Dépôt verrouillé : il se LIT sans rien, mais chaque .gguf répond 401 au
+    // transfert. La pastille le dit dès la liste — sinon on choisit un quant,
+    // on lance 15 Go et l'erreur tombe à la fin de la sonde.
+    if(rep.gated){
+      const g = document.createElement('span');
+      g.className = 'hf-fit gated';
+      g.textContent = 'accès restreint';
+      g.title = hfGatedHint(r.hf_token);
+      row.appendChild(g);
+    }
     list.appendChild(row);
   }
   o.appendChild(list);
+}
+
+// Le geste à faire n'est pas le même selon qu'un jeton est configuré ou non :
+// sans jeton il en faut un, avec jeton c'est l'accès au dépôt qui manque.
+function hfGatedHint(hasToken){
+  return hasToken
+    ? 'Dépôt à accès restreint : le jeton enregistré sera utilisé. Si le téléchargement échoue en 401, accepte les conditions du dépôt sur huggingface.co avec le compte de ce jeton.'
+    : 'Dépôt à accès restreint : accepte ses conditions sur huggingface.co, puis enregistre un jeton dans « Jeton Hugging Face » plus bas. Sans jeton, le téléchargement échouera en 401.';
 }
 
 // Millions/milliers abrégés : un dépôt à 1 945 635 téléchargements dit surtout
@@ -5304,7 +5411,35 @@ async function hfPickRepo(repo){
   back.onclick = hfSearch;
   const title = document.createElement('span'); title.className = 'hf-name'; title.textContent = repo;
   head.append(back, title);
+  if(r.gated){
+    const g = document.createElement('span');
+    g.className = 'hf-fit gated'; g.textContent = 'accès restreint';
+    head.appendChild(g);
+  }
   o.appendChild(head);
+
+  // Avertissement en toutes lettres : la pastille seule ne dit pas quoi faire,
+  // et c'est ici que le téléchargement se déclenche.
+  if(r.gated){
+    const warn = document.createElement('div');
+    warn.className = 'pe-note';
+    warn.style.color = r.hf_token ? 'var(--warn)' : 'var(--err)';
+    warn.textContent = hfGatedHint(r.hf_token);
+    o.appendChild(warn);
+    // Le réglage est plus bas dans la même fenêtre : y mener directement évite
+    // de le chercher, et c'est le seul geste qui débloque ce dépôt.
+    if(!r.hf_token){
+      const go = document.createElement('button');
+      go.className = 'pe-link'; go.textContent = 'Renseigner un jeton Hugging Face';
+      go.onclick = ()=>{
+        setHFTokenOpen(true);
+        const inp = document.getElementById('m-hft-input');
+        document.getElementById('m-hft-toggle').scrollIntoView({block:'center', behavior:'smooth'});
+        if(inp) inp.focus();
+      };
+      o.appendChild(go);
+    }
+  }
 
   // Projecteur vision : proposé UNIQUEMENT s'il vient de ce dépôt. Un mmproj
   // encode dans l'espace latent de SON modèle ; en prendre un ailleurs donne un

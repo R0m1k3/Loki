@@ -1449,6 +1449,10 @@ button:hover{border-color:var(--dim);color:var(--text)}
 .hf-fit.ok{color:var(--ok);border-color:var(--ok)}
 .hf-fit.juste{color:var(--warn);border-color:var(--warn)}
 .hf-fit.trop{color:var(--err);border-color:var(--err)}
+/* Verrou d'accès : ce n'est pas un verdict mémoire, mais ça se lit au même
+   endroit et ça décide autant de la suite — un dépôt gated ne se télécharge
+   pas sans jeton. */
+.hf-fit.gated{color:var(--warn);border-color:var(--warn);text-transform:none}
 .hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
