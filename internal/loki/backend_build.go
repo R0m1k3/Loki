@@ -134,7 +134,7 @@ func detectBuildPlan() buildPlan {
 	}
 
 	// Vulkan (GPU générique) — utile sur Intel/AMD sans ROCm.
-	if hasTool("glslc") && (isFile("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") || hasTool("vulkaninfo")) {
+	if hasTool("glslc") && (hasVulkanLib() || hasTool("vulkaninfo")) {
 		p.backend = "vulkan"
 		p.flags = append(p.flags, "-DGGML_VULKAN=ON")
 		return p
@@ -455,6 +455,33 @@ func llamaServerBin(repo string) string {
 func hasTool(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// hasVulkanLib détecte le chargeur Vulkan (libvulkan) sans supposer un unique
+// chemin de distribution. Repris de l'amont AJEAN (issues #28, #29) : l'ancienne
+// détection testait en dur le chemin Debian multiarch
+// (/usr/lib/x86_64-linux-gnu/libvulkan.so.1), invisible sur Fedora/RHEL/Atomic où
+// la bibliothèque vit dans /usr/lib64 — le plan de build retombait alors sur le
+// CPU sur une machine parfaitement capable. On interroge d'abord ldconfig (la
+// source de vérité du linker dynamique), puis une liste de chemins connus.
+func hasVulkanLib() bool {
+	// ldconfig -p liste les bibliothèques du cache, tous chemins confondus.
+	if out, err := exec.Command("ldconfig", "-p").Output(); err == nil {
+		if strings.Contains(string(out), "libvulkan.so") {
+			return true
+		}
+	}
+	for _, p := range []string{
+		"/usr/lib/x86_64-linux-gnu/libvulkan.so.1", // Debian/Ubuntu multiarch
+		"/usr/lib64/libvulkan.so.1",                // Fedora/RHEL/Bazzite
+		"/usr/lib/libvulkan.so.1",                  // Arch et divers
+		"/lib64/libvulkan.so.1",
+	} {
+		if isFile(p) {
+			return true
+		}
+	}
+	return false
 }
 
 func requireTools(tools ...string) error {

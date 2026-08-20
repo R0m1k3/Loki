@@ -173,7 +173,11 @@ func machineSystemPrompt(caps Caps) string {
 	}
 	b.WriteString(".")
 	if cwd != "" {
-		b.WriteString(" Relative paths in write/edit/bash resolve inside this working folder — put scratch files there. Write outside it ONLY with an absolute path the user explicitly asked for; never scatter files into the folder loki was launched from.")
+		// Formulation reprise de l'amont AJEAN (v0.10.2) : dire ce que le dossier
+		// EST (l'endroit par défaut de tout ce que le modèle produit) marche mieux
+		// que d'interdire d'en sortir — et nommer les dossiers système coupe court
+		// aux « installations » en /usr/local/bin qui échouent faute de root.
+		b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for everything you create — scripts, notes, outputs, even a command-line tool you build. Just use a relative name. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder when the user explicitly named that location.")
 	}
 	return b.String()
 }

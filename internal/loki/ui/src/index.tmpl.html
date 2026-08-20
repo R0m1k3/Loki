@@ -889,6 +889,42 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         </div>
       </div>
 
+      <!-- Échantillonnage (repris de l'amont AJEAN v0.9.5/v0.9.6) : ces valeurs
+           partent dans CHAQUE requête de complétion, pas sur la ligne de commande
+           du moteur — c'est le seul endroit où elles prennent effet. Un champ vide
+           n'envoie rien, llama-server garde son défaut. Les valeurs recommandées
+           dépendent du modèle (Qwen3.8 en réflexion : temp 1.0, top_p 0.95,
+           top_k 20, min_p 0). -->
+      <div id="m-sampling-row" class="pe-group" style="display:none">
+        <div class="pe-gh">Échantillonnage</div>
+        <div class="pe-list">
+          <div class="pe-row">
+            <span class="pe-row-l">Température<span class="pe-sub">vide = défaut du modèle</span></span>
+            <span class="pe-row-c"><input id="s-temp" class="pe-val" type="number" min="0" step="0.05" placeholder="—" oninput="cfgWriteKey('TEMP', this.value)"></span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">top_p<span class="pe-sub">noyau de probabilité</span></span>
+            <span class="pe-row-c"><input id="s-topp" class="pe-val" type="number" min="0" max="1" step="0.01" placeholder="—" oninput="cfgWriteKey('TOP_P', this.value)"></span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">top_k<span class="pe-sub">0 = désactivé</span></span>
+            <span class="pe-row-c"><input id="s-topk" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="cfgWriteKey('TOP_K', this.value)"></span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">min_p<span class="pe-sub">seuil de probabilité</span></span>
+            <span class="pe-row-c"><input id="s-minp" class="pe-val" type="number" min="0" max="1" step="0.01" placeholder="—" oninput="cfgWriteKey('MIN_P', this.value)"></span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">Pénalité de présence<span class="pe-sub">pousse vers de nouveaux mots (0 = off)</span></span>
+            <span class="pe-row-c"><input id="s-presp" class="pe-val" type="number" min="0" max="2" step="0.1" placeholder="—" oninput="cfgWriteKey('PRESENCE_PENALTY', this.value)"></span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">Pénalité de répétition<span class="pe-sub">anti-répétition (1 = neutre)</span></span>
+            <span class="pe-row-c"><input id="s-reppen" class="pe-val" type="number" min="0" step="0.05" placeholder="—" oninput="cfgWriteKey('REPEAT_PENALTY', this.value)"></span>
+          </div>
+        </div>
+      </div>
+
       <div id="m-raw" class="pe-group">
         <div class="pe-gh" id="m-raw-head">Configuration</div>
         <div class="pe-list">

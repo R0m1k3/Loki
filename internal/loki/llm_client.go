@@ -269,6 +269,54 @@ func steerSystem(msgs []Message, hint string) []Message {
 	return append([]Message{{Role: "system", Content: hint}}, msgs...)
 }
 
+// normalizeSystemMessages garantit un UNIQUE message système, en tête, dans la
+// séquence ENVOYÉE au moteur. Repris de l'amont AJEAN (v0.9.8, issue #26).
+//
+// steerSystem (ci-dessus) empêche déjà loki d'en poser un en cours de route, mais
+// il ne couvre que SES propres consignes : un historique venu d'ailleurs (import,
+// preset, conversation migrée, agent de code qui compose sa propre séquence) peut
+// encore porter deux systèmes, ou un système ailleurs qu'en position 0. Les
+// gabarits stricts — Qwen3.x en --jinja — répondent alors « System message must
+// be at the beginning », un 500 qui tue le tour sans rien expliquer.
+//
+// La séquence renvoyée est une COPIE : l'historique d'origine garde sa forme pour
+// l'affichage, la persistance et la compaction. Un modèle qui accepte le système
+// n'importe où n'est pas gêné de le recevoir en tête — la normalisation est donc
+// sans risque pour tous, et sans effet sur une conversation déjà normale (payload
+// identique, garanti par test).
+func normalizeSystemMessages(msgs []Message) []Message {
+	var sys []string
+	sawSystem := false
+	rest := make([]Message, 0, len(msgs))
+	for _, m := range msgs {
+		if m.Role == "system" {
+			if s, ok := m.Content.(string); ok {
+				sawSystem = true
+				if strings.TrimSpace(s) != "" {
+					sys = append(sys, s)
+				}
+				continue
+			}
+			// Contenu système non textuel (cas théorique) : on le préserve tel quel
+			// plutôt que de le perdre.
+		}
+		rest = append(rest, m)
+	}
+	// Aucun message système : rien à réordonner, on rend l'entrée telle quelle —
+	// pas de copie inutile sur le chemin le plus fréquent.
+	if !sawSystem {
+		return msgs
+	}
+	// Des systèmes existaient mais tous vides : on les a retirés (un système vide
+	// hors position 0 casserait tout autant), sans en réinsérer.
+	if len(sys) == 0 {
+		return rest
+	}
+	out := make([]Message, 0, len(rest)+1)
+	out = append(out, Message{Role: "system", Content: strings.Join(sys, "\n\n")})
+	return append(out, rest...)
+}
+
 // EnabledTools returns the tools to advertise on the next inference call.
 func EnabledTools(caps Caps) []Tool {
 	tools := []Tool{}
@@ -670,8 +718,10 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			messages = append(messages, Message{Role: "user", Content: msg})
 		}
 		payload := map[string]any{
-			"model":       "loki",
-			"messages":    messages,
+			"model": "loki",
+			// Normalisé juste avant l'envoi : un seul système, en tête. Les gabarits
+			// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
+			"messages":    normalizeSystemMessages(messages),
 			"stream":      true,
 			"temperature": temperature,
 			// include_usage → chunk final avec `usage.prompt_tokens` = taille TOTALE
@@ -680,6 +730,11 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// contexte (sinon le system prompt déjà en cache n'est pas recompté).
 			"stream_options": map[string]any{"include_usage": true},
 		}
+		// Échantillonnage du preset (top_p/top_k/min_p/pénalités, et TEMP qui
+		// l'emporte sur la température ci-dessus). Posé AVANT le raisonnement : les
+		// deux blocs écrivent des clés disjointes, mais l'ordre rend explicite que
+		// c'est bien loki qui a le dernier mot sur `chat_template_kwargs`.
+		applySampling(payload)
 		if reasoningEffort != "" {
 			payload["reasoning_effort"] = reasoningEffort
 		}

@@ -101,6 +101,7 @@ async function openItem(kind, key){
   // Model picker is preset-only: it edits the MODEL= line of the preset.
   const modelRow = document.getElementById('m-model-row');
   const settingsRow = document.getElementById('m-settings-row');
+  const samplingRow = document.getElementById('m-sampling-row');
   const rawHead = document.getElementById('m-raw-head');
   const rawToggle = document.getElementById('m-raw-toggle');
   const rawBody = document.getElementById('m-raw-body');
@@ -108,6 +109,7 @@ async function openItem(kind, key){
   if(kind === 'preset'){
     modelRow.style.display = 'flex';
     settingsRow.style.display = 'flex';
+    if(samplingRow) samplingRow.style.display = 'flex';
     document.getElementById('m-hf-url').value = '';
     resetDlUI();
     resetHfUI();
@@ -122,6 +124,7 @@ async function openItem(kind, key){
   } else {
     modelRow.style.display = 'none';
     settingsRow.style.display = 'none';
+    if(samplingRow) samplingRow.style.display = 'none';
     // Page mémoire : le contenu EST le champ principal — affiché en clair.
     rawHead.textContent = 'Contenu';
     rawToggle.style.display = 'none';
@@ -737,6 +740,14 @@ function populateSettings(){
   set('s-ubatch', cfgReadKey('UBATCH'));
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
+  // Échantillonnage : envoyé PAR REQUÊTE (applySampling côté serveur), donc pas
+  // besoin de redémarrer le moteur pour qu'un changement prenne effet.
+  set('s-temp', cfgReadKey('TEMP'));
+  set('s-topp', cfgReadKey('TOP_P'));
+  set('s-topk', cfgReadKey('TOP_K'));
+  set('s-minp', cfgReadKey('MIN_P'));
+  set('s-presp', cfgReadKey('PRESENCE_PENALTY'));
+  set('s-reppen', cfgReadKey('REPEAT_PENALTY'));
   set('s-moe', eaGetValued('--n-cpu-moe'));
   set('s-spec-n', eaGetValued('--spec-draft-n-max'));
   setSpecType(eaGetValued('--spec-type'));

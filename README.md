@@ -170,6 +170,13 @@ Héritées d'AJEAN :
   ce coup-là (au lieu d'échouer sur « context deadline exceeded ») ; les
   lancements suivants partent du cache en quelques secondes.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
+- **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
+  `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces
+  valeurs partent dans **chaque requête** au moteur, pas sur sa ligne de commande :
+  les changer ne demande donc aucun redémarrage. Un champ laissé vide n'envoie
+  rien et llama-server garde son défaut — utile parce que le défaut de llama.cpp
+  (top_k 40, min_p 0.05) est rarement celui que recommande le modèle (Qwen3.8 en
+  réflexion veut top_k 20, min_p 0, temp 1.0, top_p 0.95).
 - **API OpenAI-compatible** exposable, protégée par clé (voir ci-dessous — ce
   fork la sert autrement que l'amont).
 
