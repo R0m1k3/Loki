@@ -14,6 +14,7 @@ const THINK_EFFORT_LABELS = {
   low:      'basse',
   medium:   'moyenne',
   high:     'haute',
+  xhigh:    'maximale',
 };
 
 async function loadThinkEffort(){
