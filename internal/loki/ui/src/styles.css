@@ -2028,6 +2028,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 
 .rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
 
+/* Dictée : anneau rouge pulsé pendant l'enregistrement, estompé pendant la
+   transcription. Le bouton garde le gabarit de ses voisins (joindre, fichiers). */
+#mic.rec{color:var(--err);border-color:var(--err);animation:micpulse 1.2s ease-in-out infinite}
+@keyframes micpulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--err) 25%,transparent)}}
+#mic.busy{opacity:.55}
+
 /* ── Réglages en modale ─────────────────────────────────────────────────────
    Deux volets : nav des sections à gauche, LE panneau choisi à droite. Les
    panneaux réutilisent tels quels les gabarits de la barre latérale (.slist,

@@ -32,6 +32,13 @@ entier à chaque token, en O(n²)). La carte reste maintenant à taille fixe et
 suit la génération en défilant toute seule ; en direct, seul le bas d'un bloc
 géant est re-rendu, et le texte complet est posé en fin de bloc.
 
+## Dictée vocale
+
+Un bouton micro dans la carte de saisie : tu parles, le texte s'écrit. La
+transcription est 100 % locale — whisper.cpp compilé dans l'image, modèle
+multilingue téléchargé au premier usage (~190 Mo, dans `/data/whisper/`).
+Le navigateur exige HTTPS (ou localhost) pour donner accès au micro.
+
 ## Divers
 
 - Jeton Hugging Face réglable dans l'interface (dépôts verrouillés : le

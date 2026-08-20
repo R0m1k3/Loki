@@ -327,6 +327,12 @@ Ajoutées par ce fork :
 - **Nom du modèle sur chaque réponse** : une pastille à côté de « Loki » dit
   quel modèle a produit la réponse. Elle est journalisée avec le tour : elle
   survit au rechargement, et un vieux tour garde le modèle de l'époque.
+- **Dictée vocale** : un bouton micro dans la carte de saisie enregistre,
+  transcrit **en local** (whisper.cpp, compilé dans l'image ; modèle
+  `small-q5_1` multilingue ~190 Mo téléchargé au premier usage dans
+  `/data/whisper/`) et pose le texte dans le champ. ⚠️ le navigateur n'autorise
+  le micro qu'en **HTTPS** (ou sur `localhost`) — derrière un reverse proxy
+  TLS, rien à faire ; en `http://IP:8090`, le bouton l'explique.
 - **Cartes raisonnement/outils à hauteur bornée** : un long raisonnement ne
   fait plus grandir la page de plusieurs écrans — la carte reste à taille fixe
   et défile toute seule pendant la génération. Sur un raisonnement géant, seul

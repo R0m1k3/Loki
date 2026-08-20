@@ -31,6 +31,20 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
 # limité à cette étape de build.
 RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 
+# ── Étape 1 bis : whisper-cli (dictée vocale) ───────────────────────────
+# whisper.cpp compilé CPU seul, en statique : un binaire unique, aucune .so à
+# trimballer, et pas de compilation CUDA (des minutes de build pour un gain
+# nul sur des dictées de quelques secondes). Ubuntu 22.04 : glibc plus
+# ancienne que l'image runtime, donc compatible quoi qu'elle embarque.
+FROM ubuntu:22.04 AS whisperbuild
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
+    && cmake -S /w -B /w/build -DCMAKE_BUILD_TYPE=Release \
+         -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF \
+    && cmake --build /w/build -j --target whisper-cli
+
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime
 
@@ -84,6 +98,9 @@ RUN if [ "$PLAYWRIGHT" = "1" ]; then \
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
 COPY --from=gobuild /out/gopls /usr/local/bin/gopls
+# Dictée vocale (POST /api/transcribe). Le modèle (~190 Mo) n'est PAS dans
+# l'image : téléchargé au premier usage dans /data/whisper/.
+COPY --from=whisperbuild /w/build/bin/whisper-cli /usr/local/bin/whisper-cli
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data /models
 
@@ -92,6 +109,7 @@ ENV LOKI_CONTAINER=1 \
     LOKI_HOME=/data \
     LOKI_MODEL_DIRS=/models \
     LOKI_ENGINE_BIN=/app/llama-server \
+    LOKI_WHISPER_BIN=/usr/local/bin/whisper-cli \
     LD_LIBRARY_PATH=/app \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
