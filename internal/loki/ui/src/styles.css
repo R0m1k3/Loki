@@ -2021,6 +2021,10 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #criteria-list li.crit-pending{color:var(--dim)}
 
 .rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
+/* Nom du modèle qui a produit la réponse, à côté de « Loki ». Discret (gris,
+   pas de capitales forcées) et borné : un nom de .gguf peut être très long,
+   il s'ellipse au lieu de pousser l'étiquette hors de la bulle. */
+.msg .label .modelbadge{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid var(--border);border-radius:3px;color:var(--dim);font-size:9px;letter-spacing:.03em;text-transform:none;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 .msg[data-agent-role="verifier"]{border-left:2px solid var(--accent)}
 
 .askcard .body{display:flex;flex-direction:column;gap:8px}

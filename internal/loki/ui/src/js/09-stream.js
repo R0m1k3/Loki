@@ -51,7 +51,7 @@ function confirmPending(text){
 let REPLAYING=true;
 // État de rendu du tour courant, délimité par les événements user / turn_done.
 let T=null;
-function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'' }; }
+function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'', model:'' }; }
 newTurn();
 
 // --- Temps de travail du tour ------------------------------------------------
@@ -227,6 +227,15 @@ function labelTokens(el, role, n, firstTs, lastTs){
   if(el.classList.contains('collapsible')) setLabel(el, [role].concat(d||[], m).join('  ·  '));
   else paintStats(el, m);
 }
+// Badge du modèle sur une bulle de réponse : le nom voyage avec la borne de
+// tour (T.model), on le dépose dans dataset.model pour qu'applyIdentity — qui
+// repeint les libellés de zéro — puisse le reposer (voir paintLabel).
+function tagModel(el){
+  if(!el || !T.model) return;
+  el.dataset.model = T.model;
+  const l = el.querySelector('.label');
+  if(l && !l.querySelector('.modelbadge') && typeof modelBadge==='function') l.appendChild(modelBadge(T.model));
+}
 // Pendant le replay on met à jour l'état `busy` mais on NE touche PAS aux boutons
 // (sinon user→stop puis turn_done→send à chaque tour rejoué = flottement visible).
 // L'état final est appliqué une seule fois au caught_up via syncSendBtn().
@@ -379,6 +388,10 @@ function handleDelta(d){
   if(d.verify_done){ if(typeof onVerifyDone==='function') onVerifyDone(d.verify_done); return; }
   if(d.user!==undefined){
     newTurn();
+    // Modèle du tour : posé par le serveur sur la borne de tour (journalisée),
+    // donc présent au rejeu comme en direct. Repris par tagModel sur chaque
+    // bulle de réponse du tour.
+    T.model = d.model || '';
     let el=PENDING;
     if(!confirmPending(d.user)) el=addMsg('user', d.user);
     // Pièces jointes du tour : rendues DANS la bulle. La bulle en attente en
@@ -446,7 +459,7 @@ function handleDelta(d){
     return; }
   if(d.content){
     removeTyping();
-    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; resetContentStats(); }
+    if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); tagModel(T.contentEl); T.fullContent=''; resetContentStats(); }
     if(d.replace){ smoothSnap(); T.fullContent=''; resetContentStats(); }
     T.fullContent+=d.content; feedBlock(T.contentEl, T.fullContent);
     if(!T.contentFirstTs) T.contentFirstTs=d.ts0||d.ts||0; T.contentLastTs=d.ts||T.contentLastTs; T.contentTok+=(d.toks||1);

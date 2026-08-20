@@ -376,6 +376,13 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	// si le process meurt en pleine génération (crash, restart après MAJ), le
 	// message de l'utilisateur survit au lieu de disparaître avec le tour.
 	delta := map[string]any{"user": text}
+	// Nom du modèle qui va produire la réponse : journalisé avec la borne de
+	// tour, donc rejoué au chargement — la carte de réponse garde son modèle
+	// après un rafraîchissement, et un vieux tour garde le modèle de l'époque,
+	// pas celui chargé aujourd'hui.
+	if m := chatModelName(); m != "" {
+		delta["model"] = m
+	}
 	if len(files) > 0 {
 		delta["files"] = files
 	}
@@ -391,6 +398,22 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	}
 	go c.generate(ctx, caps, temperature, epoch)
 	return nil
+}
+
+// chatModelName renvoie le nom lisible du modèle configuré : fichier sans
+// dossier ni extension .gguf (même règle que modelLabel côté UI), "" si aucun.
+func chatModelName() string {
+	m := strings.TrimSpace(ReadConfig()["MODEL"])
+	if m == "" {
+		return ""
+	}
+	if i := strings.LastIndexAny(m, "/\\"); i >= 0 {
+		m = m[i+1:]
+	}
+	if strings.HasSuffix(strings.ToLower(m), ".gguf") {
+		m = m[:len(m)-len(".gguf")]
+	}
+	return m
 }
 
 // generate exécute un tour complet et journalise chaque événement. Détaché : la
