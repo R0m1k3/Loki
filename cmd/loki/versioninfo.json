@@ -2,13 +2,13 @@
   "FixedFileInfo": {
     "FileVersion": {
       "Major": 0,
-      "Minor": 11,
+      "Minor": 12,
       "Patch": 0,
       "Build": 0
     },
     "ProductVersion": {
       "Major": 0,
-      "Minor": 11,
+      "Minor": 12,
       "Patch": 0,
       "Build": 0
     },
@@ -25,7 +25,7 @@
     "LegalCopyright": "Copyright (c) 2026 Loki contributors. MIT License.",
     "OriginalFilename": "loki.exe",
     "ProductName": "Loki",
-    "ProductVersion": "0.11.0",
+    "ProductVersion": "0.12.0",
     "Comments": "https://github.com/R0m1k3/Loki — projet open source (MIT)"
   },
   "VarFileInfo": {
