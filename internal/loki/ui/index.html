@@ -6601,12 +6601,18 @@ function handleDelta(d){
   if(d.tool_used){
     settleBlocks(); // le bloc texte précédent (raisonnement/contenu) est terminé
     killTyping('tool'); T.contentEl=null; T.reasonEl=null; const tu=d.tool_used;
+    // Une carte reste OUVERTE tant que SA section travaille (hauteur bornée à
+    // 280 px, défilement qui suit l'écriture), et se replie DÈS qu'elle est
+    // finie : l'outil à son résultat (tu.done, plus bas), le raisonnement quand
+    // le bloc suivant démarre (collapseAll à la création de la carte suivante).
     if(!T.pendingToolEl){ collapseAll(T.turnCollapsibles); T.pendingToolEl=addMsg('tool',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.pendingToolEl); T.turnCollapsibles.push(T.pendingToolEl); }
     renderToolMsg(T.pendingToolEl, tu);
     // Outils masqués : on garde l'indicateur même quand l'appel est terminé (le
     // tour continue, et rien d'autre n'est visible). Sinon, comportement inchangé.
     if(!tu.done || viewOn('hide-tools')) showTyping('tool');
-    if(tu.done){ T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
+    // Résultat arrivé : la carte est finie, elle se replie tout de suite (en
+    // direct seulement — au rejeu elle est déjà née repliée).
+    if(tu.done){ if(!REPLAYING && T.pendingToolEl) collapseBody(T.pendingToolEl); T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
     return; }
   if(d.drop_reasoning){
     smoothReset(); cancelRender(); // le bloc raisonnement disparaît : rien à rendre
