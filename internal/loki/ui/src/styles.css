@@ -2021,6 +2021,44 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #criteria-list li.crit-pending{color:var(--dim)}
 
 .rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
+
+/* ── Réglages en modale ─────────────────────────────────────────────────────
+   Deux volets : nav des sections à gauche, LE panneau choisi à droite. Les
+   panneaux réutilisent tels quels les gabarits de la barre latérale (.slist,
+   .switchrow, .subhead…), seuls la coque et le routage sont neufs. */
+#side-settings-btn{display:flex;align-items:center;gap:8px;width:100%;margin:8px 0 0;padding:10px 12px;
+  background:none;border:0;border-top:1px solid var(--border);border-radius:0;box-shadow:none;
+  font-size:13px;color:var(--text);cursor:pointer;text-align:left}
+#side-settings-btn:hover{background:var(--bubble)}
+#side-settings-btn svg{flex:none;opacity:.7}
+.set-card{max-width:860px;height:min(660px,92vh)}
+.set-shell{display:flex;flex:1;min-height:0}
+.set-nav{flex:0 0 200px;border-right:1px solid var(--border);overflow-y:auto;
+  padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.set-nav-h{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);margin:12px 8px 4px}
+.set-nav-h:first-child{margin-top:2px}
+.set-nav button{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:7px 10px;
+  background:none;border:0;border-radius:3px;box-shadow:none;
+  font-size:12.5px;color:var(--text);cursor:pointer;text-align:left}
+.set-nav button:hover{background:var(--bubble)}
+.set-nav button.active{background:var(--bubble);font-weight:600}
+.set-nav button .sbadge{margin-left:auto}
+.set-body{flex:1;min-width:0;overflow-y:auto;padding:16px}
+.set-pane{display:none}
+.set-pane.active{display:block}
+.set-pane-h{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:0 0 12px}
+.set-pane-h>span:first-child{flex:1;min-width:0}
+/* Téléphone : la nav passe en rangée défilante au-dessus du panneau, et la
+   modale prend tout l'écran — un panneau de réglages ne se lit pas en timbre. */
+@media(max-width:720px){
+  .set-ov{padding:0}
+  .set-card{max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;border:0}
+  .set-shell{flex-direction:column}
+  .set-nav{flex:none;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;
+    border-right:0;border-bottom:1px solid var(--border);padding:8px;white-space:nowrap}
+  .set-nav-h{display:none}
+  .set-nav button{width:auto;flex:none}
+}
 /* Nom du modèle qui a produit la réponse, à côté de « Loki ». Discret (gris,
    pas de capitales forcées) et borné : un nom de .gguf peut être très long,
    il s'ellipse au lieu de pousser l'étiquette hors de la bulle. */

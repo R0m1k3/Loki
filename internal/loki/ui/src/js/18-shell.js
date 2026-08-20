@@ -38,6 +38,12 @@ function openDetails(el){
   if(typeof el === 'string') el = document.getElementById(el);
   while(el){
     if(el.tagName === 'DETAILS') el.open = true;
+    // La cible vit dans un panneau de la modale de réglages : ouvrir la modale
+    // sur ce panneau. C'est ce qui garde tous les appelants historiques
+    // (pastille d'état, jobs moteur) valides depuis la refonte en modale.
+    if(el.classList && el.classList.contains('set-pane') && typeof openSettings === 'function'){
+      openSettings(el.dataset.pane);
+    }
     el = el.parentElement;
   }
 }
