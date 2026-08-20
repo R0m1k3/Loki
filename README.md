@@ -169,7 +169,25 @@ Héritées d'AJEAN :
   `npx`/`uvx` téléchargent le paquet du serveur — Loki attend jusqu'à 3 minutes
   ce coup-là (au lieu d'échouer sur « context deadline exceeded ») ; les
   lancements suivants partent du cache en quelques secondes.
+- **Tâches planifiées** : une consigne que l'IA exécute **toute seule**, sur une
+  fréquence réglable (« toutes les 2 h », « tous les jours à 9 h », ou une
+  expression cron). Chaque tâche tourne **isolée des discussions** — elle n'écrit
+  pas dans le fil, travaille dans son propre dossier (`workspace/tasks/<id>/`) et
+  livre son résultat par les outils de l'IA (mail via MCP, shell, fichiers…) ; le
+  compte-rendu du dernier passage est visible dans sa fiche, et **réinjecté** au
+  passage suivant pour la continuité. Réglages par tâche : preset (donc modèle) à
+  activer avant l'exécution, accès mémoire et web. Un **interrupteur maître**
+  suspend tout d'un coup. Sans **mode agent**, une tâche s'exécute mais n'a aucun
+  outil pour agir — l'interface le dit. Une seule inférence tourne à la fois : une
+  tâche attend son tour, et le bouton stop du chat l'interrompt.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
+- **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
+  `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces
+  valeurs partent dans **chaque requête** au moteur, pas sur sa ligne de commande :
+  les changer ne demande donc aucun redémarrage. Un champ laissé vide n'envoie
+  rien et llama-server garde son défaut — utile parce que le défaut de llama.cpp
+  (top_k 40, min_p 0.05) est rarement celui que recommande le modèle (Qwen3.8 en
+  réflexion veut top_k 20, min_p 0, temp 1.0, top_p 0.95).
 - **API OpenAI-compatible** exposable, protégée par clé (voir ci-dessous — ce
   fork la sert autrement que l'amont).
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Dossier de travail du mode agent.
@@ -21,7 +22,8 @@ import (
 // agentWorkspace est la RACINE, commune à tout : le dossier de travail effectif
 // est celui de la discussion ouverte (convWorkspace, chat_convfiles.go), pour
 // qu'un fichier appartienne à la discussion où il est né et disparaisse avec
-// elle. La racine reste la borne de sécurité des téléchargements.
+// elle — ou celui de la tâche planifiée en cours (agentCwd, plus bas). La racine
+// reste la borne de sécurité des téléchargements.
 
 const workspaceEnv = "LOKI_WORKSPACE"
 
@@ -73,6 +75,30 @@ func workspaceCandidates() []string {
 	return c
 }
 
+// Dossier de travail imposé pendant l'exécution d'une TÂCHE planifiée
+// (tasks_run.go). Une tâche tourne hors de toute discussion : sans ça, ses
+// fichiers atterriraient dans le dossier de la discussion qui se trouve ouverte
+// — et changeraient de place en cours de route si l'utilisateur en changeait.
+//
+// La bascule est un état de processus et non de goroutine, ce que Go ne sait pas
+// faire autrement ; c'est sûr ici parce qu'une SEULE génération tourne à la fois
+// (le verrou de conv), et parce que seuls les points d'entrée des OUTILS lisent
+// agentCwd(). Ce que voit l'utilisateur — panneau Fichiers, dépôts, liens des
+// messages — continue de passer par convWorkspace() et reste donc sur sa
+// discussion, même pendant qu'une tâche écrit ailleurs.
+var taskWS atomic.Value // string
+
+func setTaskWorkspace(dir string) { taskWS.Store(dir) }
+
+// agentCwd = le dossier où l'agent travaille MAINTENANT : celui de la tâche en
+// cours s'il y en a une, sinon celui de la discussion ouverte.
+func agentCwd() string {
+	if d, _ := taskWS.Load().(string); d != "" {
+		return d
+	}
+	return convWorkspace()
+}
+
 // resolveAgentPath résout un chemin fourni par le modèle. Absolu → inchangé ;
 // "~/x" → dans le home de l'utilisateur ; relatif → dans le dossier de la
 // discussion ouverte.
@@ -89,5 +115,5 @@ func resolveAgentPath(p string) string {
 	if filepath.IsAbs(p) {
 		return p
 	}
-	return filepath.Join(convWorkspace(), filepath.FromSlash(p))
+	return filepath.Join(agentCwd(), filepath.FromSlash(p))
 }

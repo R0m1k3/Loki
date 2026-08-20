@@ -74,7 +74,7 @@ func runGit(ctx context.Context, timeout time.Duration, args ...string) string {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "git", args...)
-	cmd.Dir = convWorkspace()
+	cmd.Dir = agentCwd()
 	// Jamais d'invite interactive (mot de passe, hôte inconnu) : un process
 	// serveur n'a personne pour y répondre, il faut échouer vite et le dire.
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -oBatchMode=yes")
@@ -137,7 +137,7 @@ func toolGitClone(ctx context.Context, args map[string]any) string {
 	if strings.Contains(dir, "..") || filepath.IsAbs(dir) {
 		return "[erreur] dossier cible invalide"
 	}
-	target := filepath.Join(convWorkspace(), dir)
+	target := filepath.Join(agentCwd(), dir)
 	if _, err := os.Stat(target); err == nil {
 		return "[erreur] le dossier " + dir + " existe déjà"
 	}

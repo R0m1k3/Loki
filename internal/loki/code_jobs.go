@@ -83,7 +83,7 @@ func toolBashBg(args map[string]any) string {
 	if reason := dangerousCommand(command); reason != "" {
 		return refusedCommandResult(reason)
 	}
-	ws := convWorkspace()
+	ws := agentCwd()
 	logDir := filepath.Join(ws, ".loki", "jobs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return "[erreur] " + err.Error()

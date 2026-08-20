@@ -161,7 +161,7 @@ func machineSystemPrompt(caps Caps) string {
 	if u, err := user.Current(); err == nil {
 		who = u.Username
 	}
-	cwd := convWorkspace()
+	cwd := agentCwd()
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Machine: host=%s, %s/%s", host, runtime.GOOS, runtime.GOARCH))
@@ -173,7 +173,11 @@ func machineSystemPrompt(caps Caps) string {
 	}
 	b.WriteString(".")
 	if cwd != "" {
-		b.WriteString(" Relative paths in write/edit/bash resolve inside this working folder — put scratch files there. Write outside it ONLY with an absolute path the user explicitly asked for; never scatter files into the folder loki was launched from.")
+		// Formulation reprise de l'amont AJEAN (v0.10.2) : dire ce que le dossier
+		// EST (l'endroit par défaut de tout ce que le modèle produit) marche mieux
+		// que d'interdire d'en sortir — et nommer les dossiers système coupe court
+		// aux « installations » en /usr/local/bin qui échouent faute de root.
+		b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for everything you create — scripts, notes, outputs, even a command-line tool you build. Just use a relative name. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder when the user explicitly named that location.")
 	}
 	return b.String()
 }
@@ -207,7 +211,7 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	// such file or directory » incompréhensible, et ce jusqu'au redémarrage. On
 	// le recrée au besoin, et à défaut on démarre là où on peut plutôt que de
 	// tout refuser.
-	if ws := convWorkspace(); ws != "" {
+	if ws := agentCwd(); ws != "" {
 		if err := os.MkdirAll(ws, 0o755); err == nil {
 			cmd.Dir = ws
 		}

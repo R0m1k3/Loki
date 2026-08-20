@@ -64,7 +64,7 @@ func looksLikeCode(text string) bool {
 
 // convHasRepo : un dépôt git vit déjà dans le dossier de la discussion.
 func convHasRepo() bool {
-	ws := convWorkspace()
+	ws := agentCwd()
 	if _, err := os.Stat(filepath.Join(ws, ".git")); err == nil {
 		return true
 	}

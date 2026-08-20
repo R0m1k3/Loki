@@ -257,6 +257,89 @@ function syncSendBtn(){
     hint.classList.toggle('waiting', !ready);
   }
 }
+// ─── Rendu du bloc en cours : cadencé, puis lissé ────────────────────────────
+// Repris de l'amont AJEAN (v0.9.5 issue #24, puis v0.10.5), adapté.
+//
+// Re-parser le Markdown du bloc ENTIER à chaque token est en O(n²) : sur un long
+// raisonnement (des milliers de tokens) l'interface se met à ramer, les tokens
+// semblent arriver au ralenti — alors que le moteur, lui, débite toujours autant
+// — et un simple rafraîchissement « répare » tout, puisqu'il rend le bloc une
+// seule fois. On coalesce donc : le texte s'accumule (concaténation, quasi
+// gratuite) et on ne re-rend qu'à intervalle borné. Le rendu final exact est
+// garanti par flushRender(), appelé à chaque frontière de bloc (outil, fin de
+// tour, erreur, caught_up).
+let renderTimer=null, renderPending=null, lastRenderMs=0; // {el, text}
+function scheduleRender(el, text){
+  // Changement de bloc en cours de route : on rend d'abord l'ancien à sa dernière
+  // valeur, sinon son ultime bout de texte serait perdu.
+  if(renderPending && renderPending.el!==el) flushRender();
+  renderPending={el, text};
+  if(renderTimer) return;
+  // Cadence ADAPTATIVE : on vise à ne pas passer plus d'~1/6 du temps à re-parser
+  // le Markdown. Tant que le bloc est petit, un rendu coûte 1-2 ms → plancher
+  // 16 ms ≈ 60 img/s, l'apparition reste fluide token par token. Quand le bloc
+  // devient énorme, le rendu coûte cher et on espace tout seul jusqu'à 500 ms :
+  // le O(n²) est cassé sans jamais figer l'interface.
+  const delay=Math.min(500, Math.max(16, lastRenderMs*6));
+  renderTimer=setTimeout(flushRender, delay);
+}
+function flushRender(){
+  if(renderTimer){ clearTimeout(renderTimer); renderTimer=null; }
+  const p=renderPending; renderPending=null;
+  if(!p) return;
+  const t0=performance.now();
+  renderBody(p.el, p.text);
+  lastRenderMs=performance.now()-t0;
+}
+// Annule le rendu en attente SANS le poser : le bloc visé disparaît (fil vidé,
+// raisonnement jeté), le rendre ensuite écrirait dans un élément détaché.
+function cancelRender(){ if(renderTimer){ clearTimeout(renderTimer); renderTimer=null; } renderPending=null; }
+// Lissage d'apparition (« machine à écrire »). Le décodage spéculatif (MTP) rend
+// les tokens PAR RAFALES — plusieurs acceptés d'un coup, puis une pause : le
+// texte grandit par paquets et saute à l'écran. On découple donc l'ARRIVÉE (les
+// rafales du moteur) de l'AFFICHAGE : `target` = tout ce qui est reçu, `shown`
+// avance à cadence régulière (requestAnimationFrame), et on n'affiche que le
+// préfixe révélé. Le rendu passe TOUJOURS par scheduleRender pour conserver le
+// garde-fou anti-O(n²) ci-dessus.
+// UNIQUEMENT EN DIRECT : au rejeu tout est posé d'un bloc, sinon relire un fil
+// deviendrait une lente réécriture caractère par caractère.
+let smooth=null, smoothLast=0; // {el, target, shown, raf}
+function smoothReset(){ if(smooth&&smooth.raf) cancelAnimationFrame(smooth.raf); smooth=null; smoothLast=0; }
+// Solde le bloc courant : on affiche TOUT immédiatement. Appelé à chaque
+// frontière (fin de tour, outil, changement de bloc) — sinon l'ultime bout de
+// texte resterait en retard derrière le curseur de révélation.
+function smoothSnap(){ if(!smooth) return; const el=smooth.el, target=smooth.target; smoothReset(); scheduleRender(el, target); }
+// Débit BASÉ SUR LE TEMPS (indépendant du taux de rafraîchissement). La vitesse
+// de révélation est proportionnelle au RETARD accumulé, avec une constante de
+// temps TAU : le curseur traîne volontairement ~TAU derrière l'arrivée, ce qui
+// donne un écoulement CONTINU malgré les rafales, et se vide en douceur quand la
+// génération s'arrête. Un plancher garantit un progrès même sur un retard
+// minuscule, sans jamais figer.
+const SMOOTH_TAU=260; // ms — plus grand = plus lisse mais traîne davantage
+function smoothStep(ts){
+  if(!smooth) return;
+  if(!smoothLast) smoothLast=ts;
+  const dt=Math.min(120, ts-smoothLast); smoothLast=ts;
+  const remaining=smooth.target.length - smooth.shown;
+  if(remaining<=0){ smooth.raf=null; smoothLast=0; return; }
+  let adv=remaining*dt/SMOOTH_TAU;      // vitesse ∝ retard
+  if(adv<0.4) adv=0.4;                  // progrès minimal
+  smooth.shown=Math.min(smooth.target.length, smooth.shown+Math.ceil(adv));
+  scheduleRender(smooth.el, smooth.target.slice(0, smooth.shown));
+  smooth.raf=requestAnimationFrame(smoothStep);
+}
+function smoothFeed(el, target){
+  if(smooth && smooth.el!==el) smoothSnap();   // changement de bloc : solder l'ancien
+  if(!smooth) smooth={el, target, shown:0, raf:null};
+  smooth.target=target;
+  if(!smooth.raf) smooth.raf=requestAnimationFrame(smoothStep);
+}
+// Rend un bloc en streaming : lissé en direct, instantané au rejeu.
+function feedBlock(el, full){ if(REPLAYING) scheduleRender(el, full); else smoothFeed(el, full); }
+// Solde tout ce qui est en vol : le bloc est terminé, la suite (stats, repli,
+// bulle d'outil) doit voir le texte complet.
+function settleBlocks(){ smoothSnap(); flushRender(); }
+
 // Traite UN événement du flux — même sémantique que l'ancien switch inline, mais
 // piloté par le serveur et rejouable à l'identique.
 function handleDelta(d){
@@ -266,6 +349,7 @@ function handleDelta(d){
   // pendant le rejeu, où les `ts` sont vieux de plusieurs heures.
   if(!REPLAYING && typeof d.ts==='number' && d.ts>0) TS_SKEW = Date.now() - d.ts;
   if(d.caught_up){
+    settleBlocks(); // rendre le dernier bloc rejoué à sa valeur exacte
     // Fin du replay initial : on saute en bas puis on révèle (une seule fois — pas
     // sur les reconnexions, pour ne pas te ramener en bas si tu lisais plus haut).
     setChatLoading(null);
@@ -282,12 +366,15 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ stopWorkTimer(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.reset!==undefined){ smoothReset(); cancelRender(); stopWorkTimer(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
   if(d.criteria!==undefined){ if(typeof renderCriteria==='function') renderCriteria(d.criteria); return; }
-  if(d.role!==undefined){ ROLE_BADGE = d.role || ''; T.contentEl=null; T.reasonEl=null; return; }
+  // Bascule de rôle (mode code) : les blocs en cours appartiennent au rôle
+  // précédent — on les solde avant de les oublier, sinon leur dernier fragment
+  // resterait en vol et ne s'afficherait jamais.
+  if(d.role!==undefined){ settleBlocks(); ROLE_BADGE = d.role || ''; T.contentEl=null; T.reasonEl=null; return; }
   if(d.ask){ if(typeof renderAskCard==='function') renderAskCard(d.ask); return; }
   if(d.verify_done){ if(typeof onVerifyDone==='function') onVerifyDone(d.verify_done); return; }
   if(d.user!==undefined){
@@ -305,7 +392,7 @@ function handleDelta(d){
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
-  if(d.turn_done){ removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
+  if(d.turn_done){ settleBlocks(); removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
     // La durée se fige ICI : au-delà, plus rien ne bouge, la ligne doit montrer
     // le temps réellement passé et non continuer d'avancer.
     T.doneTs = d.ts || T.doneTs || 0;
@@ -313,7 +400,7 @@ function handleDelta(d){
     else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
     paintTurnClock();                               // fige le total au-dessus de la carte
     setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
-  if(d.error){ removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
+  if(d.error){ settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
   // Pas de toast au REPLAY : le journal est rejoué à chaque chargement de page,
@@ -331,6 +418,7 @@ function handleDelta(d){
     if(d.stats.prompt_tokens_total){ setCtxUsed((d.stats.prompt_tokens_total||0)+(d.stats.gen_tokens||0)); }
     if(T.contentEl||T.reasonEl) renderStats(T.contentEl||T.reasonEl, d.stats); return; }
   if(d.tool_used){
+    settleBlocks(); // le bloc texte précédent (raisonnement/contenu) est terminé
     killTyping('tool'); T.contentEl=null; T.reasonEl=null; const tu=d.tool_used;
     if(!T.pendingToolEl){ collapseAll(T.turnCollapsibles); T.pendingToolEl=addMsg('tool',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.pendingToolEl); T.turnCollapsibles.push(T.pendingToolEl); }
     renderToolMsg(T.pendingToolEl, tu);
@@ -340,6 +428,7 @@ function handleDelta(d){
     if(tu.done){ T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
     return; }
   if(d.drop_reasoning){
+    smoothReset(); cancelRender(); // le bloc raisonnement disparaît : rien à rendre
     if(T.reasonEl){ const i=T.turnCollapsibles.indexOf(T.reasonEl); if(i>=0) T.turnCollapsibles.splice(i,1); T.reasonEl.remove(); T.reasonEl=null; T.fullReason=''; }
     return; }
   if(d.reasoning_content){
@@ -348,8 +437,8 @@ function handleDelta(d){
     // d.replace : le serveur renvoie le bloc ENTIER alors qu'on en affichait déjà
     // le début (voir decorateEvent/coalesceReplay côté serveur) → on repart de zéro
     // au lieu de concaténer, sinon le texte apparaît en double.
-    if(d.replace){ T.fullReason=''; resetReasonStats(); }
-    showTyping('reasoning'); T.fullReason+=d.reasoning_content; renderBody(T.reasonEl, T.fullReason);
+    if(d.replace){ smoothSnap(); T.fullReason=''; resetReasonStats(); }
+    showTyping('reasoning'); T.fullReason+=d.reasoning_content; feedBlock(T.reasonEl, T.fullReason);
     // d.toks/d.ts0 présents quand l'événement est coalescé (replay) : plusieurs
     // tokens d'un coup. Sinon (direct), 1 token, ts0=ts.
     if(!T.reasonFirstTs) T.reasonFirstTs=d.ts0||d.ts||0; T.reasonLastTs=d.ts||T.reasonLastTs; T.reasonTok+=(d.toks||1);
@@ -358,8 +447,8 @@ function handleDelta(d){
   if(d.content){
     removeTyping();
     if(!T.contentEl){ collapseAll(T.turnCollapsibles); T.contentEl=addMsg('assistant',''); T.fullContent=''; resetContentStats(); }
-    if(d.replace){ T.fullContent=''; resetContentStats(); }
-    T.fullContent+=d.content; renderBody(T.contentEl, T.fullContent);
+    if(d.replace){ smoothSnap(); T.fullContent=''; resetContentStats(); }
+    T.fullContent+=d.content; feedBlock(T.contentEl, T.fullContent);
     if(!T.contentFirstTs) T.contentFirstTs=d.ts0||d.ts||0; T.contentLastTs=d.ts||T.contentLastTs; T.contentTok+=(d.toks||1);
     labelTokens(T.contentEl, 'assistant', T.contentTok, T.contentFirstTs, T.contentLastTs);
     return; }
