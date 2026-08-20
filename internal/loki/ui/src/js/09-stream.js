@@ -278,11 +278,15 @@ function syncSendBtn(){
 // garanti par flushRender(), appelé à chaque frontière de bloc (outil, fin de
 // tour, erreur, caught_up).
 let renderTimer=null, renderPending=null, lastRenderMs=0; // {el, text}
-function scheduleRender(el, text){
+function scheduleRender(el, text, final){
   // Changement de bloc en cours de route : on rend d'abord l'ancien à sa dernière
   // valeur, sinon son ultime bout de texte serait perdu.
   if(renderPending && renderPending.el!==el) flushRender();
-  renderPending={el, text};
+  // `final` voyage AVEC le rendu en attente : le timer déjà armé (qui passe
+  // final=false) peut être celui qui consommera ce rendu — sans le drapeau sur
+  // le pending, le rendu de FIN de bloc repassait par le chemin « queue seule »
+  // et le début du raisonnement n'était jamais posé.
+  renderPending={el, text, final:!!final};
   if(renderTimer) return;
   // Cadence ADAPTATIVE : on vise à ne pas passer plus d'~1/6 du temps à re-parser
   // le Markdown. Tant que le bloc est petit, un rendu coûte 1-2 ms → plancher
@@ -290,15 +294,33 @@ function scheduleRender(el, text){
   // devient énorme, le rendu coûte cher et on espace tout seul jusqu'à 500 ms :
   // le O(n²) est cassé sans jamais figer l'interface.
   const delay=Math.min(500, Math.max(16, lastRenderMs*6));
-  renderTimer=setTimeout(flushRender, delay);
+  renderTimer=setTimeout(()=>flushRender(false), delay);
 }
-function flushRender(){
+// Au-delà de cette taille, un raisonnement EN COURS n'est re-parsé que sur sa
+// fin : re-parser le bloc entier à chaque tick est en O(n²) et finissait par
+// figer l'affichage (le texte semblait s'arrêter alors que le moteur débitait).
+// La carte étant bornée en hauteur et collée en bas, on ne perd rien à l'écran ;
+// le texte COMPLET est posé au rendu final (frontière de bloc → final=true).
+const REASON_TAIL=6000;
+function flushRender(final){
   if(renderTimer){ clearTimeout(renderTimer); renderTimer=null; }
   const p=renderPending; renderPending=null;
   if(!p) return;
+  let text=p.text;
+  if(final===false && !p.final && text.length>REASON_TAIL+800 && p.el.closest('.msg.reasoning')){
+    let cut=text.length-REASON_TAIL;
+    const nl=text.indexOf('\n', cut); if(nl>-1 && nl<cut+400) cut=nl+1;
+    text='*… (début replié pendant la génération — le texte complet est posé à la fin)*\n\n'+text.slice(cut);
+  }
+  // Carte bornée (raisonnement/outil) : si on était collé en bas, on y reste —
+  // la carte suit la génération. Un défilement manuel vers le haut est respecté.
+  const bw=p.el.parentElement;
+  const scrollable=bw && bw.classList.contains('bodywrap');
+  const stick=scrollable && bw.scrollTop+bw.clientHeight>=bw.scrollHeight-60;
   const t0=performance.now();
-  renderBody(p.el, p.text);
+  renderBody(p.el, text);
   lastRenderMs=performance.now()-t0;
+  if(scrollable && stick) bw.scrollTop=bw.scrollHeight;
 }
 // Annule le rendu en attente SANS le poser : le bloc visé disparaît (fil vidé,
 // raisonnement jeté), le rendre ensuite écrirait dans un élément détaché.
@@ -317,7 +339,7 @@ function smoothReset(){ if(smooth&&smooth.raf) cancelAnimationFrame(smooth.raf);
 // Solde le bloc courant : on affiche TOUT immédiatement. Appelé à chaque
 // frontière (fin de tour, outil, changement de bloc) — sinon l'ultime bout de
 // texte resterait en retard derrière le curseur de révélation.
-function smoothSnap(){ if(!smooth) return; const el=smooth.el, target=smooth.target; smoothReset(); scheduleRender(el, target); }
+function smoothSnap(){ if(!smooth) return; const el=smooth.el, target=smooth.target; smoothReset(); scheduleRender(el, target, true); }
 // Débit BASÉ SUR LE TEMPS (indépendant du taux de rafraîchissement). La vitesse
 // de révélation est proportionnelle au RETARD accumulé, avec une constante de
 // temps TAU : le curseur traîne volontairement ~TAU derrière l'arrivée, ce qui

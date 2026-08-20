@@ -1,19 +1,46 @@
-La grande nouveauté de cette version : AJEAN sait enfin voir les images.
+# Loki 0.11.0
 
-## La vision, configurable par preset
+Première version numérotée du fork depuis la synchronisation avec l'amont
+AJEAN (v0.10.7). L'essentiel de cette version : une interface qui respire.
 
-Jusqu'ici rien dans l'interface ne permettait de donner des yeux à un modèle. Il fallait glisser l'option `--mmproj` à la main dans la configuration brute, et son chemin n'était même pas résolu comme celui du modèle. L'éditeur de preset gagne un champ **Vision** : tu y choisis le projecteur multimodal (fichier `mmproj`) qui accompagne le modèle, et c'est tout. Au démarrage du moteur, AJEAN le charge tout seul.
+## Réglages en modale
 
-Le champ ne liste que les projecteurs (les fichiers dont le nom contient `mmproj`), pas les modèles de plusieurs Go, pour que le choix reste lisible. Et s'il te manque un projecteur, le champ « télécharger un modèle » accepte aussi un lien vers un `mmproj` : une fois récupéré, il se place directement dans le champ Vision.
+Tous les réglages quittent la barre latérale pour une fenêtre à deux volets :
+la nav des sections à gauche (IA, moteur, application), le panneau choisi à
+droite — chaque section a enfin toute la largeur. La barre latérale ne garde
+que les discussions et le moniteur machine. Les chemins historiques (pastille
+d'état du moteur, pastille d'installation llama.cpp) rouvrent la modale au bon
+endroit.
 
-## Les images arrivent vraiment au modèle
+## Discussions : la plus récente en tête
 
-Avant, une image collée dans le chat était simplement déposée comme un fichier dans le dossier de travail, à charge pour le modèle de l'ouvrir avec ses outils (ce qui ne donnait qu'un tas d'octets illisibles). Désormais, quand un projecteur est configuré, l'image part au modèle en contenu multimodal : il la voit, et peut en parler.
+La liste se lit en ordre d'activité, la discussion du moment en haut — y
+compris une discussion toute neuve, qui apparaissait sous celle qu'on venait de
+quitter.
+
+## Nom du modèle sur chaque réponse
+
+Une pastille à côté de « Loki » dit quel modèle a produit la réponse. Le nom
+est journalisé avec le tour : il survit au rechargement de page, et un vieux
+tour garde le modèle de l'époque, pas celui chargé aujourd'hui.
+
+## Cartes de raisonnement à hauteur bornée
+
+Un long raisonnement (plusieurs milliers de tokens) faisait grandir la page de
+plusieurs écrans et finissait par figer l'affichage (re-parse Markdown du bloc
+entier à chaque token, en O(n²)). La carte reste maintenant à taille fixe et
+suit la génération en défilant toute seule ; en direct, seul le bas d'un bloc
+géant est re-rendu, et le texte complet est posé en fin de bloc.
+
+## Divers
+
+- Jeton Hugging Face réglable dans l'interface (dépôts verrouillés : le
+  message dit lesquels, et pourquoi le 401).
+- Tâches planifiées reprises de l'amont : l'IA travaille toute seule sur une
+  fréquence réglable, isolée des discussions.
 
 ## Mise à jour
 
 ```
-ajean update
+docker compose pull && docker compose up -d
 ```
-
-Non vérifié sur cette version : le résultat final dépend d'un modèle vision et de son projecteur compatibles (Qwen2.5-VL, Gemma 3, etc.). À noter, l'image reste dans l'historique de la conversation et repart au moteur à chaque tour tant que la conversation dure.

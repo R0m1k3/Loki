@@ -320,8 +320,18 @@ Ajoutées par ce fork :
   `AGENT_BUDGET=off` le désactive complètement.
 - **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
   dans le fil.
-- **Paramètres** : les réglages d'application (identité, apparence, accès
-  OpenAI, actions) sont regroupés à part des réglages d'IA.
+- **Réglages en modale** : tous les réglages vivent dans une fenêtre à deux
+  volets — la nav des sections à gauche (IA, moteur, application), le panneau
+  choisi à droite. La barre latérale ne garde que les discussions (les plus
+  récentes en tête) et le moniteur machine.
+- **Nom du modèle sur chaque réponse** : une pastille à côté de « Loki » dit
+  quel modèle a produit la réponse. Elle est journalisée avec le tour : elle
+  survit au rechargement, et un vieux tour garde le modèle de l'époque.
+- **Cartes raisonnement/outils à hauteur bornée** : un long raisonnement ne
+  fait plus grandir la page de plusieurs écrans — la carte reste à taille fixe
+  et défile toute seule pendant la génération. Sur un raisonnement géant, seul
+  le bas du bloc est re-rendu en direct (le texte complet est posé à la fin) :
+  l'affichage ne se fige plus.
 
 Retirées par ce fork :
 
