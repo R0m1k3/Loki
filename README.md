@@ -206,16 +206,21 @@ Ajoutées par ce fork :
   runtime manque (`npx`/`uvx` absent) le signale au lieu d'échouer plus tard, et
   celles qui réclament une clé d'API la rappellent avant l'enregistrement.
 - **Intensité du raisonnement** : un niveau — auto / aucune / basse / moyenne /
-  haute — envoyé à `llama-server` comme `reasoning_effort`. Réglable **dans la
-  barre de saisie**, parce que ça se décide en écrivant le message : le
+  haute / maximale — envoyé à `llama-server` comme `reasoning_effort`. Réglable
+  **dans la barre de saisie**, parce que ça se décide en écrivant le message : le
   changement s'applique au message suivant, sans redémarrer le moteur. L'éditeur
   de preset garde le même réglage comme **défaut du modèle** ; appliquer un
   preset reprend donc la main sur le choix fait à la volée. `none` coupe le
   raisonnement ; les autres valeurs sont passées au gabarit jinja du modèle, ce
   qui ne change le comportement que des modèles qui les lisent (gpt-oss et
   apparentés) — ailleurs c'est ignoré sans erreur, et l'interface le dit plutôt
-  que de promettre un effet. La liste est grisée quand le raisonnement est coupé
-  pour ce modèle.
+  que de promettre un effet. Aucun gabarit ne les connaît toutes (gpt-oss :
+  basse/moyenne/haute ; Qwen3.8 : basse/moyenne/maximale) et certains **refusent**
+  celles qu'ils ne connaissent pas, avec une erreur 500 qui tuait le tour : loki
+  lit alors les niveaux annoncés par le refus, **repli sur le plus proche** (haute
+  → maximale) et rejoue le message sans rien perdre de l'historique — une fois,
+  puis la traduction est retenue pour ce modèle. La liste est grisée quand le
+  raisonnement est coupé pour ce modèle.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

@@ -72,17 +72,24 @@ func reasoningActive(v string) bool {
 
 // ReasoningEfforts liste les valeurs proposées par l'UI pour REASONING_EFFORT.
 // "" (auto) n'y figure pas : c'est l'absence de réglage.
-var ReasoningEfforts = []string{"none", "low", "medium", "high"}
+//
+// Aucun gabarit ne les connaît toutes — gpt-oss lit low/medium/high, Qwen3.8 lit
+// low/medium/xhigh — et certains REFUSENT celles qu'ils ne connaissent pas (voir
+// llm_effort.go, qui traduit alors vers le niveau accepté le plus proche). La
+// liste reste donc l'union des niveaux courants plutôt que le plus petit
+// dénominateur commun, sinon le maximum d'un modèle est hors d'atteinte.
+var ReasoningEfforts = []string{"none", "low", "medium", "high", "xhigh"}
 
 // reasoningEffortValue normalise REASONING_EFFORT en une valeur envoyable telle
 // quelle à llama-server, ou "" pour ne rien envoyer du tout.
 //
 // llama-server accepte `reasoning_effort` dans /v1/chat/completions : la valeur
 // `none` coupe le raisonnement, toute autre valeur est simplement passée au
-// gabarit jinja du modèle. Un gabarit qui ne la lit pas l'ignore sans erreur —
-// c'est pourquoi il n'y a pas de repli à prévoir ici, contrairement à un backend
-// qui rejetterait la requête. En pratique seuls les modèles dont le gabarit
-// gère `reasoning_effort` (gpt-oss et apparentés) changent de comportement.
+// gabarit jinja du modèle. Un gabarit qui ne la lit pas l'ignore sans erreur ;
+// un gabarit qui la VALIDE, lui, peut lever une exception jinja et faire
+// répondre 500 à llama-server (Qwen3.8 sur « high »). Le repli n'est pas ici —
+// on ne sait pas d'avance ce que le gabarit accepte — mais dans llm_effort.go,
+// qui apprend la réponse du refus lui-même et rejoue le tour.
 func reasoningEffortValue(v string) string {
 	switch s := strings.ToLower(strings.TrimSpace(v)); s {
 	case "", "auto", "default":

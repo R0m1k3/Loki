@@ -75,7 +75,7 @@ var configTemplate = []struct{ key, help string }{
 	{"KV_TYPE", "quantization du cache KV (q8_0, q4_0…) ; KV_TYPE_K / KV_TYPE_V pour les séparer"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
-	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high"},
+	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"COMPACT", "compactage automatique du contexte (off pour couper)"},
 	{"MEM_MODE", "mémoire de l'IA : off / ondemand / always"},
 	{"EXTRA_ARGS", "ajouté tel quel à la ligne de commande de llama-server"},

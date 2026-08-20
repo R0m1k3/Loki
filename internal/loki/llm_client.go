@@ -616,12 +616,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	reasoningOn := reasoningActive(chatCfg["REASONING"])
 	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
 	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
-	reasoningEffort := reasoningEffortValue(chatCfg["REASONING_EFFORT"])
+	effortWanted := reasoningEffortValue(chatCfg["REASONING_EFFORT"])
+	// …sauf si le gabarit de CE modèle a déjà refusé ce niveau (llm_effort.go) :
+	// on part alors directement sur la traduction apprise, sans repayer le 500.
+	reasoningEffort := effortResolve(effortWanted)
+	// Le raisonnement est-il interdit pour ce tour ? « aucune » compte comme une
+	// interdiction, y compris quand le repli ci-dessus a retiré le niveau : c'est
+	// `enable_thinking` qui porte alors la consigne, seul.
+	thinkOff := reasoningExplicitlyOff(chatCfg["REASONING"]) || effortWanted == "none"
 	// Ce que le gabarit du modèle doit savoir, dans SA langue : `reasoning_effort`
 	// ne parle qu'aux gabarits qui le lisent, `enable_thinking` parle aux modèles
 	// hybrides (Qwen3 & co). Sans ça, « aucune » n'avait aucun effet sur eux : le
 	// modèle réfléchissait pendant que l'interface annonçait le contraire.
-	reasoningKwargs := reasoningTemplateKwargs(reasoningExplicitlyOff(chatCfg["REASONING"]), reasoningEffort)
+	reasoningKwargs := reasoningTemplateKwargs(thinkOff, reasoningEffort)
 	// When llama.cpp fails to parse a model-generated tool call (HTTP 500), we
 	// retry the same turn once with tools removed so the model answers in plain
 	// text from the tool results already gathered, instead of dying mid-chat.
@@ -630,6 +637,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// dépassement de la fenêtre de contexte après de gros résultats d'outils), on
 	// compacte l'historique en vol et on rejoue le tour — une seule fois.
 	compactedRetry := false
+	// Repli d'intensité de raisonnement (llm_effort.go) : une seule tentative par
+	// tour, comme les autres filets.
+	effortRetried := false
 	// Appels d'outil déjà exécutés (clé = nom + arguments bruts) : sert à ne pas
 	// rejouer deux fois exactement la même écriture dans un même échange.
 	doneCalls := map[string]string{}
@@ -708,6 +718,22 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			msg := strings.TrimSpace(string(b))
 			if msg == "" {
 				msg = resp.Status
+			}
+			// Refus du niveau de raisonnement par le gabarit du modèle (Qwen3.8 ne
+			// connaît pas « high », gpt-oss ne connaît pas « xhigh »…). C'est un
+			// refus DÉFINITIF, pas une question de taille de prompt : à traiter
+			// avant la compaction, qui sinon taillait l'historique pour rien puis
+			// échouait quand même. On rejoue le tour avec le niveau accepté (ou
+			// sans le champ), l'historique intact.
+			if !effortRetried && effortWanted != "" {
+				if fixed, ok := effortFromRejection(msg, effortWanted); ok {
+					effortRetried = true
+					effortRemember(effortWanted, fixed)
+					logEffortFallback(effortWanted, fixed)
+					reasoningEffort = fixed
+					reasoningKwargs = reasoningTemplateKwargs(thinkOff, fixed)
+					continue
+				}
 			}
 			// Le prompt a peut-être dépassé la fenêtre de contexte : on tente une
 			// compaction en vol et on rejoue le tour (une seule fois) avant tout le
