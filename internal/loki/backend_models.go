@@ -489,8 +489,12 @@ func dlRequest(ctx context.Context, dlURL, rng string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	// HF gated/private repos may need a token; reuse the same key store if set.
-	if k := os.Getenv("HF_TOKEN"); k != "" {
+	// Dépôt gated/privé : le jeton (réglage de l'interface, sinon HF_TOKEN) est
+	// ce qui débloque le transfert. Il n'accompagne QUE les liens Hugging Face :
+	// un lien collé vers un autre hébergeur n'a aucune raison de recevoir un
+	// secret, et le CDN vers lequel HF redirige est signé, donc n'en a pas besoin
+	// non plus (Go retire l'en-tête au changement de domaine).
+	if k := hfToken(); k != "" && isHFHost(req.URL.Host) {
 		req.Header.Set("Authorization", "Bearer "+k)
 	}
 	req.Header.Set("User-Agent", "loki/"+Version)
@@ -577,10 +581,10 @@ func dlAccessReason(code, repo string) string {
 // se cachent derrière le même 401 : pas de jeton du tout, ou un jeton qui n'a
 // pas accès à CE dépôt — et le geste à faire n'est pas le même.
 func dlTokenHint() string {
-	if strings.TrimSpace(os.Getenv("HF_TOKEN")) == "" {
-		return " — puis renseigne la variable d'environnement HF_TOKEN (jeton Hugging Face)"
+	if !hfTokenSet() {
+		return " — puis renseigne le jeton Hugging Face (réglage « Jeton Hugging Face », ou variable d'environnement HF_TOKEN)"
 	}
-	return " — le jeton HF_TOKEN utilisé n'y donne pas accès (expiré, ou conditions non acceptées avec ce compte)"
+	return " — le jeton Hugging Face enregistré n'y donne pas accès (expiré, ou conditions non acceptées avec ce compte)"
 }
 
 // dlProbe asks the server for the first byte to learn the total size and

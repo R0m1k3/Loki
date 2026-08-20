@@ -101,11 +101,113 @@ type hfListing struct {
 // transfert : sans lui un dépôt gated répond 401 et Loki afficherait « aucun
 // résultat » là où il faudrait dire « dépôt à accès restreint ».
 func hfAuth(req *http.Request) {
-	if k := os.Getenv("HF_TOKEN"); k != "" {
+	if k := hfToken(); k != "" {
 		req.Header.Set("Authorization", "Bearer "+k)
 	}
 	req.Header.Set("User-Agent", "loki/"+Version)
 	req.Header.Set("Accept", "application/json")
+}
+
+// ---- Jeton Hugging Face -----------------------------------------------------
+//
+// Le jeton vivait UNIQUEMENT dans la variable d'environnement HF_TOKEN. En
+// conteneur, c'était l'exiger au mauvais moment : on découvre qu'un dépôt est
+// verrouillé depuis l'interface, et il faudrait éditer un docker-compose puis
+// recréer le conteneur pour y répondre. Il se règle donc aussi dans l'interface,
+// et se range là où sont déjà les secrets (base d'état) — pas dans config.env,
+// que le changement de preset réécrit en bloc.
+//
+// Priorité : le jeton enregistré d'abord, la variable d'environnement ensuite.
+// Rien d'enregistré = comportement d'avant, à l'octet près.
+
+// hfToken renvoie le jeton effectivement utilisé, ou "".
+func hfToken() string {
+	if t := strings.TrimSpace(getStr(bkState, "hf_token")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv("HF_TOKEN"))
+}
+
+// hfTokenSource dit D'OÙ vient le jeton : « config » (enregistré ici), « env »
+// (HF_TOKEN du conteneur) ou "" (aucun). L'interface en a besoin pour ne pas
+// proposer d'effacer un jeton qu'elle ne peut pas effacer.
+func hfTokenSource() string {
+	switch {
+	case strings.TrimSpace(getStr(bkState, "hf_token")) != "":
+		return "config"
+	case strings.TrimSpace(os.Getenv("HF_TOKEN")) != "":
+		return "env"
+	}
+	return ""
+}
+
+// hfTokenSet dit si un jeton est disponible, pour que l'interface distingue
+// « il faut en poser un » de « celui qui est posé ne suffit pas ».
+func hfTokenSet() bool { return hfToken() != "" }
+
+// writeHFToken enregistre (ou efface, tok == "") le jeton. Le cache des réponses
+// Hugging Face est vidé au passage : il contient des listes obtenues SANS jeton,
+// où un dépôt verrouillé peut manquer ou paraître illisible.
+func writeHFToken(tok string) error {
+	if err := putStr(bkState, "hf_token", strings.TrimSpace(tok)); err != nil {
+		return err
+	}
+	hfCacheMu.Lock()
+	hfCache = map[string]hfCacheItem{}
+	hfCacheMu.Unlock()
+	return nil
+}
+
+// maskHFToken n'affiche qu'assez de caractères pour reconnaître le jeton posé.
+// Il n'est jamais renvoyé en clair : contrairement à la clé API du serveur,
+// personne n'a besoin de le recopier depuis Loki.
+func maskHFToken(t string) string {
+	t = strings.TrimSpace(t)
+	if t == "" {
+		return ""
+	}
+	if len(t) <= 8 {
+		return "…" + t[len(t)-2:]
+	}
+	return t[:3] + "…" + t[len(t)-4:]
+}
+
+// hfWhoAmI vérifie un jeton auprès de Hugging Face et renvoie le nom du compte.
+// Enregistrer un jeton sans le vérifier, c'est déplacer l'échec : on croirait le
+// problème réglé jusqu'au prochain 401, quinze minutes de téléchargement plus
+// tard.
+func hfWhoAmI(ctx context.Context, tok string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, hfTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", hfHost+"/api/whoami-v2", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(tok))
+	req.Header.Set("User-Agent", "loki/"+Version)
+	req.Header.Set("Accept", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Hugging Face injoignable : %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return "", fmt.Errorf("jeton refusé par Hugging Face (expiré, révoqué ou mal copié)")
+	}
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("Hugging Face a répondu %d", resp.StatusCode)
+	}
+	var who struct {
+		Name string `json:"name"`
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal(raw, &who); err != nil {
+		return "", err
+	}
+	return who.Name, nil
 }
 
 // hfCache : mémo commun à la recherche et aux arborescences, clé = l'URL
@@ -241,10 +343,15 @@ func hfRepoGated(ctx context.Context, repo string) bool {
 	return hfGatedFlag(info.Gated)
 }
 
-// hfTokenSet dit si un jeton est configuré, pour que l'interface distingue
-// « il faut en poser un » de « celui qui est posé ne suffit pas ».
-func hfTokenSet() bool {
-	return strings.TrimSpace(os.Getenv("HF_TOKEN")) != ""
+// isHFHost dit si un hôte appartient à Hugging Face. Sert à décider qui a le
+// droit de recevoir le jeton.
+func isHFHost(host string) bool {
+	h := strings.ToLower(host)
+	if i := strings.IndexByte(h, ':'); i >= 0 {
+		h = h[:i]
+	}
+	return h == "huggingface.co" || strings.HasSuffix(h, ".huggingface.co") ||
+		h == "hf.co" || strings.HasSuffix(h, ".hf.co")
 }
 
 // hfRepoFromURL retrouve « auteur/dépôt » dans un lien de téléchargement

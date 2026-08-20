@@ -164,7 +164,7 @@ func TestDLSourceErrorExplainsGatedRepo(t *testing.T) {
 		{
 			name: "gated avec jeton refusé", token: "hf_xxx", resp: resp(401, "GatedRepo"), url: gated,
 			want:   []string{"accès restreint", "n'y donne pas accès"},
-			absent: []string{"renseigne la variable"},
+			absent: []string{"renseigne le jeton"},
 		},
 		{
 			name: "dépôt privé ou absent", resp: resp(401, "RepoNotFound"), url: gated,

@@ -864,6 +864,23 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               </div>
               <div class="pe-note">Ces dossiers servent aussi de destination de téléchargement.</div>
             </div>
+            <!-- Jeton Hugging Face. Replié comme « Dossiers de modèles » : on n'y
+                 touche qu'une fois, le jour où un dépôt à accès restreint refuse
+                 le téléchargement. Il vaut aussi pour la recherche, d'où sa place
+                 dans ce groupe plutôt qu'à côté de la clé API du serveur, qui ne
+                 parle pas du tout de la même chose. -->
+            <div id="m-hft-toggle" class="pe-row" style="cursor:pointer" onclick="toggleHFToken()">
+              <span class="pe-row-l">Jeton Hugging Face<span class="pe-sub">dépôts à accès restreint (« gated ») ou privés</span></span>
+              <span class="pe-row-c"><span id="m-hft-state" class="pe-sub"></span><span id="m-hft-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-hft-body" class="pe-row stack" style="display:none">
+              <div class="pe-inpbtn">
+                <input id="m-hft-input" class="pe-inp" type="password" autocomplete="off" spellcheck="false" placeholder="hf_…" onkeydown="if(event.key==='Enter'){event.preventDefault();saveHFToken();}">
+                <button id="m-hft-save" onclick="saveHFToken()" title="Vérifier et enregistrer" aria-label="Enregistrer">✓</button>
+              </div>
+              <div id="m-hft-note" class="pe-note"></div>
+              <button id="m-hft-clear" class="pe-link" onclick="clearHFToken()" style="display:none">Retirer le jeton</button>
+            </div>
           </div>
         </div>
 
