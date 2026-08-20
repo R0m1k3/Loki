@@ -1093,9 +1093,27 @@ async function hfSearch(){
     const m = document.createElement('span'); m.className = 'hf-meta';
     m.textContent = fmtCount(rep.downloads)+' ↓';
     row.append(n, m);
+    // Dépôt verrouillé : il se LIT sans rien, mais chaque .gguf répond 401 au
+    // transfert. La pastille le dit dès la liste — sinon on choisit un quant,
+    // on lance 15 Go et l'erreur tombe à la fin de la sonde.
+    if(rep.gated){
+      const g = document.createElement('span');
+      g.className = 'hf-fit gated';
+      g.textContent = 'accès restreint';
+      g.title = hfGatedHint(r.hf_token);
+      row.appendChild(g);
+    }
     list.appendChild(row);
   }
   o.appendChild(list);
+}
+
+// Le geste à faire n'est pas le même selon qu'un jeton est configuré ou non :
+// sans jeton il en faut un, avec jeton c'est l'accès au dépôt qui manque.
+function hfGatedHint(hasToken){
+  return hasToken
+    ? 'Dépôt à accès restreint : le jeton HF_TOKEN sera utilisé. Si le téléchargement échoue en 401, accepte les conditions du dépôt sur huggingface.co avec le compte de ce jeton.'
+    : 'Dépôt à accès restreint : accepte ses conditions sur huggingface.co, puis renseigne la variable d’environnement HF_TOKEN. Sans jeton, le téléchargement échouera en 401.';
 }
 
 // Millions/milliers abrégés : un dépôt à 1 945 635 téléchargements dit surtout
@@ -1125,7 +1143,22 @@ async function hfPickRepo(repo){
   back.onclick = hfSearch;
   const title = document.createElement('span'); title.className = 'hf-name'; title.textContent = repo;
   head.append(back, title);
+  if(r.gated){
+    const g = document.createElement('span');
+    g.className = 'hf-fit gated'; g.textContent = 'accès restreint';
+    head.appendChild(g);
+  }
   o.appendChild(head);
+
+  // Avertissement en toutes lettres : la pastille seule ne dit pas quoi faire,
+  // et c'est ici que le téléchargement se déclenche.
+  if(r.gated){
+    const warn = document.createElement('div');
+    warn.className = 'pe-note';
+    warn.style.color = r.hf_token ? 'var(--warn)' : 'var(--err)';
+    warn.textContent = hfGatedHint(r.hf_token);
+    o.appendChild(warn);
+  }
 
   // Projecteur vision : proposé UNIQUEMENT s'il vient de ce dépôt. Un mmproj
   // encode dans l'espace latent de SON modèle ; en prendre un ailleurs donne un

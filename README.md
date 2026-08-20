@@ -77,6 +77,13 @@ Le champ **Télécharger un modèle** reste disponible pour coller un lien direc
 (dépôt privé, fichier hors des conventions). Un dépôt à accès restreint demande
 la variable d'environnement `HF_TOKEN`.
 
+Certains dépôts sont **à accès restreint** (« gated ») : leur arborescence se lit
+sans rien, mais chaque `.gguf` répond `401` tant que les conditions du dépôt
+n'ont pas été acceptées sur huggingface.co **et** qu'un jeton n'est pas fourni.
+Loki les marque « accès restreint » dès la liste des résultats et rappelle le
+geste à faire, plutôt que de laisser choisir une quantification pour échouer au
+lancement du transfert.
+
 ## Installation sur Unraid
 
 L'image est construite et publiée par GitHub Actions sur GHCR

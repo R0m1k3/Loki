@@ -205,3 +205,41 @@ func TestFitVerdict(t *testing.T) {
 		t.Errorf("le contexte ne change rien au verdict (%q dans les deux cas)", court)
 	}
 }
+
+// Le champ `gated` de l'API n'est pas un booléen : false, "auto" ou "manual".
+// Le lire comme un bool laissait passer les deux valeurs qui verrouillent
+// vraiment le téléchargement.
+func TestHFGatedFlag(t *testing.T) {
+	for _, c := range []struct {
+		in   any
+		want bool
+	}{
+		{nil, false},
+		{false, false},
+		{true, true},
+		{"auto", true},
+		{"manual", true},
+		{"false", false},
+		{"", false},
+	} {
+		if got := hfGatedFlag(c.in); got != c.want {
+			t.Errorf("hfGatedFlag(%#v) = %v, attendu %v", c.in, got, c.want)
+		}
+	}
+}
+
+// hfRepoFromURL sert à NOMMER le dépôt dans le message d'erreur : un lien qui
+// ne vient pas de Hugging Face ne doit rien produire plutôt qu'un nom inventé.
+func TestHFRepoFromURL(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"https://huggingface.co/orcarouter/Qwen3.8-27B-Uncensored-GGUF/resolve/main/m.gguf", "orcarouter/Qwen3.8-27B-Uncensored-GGUF"},
+		{"https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/blob/main/sub/dir/m.gguf", "ggml-org/Qwen3.8-27B-GGUF"},
+		{"https://example.com/ggml-org/Qwen3.8-27B-GGUF/resolve/main/m.gguf", ""},
+		{"https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF", ""},
+		{"pas une url", ""},
+	} {
+		if got := hfRepoFromURL(c.in); got != c.want {
+			t.Errorf("hfRepoFromURL(%q) = %q, attendu %q", c.in, got, c.want)
+		}
+	}
+}

@@ -514,6 +514,75 @@ func contentRangeTotal(v string) int64 {
 	return n
 }
 
+// dlSourceError traduit un refus HTTP en phrase qui dit quoi faire.
+//
+// Vécu : un dépôt Hugging Face « gated » (conditions à accepter avant de
+// télécharger) répond 200 sur son arborescence — Loki liste donc tous ses
+// quants, avec leur verdict mémoire — puis 401 sur CHAQUE .gguf. « HTTP 401
+// depuis la source » ne dit alors ni que le dépôt est verrouillé, ni qu'il faut
+// un jeton, ni où l'accepter : l'utilisateur voit un modèle proposé comme
+// installable qui échoue sans raison.
+//
+// Hugging Face, lui, le dit — dans l'en-tête X-Error-Code (GatedRepo,
+// RepoNotFound, EntryNotFound…). On le traduit plutôt que de le recopier :
+// l'interface est en français, et le message d'origine (« Please log in »)
+// parle d'une session de navigateur qui n'existe pas ici.
+func dlSourceError(resp *http.Response, dlURL string) error {
+	code := resp.Header.Get("X-Error-Code")
+	switch resp.StatusCode {
+	case 401, 403:
+		return fmt.Errorf("%s%s", dlAccessReason(code, hfRepoFromURL(dlURL)), dlTokenHint())
+	case 404:
+		switch code {
+		case "EntryNotFound":
+			return fmt.Errorf("fichier absent du dépôt (HTTP 404) — la révision a pu être réécrite depuis que le lien a été copié")
+		case "RevisionNotFound":
+			return fmt.Errorf("révision introuvable dans le dépôt (HTTP 404)")
+		}
+		return fmt.Errorf("lien introuvable (HTTP 404)")
+	case 416:
+		return fmt.Errorf("la source refuse la plage d'octets demandée (HTTP 416) — fichier modifié pendant le transfert ?")
+	case 429:
+		return fmt.Errorf("trop de requêtes vers la source (HTTP 429) — réessaie dans quelques minutes")
+	}
+	if resp.StatusCode >= 500 {
+		return fmt.Errorf("la source est en panne (HTTP %d) — réessaie plus tard", resp.StatusCode)
+	}
+	return fmt.Errorf("HTTP %d depuis la source", resp.StatusCode)
+}
+
+// dlAccessReason nomme la raison du refus. repo vide = source hors Hugging Face
+// (lien direct vers un autre hébergeur) : on ne parle alors pas de conditions à
+// accepter, qui n'existent que là-bas.
+func dlAccessReason(code, repo string) string {
+	switch code {
+	case "GatedRepo":
+		if repo == "" {
+			return "dépôt à accès restreint : ses conditions doivent être acceptées sur huggingface.co"
+		}
+		return "dépôt à accès restreint : accepte ses conditions sur huggingface.co/" + repo
+	case "RepoNotFound":
+		if repo == "" {
+			return "dépôt privé ou inexistant"
+		}
+		return "dépôt privé ou inexistant : " + repo
+	}
+	if repo != "" {
+		return "accès refusé par Hugging Face sur " + repo
+	}
+	return "accès refusé par la source"
+}
+
+// dlTokenHint complète la raison par l'état du jeton. Deux situations opposées
+// se cachent derrière le même 401 : pas de jeton du tout, ou un jeton qui n'a
+// pas accès à CE dépôt — et le geste à faire n'est pas le même.
+func dlTokenHint() string {
+	if strings.TrimSpace(os.Getenv("HF_TOKEN")) == "" {
+		return " — puis renseigne la variable d'environnement HF_TOKEN (jeton Hugging Face)"
+	}
+	return " — le jeton HF_TOKEN utilisé n'y donne pas accès (expiré, ou conditions non acceptées avec ce compte)"
+}
+
 // dlProbe asks the server for the first byte to learn the total size and
 // whether ranges are supported (206 + Content-Range).
 func dlProbe(ctx context.Context, dlURL string) (total int64, ranged bool, err error) {
@@ -537,7 +606,7 @@ func dlProbe(ctx context.Context, dlURL string) (total int64, ranged bool, err e
 		// Server ignored the Range: single stream, ContentLength is the size.
 		return resp.ContentLength, false, nil
 	default:
-		return 0, false, fmt.Errorf("HTTP %d depuis la source", resp.StatusCode)
+		return 0, false, dlSourceError(resp, dlURL)
 	}
 }
 
@@ -763,8 +832,9 @@ func dlChunk(ctx context.Context, f *os.File, dlURL string, start, end int64, wh
 			continue
 		}
 		if resp.StatusCode != 200 && resp.StatusCode != 206 {
+			err := dlSourceError(resp, dlURL)
 			resp.Body.Close()
-			return fmt.Errorf("HTTP %d depuis la source", resp.StatusCode)
+			return err
 		}
 		if resp.StatusCode == 200 && pos > start {
 			// Resume refused: the body restarts from 0, rewind our bookkeeping.
