@@ -118,6 +118,9 @@ func newWebMux() *http.ServeMux {
 	// recharge son état pour l'annoncer « interrompue » au lieu de n'afficher
 	// plus rien du tout.
 	lcRestoreOnce.Do(lcRestore)
+	// Planificateur des tâches : une goroutine, un tic par minute, dans le process
+	// qui détient la conversation et le modèle (idempotent, cf. sync.Once).
+	StartTaskScheduler()
 	mux := http.NewServeMux()
 	// Pages publiques : le HTML et le JS ne contiennent aucun secret. Toute la
 	// donnée et toutes les actions passent par /api/* qui, lui, exige la clé.
@@ -230,6 +233,15 @@ func newWebMux() *http.ServeMux {
 	api("/api/mcp/tool", handleMCPTool)
 	api("/api/mcp/test", handleMCPTest)
 	api("/api/memory", handleMemoryMode)
+	// Tâches planifiées : l'IA exécute des consignes toute seule sur une fréquence
+	// réglable (tasks.go). Le planificateur tourne dans CE process — celui qui
+	// détient la conversation et parle au moteur.
+	api("/api/tasks", handleTasks)
+	api("/api/tasks/save", handleTaskSave)
+	api("/api/tasks/delete", handleTaskDelete)
+	api("/api/tasks/toggle", handleTaskToggle)
+	api("/api/tasks/pause", handleTasksPause)
+	api("/api/tasks/run", handleTaskRun)
 	api("/api/reasoning-effort", handleReasoningEffort) // intensité réglable depuis la barre de saisie
 	api("/api/network", handleNetwork)                  // écoute LAN du moteur + pare-feu (Windows)
 	api("/api/prefs", handleWebPrefs)

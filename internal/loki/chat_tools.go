@@ -161,7 +161,7 @@ func machineSystemPrompt(caps Caps) string {
 	if u, err := user.Current(); err == nil {
 		who = u.Username
 	}
-	cwd := convWorkspace()
+	cwd := agentCwd()
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Machine: host=%s, %s/%s", host, runtime.GOOS, runtime.GOARCH))
@@ -211,7 +211,7 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	// such file or directory » incompréhensible, et ce jusqu'au redémarrage. On
 	// le recrée au besoin, et à défaut on démarre là où on peut plutôt que de
 	// tout refuser.
-	if ws := convWorkspace(); ws != "" {
+	if ws := agentCwd(); ws != "" {
 		if err := os.MkdirAll(ws, 0o755); err == nil {
 			cmd.Dir = ws
 		}

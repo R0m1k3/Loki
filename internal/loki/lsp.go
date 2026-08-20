@@ -128,7 +128,7 @@ func lspDiagnosticsFor(absPath string) string {
 	if _, err := exec.LookPath(lang.Command[0]); err != nil {
 		return "" // serveur non installé : le mode code marche sans
 	}
-	root := convWorkspace()
+	root := agentCwd()
 	// Le dépôt cloné est la vraie racine projet quand le fichier est dedans :
 	// gopls a besoin du go.mod, tsserver du tsconfig.
 	if r := projectRootFor(absPath, root); r != "" {

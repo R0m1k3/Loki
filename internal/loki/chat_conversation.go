@@ -56,6 +56,12 @@ type Conversation struct {
 	Generating bool               `json:"-"`
 	cancel     context.CancelFunc // annule la génération en cours (/stop)
 	epoch      int                // incrémenté à chaque reset → invalide les abonnés
+	// Tâche planifiée en cours (tasks_run.go). Le verrou de génération est le
+	// SEUL point partagé entre une tâche de fond et le chat : ces deux champs
+	// disent à l'interface POURQUOI elle est occupée, au lieu de laisser croire
+	// à une génération fantôme dans la discussion ouverte.
+	runningTaskID   string
+	runningTaskName string
 }
 
 var conv = func() *Conversation {
@@ -286,7 +292,14 @@ func (c *Conversation) state() map[string]any {
 			turns++
 		}
 	}
-	return map[string]any{"seq": c.Seq, "generating": c.Generating, "ctx_used": c.CtxUsed, "turns": turns}
+	st := map[string]any{"seq": c.Seq, "generating": c.Generating, "ctx_used": c.CtxUsed, "turns": turns}
+	// Occupé PAR UNE TÂCHE : l'interface l'annonce (« tâche en cours ») plutôt que
+	// d'afficher un tour qui n'apparaîtra jamais dans le fil.
+	if c.runningTaskID != "" {
+		st["task_id"] = c.runningTaskID
+		st["task_name"] = c.runningTaskName
+	}
+	return st
 }
 
 // isGenerating dit si un tour est en cours. Sert à la LISTE des discussions :
@@ -300,6 +313,20 @@ func (c *Conversation) isGenerating() bool {
 
 // ErrBusy : une génération est déjà en cours (un seul tour à la fois).
 var ErrBusy = fmt.Errorf("génération en cours")
+
+// busyReason explique le refus à l'utilisateur. Sans ça, un message envoyé
+// pendant qu'une TÂCHE planifiée tourne renvoyait « génération en cours » alors
+// que le fil est vide et que rien ne bouge à l'écran — incompréhensible. On
+// nomme la tâche et on dit comment reprendre la main.
+func (c *Conversation) busyReason() error {
+	c.mu.Lock()
+	name := c.runningTaskName
+	c.mu.Unlock()
+	if name == "" {
+		return ErrBusy
+	}
+	return fmt.Errorf("la tâche planifiée « %s » occupe le modèle — attends la fin ou arrête-la (bouton stop)", name)
+}
 
 // errModelLoading est renvoyée telle quelle à l'utilisateur, dans le chat : ce
 // n'est pas un défaut mais une attente, et le message doit le dire.

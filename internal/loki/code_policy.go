@@ -74,7 +74,7 @@ func refusedCommandResult(reason string) string {
 // le dossier de la discussion courante. Utilisé par les outils fichiers en mode
 // code uniquement.
 func codePathAllowed(abs string) bool {
-	ws := convWorkspace()
+	ws := agentCwd()
 	if ws == "" {
 		return false
 	}

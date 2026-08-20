@@ -107,6 +107,7 @@ func handleChatSend(w http.ResponseWriter, r *http.Request) {
 		code := 503
 		if err == ErrBusy {
 			code = 409
+			err = conv.busyReason() // dit LAQUELLE des deux occupe le modèle
 		}
 		sendJSON(w, code, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -189,6 +190,7 @@ func handleChatCompact(w http.ResponseWriter, r *http.Request) {
 		code := 503
 		if err == ErrBusy {
 			code = 409
+			err = conv.busyReason()
 		}
 		sendJSON(w, code, map[string]any{"ok": false, "error": err.Error()})
 		return

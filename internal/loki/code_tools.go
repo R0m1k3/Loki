@@ -178,7 +178,7 @@ func toolGrep(args map[string]any, codeMode bool) string {
 	if err != nil {
 		return "[erreur] motif invalide : " + err.Error()
 	}
-	root := convWorkspace()
+	root := agentCwd()
 	if p, _ := args["path"].(string); strings.TrimSpace(p) != "" && p != "." {
 		root = resolveAgentPath(p)
 	}
@@ -246,7 +246,7 @@ func toolGlob(args map[string]any, codeMode bool) string {
 	if strings.TrimSpace(pattern) == "" {
 		return "[erreur] motif vide"
 	}
-	root := convWorkspace()
+	root := agentCwd()
 	re, err := globToRegexp(pattern)
 	if err != nil {
 		return "[erreur] motif invalide : " + err.Error()
