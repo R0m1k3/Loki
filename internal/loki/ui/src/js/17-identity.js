@@ -25,6 +25,21 @@ function paintLabel(label, role){
   const who = document.createElement('span'); who.className = 'who';
   who.textContent = role === 'user' ? (IDENT.name || 'toi') : 'Loki';
   label.appendChild(av); label.appendChild(who);
+  // Badge du modèle : quelle IA a produit CETTE réponse. Le nom vit dans
+  // dataset.model (posé par tagModel, 09-stream.js) — c'est ce qui le fait
+  // survivre au repeint des libellés lors d'un changement d'identité.
+  if(role === 'assistant' && label.parentElement && label.parentElement.dataset.model){
+    label.appendChild(modelBadge(label.parentElement.dataset.model));
+  }
+}
+
+// modelBadge fabrique la pastille du nom de modèle (partagée paintLabel/tagModel).
+function modelBadge(name){
+  const b = document.createElement('span');
+  b.className = 'modelbadge';
+  b.textContent = name;
+  b.title = 'modèle : ' + name;
+  return b;
 }
 
 async function loadIdentity(){
