@@ -1743,7 +1743,7 @@ button:active:not(:disabled){transform:translateY(1px)}
    ⚠️ Une seule règle pour les quatre. Il y en avait trois générations empilées
    (pilule large « Envoyer », aplat noir, aplat sauge) : chaque état tirait sa
    taille, sa forme et son alignement d'une couche différente. */
-#inputbar #attach,#inputbar #files-btn,#send,#stop{
+#inputbar #attach,#inputbar #files-btn,#inputbar #mic,#send,#stop{
   width:34px;height:34px;min-height:34px;flex:none;margin:0;padding:0;
   display:inline-flex;align-items:center;justify-content:center;align-self:center;
   border:0;border-radius:4px;background:transparent;color:var(--dim);
@@ -1754,8 +1754,8 @@ button:active:not(:disabled){transform:translateY(1px)}
 #stop{display:none}
 html[data-busy="1"] #send{display:none}
 html[data-busy="1"] #stop{display:inline-flex}
-#inputbar #attach svg,#inputbar #files-btn svg,#send svg,#stop svg{display:block;width:18px;height:18px}
-#inputbar #attach:hover,#inputbar #files-btn:hover{background:var(--row-bg-on);color:var(--text)}
+#inputbar #attach svg,#inputbar #files-btn svg,#inputbar #mic svg,#send svg,#stop svg{display:block;width:18px;height:18px}
+#inputbar #attach:hover,#inputbar #files-btn:hover,#inputbar #mic:hover{background:var(--row-bg-on);color:var(--text)}
 html[data-files="1"] #files-btn{color:var(--accent)}
 #send{color:var(--accent)}
 #send:hover:not(:disabled){background:var(--accent-bg);color:var(--accent);opacity:1;transform:none}
@@ -2029,8 +2029,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 .rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
 
 /* Dictée : anneau rouge pulsé pendant l'enregistrement, estompé pendant la
-   transcription. Le bouton garde le gabarit de ses voisins (joindre, fichiers). */
-#mic.rec{color:var(--err);border-color:var(--err);animation:micpulse 1.2s ease-in-out infinite}
+   transcription. Le gabarit (34 px, fond au survol) vient de la règle commune
+   des boutons de saisie — #mic y est listé avec #attach et #files-btn. */
+#mic.rec{color:var(--err);animation:micpulse 1.2s ease-in-out infinite}
 @keyframes micpulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--err) 25%,transparent)}}
 #mic.busy{opacity:.55}
 

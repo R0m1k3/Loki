@@ -368,6 +368,11 @@ function renderToolMsg(el, tu){
     body.appendChild(wait);
   }
   addCopyButtons(body); scrollMaybe();
+  // Carte à hauteur bornée : tant que l'outil TRAVAILLE, on suit le bas (la
+  // ligne en cours d'écriture, la commande qui se tape). Terminé, on remonte en
+  // tête — c'est le résumé qu'on relit, pas la dernière ligne.
+  const bw = el.querySelector('.bodywrap');
+  if(bw){ bw.scrollTop = tu.done ? 0 : bw.scrollHeight; }
 }
 // Inject a "copier" button into every <pre> code block (idempotent).
 function addCopyButtons(root){

@@ -89,9 +89,28 @@ function paintTurnClock(){
   }
   const ms = (T.doneTs || nowServer()) - T.startTs;
   if(!(ms > 0)){ el.remove(); return; }
-  el.textContent = (T.doneTs ? 'tour terminé en ' : 'en cours — ') + fmtDur(ms);
+  // Vitesse moyenne de la CONVERSATION à côté du temps du tour : le débit
+  // typique de ce modèle sur ce fil, toutes réponses confondues.
+  const avg = (CONV_MS > 1000 && CONV_TOK > 20)
+    ? '  ·  moy ' + (CONV_TOK / (CONV_MS/1000)).toFixed(1) + ' tok/s' : '';
+  el.textContent = (T.doneTs ? 'tour terminé en ' : 'en cours — ') + fmtDur(ms) + avg;
   el.classList.toggle('done', !!T.doneTs);
 }
+// --- Vitesse moyenne de la conversation --------------------------------------
+// Alimentée par les événements `stats` (journalisés, donc rejoués au
+// chargement : la moyenne survit au refresh). gen_tokens / gen_ms sont
+// CUMULATIFS au sein d'une complétion et retombent à la suivante : on n'ajoute
+// que le delta, et une valeur qui recule signale une nouvelle complétion.
+let CONV_TOK = 0, CONV_MS = 0, _cgTok = 0, _cgMs = 0;
+function feedConvSpeed(s){
+  const gt = s.gen_tokens || 0, gms = s.gen_ms || 0;
+  if(!gt) return;
+  if(gt < _cgTok){ _cgTok = 0; _cgMs = 0; }
+  CONV_TOK += gt - _cgTok;
+  CONV_MS  += Math.max(0, gms - _cgMs);
+  _cgTok = gt; _cgMs = gms;
+}
+function resetConvSpeed(){ CONV_TOK = 0; CONV_MS = 0; _cgTok = 0; _cgMs = 0; }
 // Le compteur se montre AUSSI sur l'indicateur « … » : pendant un appel d'outil
 // ou un long prefill il n'y a encore aucune réponse sous laquelle écrire, et
 // c'est précisément le moment où l'on se demande si ça avance.
@@ -314,8 +333,9 @@ function flushRender(final){
   }
   // Carte bornée (raisonnement/outil) : si on était collé en bas, on y reste —
   // la carte suit la génération. Un défilement manuel vers le haut est respecté.
-  const bw=p.el.parentElement;
-  const scrollable=bw && bw.classList.contains('bodywrap');
+  // ⚠️ p.el est la BULLE (.msg), pas .body : le bodywrap est dedans, pas au-dessus.
+  const bw=p.el.querySelector ? p.el.querySelector(':scope > .bodywrap') : null;
+  const scrollable=!!bw;
   const stick=scrollable && bw.scrollTop+bw.clientHeight>=bw.scrollHeight-60;
   const t0=performance.now();
   renderBody(p.el, text);
@@ -397,7 +417,7 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ smoothReset(); cancelRender(); stopWorkTimer(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.reset!==undefined){ smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
@@ -445,7 +465,7 @@ function handleDelta(d){
   // une trace du fil et DOIT être rejouée.
   if(d.compact_noop){ setCompacting(false); if(!REPLAYING) toast('rien à compacter (contexte déjà minimal)'); return; }
   if(d.ctx_used!==undefined){ setCtxUsed(d.ctx_used); return; }
-  if(d.stats){ T.serverStats=d.stats;
+  if(d.stats){ T.serverStats=d.stats; feedConvSpeed(d.stats);
     // prompt_tokens_total = comptage exact du moteur (include_usage). Absent sur
     // certains llama-server récents : le serveur publie alors un `ctx_used`
     // estimé en fin de tour, traité plus bas — on ne remet donc PAS la jauge à
