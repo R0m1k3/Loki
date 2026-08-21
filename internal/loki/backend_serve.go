@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,15 +24,128 @@ import (
 // échoue à s'exécuter (« libllama-common.so introuvable ») et on conclurait à
 // tort qu'il ne gère pas le drapeau.
 func binSupportsReasoningFlag(bin string) bool {
+	return strings.Contains(binHelp(bin), "--reasoning ")
+}
+
+// binHelp lit « <bin> --help » UNE fois par binaire et garde le texte. Plusieurs
+// capacités se déduisent de cette aide (--reasoning, --load-mode, « -ngl auto »)
+// et relancer le moteur à chaque question coûterait quelques secondes de plus au
+// démarrage. Aide illisible = chaîne vide : tous les tests de capacité répondent
+// « non », c'est-à-dire « ne prends aucun risque, garde la forme historique ».
+var (
+	helpMu    sync.Mutex
+	helpCache = map[string]string{}
+)
+
+func binHelp(bin string) string {
+	helpMu.Lock()
+	defer helpMu.Unlock()
+	if h, ok := helpCache[bin]; ok {
+		return h
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "--help")
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
-	if err := cmd.Run(); err != nil && out.Len() == 0 {
-		return false // aide illisible : on ne prend pas le risque
+	h := ""
+	if err := cmd.Run(); err == nil || out.Len() > 0 {
+		h = out.String()
 	}
-	return strings.Contains(out.String(), "--reasoning ")
+	helpCache[bin] = h
+	return h
+}
+
+// binSupportsLoadMode : les moteurs récents ont fusionné --mlock, --mmap et
+// --no-mmap dans un seul --load-mode ; les anciens ne connaissent que les trois
+// drapeaux d'origine. On traduit donc à l'exécution, sans réécrire le preset :
+// le même EXTRA_ARGS reste lançable sur les deux générations de moteur.
+func binSupportsLoadMode(bin string) bool {
+	return strings.Contains(binHelp(bin), "--load-mode")
+}
+
+// binSupportsNGLAuto : « -ngl auto » laisse llama.cpp mesurer la VRAM libre et
+// choisir le nombre de couches. Imposer un nombre (999 compris) désarme ce
+// calcul — « n_gpu_layers already set by user to 999, abort » — et le moteur
+// tente alors de tout mettre sur le GPU, quitte à échouer en cudaMalloc.
+func binSupportsNGLAuto(bin string) bool {
+	h := binHelp(bin)
+	i := strings.Index(h, "--n-gpu-layers")
+	if i < 0 {
+		i = strings.Index(h, "-ngl")
+	}
+	if i < 0 {
+		return false
+	}
+	end := i + 400
+	if end > len(h) {
+		end = len(h)
+	}
+	return strings.Contains(h[i:end], "'auto'")
+}
+
+// hasAnyFlag dit si l'utilisateur a déjà posé l'un de ces drapeaux dans
+// EXTRA_ARGS. Loki ajoute plusieurs valeurs par défaut (--parallel, -ngl) : les
+// ajouter EN PLUS de celles de l'utilisateur fait râler le moteur (« argument
+// specified multiple times ») et, pire, c'est la DERNIÈRE occurrence qui gagne
+// — le réglage explicite du preset serait donc silencieusement écrasé par le
+// défaut de Loki. Quand l'utilisateur a tranché, on se tait.
+func hasAnyFlag(args []string, flags ...string) bool {
+	for _, a := range args {
+		name := a
+		if i := strings.IndexByte(name, '='); i > 0 {
+			name = name[:i]
+		}
+		for _, f := range flags {
+			if name == f {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// normalizeLoadFlags traduit les drapeaux de chargement dépréciés vers
+// --load-mode, sur les moteurs qui le connaissent :
+//
+//	--mlock    → --load-mode mlock   (garder le modèle en RAM)
+//	--no-mmap  → --load-mode none    (tout charger, pas de mmap)
+//	--mmap     → --load-mode mmap
+//
+// Les deux à la fois (--mlock --no-mmap) : mlock l'emporte, c'est l'intention la
+// plus forte (résident en RAM, jamais rendu au système). Un --load-mode déjà
+// écrit à la main dans EXTRA_ARGS gagne sur tout : on retire alors simplement
+// les vieux drapeaux. Sur un moteur ancien, rien n'est touché.
+func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
+	if !supportsLoadMode {
+		return args
+	}
+	explicit := hasAnyFlag(args, "--load-mode")
+	mlock, nommap, mmap := false, false, false
+	out := make([]string, 0, len(args)+2)
+	for _, a := range args {
+		switch a {
+		case "--mlock":
+			mlock = true
+		case "--no-mmap":
+			nommap = true
+		case "--mmap":
+			mmap = true
+		default:
+			out = append(out, a)
+		}
+	}
+	if explicit || !(mlock || nommap || mmap) {
+		return out
+	}
+	mode := "mmap"
+	switch {
+	case mlock:
+		mode = "mlock"
+	case nommap:
+		mode = "none"
+	}
+	return append(out, "--load-mode", mode)
 }
 
 // cmdServe replaces the historic start.sh: read config.env, build the
@@ -99,6 +213,12 @@ func cmdServe(args []string) error {
 	ktv := get("KV_TYPE_K", kv)
 	vtv := get("KV_TYPE_V", kv)
 
+	// EXTRA_ARGS est lu ICI, avant de composer la ligne de commande : ce que
+	// l'utilisateur a écrit à la main décide des défauts que Loki a le droit
+	// d'ajouter (voir hasAnyFlag). Il est aussi traduit vers les drapeaux de
+	// chargement actuels quand le moteur les attend (voir normalizeLoadFlags).
+	extra := normalizeLoadFlags(splitArgs(cfg["EXTRA_ARGS"]), binSupportsLoadMode(bin))
+
 	llmArgs := []string{bin,
 		"-m", model,
 		"-c", get("CTX", "32768"),
@@ -108,24 +228,43 @@ func cmdServe(args []string) error {
 		"-ub", get("UBATCH", "512"),
 		"--host", get("HOST", "0.0.0.0"),
 		"--port", get("PORT", "8080"),
-		// --parallel 1 EXPLICITE : les llama-server récents ouvrent 4 slots par
-		// défaut, soit des tampons de calcul GPU ×4 — pour un serveur mono-
-		// utilisateur comme Loki, c'est de la VRAM brûlée pour rien. Vécu : une
-		// config 27B/60k ctx qui tournait très bien est morte en « cudaMalloc
-		// failed: out of memory » après une mise à jour du moteur, uniquement à
-		// cause de ce nouveau défaut. PARALLEL=n dans le preset pour qui veut
-		// vraiment servir plusieurs requêtes à la fois.
-		"--parallel", get("PARALLEL", "1"),
 	}
-	// NGL=auto : on n'envoie PAS -ngl, et llama.cpp choisit lui-même combien de
-	// couches tiennent dans la VRAM libre (common_fit_params). Il s'en abstient
-	// dès que la valeur est imposée — « n_gpu_layers already set by user to 999,
-	// abort » — d'où des cudaMalloc en échec, un repli partiel sur le CPU et un
-	// débit effondré alors que le GPU tourne à 100 %.
-	// Le défaut reste 999 (tout sur le GPU) : omettre -ngl sur un llama.cpp
-	// antérieur à cet ajustement automatique le ferait tourner 100 % CPU.
-	if ngl := get("NGL", "999"); !strings.EqualFold(ngl, "auto") {
-		llmArgs = append(llmArgs, "-ngl", ngl)
+	// --parallel 1 EXPLICITE : les llama-server récents ouvrent plusieurs slots
+	// par défaut, soit des tampons de calcul GPU multipliés d'autant — pour un
+	// serveur mono-utilisateur comme Loki, c'est de la VRAM brûlée pour rien.
+	// Vécu : une config 27B/60k ctx qui tournait très bien est morte en
+	// « cudaMalloc failed: out of memory » après une mise à jour du moteur,
+	// uniquement à cause de ce nouveau défaut. PARALLEL=n dans le preset pour qui
+	// veut vraiment servir plusieurs requêtes à la fois — ou --parallel dans
+	// EXTRA_ARGS, auquel cas on ne redouble pas le drapeau.
+	if !hasAnyFlag(extra, "--parallel", "-np") {
+		llmArgs = append(llmArgs, "--parallel", get("PARALLEL", "1"))
+	}
+	// Couches GPU. Trois cas, dans cet ordre :
+	//
+	//   NGL=<nombre>  → -ngl <nombre>      (l'utilisateur tranche)
+	//   NGL=auto      → rien du tout       (compat : anciens presets)
+	//   clé absente   → -ngl auto si le moteur le propose, sinon -ngl 999
+	//
+	// Imposer un nombre désarme common_fit_params, qui mesure la VRAM libre et
+	// choisit combien de couches y tiennent : « n_gpu_layers already set by user
+	// to 999, abort ». Le moteur pousse alors tout sur le GPU, échoue en
+	// cudaMalloc ou se replie à moitié sur le CPU — débit effondré, GPU à 100 %.
+	// D'où « auto » par défaut dès que le moteur sait le faire. Sur un moteur
+	// plus ancien, qui ne connaît pas la valeur, on garde 999 : omettre -ngl le
+	// ferait tourner 100 % CPU.
+	if !hasAnyFlag(extra, "-ngl", "--n-gpu-layers", "--gpu-layers") {
+		ngl := get("NGL", "")
+		switch {
+		case strings.EqualFold(ngl, "auto"):
+			// rien : le moteur décide seul
+		case ngl != "":
+			llmArgs = append(llmArgs, "-ngl", ngl)
+		case binSupportsNGLAuto(bin):
+			llmArgs = append(llmArgs, "-ngl", "auto")
+		default:
+			llmArgs = append(llmArgs, "-ngl", "999")
+		}
 	}
 	if ktv != "" {
 		llmArgs = append(llmArgs, "-ctk", ktv)
@@ -187,9 +326,9 @@ func cmdServe(args []string) error {
 	if k, _ := effectiveAPIKeyErr(); k != "" {
 		llmArgs = append(llmArgs, "--api-key", k)
 	}
-	// EXTRA_ARGS is appended verbatim, split like the shell would — quotes kept
-	// together so a path with spaces stays one argument.
-	llmArgs = append(llmArgs, splitArgs(cfg["EXTRA_ARGS"])...)
+	// EXTRA_ARGS (déjà découpé plus haut comme le ferait le shell — les guillemets
+	// gardent ensemble un chemin qui contient des espaces) ferme la marche.
+	llmArgs = append(llmArgs, extra...)
 
 	// Working dir = LOKI_HOME so relative paths in EXTRA_ARGS (e.g. --mmproj
 	// mmproj-F16.gguf) still resolve.
