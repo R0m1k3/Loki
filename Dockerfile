@@ -64,11 +64,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} \
-    && cmake --build /w/build -j --target whisper-server
+    && cmake --build /w/build -j"$(nproc)" --target whisper-server
 
 # Version CUDA. La MAJEURE de CUDA doit correspondre à celle de l'image
 # runtime : le binaire est lié dynamiquement à libcudart, fournie par
 # LLAMACPP_IMAGE et non par cette étape.
+#
+# ⚠️ -j"$(nproc)" et JAMAIS -j nu. Avec Make, « -j » sans nombre autorise un
+# parallélisme ILLIMITÉ. ggml-cuda compte ~200 fichiers d'instanciation de
+# gabarits, et chaque nvcc réclame 1 à 2 Go : le runner GitHub (16 Go) était
+# tué par l'OOM après avoir lancé 92 % des compilations en treize secondes,
+# sans écrire la moindre ligne d'erreur. L'étape CPU y survivait — peu de
+# fichiers, compilation légère — ce qui rendait le piège invisible jusqu'ici.
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS whisperbuild-cuda
 ARG WHISPER_CMAKE_FLAGS
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -76,7 +83,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} -DGGML_CUDA=ON \
-    && cmake --build /w/build -j --target whisper-server
+    && cmake --build /w/build -j"$(nproc)" --target whisper-server \
+    && strip /w/build/bin/whisper-server
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime

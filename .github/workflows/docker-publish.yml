@@ -16,6 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Depuis que l'image compile whisper.cpp avec CUDA, le build empile
+      # nvidia/cuda:*-devel (~6 Go), l'image runtime CUDA de llama.cpp (~4 Go)
+      # et Chromium/Playwright (~1 Go) — pour ~14 Go libres sur un runner neuf.
+      # Ces trois répertoires ne servent à rien ici et rendent une dizaine de
+      # gigaoctets en moins d'une minute.
+      - name: Libérer de l'espace disque
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 

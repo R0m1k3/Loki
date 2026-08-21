@@ -2,6 +2,7 @@ package loki
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -79,6 +80,18 @@ func TestDockerfileWhisperNonNatif(t *testing.T) {
 		}
 		if !strings.Contains(txt, "whisper-server") {
 			t.Errorf("étape %s : ne construit pas la cible whisper-server", nom)
+		}
+		// « -j » nu autorise un parallélisme ILLIMITÉ chez Make. Sur l'étape
+		// CUDA (~200 nvcc à 1-2 Go pièce), le runner GitHub était tué par
+		// l'OOM sans écrire une ligne d'erreur. L'étape CPU y survivait, ce
+		// qui rendait le piège invisible.
+		for _, ligne := range strings.Split(txt, "\n") {
+			if !strings.Contains(ligne, "cmake --build") {
+				continue
+			}
+			if regexp.MustCompile(`-j(\s|$|\\)`).MatchString(ligne) {
+				t.Errorf("étape %s : « cmake --build -j » sans nombre — parallélisme illimité, le runner sera tué par l'OOM. Utiliser -j\"$(nproc)\".", nom)
+			}
 		}
 	}
 }
