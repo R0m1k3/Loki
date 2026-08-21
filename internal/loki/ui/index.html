@@ -9241,7 +9241,12 @@ async function dictateStop(){
     const r = await jfetch('/api/transcribe', {method:'POST', headers:{'Content-Type':'audio/wav'}, body:wav});
     const j = await r.json().catch(()=>({}));
     if(r.status === 503 && j.downloading){
-      toast('modèle de dictée en téléchargement ('+(j.pct||0)+' %) — réessaie dans un instant');
+      // Le serveur relance le téléchargement à chaque tentative ; s'il a déjà
+      // échoué (conteneur sans accès réseau, Hugging Face injoignable), il nous
+      // renvoie la raison. La cacher derrière « 0 % » laissait l'utilisateur
+      // cliquer indéfiniment sur un micro qui n'écrira jamais rien.
+      toast(j.error ? 'modèle de dictée : échec du téléchargement — ' + j.error
+                    : 'modèle de dictée en téléchargement (' + (j.pct||0) + ' %) — réessaie dans un instant');
       return;
     }
     if(!r.ok){ toast(j.error || 'échec de la transcription'); return; }
