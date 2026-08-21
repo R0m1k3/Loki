@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const Version = "0.12.2"
+const Version = "0.12.3"
 
 // Main est le vrai main() du binaire (cmd/loki ne fait que l'appeler).
 func Main() {

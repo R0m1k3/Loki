@@ -224,7 +224,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
 /* en-tête + bouton d'ajout de skill (toujours visible) */
 .skillshead{display:flex;align-items:center;justify-content:space-between;margin:12px 0 5px}
 .skillshead>span{font-size:11.5px;color:var(--dim);font-weight:600}
-.addbtn{font-size:11px;padding:4px 11px;background:var(--panel);color:var(--dim);border:1px solid var(--border);border-radius:999px;cursor:pointer;line-height:1.3;letter-spacing:.02em}
+/* Même gabarit que les autres boutons des panneaux (angle 3 px, 12 px) : la
+   pilule arrondie détonnait au milieu de boutons rectangulaires. */
+.addbtn{font-size:12px;padding:6px 10px;background:var(--panel);color:var(--dim);border:1px solid var(--border);border-radius:4px;cursor:pointer;line-height:1.3;letter-spacing:.02em}
 .addbtn:hover{border-color:var(--dim);color:var(--text);background:var(--accent-bg)}
 .mem-count{font-size:10px;color:var(--dim);font-weight:400;letter-spacing:0;text-transform:none;font-family:var(--font);margin-left:4px}
 /* Titre de sous-section (Mémoire / Accès internet) : simple libellé, PAS de trait
