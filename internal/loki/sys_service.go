@@ -67,7 +67,7 @@ var configTemplate = []struct{ key, help string }{
 	{"HOST", "adresse d'écoute du moteur (défaut 0.0.0.0)"},
 	{"PORT", "port du moteur (défaut 8080)"},
 	{"CTX", "taille du contexte (défaut 32768)"},
-	{"NGL", "couches déportées sur le GPU (défaut 999 = tout ; auto = ce qui tient en VRAM)"},
+	{"NGL", "couches déportées sur le GPU (999 ou auto = ce qui tient en VRAM ; all = tout, quitte à saturer)"},
 	{"BATCH", "batch (défaut 2048)"},
 	{"UBATCH", "micro-batch (défaut 512)"},
 	{"THREADS", "threads CPU, 0 = auto"},
