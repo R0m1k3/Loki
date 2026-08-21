@@ -3,6 +3,7 @@ package loki
 import (
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -119,6 +120,38 @@ func TestDockerfileDeuxBinairesWhisper(t *testing.T) {
 		if !strings.Contains(src, "/usr/local/bin/"+bin) {
 			t.Errorf("le runtime ne reçoit pas %s — dictate_server.go le cherche à cet emplacement", bin)
 		}
+	}
+}
+
+// L'étape CUDA doit être bâtie avec un nvcc qui CONNAÎT les GPU visés. CUDA
+// 12.4 ignore Blackwell (RTX 50xx, sm_120) : il refuse l'architecture, et le
+// binaire ne tournerait au mieux que par recompilation PTX au chargement.
+// 12.8 est le plancher, et c'est aussi la version avec laquelle llama.cpp bâtit
+// l'image amont qui fournit libcudart.
+func TestDockerfileCudaAssezRecent(t *testing.T) {
+	const majeurMin, mineurMin = 12, 8
+	trouve := false
+	for nom, txt := range etapesWhisperbuild(t) {
+		m := regexp.MustCompile(`nvidia/cuda:(\d+)\.(\d+)`).FindStringSubmatch(txt)
+		if m == nil {
+			continue
+		}
+		trouve = true
+		maj, _ := strconv.Atoi(m[1])
+		min, _ := strconv.Atoi(m[2])
+		if maj < majeurMin || (maj == majeurMin && min < mineurMin) {
+			t.Errorf("étape %s : CUDA %s.%s — trop ancien pour Blackwell (sm_120), il faut au moins %d.%d",
+				nom, m[1], m[2], majeurMin, mineurMin)
+		}
+		// Sans borne d'architectures, ggml compile de Maxwell à Blackwell :
+		// chaque architecture multiplie le temps de compilation, et le build
+		// dépassait quarante minutes.
+		if !strings.Contains(txt, "CMAKE_CUDA_ARCHITECTURES") {
+			t.Errorf("étape %s : aucune borne CMAKE_CUDA_ARCHITECTURES — la compilation vise toutes les architectures connues", nom)
+		}
+	}
+	if !trouve {
+		t.Error("aucune étape whisperbuild ne part d'une image nvidia/cuda")
 	}
 }
 
