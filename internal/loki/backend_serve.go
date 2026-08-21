@@ -84,6 +84,41 @@ func binSupportsNGLAuto(bin string) bool {
 	return strings.Contains(h[i:end], "'auto'")
 }
 
+// binFitsLayersItself : ce moteur sait-il répartir les couches tout seul ?
+//
+// La lecture fine de l'aide (binSupportsNGLAuto) reste la source de vérité, mais
+// elle dépend de la mise en page d'un texte d'aide — une description reformulée
+// ou une colonne plus large, et on conclut « non » sur un moteur parfaitement
+// capable, donc on lui réimpose 999 et l'abandon revient. --load-mode est arrivé
+// dans la même vague que « -ngl auto » : sa présence sert de second témoin, plus
+// grossier mais insensible à la mise en page.
+func binFitsLayersItself(bin string) bool {
+	return binSupportsNGLAuto(bin) || binSupportsLoadMode(bin)
+}
+
+// nglArgs traduit la valeur NGL du preset en arguments, et renvoie au passage la
+// note à afficher quand Loki a substitué quelque chose. Fonction pure : la seule
+// question qui demande le moteur (« sait-il répartir les couches tout seul ? »)
+// arrive déjà tranchée, ce qui la rend testable sans lancer llama-server.
+func nglArgs(ngl string, fitsItself bool) ([]string, string) {
+	ngl = strings.TrimSpace(ngl)
+	switch {
+	case strings.EqualFold(ngl, "auto"):
+		return nil, "" // rien du tout : le moteur décide seul
+	case ngl == "999" && fitsItself:
+		return []string{"-ngl", "auto"},
+			"NGL=999 (sentinelle « toutes les couches ») → -ngl auto : ce moteur mesure lui-même la " +
+				"VRAM libre. NGL=all pour forcer l'ancien comportement."
+	case ngl != "":
+		return []string{"-ngl", ngl}, ""
+	case fitsItself:
+		return []string{"-ngl", "auto"}, ""
+	default:
+		// Moteur ancien : omettre -ngl le ferait tourner 100 % CPU.
+		return []string{"-ngl", "999"}, ""
+	}
+}
+
 // hasAnyFlag dit si l'utilisateur a déjà posé l'un de ces drapeaux dans
 // EXTRA_ARGS. Loki ajoute plusieurs valeurs par défaut (--parallel, -ngl) : les
 // ajouter EN PLUS de celles de l'utilisateur fait râler le moteur (« argument
@@ -240,31 +275,32 @@ func cmdServe(args []string) error {
 	if !hasAnyFlag(extra, "--parallel", "-np") {
 		llmArgs = append(llmArgs, "--parallel", get("PARALLEL", "1"))
 	}
-	// Couches GPU. Trois cas, dans cet ordre :
+	// Couches GPU. Quatre cas, dans cet ordre :
 	//
-	//   NGL=<nombre>  → -ngl <nombre>      (l'utilisateur tranche)
-	//   NGL=auto      → rien du tout       (compat : anciens presets)
+	//   NGL=auto      → rien du tout    (le moteur décide seul)
+	//   NGL=999       → -ngl auto       sur un moteur récent (voir plus bas)
+	//   NGL=<nombre>  → -ngl <nombre>   (l'utilisateur tranche pour de vrai)
 	//   clé absente   → -ngl auto si le moteur le propose, sinon -ngl 999
 	//
-	// Imposer un nombre désarme common_fit_params, qui mesure la VRAM libre et
+	// Imposer un NOMBRE désarme common_fit_params, qui mesure la VRAM libre et
 	// choisit combien de couches y tiennent : « n_gpu_layers already set by user
 	// to 999, abort ». Le moteur pousse alors tout sur le GPU, échoue en
 	// cudaMalloc ou se replie à moitié sur le CPU — débit effondré, GPU à 100 %.
-	// D'où « auto » par défaut dès que le moteur sait le faire. Sur un moteur
-	// plus ancien, qui ne connaît pas la valeur, on garde 999 : omettre -ngl le
-	// ferait tourner 100 % CPU.
+	//
+	// 999 est traité à part parce que ce n'a JAMAIS été un nombre de couches :
+	// c'est la sentinelle historique « toutes », semée dans config.env par
+	// defaultConfig() sur chaque installation neuve. La quasi-totalité des
+	// configurations la portent donc sans que personne ne l'ait choisie — la
+	// traiter comme un choix délibéré, c'est condamner tout le monde à l'abandon
+	// ci-dessus. Sur un moteur qui connaît « auto », 999 devient donc auto, et on
+	// le DIT sur stderr plutôt que de le faire en douce. Qui veut réellement
+	// forcer tout sur le GPU écrit NGL=all (ou un nombre qui n'est pas 999).
 	if !hasAnyFlag(extra, "-ngl", "--n-gpu-layers", "--gpu-layers") {
-		ngl := get("NGL", "")
-		switch {
-		case strings.EqualFold(ngl, "auto"):
-			// rien : le moteur décide seul
-		case ngl != "":
-			llmArgs = append(llmArgs, "-ngl", ngl)
-		case binSupportsNGLAuto(bin):
-			llmArgs = append(llmArgs, "-ngl", "auto")
-		default:
-			llmArgs = append(llmArgs, "-ngl", "999")
+		args, note := nglArgs(get("NGL", ""), binFitsLayersItself(bin))
+		if note != "" {
+			fmt.Fprintln(os.Stderr, "[loki serve] "+note)
 		}
+		llmArgs = append(llmArgs, args...)
 	}
 	if ktv != "" {
 		llmArgs = append(llmArgs, "-ctk", ktv)

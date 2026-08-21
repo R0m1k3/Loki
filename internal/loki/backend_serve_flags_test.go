@@ -56,3 +56,38 @@ func TestNormalizeLoadFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestNGLArgs(t *testing.T) {
+	cases := []struct {
+		name       string
+		ngl        string
+		fitsItself bool
+		want       []string
+		wantNote   bool
+	}{
+		// Le cas qui motive tout : defaultConfig() sème NGL=999 sur chaque
+		// installation neuve. Personne ne l'a choisi, et le moteur récent
+		// abandonne son calcul de VRAM dès qu'on lui impose un nombre.
+		{"sentinelle 999, moteur récent", "999", true, []string{"-ngl", "auto"}, true},
+		{"sentinelle 999, moteur ancien", "999", false, []string{"-ngl", "999"}, false},
+		{"nombre choisi, jamais touché", "28", true, []string{"-ngl", "28"}, false},
+		{"nombre choisi, moteur ancien", "28", false, []string{"-ngl", "28"}, false},
+		{"all reste all", "all", true, []string{"-ngl", "all"}, false},
+		{"auto : aucun drapeau", "auto", true, nil, false},
+		{"auto insensible à la casse", "AUTO", true, nil, false},
+		{"espaces parasites autour de la sentinelle", "  999  ", true, []string{"-ngl", "auto"}, true},
+		{"clé absente, moteur récent", "", true, []string{"-ngl", "auto"}, false},
+		{"clé absente, moteur ancien", "", false, []string{"-ngl", "999"}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, note := nglArgs(c.ngl, c.fitsItself)
+			if !reflect.DeepEqual(got, c.want) {
+				t.Fatalf("args = %q, want %q", got, c.want)
+			}
+			if (note != "") != c.wantNote {
+				t.Fatalf("note = %q, en voulait-on une ? %v", note, c.wantNote)
+			}
+		})
+	}
+}
