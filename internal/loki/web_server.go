@@ -168,8 +168,12 @@ func newWebMux() *http.ServeMux {
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(h)) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)
-	api("/api/transcribe", handleTranscribe)  // dictée vocale (whisper.cpp local)
-	api("/api/service/log", handleServiceLog) // journal du service pour diagnostiquer un modèle qui ne charge pas
+	api("/api/transcribe", handleTranscribe)                   // dictée vocale (whisper.cpp local)
+	api("/api/dictate/config", handleDictateConfig)            // réglages : modèle, langue, matériel, réactivité
+	api("/api/dictate/models", handleDictateModels)            // catalogue + présence sur disque
+	api("/api/dictate/models/download", handleDictateDownload) // télécharge un modèle
+	api("/api/dictate/state", handleDictateState)              // serveur allumé, modèle chargé, dernière erreur
+	api("/api/service/log", handleServiceLog)                  // journal du service pour diagnostiquer un modèle qui ne charge pas
 	api("/api/vram", handleVram)
 	api("/api/ram", handleRam)
 	api("/api/config", handleConfigEnv)
