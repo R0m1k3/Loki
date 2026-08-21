@@ -54,6 +54,13 @@ jobs:
           push: true
           build-args: |
             LOKI_VERSION=${{ github.sha }}
+          # Sans cache, chaque push recompilait whisper.cpp avec CUDA — une
+          # quarantaine de minutes — alors que ce binaire ne dépend d'AUCUN
+          # fichier du dépôt. Les étapes whisperbuild-* sont désormais réutilisées
+          # tant que leurs lignes du Dockerfile ne bougent pas ; seul le code Go
+          # et l'assemblage de l'image se refont.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

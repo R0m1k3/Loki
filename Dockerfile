@@ -66,9 +66,14 @@ RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} \
     && cmake --build /w/build -j"$(nproc)" --target whisper-server
 
-# Version CUDA. La MAJEURE de CUDA doit correspondre à celle de l'image
-# runtime : le binaire est lié dynamiquement à libcudart, fournie par
-# LLAMACPP_IMAGE et non par cette étape.
+# Version CUDA : la MÊME que celle de l'image amont (llama.cpp bâtit avec
+# CUDA 12.8.1 sur Ubuntu 24.04). Le binaire est lié dynamiquement à libcudart,
+# fournie par LLAMACPP_IMAGE et non par cette étape.
+#
+# ⚠️ 12.8 est un PLANCHER, pas un détail de version. Les GPU Blackwell
+# (RTX 50xx, sm_120) n'existent pas pour un nvcc 12.4 : il refuse l'archi, et
+# à défaut le binaire ne tourne que par recompilation PTX au chargement, quand
+# elle est possible.
 #
 # ⚠️ -j"$(nproc)" et JAMAIS -j nu. Avec Make, « -j » sans nombre autorise un
 # parallélisme ILLIMITÉ. ggml-cuda compte ~200 fichiers d'instanciation de
@@ -76,13 +81,21 @@ RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
 # tué par l'OOM après avoir lancé 92 % des compilations en treize secondes,
 # sans écrire la moindre ligne d'erreur. L'étape CPU y survivait — peu de
 # fichiers, compilation légère — ce qui rendait le piège invisible jusqu'ici.
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS whisperbuild-cuda
+#
+# CUDA_ARCHS borne le travail : ggml compile sinon pour TOUTES les
+# architectures qu'il connaît, de Maxwell à Blackwell, et chacune multiplie le
+# temps de compilation. La liste par défaut couvre Turing à Blackwell
+# (RTX 20xx → 50xx) ; l'élargir pour un GPU plus ancien se fait sans toucher
+# au fichier : --build-arg CUDA_ARCHS="61;75;86".
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04 AS whisperbuild-cuda
 ARG WHISPER_CMAKE_FLAGS
+ARG CUDA_ARCHS="75;86;89;120"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} -DGGML_CUDA=ON \
+         -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS}" \
     && cmake --build /w/build -j"$(nproc)" --target whisper-server \
     && strip /w/build/bin/whisper-server
 
