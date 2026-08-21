@@ -36,6 +36,14 @@ RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 # trimballer, et pas de compilation CUDA (des minutes de build pour un gain
 # nul sur des dictées de quelques secondes). Ubuntu 22.04 : glibc plus
 # ancienne que l'image runtime, donc compatible quoi qu'elle embarque.
+#
+# ⚠️ GGML_NATIVE=OFF est OBLIGATOIRE. Par défaut ggml compile en -march=native,
+# c'est-à-dire pour le processeur DU RUNNER DE BUILD — un Xeon récent chez
+# GitHub, avec AVX-512 et AMX. Le binaire partait alors sur une machine qui
+# n'a pas ces instructions et mourait d'un SIGILL en pleine transcription :
+# « AMX is not ready to be used! », puis plus rien, l'interface affichant un
+# échec sans raison. OFF retombe sur la ligne de base AVX2/FMA/F16C de ggml,
+# présente sur tout x86-64 depuis 2013.
 FROM ubuntu:22.04 AS whisperbuild
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
@@ -43,6 +51,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build -DCMAKE_BUILD_TYPE=Release \
          -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF \
+         -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
+         -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF \
     && cmake --build /w/build -j --target whisper-cli
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
