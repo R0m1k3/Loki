@@ -53,7 +53,7 @@ async function dictateStop(){
       // renvoie la raison. La cacher derrière « 0 % » laissait l'utilisateur
       // cliquer indéfiniment sur un micro qui n'écrira jamais rien.
       toast(j.error ? 'modèle de dictée : échec du téléchargement — ' + j.error
-                    : 'modèle de dictée en téléchargement (' + (j.pct||0) + ' %) — réessaie dans un instant');
+                    : 'modèle de dictée en téléchargement (' + (j.pct||0) + ' %) — suivi dans Paramètres → Dictée');
       return;
     }
     if(!r.ok){ toast(j.error || 'échec de la transcription'); return; }

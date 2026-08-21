@@ -31,29 +31,52 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
 # limité à cette étape de build.
 RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 
-# ── Étape 1 bis : whisper-cli (dictée vocale) ───────────────────────────
-# whisper.cpp compilé CPU seul, en statique : un binaire unique, aucune .so à
-# trimballer, et pas de compilation CUDA (des minutes de build pour un gain
-# nul sur des dictées de quelques secondes). Ubuntu 22.04 : glibc plus
-# ancienne que l'image runtime, donc compatible quoi qu'elle embarque.
+# ── Étape 1 bis : whisper-server (dictée vocale) ────────────────────────
+# DEUX binaires sont construits, pas un. LLAMACPP_IMAGE accepte la variante
+# CPU de l'image amont (voir ligne 11) : sur cette base, les bibliothèques
+# CUDA sont absentes et un binaire lié à CUDA ne démarre pas du tout —
+# l'éditeur de liens échoue avant la première instruction, donc aucun repli
+# n'est possible depuis l'intérieur du programme. Loki choisit à l'exécution
+# (whisperServerBin, dictate_server.go).
 #
-# ⚠️ GGML_NATIVE=OFF est OBLIGATOIRE. Par défaut ggml compile en -march=native,
-# c'est-à-dire pour le processeur DU RUNNER DE BUILD — un Xeon récent chez
-# GitHub, avec AVX-512 et AMX. Le binaire partait alors sur une machine qui
-# n'a pas ces instructions et mourait d'un SIGILL en pleine transcription :
-# « AMX is not ready to be used! », puis plus rien, l'interface affichant un
-# échec sans raison. OFF retombe sur la ligne de base AVX2/FMA/F16C de ggml,
-# présente sur tout x86-64 depuis 2013.
-FROM ubuntu:22.04 AS whisperbuild
+# whisper-server et non whisper-cli : le modèle reste chargé entre deux
+# dictées. L'ancien chemin le relisait depuis le disque à chaque phrase, ce
+# qui dominait le temps de réponse.
+#
+# ⚠️ GGML_NATIVE=OFF est OBLIGATOIRE sur LES DEUX cibles. Par défaut ggml
+# compile en -march=native, c'est-à-dire pour le processeur DU RUNNER DE
+# BUILD — un Xeon récent chez GitHub, avec AVX-512 et AMX. Le binaire partait
+# alors sur une machine qui n'a pas ces instructions et mourait d'un SIGILL en
+# pleine transcription : « AMX is not ready to be used! », puis plus rien,
+# l'interface affichant un échec sans raison. OFF retombe sur la ligne de base
+# AVX2/FMA/F16C de ggml, présente sur tout x86-64 depuis 2013.
+ARG WHISPER_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON \
+    -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
+    -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF"
+
+# Ubuntu 22.04 : glibc plus ancienne que l'image runtime, donc compatible quoi
+# qu'elle embarque.
+FROM ubuntu:22.04 AS whisperbuild-cpu
+ARG WHISPER_CMAKE_FLAGS
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
-    && cmake -S /w -B /w/build -DCMAKE_BUILD_TYPE=Release \
-         -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF \
-         -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
-         -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF \
-    && cmake --build /w/build -j --target whisper-cli
+    && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} \
+    && cmake --build /w/build -j --target whisper-server
+
+# Version CUDA. La MAJEURE de CUDA doit correspondre à celle de l'image
+# runtime : le binaire est lié dynamiquement à libcudart, fournie par
+# LLAMACPP_IMAGE et non par cette étape.
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS whisperbuild-cuda
+ARG WHISPER_CMAKE_FLAGS
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
+    && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} -DGGML_CUDA=ON \
+    && cmake --build /w/build -j --target whisper-server
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime
@@ -108,9 +131,11 @@ RUN if [ "$PLAYWRIGHT" = "1" ]; then \
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
 COPY --from=gobuild /out/gopls /usr/local/bin/gopls
-# Dictée vocale (POST /api/transcribe). Le modèle (~190 Mo) n'est PAS dans
-# l'image : téléchargé au premier usage dans /data/whisper/.
-COPY --from=whisperbuild /w/build/bin/whisper-cli /usr/local/bin/whisper-cli
+# Dictée vocale (POST /api/transcribe). Les modèles (190 Mo à 1,1 Go) ne sont
+# PAS dans l'image : téléchargés à la demande dans /data/whisper/.
+# Deux binaires : voir l'étape whisperbuild-cpu pour la raison.
+COPY --from=whisperbuild-cpu  /w/build/bin/whisper-server /usr/local/bin/whisper-server-cpu
+COPY --from=whisperbuild-cuda /w/build/bin/whisper-server /usr/local/bin/whisper-server-cuda
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data /models
 
@@ -119,7 +144,8 @@ ENV LOKI_CONTAINER=1 \
     LOKI_HOME=/data \
     LOKI_MODEL_DIRS=/models \
     LOKI_ENGINE_BIN=/app/llama-server \
-    LOKI_WHISPER_BIN=/usr/local/bin/whisper-cli \
+    LOKI_WHISPER_SERVER_CPU=/usr/local/bin/whisper-server-cpu \
+    LOKI_WHISPER_SERVER_CUDA=/usr/local/bin/whisper-server-cuda \
     LD_LIBRARY_PATH=/app \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility

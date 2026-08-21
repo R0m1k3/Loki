@@ -253,6 +253,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <div class="set-nav-h">Moteur</div>
         <button data-pane="engine" onclick="settingsShow('engine')">Moteur llama.cpp</button>
         <button data-pane="engine-log" onclick="settingsShow('engine-log')">Journal du moteur</button>
+        <button data-pane="dictee" onclick="settingsShow('dictee')">Dictée</button>
         <div class="set-nav-h">Application</div>
         <button data-pane="identity" onclick="settingsShow('identity')">Identité</button>
         <button data-pane="appearance" onclick="settingsShow('appearance')">Apparence</button>
@@ -461,6 +462,61 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       </div>
     </div></div>
   </section>
+  <!-- Dictée vocale. Réglages de SERVEUR : le modèle chargé et le GPU occupé
+       sont des propriétés de la machine, identiques pour tous les onglets.
+       Voir js/24-dictate-settings.js et internal/loki/dictate_*.go. -->
+  <section class="set-pane" data-pane="dictee">
+    <div class="set-pane-h"><span>Dictée</span></div>
+    <div class="subhead">Matériel<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">whisper tourne dans un processus séparé, allumé au premier clic sur le micro et éteint après <b>dix minutes</b> sans dictée — il ne garde pas la VRAM occupée pour rien. Le GPU choisi est transmis par <code>CUDA_VISIBLE_DEVICES</code>.</span></span></div>
+    <div class="slist">
+      <label class="switchrow"><span>processeur ou GPU</span>
+        <select id="dic-device" class="sctl"></select>
+      </label>
+    </div>
+    <div class="subhead">Modèle<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Les modèles ne sont <b>pas</b> dans l'image : ils sont téléchargés à la demande dans <code>/data/whisper/</code> et survivent aux recréations du conteneur. Plus le modèle est gros, mieux il comprend — et plus il occupe de mémoire.</span></span></div>
+    <div class="slist">
+      <label class="switchrow"><span>modèle</span>
+        <select id="dic-model" class="sctl"></select>
+      </label>
+      <div class="rowbody">
+        <button id="dic-dl" class="btn" onclick="dictateDownload()">Télécharger ce modèle</button>
+        <span id="dic-dl-state" class="dim"></span>
+      </div>
+    </div>
+    <div class="subhead">Reconnaissance</div>
+    <div class="slist">
+      <label class="switchrow"><span>langue</span>
+        <select id="dic-lang" class="sctl">
+          <option value="fr">français</option>
+          <option value="en">anglais</option>
+          <option value="de">allemand</option>
+          <option value="es">espagnol</option>
+          <option value="it">italien</option>
+          <option value="auto">détection automatique</option>
+        </select>
+      </label>
+      <label class="switchrow"><span>réactivité<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Longueur des tranches transcrites au fil de la dictée. Court = le texte arrive plus tôt, avec moins de contexte donc plus d'erreurs. Long = mieux reconnu, mais plus d'attente.</span></span></span>
+        <select id="dic-react" class="sctl">
+          <option value="court">court</option>
+          <option value="moyen">moyen</option>
+          <option value="long">long</option>
+        </select>
+      </label>
+      <div class="rowbody">
+        <button class="btn primary" onclick="dictateSave()">Enregistrer</button>
+        <span id="dic-save-state" class="dim"></span>
+      </div>
+    </div>
+    <div class="subhead">Vérifier</div>
+    <div class="slist">
+      <div class="rowbody">
+        <button id="dic-test" class="btn" onclick="dictateTestMic()">Tester le micro (3 s)</button>
+      </div>
+      <div id="dic-test-out" class="dim"></div>
+      <div id="dic-state" class="dim"></div>
+    </div>
+  </section>
+
   <!-- ── PARAMÈTRES DE L'APPLICATION ────────────────────────────────────
        Séparés des réglages d'IA (Machine, Presets, Mode agent, System
        prompt, Moteur), qui restent au-dessus : ce qui suit ne concerne que

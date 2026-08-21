@@ -14,6 +14,7 @@ let SET_LAST = 'config';
 // l'ancien ontoggle des <details>.
 const SET_HOOKS = {
   'engine-log': () => { loadSvcLog(); showPaths(); },
+  'dictee': () => { loadDictateSettings(); },
 };
 function openSettings(pane){
   showModal('settings-modal');
