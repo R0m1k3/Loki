@@ -8,6 +8,7 @@ package loki
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -180,12 +181,46 @@ func handleTranscribe(w http.ResponseWriter, r *http.Request) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+		// Ne garder QUE stderr est trompeur quand le binaire meurt d'un signal :
+		// la dernière ligne écrite avant l'exécution du coup fatal ressemble à
+		// une explication (« AMX is not ready to be used! ») alors que la vraie
+		// cause est la mort brutale. On dit donc toujours comment il a fini —
+		// un SIGILL/SIGSEGV désigne un binaire compilé pour un autre
+		// processeur, pas un problème d'audio.
+		msg := whisperExitReason(err)
+		if last := lastLine(stderr.String()); last != "" {
+			msg += " — dernière sortie : " + last
 		}
 		sendJSON(w, 500, map[string]any{"error": "whisper-cli : " + msg})
 		return
 	}
 	sendJSON(w, 200, map[string]any{"text": strings.TrimSpace(string(out))})
+}
+
+// whisperExitReason traduit la fin du processus en une phrase utilisable.
+// ProcessState.String() dit déjà « exit status 2 » ou « signal: illegal
+// instruction » ; le second cas mérite son explication, parce que rien dans la
+// dictée ne laisse deviner que le binaire ne tourne pas sur ce processeur.
+func whisperExitReason(err error) string {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
+		return err.Error()
+	}
+	st := ee.ProcessState.String()
+	if strings.Contains(st, "signal:") {
+		return st + " (binaire compilé pour un autre processeur : image à reconstruire)"
+	}
+	return st
+}
+
+// lastLine : la dernière ligne non vide. whisper-cli bavarde beaucoup avant de
+// tomber ; seule la fin renseigne, et un pavé ne tient pas dans un bandeau.
+func lastLine(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); l != "" {
+			return l
+		}
+	}
+	return ""
 }
