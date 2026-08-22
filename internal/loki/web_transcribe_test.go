@@ -155,6 +155,31 @@ func TestDockerfileCudaAssezRecent(t *testing.T) {
 	}
 }
 
+// L'ARG qui porte les drapeaux doit être déclaré AVANT le premier FROM. Un ARG
+// posé entre deux étapes appartient à l'étape où il apparaît ; les « ARG » nus
+// des étapes whisperbuild-* héritent alors du scope global — vide. cmake a
+// tourné sans aucun drapeau : ggml en bibliothèques partagées (échec de lien),
+// et -march=native — le SIGILL de la PR #18 revenu en silence. 51 minutes de
+// build pour le découvrir.
+func TestDockerfileArgFlagsGlobal(t *testing.T) {
+	b, err := os.ReadFile("../../Dockerfile")
+	if err != nil {
+		t.Fatalf("lecture du Dockerfile : %v", err)
+	}
+	src := string(b)
+	// Ancré en début de ligne : une occurrence dans un commentaire ne compte
+	// pas — c'est précisément ainsi qu'une première version de ce test s'est
+	// laissée berner par sa propre contre-épreuve.
+	argLoc := regexp.MustCompile(`(?m)^ARG WHISPER_CMAKE_FLAGS=`).FindStringIndex(src)
+	fromLoc := regexp.MustCompile(`(?m)^FROM `).FindStringIndex(src)
+	if argLoc == nil {
+		t.Fatal("ARG WHISPER_CMAKE_FLAGS= introuvable dans le Dockerfile")
+	}
+	if fromLoc != nil && argLoc[0] > fromLoc[0] {
+		t.Error("ARG WHISPER_CMAKE_FLAGS= est déclaré APRÈS un FROM : les étapes whisperbuild-* hériteront d'une valeur vide et cmake tournera sans aucun drapeau")
+	}
+}
+
 func clefs(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

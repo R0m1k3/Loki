@@ -14,6 +14,18 @@
 # Déclaré avant le premier FROM : requis pour être utilisable dans un FROM.
 ARG LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server-cuda
 
+# ⚠️ AVANT le premier FROM, obligatoirement. Un ARG posé entre deux étapes
+# appartient à l'étape où il apparaît ; les « ARG WHISPER_CMAKE_FLAGS » nus des
+# étapes whisperbuild-* héritent du scope GLOBAL — c'est-à-dire d'ici. Placé
+# plus bas, ils héritaient d'une valeur VIDE : cmake tournait sans aucun
+# drapeau, ggml se construisait en bibliothèques partagées (échec de lien sur
+# libcuda.so.1) et surtout en -march=native — le SIGILL de la PR #18 revenu en
+# silence. Un test (TestDockerfileArgFlagsGlobal) verrouille cette position.
+ARG WHISPER_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON \
+    -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
+    -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF"
+
 # ── Étape 1 : binaire Go loki ───────────────────────────────────────────
 FROM golang:1.25 AS gobuild
 WORKDIR /src
@@ -50,11 +62,6 @@ RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 # pleine transcription : « AMX is not ready to be used! », puis plus rien,
 # l'interface affichant un échec sans raison. OFF retombe sur la ligne de base
 # AVX2/FMA/F16C de ggml, présente sur tout x86-64 depuis 2013.
-ARG WHISPER_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-    -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON \
-    -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
-    -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF"
-
 # Ubuntu 22.04 : glibc plus ancienne que l'image runtime, donc compatible quoi
 # qu'elle embarque.
 FROM ubuntu:22.04 AS whisperbuild-cpu
@@ -62,9 +69,13 @@ ARG WHISPER_CMAKE_FLAGS
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+# Le grep final vérifie que ggml est bien lié EN STATIQUE : l'image finale ne
+# reçoit que le binaire, une .so ggml manquante ne se verrait qu'au premier
+# clic sur le micro. Des libs partagées ici = drapeaux non transmis.
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} \
-    && cmake --build /w/build -j"$(nproc)" --target whisper-server
+    && cmake --build /w/build -j"$(nproc)" --target whisper-server \
+    && ( ! ldd /w/build/bin/whisper-server | grep -E "libggml|libwhisper" )
 
 # Version CUDA : la MÊME que celle de l'image amont (llama.cpp bâtit avec
 # CUDA 12.8.1 sur Ubuntu 24.04). Le binaire est lié dynamiquement à libcudart,
@@ -93,11 +104,16 @@ ARG CUDA_ARCHS="75;86;89;120"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+# Même vérification statique que l'étape CPU. libcuda.so.1 (le PILOTE) reste
+# elle une dépendance dynamique normale : absente du runner de build, injectée
+# à l'exécution par le NVIDIA Container Toolkit — l'édition de liens la
+# résout via les stubs du toolkit.
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
     && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} -DGGML_CUDA=ON \
          -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS}" \
     && cmake --build /w/build -j"$(nproc)" --target whisper-server \
-    && strip /w/build/bin/whisper-server
+    && strip /w/build/bin/whisper-server \
+    && ( ! ldd /w/build/bin/whisper-server | grep -E "libggml|libwhisper" )
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime
