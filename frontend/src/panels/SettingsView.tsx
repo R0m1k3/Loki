@@ -6,6 +6,7 @@ import {
   getBenchScores,
   getHardware,
   listMcp,
+  deletePreset,
   listPresets,
   pullModel,
   runBench,
@@ -19,7 +20,7 @@ import type {
   HardwareInfo,
   McpServer,
 } from "../api/client";
-import { DownloadIcon, RefreshIcon } from "../components/Icon";
+import { DownloadIcon, PlusIcon, RefreshIcon, TrashIcon } from "../components/Icon";
 
 const TOOL_DESC: Record<string, string> = {
   read_file: "Lire un fichier du projet",
@@ -117,8 +118,11 @@ export function SettingsView() {
     <div className="scr flex-1 overflow-auto bg-base px-[30px] py-[26px]">
       <div className="mx-auto max-w-[1000px]">
         {/* En-tête */}
-        <div className="mb-[22px] flex items-end justify-between">
-          <div>
+        {/* flex-wrap + flex-none : sans ça, les commandes s'écrasaient les unes
+            sur les autres et « + Preset » devenait un bloc illisible sur deux
+            lignes, chevauchant la description. */}
+        <div className="mb-[22px] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-[260px] flex-1">
             <div className="font-pixel text-[13px] text-ink">
               MODÈLE &amp; GÉNÉRATION
             </div>
@@ -127,19 +131,26 @@ export function SettingsView() {
               sont sauvegardés pour le modèle sélectionné.
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-none items-center gap-2 whitespace-nowrap">
             <PresetBar model={selectedModel} onApplied={refreshConfig} />
-            <div className="flex items-center gap-1.5 text-[13px] text-ok">
-              <span className="h-2 w-2 border border-line bg-ok" />
+            <span
+              className={`flex flex-none items-center gap-1.5 text-[13px] ${
+                status?.connected ? "text-ok" : "text-warn"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  status?.connected ? "bg-ok" : "bg-warn"
+                }`}
+              />
               {status?.connected ? "Ollama connecté" : "Ollama déconnecté"}
-            </div>
+            </span>
             <button
               onClick={save}
               disabled={!dirty}
-              className="flex h-[34px] items-center gap-1.5 border border-line bg-accent px-4 text-[14px] text-white shadow-accent-soft disabled:opacity-40"
-              style={{ borderRadius: 7 }}
+              className="flex h-[34px] flex-none items-center rounded-card border border-line bg-accent px-4 text-[14px] text-white shadow-accent-soft disabled:opacity-40"
             >
-              {saved ? "✓ ENREGISTRÉ" : dirty ? "ENREGISTRER" : "À JOUR"}
+              {saved ? "✓ Enregistré" : dirty ? "Enregistrer" : "À jour"}
             </button>
           </div>
         </div>
@@ -932,6 +943,7 @@ function PresetBar({
   onApplied: () => void;
 }) {
   const [presets, setPresets] = useState<string[]>([]);
+  const [chosen, setChosen] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -939,6 +951,7 @@ function PresetBar({
   }, []);
 
   const apply = async (name: string) => {
+    setChosen(name);
     if (!name) return;
     setBusy(true);
     try {
@@ -955,6 +968,7 @@ function PresetBar({
     setBusy(true);
     try {
       setPresets(await savePreset(name.trim(), model || undefined));
+      setChosen(name.trim());
     } catch (e) {
       window.alert(e instanceof Error ? e.message : "preset refusé");
     } finally {
@@ -962,31 +976,52 @@ function PresetBar({
     }
   };
 
+  const remove = async () => {
+    if (!chosen) return;
+    if (!window.confirm(`Supprimer le preset « ${chosen} » ?`)) return;
+    setBusy(true);
+    try {
+      setPresets(await deletePreset(chosen));
+      setChosen("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-none items-center gap-1.5">
       <select
-        value=""
+        value={chosen}
         disabled={busy || presets.length === 0}
         onChange={(e) => apply(e.target.value)}
-        className="h-[34px] border border-line bg-card px-2 text-[13px] text-ink disabled:opacity-40"
-        title="Appliquer un preset"
+        className="h-[34px] flex-none rounded-card border border-line bg-card px-2 text-[13px] text-ink disabled:opacity-40"
+        title="Appliquer un preset enregistré"
       >
-        <option value="">
-          {presets.length ? "Preset…" : "Aucun preset"}
-        </option>
+        <option value="">{presets.length ? "Preset…" : "Aucun preset"}</option>
         {presets.map((p) => (
           <option key={p} value={p}>
             {p}
           </option>
         ))}
       </select>
+      {chosen && (
+        <button
+          onClick={remove}
+          disabled={busy}
+          className="h-[34px] flex-none rounded-card border border-line bg-card px-2 text-[13px] text-warn disabled:opacity-40"
+          title={`Supprimer le preset « ${chosen} »`}
+        >
+          <TrashIcon size={13} />
+        </button>
+      )}
       <button
         onClick={create}
         disabled={busy}
-        className="h-[34px] border border-line bg-card px-2.5 text-[13px] text-muted-2 disabled:opacity-40"
-        title="Enregistrer les réglages actuels comme preset"
+        className="flex h-[34px] flex-none items-center gap-1 whitespace-nowrap rounded-card border border-line bg-card px-3 text-[13px] text-ink-3 hover:border-accent hover:text-accent disabled:opacity-40"
+        title="Enregistrer les réglages actuels comme nouveau preset"
       >
-        + Preset
+        <PlusIcon />
+        Nouveau preset
       </button>
     </div>
   );
