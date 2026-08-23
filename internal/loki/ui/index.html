@@ -311,6 +311,10 @@ details>summary::-webkit-details-marker{display:none}
 .preset-add{display:none;font-size:14px;padding:0 8px;margin:0 8px 0 auto;line-height:1.4;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px;cursor:pointer}
 .preset-add:hover{border-color:var(--accent);color:var(--accent)}
 details[open]>summary>.preset-add{display:inline-block}
+/* Les panneaux de réglages ne sont plus des <details>/<summary> mais des
+   <section class="set-pane"> : sans cette règle, le « + » des Presets restait
+   en display:none et il n'y avait plus aucun moyen d'en créer un. */
+.set-pane-h>.preset-add{display:inline-block}
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--panel);border:1px solid var(--border)}
 .tag.ok{color:var(--ok);border-color:var(--ok)}
 .tag.err{color:var(--err);border-color:var(--err)}
