@@ -277,11 +277,17 @@ function syncSendBtn(){
   // répond pas du tout) — dans le doute on laisse la main.
   const ready = !STATUS_SEEN || MODEL_READY;
   sb.disabled = !ready;
-  sb.title = ready ? '' : 'le modèle n\'est pas encore chargé';
+  // Moteur ARRÊTÉ (VRAM libérée à la demande, ou service coupé) : dire « le
+  // modèle charge » serait faux, et on attendrait un chargement qui ne viendra
+  // jamais. On nomme alors le geste qui remet le modèle en mémoire.
+  const unloaded = !ready && !ENGINE_ACTIVE;
+  sb.title = ready ? '' : (unloaded ? 'le modèle est déchargé — recharge-le pour écrire'
+                                    : 'le modèle n\'est pas encore chargé');
   const hint=document.getElementById('sendhint');
   if(hint){
     hint.textContent = ready ? 'Entrée pour envoyer · Maj+Entrée = nouvelle ligne'
-                             : 'Le modèle charge — envoi possible dès qu\'il est prêt.';
+                     : unloaded ? 'Modèle déchargé — « Recharger le modèle » dans le moniteur, en bas de la barre latérale.'
+                                : 'Le modèle charge — envoi possible dès qu\'il est prêt.';
     hint.classList.toggle('waiting', !ready);
   }
 }

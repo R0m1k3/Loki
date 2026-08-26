@@ -175,6 +175,10 @@ func newWebMux() *http.ServeMux {
 	api("/api/dictate/state", handleDictateState)              // serveur allumé, modèle chargé, dernière erreur
 	api("/api/service/log", handleServiceLog)                  // journal du service pour diagnostiquer un modèle qui ne charge pas
 	api("/api/vram", handleVram)
+	// Rendre la carte à la machine : le modèle occupe la VRAM tant que le moteur
+	// tourne, et une autre application qui en a besoin ne trouve rien.
+	api("/api/vram/unload", handleVramUnload) // arrête moteur + dictée, rapporte la VRAM rendue
+	api("/api/vram/reload", handleVramReload) // relance le moteur (le modèle se recharge)
 	api("/api/ram", handleRam)
 	api("/api/config", handleConfigEnv)
 	api("/api/paths", handlePaths)

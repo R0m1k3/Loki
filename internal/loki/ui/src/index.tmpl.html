@@ -90,7 +90,11 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
        fil. Le détail chiffré (Gio, température) vit sous chaque jauge, et le
        bloc entier se replie d'un clic. -->
   <div id="side-perf">
-    <div class="perf-head"><span>Performance</span></div>
+    <!-- « Libérer la VRAM » est posé LÀ, sur les jauges : c'est en les regardant
+         qu'on décide de rendre la carte à une autre application. Le libellé
+         bascule en « Recharger le modèle » dès que le moteur est arrêté — voir
+         paintVramBtn (js/05-status.js). -->
+    <div class="perf-head"><span>Performance</span><button id="vram-btn" class="perf-act" onclick="vramBtnClick()" title="décharge le modèle et arrête le moteur — la mémoire vidéo repart à la machine">Libérer la VRAM</button></div>
     <div class="perf-body"><div id="vram">…</div><div id="ram-details"><div id="ram"></div></div></div>
   </div>
 </div>
@@ -450,15 +454,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       <pre id="lc-log" hidden></pre>
     </div>
     </div>
-    <!-- Ces trois boutons pilotent le service qui fait tourner llama-server :
-         leur place est ici, avec le moteur, et pas dans une section « Service »
-         à part qui ne contenait qu'eux. -->
-    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).</span></span></div>
+    <!-- Ces boutons pilotent le service qui fait tourner llama-server : leur
+         place est ici, avec le moteur, et pas dans une section « Service » à
+         part qui ne contenait qu'eux. Le dernier, « libérer la VRAM », fait
+         plus qu'arrêter : il éteint aussi la dictée et annonce la mémoire
+         vidéo rendue (c'est le même geste que le bouton du moniteur). -->
+    <div class="subhead">Service du moteur<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Démarre, redémarre ou arrête <b>llama-server</b> — le processus qui charge le modèle et répond. Un redémarrage recharge le modèle du preset actif (quelques secondes à quelques minutes selon sa taille).<br><b>Libérer la VRAM</b> arrête le moteur <i>et</i> la dictée, puis annonce la mémoire vidéo rendue : c'est ce qu'il faut quand une autre application réclame la carte. Le même bouton vit sur les jauges, en pied de barre latérale.</span></span></div>
     <div class="slist"><div class="rowbody">
       <div class="row" style="margin:0">
         <button onclick="act('start')">démarrer</button>
         <button onclick="act('restart')">redémarrer</button>
         <button onclick="act('stop')">arrêter</button>
+        <button onclick="vramUnload(false)" title="décharge le modèle et rend la mémoire vidéo à la machine">libérer la VRAM</button>
       </div>
     </div></div>
   </section>

@@ -290,6 +290,12 @@ Ajoutées par ce fork :
   latérale s'escamote pour rendre toute la largeur au fil ; les discussions s'y
   cherchent au clavier et les jauges **GPU / VRAM / mémoire vive** restent
   visibles en pied de colonne.
+- **Libérer la VRAM d'un clic** : sur les jauges du moniteur, un bouton décharge
+  le modèle et arrête le moteur (ainsi que le serveur de dictée, qui occupe la
+  carte lui aussi) pour rendre la mémoire vidéo à une autre application — jeu,
+  encodage, autre serveur d'inférence. Le bilan est annoncé en Gio réellement
+  rendus, et le même bouton devient **Recharger le modèle** pour reprendre la
+  main. Routes : `POST /api/vram/unload` et `POST /api/vram/reload`.
 - **API OpenAI servie par Loki** : `/v1/*` est exposé **sur le port de
   l'interface** (8090) et relayé vers llama-server, au lieu d'annoncer l'adresse
   du moteur. Conséquence directe : l'API est joignable partout où l'interface

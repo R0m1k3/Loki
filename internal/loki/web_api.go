@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -170,28 +169,15 @@ func handleServiceLog(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"log": serviceLogTail(n)})
 }
 
+// handleVram expose l'état des cartes à l'interface (jauges du moniteur).
+// La lecture nvidia-smi elle-même vit dans web_vram.go, avec le déchargement
+// de la VRAM qui s'en sert pour chiffrer la mémoire rendue.
 func handleVram(w http.ResponseWriter, r *http.Request) {
-	out, err := hideCmd(exec.Command("nvidia-smi",
-		"--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu",
-		"--format=csv,noheader,nounits")).Output()
 	gpus := []map[string]any{}
-	if err == nil {
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			parts := strings.Split(line, ",")
-			if len(parts) != 5 {
-				continue
-			}
-			for i := range parts {
-				parts[i] = strings.TrimSpace(parts[i])
-			}
-			used, _ := strconv.Atoi(parts[1])
-			total, _ := strconv.Atoi(parts[2])
-			util, _ := strconv.Atoi(parts[3])
-			temp, _ := strconv.Atoi(parts[4])
-			gpus = append(gpus, map[string]any{
-				"name": parts[0], "used": used, "total": total, "util": util, "temp": temp,
-			})
-		}
+	for _, g := range gpuStats() {
+		gpus = append(gpus, map[string]any{
+			"name": g.Name, "used": g.Used, "total": g.Total, "util": g.Util, "temp": g.Temp,
+		})
 	}
 	sendJSON(w, 200, gpus)
 }
