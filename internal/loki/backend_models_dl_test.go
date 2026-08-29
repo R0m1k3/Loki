@@ -172,7 +172,15 @@ func TestDLSourceErrorExplainsGatedRepo(t *testing.T) {
 		},
 		{
 			name: "fichier absent", resp: resp(404, "EntryNotFound"), url: gated,
-			want: []string{"absent du dépôt", "404"},
+			want: []string{"« m.gguf » absent du dépôt", "404"},
+		},
+		{
+			// Dépôt qui publie six fragments sur sept (table PLE livrée à part) :
+			// le message doit NOMMER le fragment manquant, sinon on cherche une
+			// révision réécrite qui n'existe pas.
+			name: "fragment absent", resp: resp(404, "EntryNotFound"),
+			url:  "https://huggingface.co/x/y-GGUF/resolve/main/Q2_K/y-Q2_K-00007-of-00007.gguf",
+			want: []string{"« y-Q2_K-00007-of-00007.gguf » absent du dépôt", "fragment jamais publié"},
 		},
 		{
 			name: "source hors Hugging Face", resp: resp(403, ""), url: "https://example.com/m.gguf",

@@ -70,25 +70,88 @@ func gpuUsedMB(gpus []gpuStat) int {
 	return used
 }
 
-// gpuUsedSettled attend que la VRAM cesse de baisser avant de la relire : le
-// pilote ne rend pas la mémoire à l'instant où le processus meurt, et une
-// lecture immédiate rapporterait « 0 Mo libérés » juste après un déchargement
-// qui a pourtant marché. Au plus ~3 s, et rien du tout sans GPU.
-func gpuUsedSettled() int {
-	gpus := gpuStats()
-	if gpus == nil {
-		return 0
-	}
-	last := gpuUsedMB(gpus)
-	for i := 0; i < 6; i++ {
-		time.Sleep(500 * time.Millisecond)
-		cur := gpuUsedMB(gpuStats())
-		if cur >= last {
+// gpuSettle attend que la VRAM ait fini de redescendre avant de la relire. Le
+// pilote ne rend pas la mémoire à l'instant où le processus meurt — taskkill et
+// Process.Kill reviennent avant même que CUDA ait commencé son ménage — et une
+// lecture prise trop tôt rapporterait « 0 Mo libérés » après un déchargement
+// qui a pourtant marché. Trois règles, chacune née d'un faux bilan :
+//
+//   - une mesure ratée (nvidia-smi absent, ou en pleine réinitialisation juste
+//     après l'arrêt) n'est PAS « 0 Mo » : on la saute et on garde la dernière
+//     lecture valide — la compter à zéro annoncerait tout le modèle comme
+//     libéré alors que rien n'a bougé ;
+//   - un palier n'est concluant qu'une fois la baisse commencée : avant, c'est
+//     le pilote qui n'a pas encore réagi, pas la mémoire qui a fini de partir ;
+//   - deux lectures égales de suite après la baisse, et on rend la valeur.
+//     Sans baisse du tout, on rend la dernière lecture après ~4 s.
+//
+// sample renvoie (Mo occupés, lecture réussie). before : la lecture prise
+// avant l'arrêt, qui sert de repère à « la baisse a commencé ».
+func gpuSettle(before int, sample func() (int, bool), pause time.Duration) int {
+	last, lu := before, false
+	baisse, palier := false, 0
+	for i := 0; i < 8; i++ {
+		time.Sleep(pause)
+		cur, ok := sample()
+		if !ok {
+			continue
+		}
+		if cur < before {
+			baisse = true
+		}
+		if lu && cur == last {
+			palier++
+		} else {
+			palier = 0
+		}
+		last, lu = cur, true
+		if baisse && palier >= 1 {
 			return cur
 		}
-		last = cur
 	}
 	return last
+}
+
+func gpuUsedSettled(before int) int {
+	return gpuSettle(before, func() (int, bool) {
+		g := gpuStats()
+		return gpuUsedMB(g), g != nil
+	}, 500*time.Millisecond)
+}
+
+// engineNeedsStop : faut-il envoyer « stop » ? Actif, évidemment. Mais sous
+// systemd, « is-active » ne répond « active » qu'une fois le service établi :
+// une unité en train de (re)démarrer — Restart=on-failure sur un modèle qui
+// meurt au chargement — répond « activating », et la sauter laisserait systemd
+// relancer llama-server toutes les trois secondes, GPU repris à chaque tour,
+// pendant que l'interface affirme « le moteur était déjà arrêté ». On garde la
+// condition pour le bilan, mais élargie aux états transitoires.
+func engineNeedsStop() bool {
+	if serviceIsActive() {
+		return true
+	}
+	if !systemdAvailable() {
+		return false
+	}
+	out, _ := exec.Command("systemctl", "is-active", serviceName()).Output()
+	switch strings.TrimSpace(string(out)) {
+	case "activating", "reloading", "deactivating":
+		return true
+	}
+	return false
+}
+
+// postOnly refuse tout sauf POST. Ces routes changent l'état de la machine —
+// elles arrêtent des processus — et un simple GET ne doit pas y suffire : sans
+// clé de pilotage configurée, une balise <img> sur une page tierce visitée par
+// hasard suffirait sinon à couper le moteur.
+func postOnly(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == http.MethodPost {
+		return true
+	}
+	w.Header().Set("Allow", http.MethodPost)
+	sendJSON(w, 405, map[string]any{"ok": false, "error": "méthode " + r.Method + " refusée : POST attendu"})
+	return false
 }
 
 // ansiRe / plainErr : les messages de preflightEngine sont écrits pour le
@@ -107,6 +170,9 @@ func plainErr(err error) string {
 // vidéo. Refuse pendant une génération — la couper perdrait la réponse en
 // cours — sauf si l'appelant insiste avec {force:true}.
 func handleVramUnload(w http.ResponseWriter, r *http.Request) {
+	if !postOnly(w, r) {
+		return
+	}
 	var req struct {
 		Force bool `json:"force"`
 	}
@@ -118,7 +184,7 @@ func handleVramUnload(w http.ResponseWriter, r *http.Request) {
 	}
 	gpus := gpuStats()
 	before := gpuUsedMB(gpus)
-	wasActive := serviceIsActive()
+	wasActive := engineNeedsStop()
 
 	var errs []string
 	if wasActive {
@@ -128,12 +194,15 @@ func handleVramUnload(w http.ResponseWriter, r *http.Request) {
 	}
 	// La dictée tourne dans un processus séparé, allumé à la demande et éteint
 	// après dix minutes d'inactivité : sur GPU, elle occupe la carte pendant tout
-	// ce temps. Libérer la VRAM sans elle ne libérerait pas tout.
-	whisperShutdown()
+	// ce temps. Libérer la VRAM sans elle ne libérerait pas tout. La variante
+	// « vite » : ne jamais attendre derrière un démarrage de la dictée, qui
+	// peut tenir le verrou deux minutes — le navigateur aurait abandonné bien
+	// avant, moteur pourtant déjà arrêté.
+	whisperShutdownVite()
 
 	after := before
 	if gpus != nil {
-		after = gpuUsedSettled()
+		after = gpuUsedSettled(before)
 	}
 	freed := before - after
 	if freed < 0 {
@@ -155,6 +224,9 @@ func handleVramUnload(w http.ResponseWriter, r *http.Request) {
 // de démarrer un service condamné à mourir en boucle (BIN ou MODEL absents) :
 // mieux vaut la vraie raison tout de suite qu'un « chargement… » sans fin.
 func handleVramReload(w http.ResponseWriter, r *http.Request) {
+	if !postOnly(w, r) {
+		return
+	}
 	if serviceIsActive() {
 		sendJSON(w, 200, map[string]any{"ok": true, "already": true})
 		return

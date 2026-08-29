@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -170,6 +171,13 @@ const whisperIdle = 10 * time.Minute
 const whisperReady = 120 * time.Second
 
 var wsrvMu sync.Mutex
+
+// wsrvDemarrage : le processus en cours de démarrage, visible SANS le verrou.
+// whisperStartLocked garde wsrvMu pendant tout le chargement du modèle ; c'est
+// la seule poignée qu'un autre appelant (whisperShutdownVite) a sur lui pour
+// l'interrompre. Nil hors démarrage.
+var wsrvDemarrage atomic.Pointer[exec.Cmd]
+
 var wsrv struct {
 	cmd    *exec.Cmd
 	port   int
@@ -231,7 +239,10 @@ func whisperStartLocked(cfg DictateCfg) (int, error) {
 	}
 	wsrv.cmd, wsrv.port, wsrv.cfg = cmd, port, dictateCfgLoad()
 	wsrv.log, wsrv.note, wsrv.depuis = log, note, time.Now()
-	if err := whisperAttendPret(cmd, port, log); err != nil {
+	wsrvDemarrage.Store(cmd)
+	err = whisperAttendPret(cmd, port, log)
+	wsrvDemarrage.Store(nil)
+	if err != nil {
 		whisperStopLocked()
 		return 0, err
 	}
@@ -299,6 +310,30 @@ func whisperShutdown() {
 	wsrvMu.Lock()
 	defer wsrvMu.Unlock()
 	whisperStopLocked()
+}
+
+// whisperShutdownVite arrête le serveur sans jamais attendre derrière un
+// démarrage. whisperShutdown prend wsrvMu, et whisperEnsure le garde pendant
+// tout le chargement du modèle — jusqu'à whisperReady (deux minutes) depuis un
+// disque lent. Appelé par un geste de l'interface (libérer la VRAM), ce blocage
+// ferait abandonner le navigateur alors que le moteur, lui, est déjà arrêté.
+//
+// Si le verrou est pris, on tue le processus en train de démarrer : sa mort
+// fait sortir whisperAttendPret, le verrou se libère, et on finit le ménage
+// par la voie normale. La dictée qui attendait reçoit une erreur de démarrage —
+// c'est l'utilisateur qui vient de demander la carte, pas une panne.
+func whisperShutdownVite() {
+	for i := 0; i < 20; i++ {
+		if wsrvMu.TryLock() {
+			whisperStopLocked()
+			wsrvMu.Unlock()
+			return
+		}
+		if cmd := wsrvDemarrage.Load(); cmd != nil && cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // whisperInfer garantit le serveur puis lui soumet le WAV.

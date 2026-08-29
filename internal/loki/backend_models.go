@@ -539,7 +539,11 @@ func dlSourceError(resp *http.Response, dlURL string) error {
 	case 404:
 		switch code {
 		case "EntryNotFound":
-			return fmt.Errorf("fichier absent du dépôt (HTTP 404) — la révision a pu être réécrite depuis que le lien a été copié")
+			// Nommer le fichier : sur un modèle en fragments, c'est souvent UN
+			// fragment qui manque — certains dépôts n'en publient que six sur
+			// sept et livrent la table PLE à part, à lier soi-même — et sans
+			// le nom, on cherche une révision réécrite qui n'existe pas.
+			return fmt.Errorf("fichier %s absent du dépôt (HTTP 404) — dépôt réorganisé depuis la copie du lien, ou fragment jamais publié (table PLE livrée à part ?)", dlFileLabel(dlURL))
 		case "RevisionNotFound":
 			return fmt.Errorf("révision introuvable dans le dépôt (HTTP 404)")
 		}
@@ -553,6 +557,20 @@ func dlSourceError(resp *http.Response, dlURL string) error {
 		return fmt.Errorf("la source est en panne (HTTP %d) — réessaie plus tard", resp.StatusCode)
 	}
 	return fmt.Errorf("HTTP %d depuis la source", resp.StatusCode)
+}
+
+// dlFileLabel : « nom.gguf » entre guillemets pour un message, ou vide si le
+// lien n'a pas de nom de fichier lisible.
+func dlFileLabel(dlURL string) string {
+	u, err := url.Parse(dlURL)
+	if err != nil {
+		return ""
+	}
+	name := path.Base(u.Path)
+	if name == "" || name == "/" || name == "." {
+		return ""
+	}
+	return "« " + name + " »"
 }
 
 // dlAccessReason nomme la raison du refus. repo vide = source hors Hugging Face

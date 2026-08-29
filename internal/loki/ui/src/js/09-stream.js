@@ -280,12 +280,18 @@ function syncSendBtn(){
   // Moteur ARRÊTÉ (VRAM libérée à la demande, ou service coupé) : dire « le
   // modèle charge » serait faux, et on attendrait un chargement qui ne viendra
   // jamais. On nomme alors le geste qui remet le modèle en mémoire.
-  const unloaded = !ready && !ENGINE_ACTIVE;
-  sb.title = ready ? '' : (unloaded ? 'le modèle est déchargé — recharge-le pour écrire'
+  // Trois raisons de ne pas être prêt, trois messages : planté au chargement
+  // (recharger ne ferait que replanter — la cause est affichée dans le
+  // moniteur), déchargé à la demande, ou simplement en train de charger.
+  const failed = !ready && !!LOAD_ERROR;
+  const unloaded = !ready && !failed && !ENGINE_ACTIVE;
+  sb.title = ready ? '' : failed ? 'le modèle n\'a pas pu charger — voir l\'erreur dans le moniteur'
+                        : (unloaded ? 'le modèle est déchargé — recharge-le pour écrire'
                                     : 'le modèle n\'est pas encore chargé');
   const hint=document.getElementById('sendhint');
   if(hint){
     hint.textContent = ready ? 'Entrée pour envoyer · Maj+Entrée = nouvelle ligne'
+                     : failed ? 'Le modèle n\'a pas pu charger — l\'erreur est affichée dans le moniteur, en bas de la barre latérale.'
                      : unloaded ? 'Modèle déchargé — « Recharger le modèle » dans le moniteur, en bas de la barre latérale.'
                                 : 'Le modèle charge — envoi possible dès qu\'il est prêt.';
     hint.classList.toggle('waiting', !ready);

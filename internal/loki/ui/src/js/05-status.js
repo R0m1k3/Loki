@@ -22,6 +22,9 @@ async function loadStatus(){
   // local) : un arrêt venu d'un autre onglet, du terminal ou d'un job doit se
   // lire ici aussi, sinon le bouton propose de libérer une carte déjà libre.
   ENGINE_ACTIVE = !!s.active;
+  // Un moteur qui a PLANTÉ au chargement n'est pas « déchargé » : sans ce
+  // drapeau, syncSendBtn proposerait de recharger un modèle qui va replanter.
+  LOAD_ERROR = s.load_error || '';
   paintVramBtn();
   // Le bouton d'envoi suit l'état du moteur : inutile de pouvoir envoyer un
   // message à un modèle qui n'est pas encore chargé (voir syncSendBtn).
@@ -197,7 +200,7 @@ async function loadVram(){
 // ENGINE_ACTIVE vient de /api/status (relu toutes les 5 s), jamais d'un drapeau
 // posé au clic : sinon un second onglet, ou un arrêt venu du terminal,
 // afficherait un bouton qui ment.
-let ENGINE_ACTIVE = true, VRAM_BUSY = false;
+let ENGINE_ACTIVE = true, VRAM_BUSY = false, LOAD_ERROR = '';
 function paintVramBtn(){
   const b = document.getElementById('vram-btn');
   if(!b || VRAM_BUSY) return; // pendant l'opération, le libellé appartient à vramBusy
@@ -217,7 +220,11 @@ function vramBusy(on, label){
 }
 // force=true : on a déjà demandé confirmation ET accepté de couper une réponse
 // en cours d'écriture (le serveur refuse sans ça, voir handleVramUnload).
+// Les deux gestes sont exclusifs : un second clic (le bouton des réglages
+// pendant que celui du moniteur travaille) lancerait un « stop » au milieu d'un
+// démarrage, ou l'inverse. VRAM_BUSY tient lieu de verrou.
 async function vramUnload(force){
+  if(VRAM_BUSY) return;
   if(!force){
     const ok = await askConfirm(
       'Décharger le modèle ? Le moteur s\'arrête et rend la mémoire vidéo — le chat reste indisponible jusqu\'au rechargement.',
@@ -227,6 +234,10 @@ async function vramUnload(force){
   vramBusy(true, 'libération…');
   let r = null;
   try{ r = await jpost('/api/vram/unload', {force: !!force}); }catch(_){}
+  // Le serveur dit l'état RÉEL après coup : le repeindre depuis l'ancien
+  // ENGINE_ACTIVE (relu seulement toutes les 5 s) afficherait « Libérer » sur
+  // un moteur déjà arrêté.
+  if(r && typeof r.active === 'boolean') ENGINE_ACTIVE = r.active;
   vramBusy(false);
   if(r && r.generating){
     const ok = await askConfirm('Une réponse est en cours d\'écriture : décharger maintenant l\'interrompt. Continuer ?',
@@ -236,17 +247,21 @@ async function vramUnload(force){
   }
   // La mesure d'abord : la dictée peut avoir rendu de la VRAM alors même que le
   // moteur était déjà arrêté — annoncer « déjà arrêté » nierait ce qui vient
-  // d'être libéré.
+  // d'être libéré. Sous quelques dizaines de Mo, c'est le bruit du bureau entre
+  // deux lectures, pas une libération : on ne l'annonce pas.
   if(!r || !r.ok) toast('échec : ' + ((r && r.error) || 'réseau'));
-  else if(r.gpu && r.freed_mb > 0) toast('VRAM libérée : ' + (r.freed_mb/1024).toFixed(1) + ' Gio');
+  else if(r.gpu && r.freed_mb >= 64) toast('VRAM libérée : ' + fmtMo(r.freed_mb));
   else if(!r.was_active) toast('le moteur était déjà arrêté');
   else toast('modèle déchargé');
   loadAll();
 }
+function fmtMo(mb){ return mb >= 1024 ? (mb/1024).toFixed(1) + ' Gio' : mb + ' Mo'; }
 async function vramReload(){
+  if(VRAM_BUSY) return;
   vramBusy(true, 'démarrage…');
   let r = null;
   try{ r = await jpost('/api/vram/reload', {}); }catch(_){}
+  if(r && r.ok) ENGINE_ACTIVE = true;
   vramBusy(false);
   if(!r || !r.ok){ toast('échec : ' + ((r && r.error) || 'réseau')); return; }
   toast('modèle en cours de chargement…');
