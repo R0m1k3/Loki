@@ -18,7 +18,25 @@ fi
 # Le chemin du moteur est imposé par l'image (llama-server précompilé de
 # l'image officielle llama.cpp, dans /app) : on le (re)pose à chaque boot,
 # une mise à jour de l'image ne doit pas laisser un BIN obsolète en base.
-loki config set "BIN=${LOKI_ENGINE_BIN:-/app/llama-server}"
+#
+# SAUF si l'utilisateur a mis le moteur à jour depuis l'interface : celui-là
+# vit sous $LOKI_HOME/engine/<version>/ (volume de données, il survit au
+# conteneur) et c'est lui qu'il a choisi. Le reposer sur /app à chaque
+# redémarrage ramenait silencieusement l'ancien moteur — un modèle qui
+# chargeait la veille ne chargeait plus le lendemain, « unknown model
+# architecture », sans que rien n'ait été touché. On ne le garde que s'il
+# existe encore : un dossier supprimé à la main ne doit pas laisser BIN dans
+# le vide.
+cur=$(loki config get BIN)
+case "$cur" in
+    "$LOKI_HOME"/engine/*/llama-server) [ -x "$cur" ] || cur="" ;;
+    *) cur="" ;;
+esac
+if [ -n "$cur" ]; then
+    echo "[entrypoint] moteur mis à jour conservé : $cur"
+else
+    loki config set "BIN=${LOKI_ENGINE_BIN:-/app/llama-server}"
+fi
 
 # Les autres clés ne sont semées QUE si absentes : ce que l'utilisateur règle
 # ensuite dans l'UI (modèle, contexte…) est conservé d'un redémarrage à l'autre.
