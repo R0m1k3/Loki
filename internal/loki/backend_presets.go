@@ -225,7 +225,36 @@ func applyPresetFile(target string) error {
 		}
 		next[k] = v
 	}
+	// Le moteur suit la machine, pas le preset (voir presetImposesEngine).
+	if cur["BIN"] != "" && !presetImposesEngine(next["BIN"]) {
+		next["BIN"] = cur["BIN"]
+	}
 	return WriteConfig(next)
+}
+
+// presetImposesEngine : le BIN d'un preset a-t-il son mot à dire ?
+//
+// Le moteur est un réglage de MACHINE. Un preset créé avant une mise à jour du
+// moteur (Réglages → Moteur, qui installe sous $LOKI_HOME/engine/) embarque
+// encore le chemin de l'image, /app/llama-server ; l'appliquer — changer de
+// modèle, une tâche planifiée — ramenait silencieusement ce vieux moteur, et
+// un modèle qui chargeait la veille mourait sur « unknown model architecture »
+// sans qu'aucun réglage visible ait bougé. Le moteur de l'image, un moteur
+// téléchargé par Loki ou un précompilé ne sont donc jamais imposés par un
+// preset : le courant reste.
+//
+// Un backend PERSONNALISÉ (compilé pour un modèle précis, backend_llamacpp.go :
+// « un backend custom se choisit par modèle »), lui, est un vrai choix par
+// modèle : le preset gagne.
+func presetImposesEngine(p string) bool {
+	p = strings.TrimSpace(p)
+	if p == "" || engineOwns(p) || prebuiltOwns(p) {
+		return false
+	}
+	if img := strings.TrimSpace(os.Getenv("LOKI_ENGINE_BIN")); img != "" && samePath(p, img) {
+		return false
+	}
+	return true
 }
 
 // SwitchToPreset installe le preset et redémarre le service. Les réglages
@@ -287,6 +316,10 @@ func cmdSwitch(args []string) error {
 // mélangeaient donc aux options cochées pour le nouveau, et il fallait penser à
 // tout nettoyer à la main. On repart d'une base vide : les valeurs non
 // renseignées sont les défauts documentés (CTX 32768, NGL 999, BATCH 2048…).
+//
+// BIN n'est repris que s'il désigne un backend personnalisé (presetImposesEngine) :
+// figer /app/llama-server dans chaque preset, c'est ce qui faisait perdre le
+// moteur mis à jour à la première bascule.
 var newPresetSeedKeys = []string{"BIN", "HOST", "PORT"}
 
 // newPresetSeed renvoie la configuration de départ d'un preset créé depuis l'UI.
@@ -294,9 +327,11 @@ func newPresetSeed() map[string]string {
 	cur := ReadConfig()
 	seed := map[string]string{}
 	for _, k := range newPresetSeedKeys {
-		if v := cur[k]; v != "" {
-			seed[k] = v
+		v := cur[k]
+		if v == "" || (k == "BIN" && !presetImposesEngine(v)) {
+			continue
 		}
+		seed[k] = v
 	}
 	return seed
 }

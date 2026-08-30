@@ -68,6 +68,64 @@ func TestSwitchToPresetGardeLesReglagesMachine(t *testing.T) {
 	}
 }
 
+// Le moteur suit la machine. Vécu : moteur mis à jour depuis l'interface
+// (BIN → /data/engine/server-cuda-b10680), Qwen3.8-Flash-Next charge ; on
+// change de modèle — le preset, créé avant, porte BIN=/app/llama-server — et
+// le vieux moteur revient : « unknown model architecture: 'qwen4exp' ». Seul
+// un backend personnalisé, choix par modèle, a le droit d'imposer son BIN.
+func TestSwitchToPresetGardeLeMoteur(t *testing.T) {
+	home := testHome(t)
+	t.Setenv("LOKI_ENGINE_BIN", "/app/llama-server")
+	write := func(p, body string) {
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	engine := filepath.Join(home, "engine", "server-cuda-b10680", "llama-server")
+	setConfig(t, "MODEL=ancien.gguf\nBIN="+engine+"\n")
+
+	// Preset d'avant la mise à jour : il porte le moteur de l'image.
+	image := filepath.Join(home, "image.env")
+	write(image, "MODEL=nouveau.gguf\nBIN=/app/llama-server\n")
+	if err := applyPresetFile(image); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReadConfig()["BIN"]; got != engine {
+		t.Errorf("BIN = %q après bascule, attendu le moteur mis à jour %q", got, engine)
+	}
+	// Preset muet sur le moteur : idem.
+	muet := filepath.Join(home, "muet.env")
+	write(muet, "MODEL=autre.gguf\n")
+	if err := applyPresetFile(muet); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReadConfig()["BIN"]; got != engine {
+		t.Errorf("BIN = %q après preset muet, attendu %q conservé", got, engine)
+	}
+	// Backend personnalisé : le preset gagne.
+	custom := filepath.Join(home, "custom.env")
+	write(custom, "MODEL=exotique.gguf\nBIN=/opt/mon-fork/llama-server\n")
+	if err := applyPresetFile(custom); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReadConfig()["BIN"]; got != "/opt/mon-fork/llama-server" {
+		t.Errorf("BIN = %q, attendu le backend personnalisé du preset", got)
+	}
+	// Un nouveau preset ne fige pas ce backend-là… si, justement : c'est un
+	// choix par modèle. Mais il ne fige ni l'image ni un moteur téléchargé.
+	if seed := newPresetSeed(); seed["BIN"] != "/opt/mon-fork/llama-server" {
+		t.Errorf("seed BIN = %q, attendu le backend personnalisé", seed["BIN"])
+	}
+	setConfig(t, "MODEL=ancien.gguf\nBIN="+engine+"\n")
+	if seed := newPresetSeed(); seed["BIN"] != "" {
+		t.Errorf("seed BIN = %q, un moteur téléchargé ne doit pas être figé dans un preset", seed["BIN"])
+	}
+	setConfig(t, "MODEL=ancien.gguf\nBIN=/app/llama-server\n")
+	if seed := newPresetSeed(); seed["BIN"] != "" {
+		t.Errorf("seed BIN = %q, le moteur de l'image ne doit pas être figé dans un preset", seed["BIN"])
+	}
+}
+
 // Un preset qui définit LUI-MÊME la sélection de cartes doit gagner sur celle
 // de la machine : « FABLE 2 GPU » impose CUDA_VISIBLE_DEVICES=1,0 pour que son
 // --tensor-split ait deux cartes. Écraser ça par une sélection mono-GPU faisait
