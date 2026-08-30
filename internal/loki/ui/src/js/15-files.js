@@ -263,6 +263,21 @@ function filesOnConvChange(){
   if(FILES_OPEN) loadFiles('');
 }
 
+// Quelque chose a pu changer sur disque : un outil vient de rendre son résultat
+// (l'agent écrit un rapport, une capture, un script), le tour est fini, une
+// pièce jointe vient d'être déposée. Le panneau se redessine tout seul —
+// jusqu'ici il fallait cliquer « rafraîchir » pour voir apparaître ce que
+// l'agent venait d'écrire. Regroupé : une rafale d'appels d'outils ne
+// déclenche qu'une lecture. Panneau fermé ou rejeu du journal : rien à faire,
+// l'ouverture recharge de toute façon.
+let filesRefreshT = 0;
+function filesOnActivity(){
+  if(!FILES_OPEN) return;
+  if(typeof REPLAYING !== 'undefined' && REPLAYING) return;
+  clearTimeout(filesRefreshT);
+  filesRefreshT = setTimeout(()=>{ filesRefreshT = 0; loadFiles(); }, 400);
+}
+
 // Date courte : l'heure pour aujourd'hui, la date sinon. Ce qu'on veut savoir,
 // c'est « est-ce que ça vient du tour que je viens de lancer ? ».
 document.addEventListener('DOMContentLoaded', initFiles);

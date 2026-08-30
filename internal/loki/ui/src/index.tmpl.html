@@ -198,7 +198,8 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
 <!-- Fichiers : ce qui appartient à la DISCUSSION ouverte — pièces jointes
      déposées, captures, ce que l'agent y a écrit. Panneau de DROITE, symétrique
      des réglages à gauche, ouvert et fermé par le bouton dossier du pied de
-     carte. Il ne se remplit qu'à l'ouverture (loadFiles) — un ReadDir à chaque
+     carte. Il ne se remplit qu'à l'ouverture (loadFiles), puis se redessine seul
+     à chaque résultat d'outil, fin de tour ou dépôt (filesOnActivity) — un ReadDir à chaque
      chargement de page pour un panneau fermé serait payé par tout le monde et
      utile à personne. -->
 <div id="files-backdrop" onclick="toggleFiles()"></div>

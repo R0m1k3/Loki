@@ -365,6 +365,7 @@ window.addEventListener('drop', e=>{
 // rouge, elle dit déjà ce qui s'est passé.
 async function attachPaths(){
   await Promise.all(ATTACH.filter(a=>a.state==='queued').map(uploadAttach));
+  if(typeof filesOnActivity==='function') filesOnActivity(); // les dépôts apparaissent dans le panneau Fichiers
   return ATTACH.filter(a=>a.state==='ok'&&a.path).map(a=>a.path);
 }
 renderAttach();

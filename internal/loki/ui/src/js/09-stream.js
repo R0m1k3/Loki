@@ -466,7 +466,8 @@ function handleDelta(d){
     if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats);
     else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
     paintTurnClock();                               // fige le total au-dessus de la carte
-    setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
+    setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations();
+    if(typeof filesOnActivity==='function') filesOnActivity(); return; }
   if(d.error){ settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
@@ -504,7 +505,8 @@ function handleDelta(d){
       // Carte à image : retirée de la liste du tour, sinon le repli de fin de
       // tour (collapseAll) la fermerait quand même.
       if(tu.image && T.pendingToolEl){ const i=T.turnCollapsibles.indexOf(T.pendingToolEl); if(i>=0) T.turnCollapsibles.splice(i,1); }
-      T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
+      T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem();
+      if(typeof filesOnActivity==='function') filesOnActivity(); }
     return; }
   if(d.drop_reasoning){
     smoothReset(); cancelRender(); // le bloc raisonnement disparaît : rien à rendre
