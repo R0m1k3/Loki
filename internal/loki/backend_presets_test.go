@@ -160,3 +160,54 @@ func TestSwitchToPresetLaisseLePresetImposerSesGPU(t *testing.T) {
 		t.Errorf("WEB_ENGINE = %q, attendu go (réglage machine, jamais dicté par un preset)", cfg["WEB_ENGINE"])
 	}
 }
+
+// Modifier le preset ACTIF doit changer la configuration courante. Vécu : CTX
+// passé à 100000 dans l'éditeur, « enregistré » — et la carte du chat qui
+// affiche toujours 32768, parce que seul le fichier du preset avait bougé ;
+// config.env, lui, gardait l'ancienne valeur et plus aucun preset n'était
+// détecté actif. Un preset qui n'est pas celui en service, ou un preset
+// nouveau, ne touche pas à la configuration.
+func TestModifierLePresetActifLApplique(t *testing.T) {
+	testHome(t)
+	dir := presetsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name+".env"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("actif", "# NAME=Actif\nMODEL=foo.gguf\nCTX=32768\n")
+	write("autre", "# NAME=Autre\nMODEL=bar.gguf\nCTX=4096\n")
+	setConfig(t, "MODEL=foo.gguf\nCTX=32768\nMEM_MODE=always\n")
+
+	// Le preset en service : la config suit, les réglages machine restent.
+	id, applied, err := SavePresetApplying("actif", "Actif", "# NAME=Actif\nMODEL=foo.gguf\nCTX=100000\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != "actif" || !applied {
+		t.Fatalf("id=%q applied=%v, attendu actif/true", id, applied)
+	}
+	cfg := ReadConfig()
+	if cfg["CTX"] != "100000" || cfg["MEM_MODE"] != "always" {
+		t.Fatalf("configuration non suivie : %v", cfg)
+	}
+
+	// Un autre preset : le fichier change, la config non.
+	if _, applied, err = SavePresetApplying("autre", "Autre", "# NAME=Autre\nMODEL=bar.gguf\nCTX=8192\n"); err != nil {
+		t.Fatal(err)
+	}
+	if applied || ReadConfig()["CTX"] != "100000" {
+		t.Fatalf("un preset inactif a touché la configuration (applied=%v, CTX=%q)", applied, ReadConfig()["CTX"])
+	}
+
+	// Un preset nouveau : jamais appliqué à la volée.
+	if _, applied, err = SavePresetApplying("", "Neuf", "MODEL=baz.gguf\n"); err != nil {
+		t.Fatal(err)
+	}
+	if applied || ReadConfig()["MODEL"] != "foo.gguf" {
+		t.Fatalf("un preset nouveau a touché la configuration (applied=%v)", applied)
+	}
+}

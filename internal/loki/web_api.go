@@ -423,12 +423,24 @@ func handlePresetSave(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	newID, err := SavePreset(req.ID, req.Name, req.Content)
+	// Le preset en service modifié est réappliqué sur-le-champ, moteur relancé
+	// en arrière-plan comme pour une bascule (handleSwitch) : la réponse ne
+	// doit pas attendre l'arrêt de llama-server.
+	newID, applied, err := SavePresetApplying(req.ID, req.Name, req.Content)
 	if err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true, "id": newID, "name": req.Name})
+	if applied {
+		fmt.Printf("%s config.env <- %s (preset actif modifié)\n", green("[ok]"), newID)
+		fmt.Println(dim("[info] redémarrage du service..."))
+		go func() {
+			if err := serviceAction("restart"); err != nil {
+				fmt.Printf("%s redémarrage après modification du preset: %v\n", red("[ERREUR]"), err)
+			}
+		}()
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "id": newID, "name": req.Name, "applied": applied})
 }
 
 func handlePresetDelete(w http.ResponseWriter, r *http.Request) {

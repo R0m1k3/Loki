@@ -2345,7 +2345,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 <!-- Fichiers : ce qui appartient à la DISCUSSION ouverte — pièces jointes
      déposées, captures, ce que l'agent y a écrit. Panneau de DROITE, symétrique
      des réglages à gauche, ouvert et fermé par le bouton dossier du pied de
-     carte. Il ne se remplit qu'à l'ouverture (loadFiles) — un ReadDir à chaque
+     carte. Il ne se remplit qu'à l'ouverture (loadFiles), puis se redessine seul
+     à chaque résultat d'outil, fin de tour ou dépôt (filesOnActivity) — un ReadDir à chaque
      chargement de page pour un panneau fermé serait payé par tout le monde et
      utile à personne. -->
 <div id="files-backdrop" onclick="toggleFiles()"></div>
@@ -5303,6 +5304,10 @@ async function saveItem(){
     : {name, old: editingKey, content};
   const r = await jpost(K.saveUrl, payload);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  // Preset EN SERVICE modifié : le serveur l'a réappliqué et relance le moteur
+  // (SavePresetApplying). On le dit, et on rafraîchit l'état global — la carte
+  // du chat doit montrer le nouveau contexte, pas l'ancien.
+  if(r.applied){ toast('enregistré et appliqué — redémarrage…'); closeModal(); K.reload(); if(typeof loadAll==='function') loadAll(); return; }
   toast('enregistré'); closeModal(); K.reload();
 }
 async function delItem(){
@@ -6670,7 +6675,8 @@ function handleDelta(d){
     if(T.serverStats) renderStats(T.contentEl||T.reasonEl, T.serverStats);
     else if(T.contentEl) paintStats(T.contentEl);   // sans mesures serveur, la durée reste
     paintTurnClock();                               // fige le total au-dessus de la carte
-    setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations(); return; }
+    setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations();
+    if(typeof filesOnActivity==='function') filesOnActivity(); return; }
   if(d.error){ settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
@@ -6708,7 +6714,8 @@ function handleDelta(d){
       // Carte à image : retirée de la liste du tour, sinon le repli de fin de
       // tour (collapseAll) la fermerait quand même.
       if(tu.image && T.pendingToolEl){ const i=T.turnCollapsibles.indexOf(T.pendingToolEl); if(i>=0) T.turnCollapsibles.splice(i,1); }
-      T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem(); }
+      T.pendingToolEl=null; if(tu.name==='mem_add'||tu.name==='mem_edit') loadMem();
+      if(typeof filesOnActivity==='function') filesOnActivity(); }
     return; }
   if(d.drop_reasoning){
     smoothReset(); cancelRender(); // le bloc raisonnement disparaît : rien à rendre
@@ -7925,6 +7932,7 @@ window.addEventListener('drop', e=>{
 // rouge, elle dit déjà ce qui s'est passé.
 async function attachPaths(){
   await Promise.all(ATTACH.filter(a=>a.state==='queued').map(uploadAttach));
+  if(typeof filesOnActivity==='function') filesOnActivity(); // les dépôts apparaissent dans le panneau Fichiers
   return ATTACH.filter(a=>a.state==='ok'&&a.path).map(a=>a.path);
 }
 renderAttach();
@@ -8191,6 +8199,21 @@ async function fetchZipB64(size){
 function filesOnConvChange(){
   FILES_DIR = ''; FILES_SCOPE = '';
   if(FILES_OPEN) loadFiles('');
+}
+
+// Quelque chose a pu changer sur disque : un outil vient de rendre son résultat
+// (l'agent écrit un rapport, une capture, un script), le tour est fini, une
+// pièce jointe vient d'être déposée. Le panneau se redessine tout seul —
+// jusqu'ici il fallait cliquer « rafraîchir » pour voir apparaître ce que
+// l'agent venait d'écrire. Regroupé : une rafale d'appels d'outils ne
+// déclenche qu'une lecture. Panneau fermé ou rejeu du journal : rien à faire,
+// l'ouverture recharge de toute façon.
+let filesRefreshT = 0;
+function filesOnActivity(){
+  if(!FILES_OPEN) return;
+  if(typeof REPLAYING !== 'undefined' && REPLAYING) return;
+  clearTimeout(filesRefreshT);
+  filesRefreshT = setTimeout(()=>{ filesRefreshT = 0; loadFiles(); }, 400);
 }
 
 // Date courte : l'heure pour aujourd'hui, la date sinon. Ce qu'on veut savoir,

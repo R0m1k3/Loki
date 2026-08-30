@@ -851,6 +851,10 @@ async function saveItem(){
     : {name, old: editingKey, content};
   const r = await jpost(K.saveUrl, payload);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  // Preset EN SERVICE modifié : le serveur l'a réappliqué et relance le moteur
+  // (SavePresetApplying). On le dit, et on rafraîchit l'état global — la carte
+  // du chat doit montrer le nouveau contexte, pas l'ancien.
+  if(r.applied){ toast('enregistré et appliqué — redémarrage…'); closeModal(); K.reload(); if(typeof loadAll==='function') loadAll(); return; }
   toast('enregistré'); closeModal(); K.reload();
 }
 async function delItem(){

@@ -366,6 +366,41 @@ func SavePreset(id, name, content string) (string, error) {
 	return id, os.WriteFile(p, []byte(content), 0o644)
 }
 
+// SavePresetApplying enregistre un preset et, si c'était celui EN SERVICE,
+// installe aussitôt la nouvelle version comme configuration active (mêmes
+// règles qu'une bascule : applyPresetFile). Renvoie applied=true dans ce cas —
+// l'appelant redémarre alors le moteur.
+//
+// Vécu : CTX passé à 100000 dans l'éditeur, « enregistré »… et la carte du
+// chat qui affiche toujours 32768. Seul le fichier du preset avait changé ;
+// config.env gardait l'ancienne valeur, le moteur tournait avec, et plus aucun
+// preset n'était détecté actif (empreinte différente). Éditer le preset en
+// service, c'est vouloir ces réglages-là tout de suite. Un preset inactif ou
+// nouveau, lui, n'est qu'un fichier : rien ne bouge.
+//
+// « Actif » se décide AVANT l'écriture : c'est l'ancienne version du fichier qui
+// porte l'empreinte de la configuration courante.
+func SavePresetApplying(id, name, content string) (newID string, applied bool, err error) {
+	wasActive := false
+	if id != "" {
+		if old, rerr := ReadPreset(id); rerr == nil {
+			wasActive = presetFingerprint([]byte(old)) == configFingerprint(ReadConfig())
+		}
+	}
+	newID, err = SavePreset(id, name, content)
+	if err != nil || !wasActive {
+		return newID, false, err
+	}
+	p, err := safePresetPath(newID)
+	if err != nil {
+		return newID, false, err
+	}
+	if err := applyPresetFile(p); err != nil {
+		return newID, false, err
+	}
+	return newID, true, nil
+}
+
 // DeletePreset removes a preset by id; refuses if it is the active config.
 func DeletePreset(id string) error {
 	p, err := safePresetPath(id)
