@@ -161,7 +161,7 @@ async function openItem(kind, key){
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
     attachDownload();                      // téléchargement encore en cours côté serveur ?
-    await Promise.all([populateBackend(), populateModelPicker(), populateMmproj(), populateDlDirs()]);
+    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs()]);
     if(seq !== openSeq) return;
   }
   // On lève le voile SANS transition (voir la note dans styles.css), puis on rend
@@ -433,111 +433,18 @@ async function populateMmproj(){
   sel.innerHTML = html;
 }
 
-// Choix du moteur PAR MODÈLE : 3 options (précompilé / compilé / personnalisé)
-// qui réécrivent la ligne BIN= du preset. C'est LE point où on décide quel
-// backend fait tourner ce modèle — la barre latérale ne fait qu'installer.
-function currentBinInTextarea(){
-  return readEnvKey(document.getElementById('m-content').value, 'BIN');
-}
 // Compare deux chemins de binaire en neutralisant séparateurs et casse (Windows).
+// Sert à la ligne MOTEUR du panneau d'état (05-status.js).
 function sameBinPath(a, b){
   const n = x => String(x||'').replace(/\\/g,'/').replace(/\/+$/,'').toLowerCase();
   return !!a && !!b && n(a) === n(b);
 }
-// Écrit (ou remplace) la ligne BIN= dans le contenu du preset.
-function setBinInTextarea(val){
-  const ta = document.getElementById('m-content');
-  if(/^\s*BIN\s*=.*$/m.test(ta.value)) ta.value = ta.value.replace(/^\s*BIN\s*=.*$/m, 'BIN="'+val+'"');
-  else ta.value = 'BIN="'+val+'"\n' + ta.value;
-}
-// Le moteur précompilé s'installe dans un dossier versionné (…/llama-b10280/) :
-// le BIN d'un preset écrit avant une mise à jour ne vaut plus le chemin courant,
-// alors qu'il désigne bien ce moteur. On reconnaît donc l'appartenance au
-// dossier, sinon tous les presets retombaient en « personnalisé » à chaque MAJ.
-function underDir(p, dir){
-  const n = x => String(x||'').replace(/\\/g,'/').replace(/\/+$/,'').toLowerCase();
-  return !!p && !!dir && n(p).startsWith(n(dir)+'/');
-}
-let beFastPath = '', beOptPath = '', beFastDir = '', beImagePath = '';
-async function populateBackend(){
-  // Chemins des deux moteurs gérés + liste des backends détectés (dossier loki).
-  let lc = {}; try{ lc = await jget('/api/llamacpp'); }catch(_){}
-  beFastPath = (lc.prebuilt && lc.prebuilt.bin) || '';
-  beFastDir  = (lc.prebuilt && lc.prebuilt.dir) || '';
-  beOptPath  = lc.bin || '';
-  // Conteneur : le moteur vient de l'image. « Précompilé » et « Compilé »
-  // désignent des installations que Loki ne fait pas ici — les proposer ne
-  // menait qu'à « installez d'abord… ». On les remplace par « Image ».
-  beImagePath = lc.provided ? (lc.provided_bin || '') : '';
-  document.getElementById('be-lab-image').style.display = beImagePath ? '' : 'none';
-  document.getElementById('be-lab-fast').style.display  = beImagePath ? 'none' : '';
-  document.getElementById('be-lab-opt').style.display   = beImagePath ? 'none' : '';
-  // En conteneur, « Personnalisé » ne mène nulle part (rien à compiler, et le
-  // moteur se met à jour par la carte Moteur des réglages) : on le retire.
-  document.getElementById('be-lab-custom').style.display = beImagePath ? 'none' : '';
-  document.getElementById('be-image-note').textContent  = beImagePath ? 'llama.cpp officiel' : '';
-  // Menu « backend détecté » du mode personnalisé : tout ce qu'on trouve dans
-  // le dossier backends de loki (l'utilisateur peut y déposer son propre build).
-  const detected = await jget('/api/backends');
-  const sel = document.getElementById('m-backend-detected');
-  let html = '<option value="">— ou choisir un backend détecté —</option>';
-  for(const b of (detected||[])) html += '<option value="'+b.path+'">'+b.name+'</option>';
-  sel.innerHTML = html;
-  document.getElementById('be-drop-hint').textContent = lc.backends_dir
-    ? ('Astuce : déposez votre binaire dans un sous-dossier de '+lc.backends_dir+' pour le voir apparaître ci-dessus.') : '';
-  // Sélectionne l'option correspondant au BIN actuel du preset.
-  const cur = currentBinInTextarea();
-  let mode = 'custom';
-  // Un preset sans BIN hérite du moteur global : en conteneur c'est celui de
-  // l'image, qu'on affiche comme tel plutôt qu'en « personnalisé ». Et comme
-  // l'option Personnalisé n'y est plus proposée, TOUT BIN non reconnu retombe
-  // aussi sur l'image (un vieux preset pointant un chemin mort redevient sain).
-  if(beImagePath && (sameBinPath(cur, beImagePath) || !cur)) mode = 'image';
-  else if(beImagePath) mode = 'image';
-  else if(sameBinPath(cur, beFastPath) || underDir(cur, beFastDir)) mode = 'fast';
-  else if(sameBinPath(cur, beOptPath)) mode = 'opt';
-  const radio = document.querySelector('input[name=m-be][value='+mode+']');
-  if(radio) radio.checked = true;
-  toggleBackendCustom(mode);
-  if(mode === 'custom') document.getElementById('m-backend-path').value = cur;
-  // Attendu (et non lancé dans le vide) : la liste des GPU change la hauteur du
-  // bloc « moteur ». Sans ce await, elle arrivait APRÈS la levée du voile de
-  // chargement et on voyait le bloc bouger tout seul.
-  await loadGpuDevices();
-}
-function toggleBackendCustom(mode){
-  document.getElementById('m-backend-custom').style.display = (mode==='custom') ? 'block' : 'none';
-}
-function onBackendMode(mode){
-  toggleBackendCustom(mode);
-  if(mode === 'image'){
-    if(!beImagePath){ toast('aucun moteur fourni par l\'image'); return; }
-    setBinInTextarea(beImagePath); toast('moteur : llama.cpp de l\'image');
-    loadGpuDevices();
-  } else if(mode === 'fast'){
-    if(!beFastPath){ toast('installez d\'abord llama.cpp précompilé (section MOTEUR)'); return; }
-    setBinInTextarea(beFastPath); toast('moteur : llama.cpp précompilé');
-    loadGpuDevices();
-  } else if(mode === 'opt'){
-    if(!beOptPath){ toast('installez d\'abord llama.cpp compilé (section MOTEUR)'); return; }
-    setBinInTextarea(beOptPath); toast('moteur : llama.cpp compilé');
-    loadGpuDevices();
-  }
-  // custom : on attend que l'utilisateur saisisse un chemin / choisisse un backend
-}
-function onCustomPath(){
-  const v = document.getElementById('m-backend-path').value.trim();
-  if(v){ setBinInTextarea(v); loadGpuDevices(); }
-}
-function onPickDetected(){
-  const v = document.getElementById('m-backend-detected').value;
-  if(!v) return;
-  document.getElementById('m-backend-path').value = v;
-  setBinInTextarea(v); toast('moteur personnalisé');
-  loadGpuDevices();
-}
 
 // --- Cartes graphiques (--device / --tensor-split) --------------------------
+// Le moteur n'est PAS un réglage de preset : c'est celui de la machine (l'image,
+// ou la version mise à jour dans Réglages → Moteur), et applyPresetFile le
+// conserve à la bascule. L'éditeur n'offre donc plus de choix de moteur — il
+// interroge celui qui tourne pour lister les cartes.
 // Ces réglages vivent dans le PRESET, pas dans une variable d'environnement :
 // --device est compris par TOUS les backends (CUDA, Vulkan, ROCm), alors que
 // CUDA_VISIBLE_DEVICES n'a aucun effet sur un moteur Vulkan — d'où des modèles
@@ -551,14 +458,18 @@ const GPU_THUMB = 16;
 let gpuDevices = [];
 const gpuCache = {}; // bin -> devices : évite de relancer le moteur à chaque ouverture
 
-// Interroge le moteur du preset (--list-devices) : les noms de device et leur
-// ordre lui appartiennent, une liste issue de nvidia-smi désignerait la mauvaise
-// carte sur un backend Vulkan. Le groupe reste MASQUÉ tant que la réponse n'est
-// pas là, et le reste s'il y a moins de deux cartes : rien à arbitrer, et ça
-// évite un encart qui surgit après coup.
+// Interroge le moteur de la machine (--list-devices) : les noms de device et
+// leur ordre lui appartiennent, une liste issue de nvidia-smi désignerait la
+// mauvaise carte sur un backend Vulkan. Le groupe reste MASQUÉ tant que la
+// réponse n'est pas là, et le reste s'il y a moins de deux cartes : rien à
+// arbitrer, et ça évite un encart qui surgit après coup.
+// Chemin du moteur courant (config_bin de /api/llamacpp), mémorisé au
+// préchauffage : l'éditeur s'en sert sans refaire l'appel.
+let engineBin = '';
 // Remplit le cache sans rien peindre (appelé au chargement de la page pour le
 // moteur actif) : à l'ouverture de l'éditeur, l'encart est déjà prêt.
 async function prefetchGpuDevices(bin){
+  if(bin) engineBin = bin;
   if(!bin || gpuCache[bin]) return;
   try{
     const r = await jpost('/api/backends/devices', {bin});
@@ -566,16 +477,24 @@ async function prefetchGpuDevices(bin){
   }catch(_){}
 }
 
+// Moteur courant : ce que le préchauffage a vu, sinon on le demande (éditeur
+// ouvert avant que le statut llama.cpp ne soit arrivé).
+async function currentEngineBin(){
+  if(engineBin) return engineBin;
+  try{ const lc = await jget('/api/llamacpp'); engineBin = lc.config_bin || ''; }catch(_){}
+  return engineBin;
+}
+
 async function loadGpuDevices(){
   const group = document.getElementById('m-gpu-group');
-  const bin = currentBinInTextarea();
+  const bin = await currentEngineBin();
   if(!bin){ group.hidden = true; gpuDevices = []; return; }
   if(gpuCache[bin]){ gpuDevices = gpuCache[bin]; renderGpu(); return; }
   let r = {};
   try{ r = await jpost('/api/backends/devices', {bin}); }catch(_){ r = {ok:false}; }
-  // Le moteur a pu changer pendant l'appel (clic rapide) : on ne peint que si la
-  // réponse concerne toujours le moteur affiché.
-  if(currentBinInTextarea() !== bin) return;
+  // Le moteur a pu changer pendant l'appel (mise à jour en cours) : on ne peint
+  // que si la réponse concerne toujours le moteur courant.
+  if(engineBin !== bin) return;
   gpuDevices = (r.ok && r.devices) ? r.devices : [];
   if(r.ok) gpuCache[bin] = gpuDevices;
   renderGpu();

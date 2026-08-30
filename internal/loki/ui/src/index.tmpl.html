@@ -1001,31 +1001,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           </div>
         </div>
 
-        <div class="pe-group">
-          <div class="pe-gh">Moteur</div>
-          <!-- « Image » n'apparaît qu'en conteneur (moteur fourni), où
-               « Précompilé » et « Compilé » sont au contraire masqués : ils
-               désignent des installations que Loki ne fait pas ici. -->
-          <div class="pe-seg">
-            <label id="be-lab-image" style="display:none"><input type="radio" name="m-be" value="image" onchange="onBackendMode('image')"><span>Image</span><span class="be-note" id="be-image-note"></span></label>
-            <label id="be-lab-fast"><input type="radio" name="m-be" value="fast" onchange="onBackendMode('fast')"><span>Précompilé</span><span class="be-note" id="be-fast-note"></span></label>
-            <label id="be-lab-opt"><input type="radio" name="m-be" value="opt" onchange="onBackendMode('opt')"><span>Compilé</span><span class="be-note" id="be-opt-note"></span></label>
-            <label id="be-lab-custom"><input type="radio" name="m-be" value="custom" onchange="onBackendMode('custom')"><span>Personnalisé</span></label>
-          </div>
-          <div id="m-backend-custom" class="pe-list" style="display:none;margin-top:8px">
-            <div class="pe-row">
-              <span class="pe-row-l">Backend</span>
-              <span class="pe-row-c"><span class="pe-selc"><select id="m-backend-detected" onchange="onPickDetected()"></select></span></span>
-            </div>
-            <div class="pe-row stack">
-              <input id="m-backend-path" class="pe-inp" oninput="onCustomPath()" placeholder="ou un chemin vers llama-server(.exe)">
-              <div class="pe-note" id="be-drop-hint"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cartes graphiques : la liste vient du moteur choisi juste au-dessus,
-             car les noms ET l'ordre dépendent du backend compilé dedans. Le
+        <!-- Cartes graphiques : la liste vient du moteur de la machine (celui de
+             l'image ou celui mis à jour dans Réglages → Moteur — le moteur n'est
+             pas un réglage de preset), car les noms ET l'ordre dépendent du backend
+             compilé dedans. Le
              groupe reste masqué tant qu'on n'a pas AU MOINS DEUX cartes : avec
              une seule, il n'y a rien à arbitrer. -->
         <div class="pe-group" id="m-gpu-group" hidden>
