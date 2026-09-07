@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -28,8 +29,12 @@ import (
 // qu'une poignée d'événements au lieu d'un par token → 20000 couvre des
 // centaines de tours. La marge sert surtout à absorber UN tour en cours (streamé
 // token par token) avant sa coalescence : un très gros tour (long raisonnement +
-// réponse) ne doit pas se faire tronquer le début avant d'être compacté.
-const maxLogEvents = 20000
+// réponse) ne doit pas se faire tronquer le début avant d'être compacté. 20000
+// n'y suffisait pas — un seul tour à très long raisonnement tronquait déjà le
+// journal de rejeu, et l'utilisateur perdait le DÉBUT de sa conversation à
+// l'écran. Le journal ne pèse que de la mémoire d'affichage, jamais du contexte
+// modèle : la marge est bon marché.
+const maxLogEvents = 200000
 
 // LogEvent = un événement d'affichage rejouable (un delta SSE + son numéro de
 // séquence monotone + un horodatage serveur en ms). Le TS permet au client de
@@ -74,12 +79,49 @@ var conv = func() *Conversation {
 // modèle. En clair : cette machine déchiffre déjà pour lancer le modèle, le
 // relais reste aveugle — la persister ici ne change rien à la posture E2E.
 
+// loadConvAttempts / loadConvRetryWait : au redémarrage du conteneur, l'ancien
+// process peut encore tenir le verrou bbolt quelques centaines de ms pendant que
+// le nouveau démarre. Quatre essais espacés de 250 ms couvrent ce chevauchement
+// sans retarder perceptiblement un démarrage normal (où le premier essai passe).
+const (
+	loadConvAttempts  = 4
+	loadConvRetryWait = 250 * time.Millisecond
+)
+
 // LoadConversation recharge l'état persisté au démarrage du process. Sans état
 // enregistré (première fois) on part d'une conversation vide.
+//
+// Une lecture RATÉE n'est PAS une absence, et les confondre coûte cher ici :
+// getStr rend "" aussi bien pour « clé absente » que pour « base inaccessible »,
+// donc sur un verrou transitoire convEnsureActive croyait la discussion active
+// inexistante, forgeait un NOUVEL identifiant et l'écrasait — le fil en cours
+// devenait orphelin, en silence. On sonde donc la base avec son erreur AVANT
+// toute écriture, on réessaie, et en cas d'échec durable on le dit et on ne
+// touche à rien.
 func LoadConversation() {
-	// convEnsureActive reprend au passage le fil unique des versions
-	// précédentes (clé « conversation ») comme première discussion.
-	b := getBytes(bkChat, convKey(convEnsureActive()))
+	var b []byte
+	var err error
+	for attempt := 0; attempt < loadConvAttempts; attempt++ {
+		// Sonde : lire la clé de la discussion active en gardant l'erreur. Tant
+		// qu'elle échoue, convEnsureActive ne doit surtout pas être appelée.
+		if _, err = getBytesErr(bkChat, ckActive); err != nil {
+			time.Sleep(loadConvRetryWait)
+			continue
+		}
+		// convEnsureActive reprend au passage le fil unique des versions
+		// précédentes (clé « conversation ») comme première discussion.
+		if b, err = getBytesErr(bkChat, convKey(convEnsureActive())); err == nil {
+			break
+		}
+		time.Sleep(loadConvRetryWait)
+	}
+	if err != nil {
+		// Toujours en échec : on le DIT au lieu de repartir à vide en silence, et
+		// on abandonne le chargement sans rien écrire — un serveur qui refuse de
+		// démarrer serait pire, et l'historique sur disque reste intact.
+		fmt.Fprintf(os.Stderr, "[conv] base illisible au démarrage (%v) — aucune discussion chargée ; rien n'a été écrasé, l'historique est intact\n", err)
+		return
+	}
 	if len(b) == 0 {
 		return
 	}
@@ -479,9 +521,12 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Prompt système personnalisé (UI → /api/sysprompt, fichier côté serveur).
 	// Injecté seulement dans la vue envoyée au modèle, jamais persisté dans
 	// c.Messages : modifiable à chaud, effet dès le tour suivant.
-	final := msgs
+	// Contexte du projet actif (description, index mémoire, index des trackers),
+	// même traitement : injecté dans la vue envoyée, jamais persisté — voir
+	// projectSystemMessages.
+	final := append(projectSystemMessages(), msgs...)
 	if sp := readSysPrompt(); sp != "" {
-		final = append([]Message{{Role: "system", Content: sp}}, msgs...)
+		final = append([]Message{{Role: "system", Content: sp}}, final...)
 	}
 
 	// newBase : vue modèle publiée par une compaction survenue PENDANT le tour.

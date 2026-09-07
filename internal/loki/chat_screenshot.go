@@ -154,6 +154,11 @@ func engineSeesImages() bool {
 //     où un base64 de plusieurs dizaines de milliers de tokens était rejoué à
 //     chaque tour jusqu'à dépasser définitivement le contexte ;
 //   - garantir l'invariant à l'avenir, quel que soit le chemin d'écriture.
+//
+// Le texte restant reçoit imageLostMarker : sans lui, une conversation rouverte
+// ne garde que la légende de la capture (« Capture … ») et le modèle n'a plus
+// aucun indice qu'il A VU une image — il la redécrit de mémoire au lieu d'en
+// reprendre une. Même raison que dans msgText, autre bout de la chaîne.
 func stripImageParts(msgs []Message) []Message {
 	for i, m := range msgs {
 		parts, ok := m.Content.([]any)
@@ -176,7 +181,7 @@ func stripImageParts(msgs []Message) []Message {
 			}
 		}
 		if dropped {
-			msgs[i].Content = strings.Join(texts, "\n")
+			msgs[i].Content = strings.Join(texts, "\n") + imageLostMarker
 		}
 	}
 	return msgs

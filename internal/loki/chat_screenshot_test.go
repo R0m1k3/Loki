@@ -139,7 +139,9 @@ func TestScreenshotSuitLEtatDeLaVision(t *testing.T) {
 // Un base64 d'image persisté dans l'historique est rejoué à chaque tour : vu en
 // production, 55 000 tokens de requête pour 32 768 de contexte — plus aucun
 // tour ne passait. stripImageParts guérit les conversations existantes en
-// retirant les parties image et en aplatissant le texte restant.
+// retirant les parties image et en aplatissant le texte restant — en laissant
+// imageLostMarker, pour que le modèle sache qu'une image A ÉTÉ montrée et qu'il
+// doit en reprendre une plutôt que la redécrire de mémoire.
 func TestStripImagePartsGueritLHistorique(t *testing.T) {
 	msgs := []Message{
 		{Role: "user", Content: "bonjour"}, // simple chaîne : intouchée
@@ -153,8 +155,40 @@ func TestStripImagePartsGueritLHistorique(t *testing.T) {
 		t.Fatalf("message texte modifié : %#v", out[0].Content)
 	}
 	got, ok := out[1].Content.(string)
-	if !ok || got != "Voici la capture demandée." {
-		t.Fatalf("le message multimodal doit être aplati en texte sans l'image, obtenu %#v", out[1].Content)
+	if !ok || got != "Voici la capture demandée."+imageLostMarker {
+		t.Fatalf("le message multimodal doit être aplati en texte, sans l'image mais avec le marqueur de perte, obtenu %#v", out[1].Content)
+	}
+	if strings.Contains(got, "base64") {
+		t.Fatalf("le base64 de l'image ne doit plus apparaître : %q", got)
+	}
+}
+
+// msgText est le point de passage de TOUTE la chaîne de compaction (estimation
+// du contexte, transcript donné au résumeur). S'il n'extrait que les parties
+// `text`, un message qui porte une capture ne pèse que sa légende et le résumeur
+// ignore jusqu'à l'existence de l'image : elle disparaît sans laisser de trace.
+func TestMsgTextSignaleLaPresenceDUneImage(t *testing.T) {
+	// Message VIVANT tel que construit par screenshotImageMessage ([]map[string]any).
+	live := Message{Role: "user", Content: []map[string]any{
+		{"type": "text", "text": "Capture demandée :"},
+		{"type": "image_url", "image_url": map[string]any{"url": "data:image/jpeg;base64,AAAA"}},
+	}}
+	// Même message RELU depuis le JSON persisté ([]any de map génériques).
+	reloaded := Message{Role: "user", Content: []any{
+		map[string]any{"type": "text", "text": "Capture demandée :"},
+		map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:image/jpeg;base64,AAAA"}},
+	}}
+	for name, m := range map[string]Message{"vivant": live, "relu": reloaded} {
+		got := msgText(m)
+		if !strings.Contains(got, "Capture demandée :") {
+			t.Fatalf("%s : le texte de la légende doit être conservé, obtenu %q", name, got)
+		}
+		if !strings.Contains(got, imageLostMarker) {
+			t.Fatalf("%s : la présence de l'image doit être signalée, obtenu %q", name, got)
+		}
+		if strings.Contains(got, "base64") {
+			t.Fatalf("%s : le base64 ne doit jamais entrer dans le transcript : %q", name, got)
+		}
 	}
 }
 
