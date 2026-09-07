@@ -282,7 +282,13 @@ func MemAdd(name, content string) error {
 		return err
 	}
 	body := strings.TrimRight(content, "\n") + "\n"
-	return os.WriteFile(p, []byte(body), 0o644)
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		return err
+	}
+	// L'index MEMORY.md est tenu par le CODE (mem_index.go) : une page créée y
+	// apparaît toujours, même si le modèle oublie de l'y écrire.
+	memIndexAdd(name)
+	return nil
 }
 
 // MemEdit remplace oldText par newText dans une page. oldText doit apparaître
@@ -355,7 +361,13 @@ func MemSave(name, old, content string) error {
 		return err
 	}
 	body := strings.TrimRight(content, "\n") + "\n"
-	return os.WriteFile(p, []byte(body), 0o644)
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		return err
+	}
+	// Renommage depuis l'éditeur web : l'index suit (ancienne ligne retirée,
+	// nouvelle ajoutée). Une simple sauvegarde n'ajoute que si la ligne manquait.
+	memIndexRename(old, name)
+	return nil
 }
 
 // MemDelete supprime une page mémoire.
@@ -367,7 +379,11 @@ func MemDelete(name string) error {
 	if _, err := os.Stat(p); err != nil {
 		return fmt.Errorf("introuvable")
 	}
-	return os.Remove(p)
+	if err := os.Remove(p); err != nil {
+		return err
+	}
+	memIndexRemove(name)
+	return nil
 }
 
 // MemMode gouverne l'accès de l'IA à sa mémoire persistante, indépendamment du

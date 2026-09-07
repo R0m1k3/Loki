@@ -75,16 +75,19 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 	// contexte (conscience du mode autonome + mémoire du passage précédent),
 	// fusionnée dans UN SEUL message système en tête — comme l'exigent les
 	// gabarits stricts (normalizeSystemMessages le garantit de toute façon).
-	final := msgs
+	// Contexte du projet de la tâche : le projet est déjà forcé par l'appelant
+	// (setProjectOverride dans runTask), donc ces messages décrivent le bon
+	// chantier — la tâche voit la mémoire et les trackers qu'elle vise.
+	final := append(projectSystemMessages(), msgs...)
 	sys := readSysPrompt()
 	note := taskContextNote(taskName, lastReport)
 	switch {
 	case sys != "" && note != "":
-		final = append([]Message{{Role: "system", Content: sys + "\n\n" + note}}, msgs...)
+		final = append([]Message{{Role: "system", Content: sys + "\n\n" + note}}, final...)
 	case sys != "":
-		final = append([]Message{{Role: "system", Content: sys}}, msgs...)
+		final = append([]Message{{Role: "system", Content: sys}}, final...)
 	case note != "":
-		final = append([]Message{{Role: "system", Content: note}}, msgs...)
+		final = append([]Message{{Role: "system", Content: note}}, final...)
 	}
 
 	var content strings.Builder
@@ -153,6 +156,14 @@ func runTask(t Task) {
 		recordTaskEnd(t.ID, start, "", fmt.Errorf("changement de preset : %w", err))
 		return
 	}
+
+	// Projet visé : on force le projet vu par memoryDir() et par les trackers, le
+	// temps du passage. Sans ça, une veille rattachée au projet « NAS » écrirait
+	// dans la mémoire du projet ouvert à l'écran au moment du tic. Sûr : une seule
+	// inférence tourne à la fois (verrou de génération), et RunAutonomous a déjà
+	// rendu la main quand on libère.
+	setProjectOverride(taskProjectOf(t))
+	defer setProjectOverride("")
 
 	report, err := conv.RunAutonomous(context.Background(), t.ID, t.Name, t.Prompt, t.LastReport, taskCaps(t), 0)
 

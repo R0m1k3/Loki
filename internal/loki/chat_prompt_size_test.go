@@ -17,7 +17,19 @@ import (
 //
 // Approximation 1 tok ≈ 4 caractères : suffisante pour une alerte, et sans
 // dépendance à un tokenizer.
-const promptCharBudget = 7500 // ~1875 tokens, tout allumé
+//
+// Le budget n'a été relevé que pour de VRAIS outils nouveaux, jamais pour des
+// lignes de prompt — et chaque palier dit lequel :
+//
+//	7500 → 7900 : recall + recall_search (chat_recall.go), ~720 car. Le compactage
+//	              cesse d'être destructif : le modèle ne relance plus les lectures
+//	              et recherches déjà faites. Il récupère bien plus qu'il ne coûte.
+//	7900 → 8600 : tracker (tracker.go), ~620 car. Un seul schéma pour les quatre
+//	              actions — quatre outils auraient coûté quatre fois ça.
+//
+// Descriptions déjà réduites au strict nécessaire dans les deux cas. La consigne
+// d'origine tient pour la suite : ce budget ne se relève pas pour du prompt.
+const promptCharBudget = 8600 // ~2150 tokens, tout allumé
 
 func TestSystemPromptStaysLean(t *testing.T) {
 	caps := Caps{Agent: true, Internet: true, Mem: MemAlways}

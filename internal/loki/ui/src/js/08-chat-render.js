@@ -269,6 +269,10 @@ function renderToolMsg(el, tu){
     git_status: {lbl:'git',       head:'git status'},
     git_diff:   {lbl:'git',       head:'git diff'},
     git_clone:  {lbl:'git',       head:'git clone'},
+    // Mémoire longue de la conversation : blocs archivés au compactage. Étiquette
+    // distincte de « mémoire » (les pages MEMORY), ce n'est pas la même chose.
+    recall:        {lbl:'archive', head:'rappel d’un bloc archivé'},
+    recall_search: {lbl:'archive', head:'recherche dans l’archive'},
   };
   // Outils MCP (nom mcp__<serveur>__<outil>) : en-tête = nom du serveur, libellé lisible,
   // pas le fallback mémoire. On extrait serveur et outil du nom namespacé.

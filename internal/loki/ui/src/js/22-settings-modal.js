@@ -15,6 +15,14 @@ let SET_LAST = 'config';
 const SET_HOOKS = {
   'engine-log': () => { loadSvcLog(); showPaths(); },
   'dictee': () => { loadDictateSettings(); },
+  // Les compteurs d'un projet (discussions, pages, trackers) bougent en
+  // permanence : on les relit à l'ouverture plutôt que d'afficher ceux du
+  // chargement de la page.
+  'projets': () => { loadProjects(); },
+  // Le prompt système appartient au PRESET actif : changer de modèle change le
+  // texte à afficher. On le relit à l'ouverture du panneau plutôt que de garder
+  // celui du chargement de la page, qui serait alors celui d'un autre preset.
+  'sysprompt': () => { loadSys(); },
 };
 function openSettings(pane){
   showModal('settings-modal');

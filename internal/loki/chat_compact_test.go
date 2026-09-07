@@ -20,10 +20,17 @@ func TestCompactBoundsProtectsHead(t *testing.T) {
 		um("q2"), am("r2"),
 		um("q3"), am("r3"),
 	}
-	// budget minuscule → queue = juste le dernier tour, tête = system + 1er user.
+	// budget minuscule → queue = juste le dernier tour, tête = les seuls systèmes.
+	// Le 1er message user N'EST PLUS épinglé : il l'était pour « ancrer
+	// l'objectif », mais après compaction le modèle voyait deux demandes (celle du
+	// début, épinglée, et la courante réinjectée par `pending`) et répondait
+	// volontiers à l'ancienne. Voir compactBounds et TestCompactKeepsPendingRequest.
 	head, tail := compactBounds(msgs, 1)
-	if head != 2 { // system + premier user
-		t.Fatalf("head = %d, attendu 2", head)
+	if head != 1 { // le message système, et lui seul
+		t.Fatalf("head = %d, attendu 1 (systèmes uniquement)", head)
+	}
+	if msgs[head].Role != "user" {
+		t.Fatalf("le 1er message user doit être compactable, il commence le torse ; rôle obtenu %q", msgs[head].Role)
 	}
 	// Frontière sûre = user ou assistant (jamais un `tool`, qui serait orphelin).
 	if r := msgs[tail].Role; r != "user" && r != "assistant" {

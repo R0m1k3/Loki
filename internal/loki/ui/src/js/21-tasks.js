@@ -11,6 +11,7 @@ let tasksList = [];
 let taskEditing = null; // id en cours d'édition ('' = nouvelle, null = fermé)
 let TASK_RUNNING = '';  // id de la tâche en cours d'exécution ('' = aucune)
 let TASK_PRESETS = [];  // presets disponibles (pour le sélecteur de la modale)
+let TASK_PROJECTS = []; // projets disponibles (sélecteur « projet visé »)
 let TASK_MEM_ON = true; // état mémoire global (défaut d'une nouvelle tâche)
 let TASK_WEB_ON = true; // état web global (défaut d'une nouvelle tâche)
 let tasksPollTimer = null;
@@ -33,6 +34,7 @@ function renderTasks(r){
   const paused = !!(r && r.paused);
   const agentOn = !!(r && r.agent);
   TASK_PRESETS = (r && r.presets) || [];
+  TASK_PROJECTS = (r && r.projects) || [];
   TASK_MEM_ON = !r || r.mem_on !== false;
   TASK_WEB_ON = !r || r.web_on !== false;
   TASK_RUNNING = (r && r.running_id) || '';
@@ -193,6 +195,9 @@ function openTask(id){
   document.getElementById('task-mem').checked = t ? !t.no_mem : TASK_MEM_ON;
   document.getElementById('task-web').checked = t ? !t.no_web : TASK_WEB_ON;
   fillPresetSelect(t ? (t.preset||'') : '');
+  // Nouvelle tâche : le projet ACTIF est proposé — on crée presque toujours une
+  // tâche pour le chantier qu'on a sous les yeux.
+  fillTaskProjectSelect(t ? (t.project||'') : (typeof PROJ_ACTIVE!=='undefined' ? PROJ_ACTIVE : ''));
 
   // Décompose le schedule en intervalle (par défaut) ou cron. Forme intervalle :
   // « @every N(m|h|d)[@HH:MM] » (l'heure n'existe que pour les jours).
@@ -265,6 +270,20 @@ function fillPresetSelect(selected){
   sel.value = selected || '';
 }
 
+// fillTaskProjectSelect peuple le sélecteur « projet visé ». Pas d'option vide :
+// une tâche appartient toujours à un projet — le serveur retombe sur le projet
+// actif si rien n'est envoyé, autant le montrer explicitement.
+function fillTaskProjectSelect(selected){
+  const sel = document.getElementById('task-project');
+  if(!sel) return;
+  sel.textContent = '';
+  TASK_PROJECTS.forEach(p=>{
+    const o = document.createElement('option'); o.value = p.slug; o.textContent = p.name;
+    sel.appendChild(o);
+  });
+  if(selected && [...sel.options].some(o=>o.value===selected)) sel.value = selected;
+}
+
 function setTaskFreqMode(mode){
   const r = document.querySelector('input[name="task-freq-mode"][value="'+mode+'"]');
   if(r) r.checked = true;
@@ -304,13 +323,14 @@ async function saveTask(){
   const schedule = buildSchedule();
   const enabled = document.getElementById('task-enabled').checked;
   const preset = document.getElementById('task-preset').value;
+  const project = (document.getElementById('task-project')||{}).value || '';
   const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || '';
   const no_mem = !document.getElementById('task-mem').checked;
   const no_web = !document.getElementById('task-web').checked;
   const st = document.getElementById('task-modal-status');
   if(!name || !prompt){ st.textContent = 'nom et consigne obligatoires'; st.style.color = 'var(--err)'; return; }
   if(!schedule){ st.textContent = 'fréquence invalide'; st.style.color = 'var(--err)'; return; }
-  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, prompt, schedule, enabled, preset, tz, no_mem, no_web});
+  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, prompt, schedule, enabled, preset, project, tz, no_mem, no_web});
   if(!r || !r.ok){ st.textContent = (r && r.error) || 'échec'; st.style.color = 'var(--err)'; return; }
   closeTask();
   await loadTasks();

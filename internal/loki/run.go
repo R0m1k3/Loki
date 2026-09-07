@@ -227,10 +227,16 @@ func readEtcDefault() string {
 // Arborescence de $LOKI_HOME. Elle tient en six dossiers, et rien d'autre :
 // tout le reste (config, préférences, conversation, clés, drapeaux) vit dans la
 // base loki.db — voir store.go.
-func backendsDir() string  { return filepath.Join(LokiHome(), "backends") }
-func binDir() string       { return filepath.Join(LokiHome(), "bin") }
-func presetsDir() string   { return filepath.Join(LokiHome(), "presets") }
-func memoryDir() string    { return filepath.Join(LokiHome(), "memory") }
+func backendsDir() string { return filepath.Join(LokiHome(), "backends") }
+func binDir() string      { return filepath.Join(LokiHome(), "bin") }
+func presetsDir() string  { return filepath.Join(LokiHome(), "presets") }
+
+// memoryDir est le dossier mémoire du projet ACTIF. C'est LA couture des projets
+// (projects.go) : tout le code mémoire passe par ici, donc il hérite du
+// cloisonnement sans avoir à connaître la notion de projet. Avant les projets,
+// memory/ était plat ; il est désormais la racine des dossiers de projet, et
+// ensureDefaultProject a migré les pages historiques vers memory/generale/.
+func memoryDir() string    { return projectMemoryDir(activeProjectSlug()) }
 func modelsDir() string    { return filepath.Join(LokiHome(), "models") }
 func workspaceDir() string { return filepath.Join(LokiHome(), "workspace") }
 

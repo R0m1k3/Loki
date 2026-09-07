@@ -99,6 +99,10 @@ func cmdWeb(args []string) error {
 var convLoadOnce sync.Once
 
 func newWebMux() *http.ServeMux {
+	// Projets : amorce « Générale » et migre l'existant (mémoire plate, discussions
+	// et tâches sans projet). AVANT le chargement de la conversation, qui consulte
+	// déjà le projet actif. Idempotent : sans effet aux démarrages suivants.
+	ensureDefaultProject()
 	// Charge l'état de conversation persisté (une fois par process : loki web ET
 	// loki link serve appellent newWebMux).
 	convLoadOnce.Do(LoadConversation)
@@ -168,8 +172,8 @@ func newWebMux() *http.ServeMux {
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(h)) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)
-	api("/api/transcribe", handleTranscribe)                   // dictée vocale (whisper.cpp local)
-	api("/api/dictate/config", handleDictateConfig)            // réglages : modèle, langue, matériel, réactivité
+	api("/api/transcribe", handleTranscribe)                   // dictée vocale (Parakeet via sherpa-onnx, local)
+	api("/api/dictate/config", handleDictateConfig)            // réglages : modèle et réactivité
 	api("/api/dictate/models", handleDictateModels)            // catalogue + présence sur disque
 	api("/api/dictate/models/download", handleDictateDownload) // télécharge un modèle
 	api("/api/dictate/state", handleDictateState)              // serveur allumé, modèle chargé, dernière erreur
@@ -267,6 +271,11 @@ func newWebMux() *http.ServeMux {
 	api("/api/mem", handleMem)
 	api("/api/mem/save", handleMemSave)
 	api("/api/mem/delete", handleMemDelete)
+	api("/api/mem/move", handleMemMove)
+	// Projets (mémoire, discussions et tâches cloisonnées) et trackers (3e type de
+	// mémoire) : un endpoint verbe-orienté chacun, cf. web_projects.go/web_tracker.go.
+	api("/api/projects", handleProjects)
+	api("/api/tracker", handleTracker)
 	api("/api/switch", handleSwitch)
 	api("/api/start", svcHandler("start"))
 	api("/api/stop", svcHandler("stop"))

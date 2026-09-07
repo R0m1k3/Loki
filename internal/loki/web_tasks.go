@@ -35,6 +35,8 @@ func handleTasks(w http.ResponseWriter, r *http.Request) {
 		"agent":      agentEnabled(),
 		"running_id": runningID,
 		"presets":    presets,
+		// Projets, pour le sélecteur « projet visé » du formulaire de tâche.
+		"projects": projectDTOs(),
 		// État global mémoire/web, pour proposer des défauts cohérents à la création.
 		"mem_on": memMode() != MemOff,
 		"web_on": internetEnabled() && crawlReachable(),
@@ -51,6 +53,7 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 		Schedule string `json:"schedule"`
 		TZ       string `json:"tz"`
 		Preset   string `json:"preset"`
+		Project  string `json:"project"`
 		NoMem    bool   `json:"no_mem"`
 		NoWeb    bool   `json:"no_web"`
 		Enabled  bool   `json:"enabled"`
@@ -84,6 +87,14 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 	}
 	t.Name, t.Prompt, t.Enabled = req.Name, req.Prompt, req.Enabled
 	t.TZ, t.Preset = req.TZ, req.Preset
+	// Projet visé : vide = le projet actif au moment de l'enregistrement. Une tâche
+	// créée depuis un projet appartient à ce projet — c'est là que sa mémoire et
+	// ses trackers l'attendent quand elle tournera (voir runTask).
+	if p := strings.TrimSpace(req.Project); p != "" && projectExists(p) {
+		t.Project = p
+	} else if t.Project == "" {
+		t.Project = activeProjectSlug()
+	}
 	t.NoMem, t.NoWeb = req.NoMem, req.NoWeb
 	// Recalcule NextRun si la fréquence a changé (ou à la création).
 	if t.Schedule != req.Schedule || t.NextRun == 0 {

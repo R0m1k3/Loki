@@ -53,9 +53,51 @@ type convMeta struct {
 	Created int64  `json:"created"`
 	Updated int64  `json:"updated"`
 	Turns   int    `json:"turns"`
+	// Project = slug du projet auquel la discussion appartient (projects.go). Vide
+	// sur les discussions d'avant les projets : ensureDefaultProject les rattache à
+	// « Générale » au premier démarrage, et convIndexForProject traite un champ vide
+	// comme le projet par défaut pour que rien ne disparaisse entre-temps.
+	Project string `json:"project,omitempty"`
 }
 
 func convKey(id string) string { return "conv:" + id }
+
+// convProjectOf renvoie le projet d'une discussion, en traitant l'absence comme
+// le projet par défaut : une discussion sans projet ne doit jamais devenir
+// invisible.
+func convProjectOf(m convMeta) string {
+	if s := strings.TrimSpace(m.Project); s != "" {
+		return s
+	}
+	return defaultProjectSlug
+}
+
+// convIndexForProject filtre l'index sur un projet.
+func convIndexForProject(slug string) []convMeta {
+	var out []convMeta
+	for _, m := range convIndex() {
+		if convProjectOf(m) == slug {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// tagOrphanConversations rattache au projet donné les discussions qui n'en ont
+// pas encore (migration, une seule fois : ensuite il n'y a plus d'orphelines).
+func tagOrphanConversations(slug string) {
+	idx := convIndex()
+	changed := false
+	for i := range idx {
+		if strings.TrimSpace(idx[i].Project) == "" {
+			idx[i].Project = slug
+			changed = true
+		}
+	}
+	if changed {
+		convIndexSave(idx)
+	}
+}
 
 func convIndex() []convMeta {
 	var idx []convMeta
@@ -90,7 +132,7 @@ func convEnsureActive() string {
 	}
 	_ = putStr(bkChat, ckActive, id)
 	now := time.Now().Unix()
-	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now}))
+	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: activeProjectSlug()}))
 	return id
 }
 
@@ -116,7 +158,7 @@ func convTouchMeta(id string, title string, turns int) {
 		convIndexSave(idx)
 		return
 	}
-	convIndexSave(append(idx, convMeta{ID: id, Title: title, Created: now, Updated: now, Turns: turns}))
+	convIndexSave(append(idx, convMeta{ID: id, Title: title, Created: now, Updated: now, Turns: turns, Project: activeProjectSlug()}))
 }
 
 // convSummary lit le premier message utilisateur pour en faire un titre. Sans
@@ -142,8 +184,40 @@ func convSummary(msgs []Message) string {
 	return ""
 }
 
-// ConvList renvoie les discussions et l'identifiant de l'active (pour l'UI).
-func ConvList() ([]convMeta, string) { return convIndex(), convEnsureActive() }
+// ConvList renvoie les discussions DU PROJET ACTIF et l'identifiant de l'active
+// (pour l'UI). Le cloisonnement est ici : une discussion d'un autre projet n'a
+// aucune raison d'apparaître dans la barre latérale.
+func ConvList() ([]convMeta, string) {
+	return convIndexForProject(activeProjectSlug()), convEnsureActive()
+}
+
+// projectSwitch bascule sur un autre projet ET ouvre une de ses discussions : la
+// plus récemment modifiée, ou une neuve s'il n'en a aucune. Sans ça, changer de
+// projet laisserait à l'écran une discussion qui n'appartient plus à la liste
+// affichée — et la mémoire (memoryDir) aurait changé sous ses pieds.
+func projectSwitch(slug string) error {
+	if !projectExists(slug) {
+		return fmt.Errorf("projet introuvable")
+	}
+	convOpMu.Lock()
+	defer convOpMu.Unlock()
+	if slug == activeProjectSlug() {
+		return nil
+	}
+	conv.persist() // fige la discussion du projet qu'on quitte
+	if err := setActiveProject(slug); err != nil {
+		return err
+	}
+	list := convIndexForProject(slug)
+	if len(list) == 0 {
+		convCreate() // convIndex trie par date de modification : voir convIndex
+		return nil
+	}
+	// convIndex rend la plus récemment modifiée en tête.
+	_ = putStr(bkChat, ckActive, list[0].ID)
+	conv.loadFrom(getBytes(bkChat, convKey(list[0].ID)))
+	return nil
+}
 
 // convSwitch bascule sur une autre discussion : la courante est enregistrée,
 // la cible chargée en mémoire, et l'epoch incrémenté pour que tous les clients
@@ -179,7 +253,7 @@ func convSwitch(id string) error {
 func convCreate() string {
 	id := newConvID()
 	now := time.Now().Unix()
-	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now}))
+	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: activeProjectSlug()}))
 	_ = putStr(bkChat, ckActive, id)
 	conv.loadFrom(nil)
 	return id

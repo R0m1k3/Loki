@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"strings"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -25,6 +26,11 @@ type Task struct {
 	Schedule string `json:"schedule"` // "@every 2h" | "@every 1d@23:00" | expr cron 5 champs
 	TZ       string `json:"tz"`       // fuseau IANA du navigateur (ex. "Europe/Paris") pour l'heure
 	Preset   string `json:"preset"`   // id du preset à activer avant l'exécution (vide = preset actif)
+	// Project = slug du projet visé (projects.go). L'exécution force ce projet
+	// (setProjectOverride), donc la tâche voit LA MÉMOIRE et les trackers du bon
+	// chantier — une veille « NAS » n'écrit pas dans la mémoire « recettes ». Vide
+	// sur les tâches d'avant les projets : traitées comme « Générale ».
+	Project string `json:"project,omitempty"`
 	// Accès de la tâche. On stocke la NÉGATION (« pas de… ») pour que le zéro JSON
 	// (tâches créées avant ces champs) garde le comportement historique : accès.
 	NoMem      bool   `json:"no_mem"` // true = pas d'accès à la mémoire pour cette tâche
@@ -66,6 +72,33 @@ func listTasks() []Task {
 		return out[i].ID < out[j].ID
 	})
 	return out
+}
+
+// taskProjectOf renvoie le projet d'une tâche, l'absence valant projet par défaut :
+// une tâche d'avant les projets ne doit ni disparaître ni changer de mémoire.
+func taskProjectOf(t Task) string {
+	if s := strings.TrimSpace(t.Project); s != "" {
+		return s
+	}
+	return defaultProjectSlug
+}
+
+// Le PANNEAU de l'UI et le planificateur restent GLOBAUX : une tâche doit tourner
+// même si son projet n'est pas celui affiché, et masquer les tâches des autres
+// projets ferait croire qu'elles ne sont plus planifiées. Le projet gouverne ce
+// que la tâche VOIT quand elle s'exécute (runTask force setProjectOverride), pas
+// sa visibilité.
+
+// tagOrphanTasks rattache au projet donné les tâches qui n'en ont pas encore
+// (migration, une seule fois).
+func tagOrphanTasks(slug string) {
+	for _, t := range listTasks() {
+		if strings.TrimSpace(t.Project) != "" {
+			continue
+		}
+		t.Project = slug
+		_ = saveTask(t)
+	}
 }
 
 // getTask lit une tâche par ID. Renvoie false si absente.

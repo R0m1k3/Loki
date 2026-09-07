@@ -1,0 +1,450 @@
+package loki
+
+// projects.go — les PROJETS. Un projet cloisonne une mémoire (un dossier de pages
+// .md + un index MEMORY.md, façon Claude Code) ET son propre jeu de discussions.
+// Fini la mémoire globale fourre-tout : un projet par chantier, chacun avec sa
+// mémoire et ses conversations indépendantes.
+//
+// Sur disque : memory/<slug>/*.md (+ MEMORY.md). Le `slug` est l'identité STABLE
+// (il ne bouge jamais, même à un renommage) ; le `Name` est le libellé affiché.
+// memoryDir() (run.go) pointe sur le dossier du projet ACTIF, donc TOUT le code
+// mémoire existant (chat_memory.go, l'index, les outils mem_*) hérite du
+// cloisonnement sans le savoir — c'est la seule couture à toucher.
+//
+// Les discussions portent un champ Project (convMeta) et sont filtrées à
+// l'affichage ; les tâches planifiées portent le projet qu'elles visent.
+//
+// Le registre (liste + projet actif) vit dans le bucket state : ce sont des noms
+// de projets et un slug, pas des données de conversation.
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+// Project décrit un projet. CreatedAt sert au tri (plus ancien d'abord : le projet
+// « Générale » historique reste en tête).
+type Project struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+	// Desc = description libre de ce à quoi sert le projet. Fournie À L'IA en tête
+	// de conversation (projectContextMessage) pour qu'elle sache d'emblée sur quoi
+	// elle travaille, sans avoir à le lui réexpliquer à chaque nouvelle discussion.
+	Desc string `json:"desc,omitempty"`
+}
+
+const (
+	defaultProjectSlug = "generale"
+	defaultProjectName = "Générale"
+	stProjectsKey      = "projects"       // bkState : []Project (JSON)
+	stActiveProjectKey = "active_project" // bkState : slug du projet actif
+)
+
+// projectsRoot est le dossier racine de la mémoire, qui contient un sous-dossier
+// par projet (memory/<slug>/...). C'est l'ancien dossier `memory` plat, promu en
+// racine de projets.
+func projectsRoot() string { return filepath.Join(LokiHome(), "memory") }
+
+// projectMemoryDir renvoie le dossier mémoire d'un projet donné (par slug).
+func projectMemoryDir(slug string) string {
+	if slug == "" {
+		slug = defaultProjectSlug
+	}
+	return filepath.Join(projectsRoot(), slug)
+}
+
+// --- projet actif (cache RAM + override pour les tâches) ----------------------
+
+var (
+	activeProjMu    sync.Mutex
+	activeProjCache string // "" = pas encore lu ; sinon slug mémorisé
+
+	projOverrideMu sync.Mutex
+	projOverride   string // non vide = force le projet actif (exécution d'une tâche)
+)
+
+// activeProjectSlug renvoie le slug du projet actif. Priorité : override
+// d'exécution de tâche (RAM), puis cache, puis la valeur persistée, puis le
+// défaut. Lecture PURE : ne crée jamais de dossier (l'amorçage se fait dans
+// ensureDefaultProject au démarrage).
+func activeProjectSlug() string {
+	projOverrideMu.Lock()
+	o := projOverride
+	projOverrideMu.Unlock()
+	if o != "" {
+		return o
+	}
+	activeProjMu.Lock()
+	defer activeProjMu.Unlock()
+	if activeProjCache != "" {
+		return activeProjCache
+	}
+	s := strings.TrimSpace(getStr(bkState, stActiveProjectKey))
+	if s == "" {
+		s = defaultProjectSlug
+	}
+	activeProjCache = s
+	return s
+}
+
+// setActiveProject persiste le projet actif et rafraîchit le cache.
+func setActiveProject(slug string) error {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return fmt.Errorf("slug vide")
+	}
+	if err := putStr(bkState, stActiveProjectKey, slug); err != nil {
+		return err
+	}
+	activeProjMu.Lock()
+	activeProjCache = slug
+	activeProjMu.Unlock()
+	return nil
+}
+
+// setProjectOverride force (ou libère avec "") le projet actif VU PAR memoryDir(),
+// le temps de l'exécution d'une tâche planifiée sur un projet précis. Sans effet
+// sur le projet actif persisté ni sur l'UI. Sûr car une seule inférence tourne à
+// la fois (verrou de génération), donc pas de course avec un tour utilisateur.
+func setProjectOverride(slug string) {
+	projOverrideMu.Lock()
+	projOverride = slug
+	projOverrideMu.Unlock()
+}
+
+// withProject exécute fn en forçant temporairement le projet vu par memoryDir().
+// Séquentiel et bref : sûr tant qu'aucune génération ne tourne (les appelants sont
+// des actions utilisateur, gardées en amont).
+func withProject(slug string, fn func()) {
+	setProjectOverride(slug)
+	defer setProjectOverride("")
+	fn()
+}
+
+// --- registre -----------------------------------------------------------------
+
+// listProjects renvoie les projets connus, le plus ancien d'abord. Garantit au
+// moins le projet par défaut (base neuve).
+func listProjects() []Project {
+	var out []Project
+	if b := getBytes(bkState, stProjectsKey); len(b) > 0 {
+		_ = json.Unmarshal(b, &out)
+	}
+	if len(out) == 0 {
+		out = []Project{{Slug: defaultProjectSlug, Name: defaultProjectName, CreatedAt: time.Now().UnixMilli()}}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].CreatedAt < out[j].CreatedAt })
+	return out
+}
+
+func saveProjects(list []Project) error {
+	b, err := json.Marshal(list)
+	if err != nil {
+		return err
+	}
+	return putBytes(bkState, stProjectsKey, b)
+}
+
+// projectExists indique si un slug correspond à un projet connu.
+func projectExists(slug string) bool {
+	for _, p := range listProjects() {
+		if p.Slug == slug {
+			return true
+		}
+	}
+	return false
+}
+
+// projectName renvoie le libellé affiché d'un slug (le slug lui-même à défaut).
+func projectName(slug string) string {
+	for _, p := range listProjects() {
+		if p.Slug == slug {
+			return p.Name
+		}
+	}
+	return slug
+}
+
+// projectDesc renvoie la description d'un projet (vide si aucune / introuvable).
+func projectDesc(slug string) string {
+	for _, p := range listProjects() {
+		if p.Slug == slug {
+			return p.Desc
+		}
+	}
+	return ""
+}
+
+// setProjectDesc enregistre la description d'un projet, tronquée à une taille
+// raisonnable : c'est un contexte injecté à CHAQUE conversation, pas un cahier des
+// charges. Une chaîne vide efface la description.
+func setProjectDesc(slug, desc string) error {
+	desc = strings.TrimSpace(desc)
+	const max = 2000
+	if len([]rune(desc)) > max {
+		desc = strings.TrimSpace(string([]rune(desc)[:max]))
+	}
+	list := listProjects()
+	found := false
+	for i := range list {
+		if list[i].Slug == slug {
+			list[i].Desc = desc
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("projet introuvable")
+	}
+	return saveProjects(list)
+}
+
+var identSlugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+// slugifyIdent réduit un nom à un slug de fichier sûr (minuscules, alphanum + tirets).
+// Les accents courants sont translittérés pour ne pas tout perdre : « Réseau NAS »
+// donne « reseau-nas » et non « r-seau-nas ».
+func slugifyIdent(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	repl := map[rune]string{'à': "a", 'â': "a", 'ä': "a", 'á': "a", 'ã': "a",
+		'é': "e", 'è': "e", 'ê': "e", 'ë': "e", 'î': "i", 'ï': "i", 'í': "i",
+		'ô': "o", 'ö': "o", 'ó': "o", 'õ': "o", 'ù': "u", 'û': "u", 'ü': "u", 'ú': "u",
+		'ç': "c", 'ñ': "n"}
+	var b strings.Builder
+	for _, r := range s {
+		if v, ok := repl[r]; ok {
+			b.WriteString(v)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	slug := identSlugRe.ReplaceAllString(b.String(), "-")
+	slug = strings.Trim(slug, "-")
+	if len(slug) > 40 {
+		slug = strings.Trim(slug[:40], "-")
+	}
+	return slug
+}
+
+// memorySeed est le contenu initial de l'index MEMORY.md d'un nouveau projet.
+func memorySeed(name string) string {
+	return "# Index mémoire — " + name + "\n\n" +
+		"Une ligne par page de ce projet (`- [titre](fichier.md) — accroche`). " +
+		"Tenu à jour automatiquement à la création et à la suppression d'une page ; " +
+		"l'accroche après le titre, elle, est libre.\n"
+}
+
+// createProject crée un projet à partir d'un nom d'affichage : slug unique, dossier
+// mémoire, index MEMORY.md amorcé. Renvoie le projet créé.
+func createProject(name string) (Project, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return Project{}, fmt.Errorf("nom vide")
+	}
+	if len([]rune(name)) > 60 {
+		name = string([]rune(name)[:60])
+	}
+	base := slugifyIdent(name)
+	if base == "" {
+		base = "projet"
+	}
+	// Slug unique : suffixe -2, -3… en cas de collision.
+	list := listProjects()
+	taken := map[string]bool{}
+	for _, p := range list {
+		taken[p.Slug] = true
+	}
+	slug := base
+	for i := 2; taken[slug]; i++ {
+		slug = fmt.Sprintf("%s-%d", base, i)
+	}
+	dir := projectMemoryDir(slug)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return Project{}, err
+	}
+	idx := filepath.Join(dir, memIndexFile)
+	if _, err := os.Stat(idx); os.IsNotExist(err) {
+		_ = os.WriteFile(idx, []byte(memorySeed(name)), 0o600)
+	}
+	p := Project{Slug: slug, Name: name, CreatedAt: time.Now().UnixMilli()}
+	list = append(list, p)
+	if err := saveProjects(list); err != nil {
+		return Project{}, err
+	}
+	return p, nil
+}
+
+// renameProject change le LIBELLÉ d'un projet. Le slug, les chemins disque et les
+// discussions ne bougent pas : renommer ne doit rien casser.
+func renameProject(slug, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("nom vide")
+	}
+	if len([]rune(name)) > 60 {
+		name = string([]rune(name)[:60])
+	}
+	list := listProjects()
+	found := false
+	for i := range list {
+		if list[i].Slug == slug {
+			list[i].Name = name
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("projet introuvable")
+	}
+	return saveProjects(list)
+}
+
+// deleteProject supprime un projet : son dossier mémoire, ses trackers ET ses
+// discussions. Refuse de supprimer le dernier projet restant. Si c'était le projet
+// actif, on rebascule sur un autre.
+func deleteProject(slug string) error {
+	list := listProjects()
+	if len(list) <= 1 {
+		return fmt.Errorf("impossible de supprimer le dernier projet")
+	}
+	kept := make([]Project, 0, len(list))
+	found := false
+	for _, p := range list {
+		if p.Slug == slug {
+			found = true
+			continue
+		}
+		kept = append(kept, p)
+	}
+	if !found {
+		return fmt.Errorf("projet introuvable")
+	}
+	// Discussions du projet.
+	for _, m := range convIndexForProject(slug) {
+		_ = convDelete(m.ID)
+	}
+	// Trackers du projet.
+	for _, k := range trackerKeysForProject(slug) {
+		_ = putBytes(bkTracker, k, nil)
+	}
+	// Dossier disque du projet.
+	_ = os.RemoveAll(projectMemoryDir(slug))
+	if err := saveProjects(kept); err != nil {
+		return err
+	}
+	if activeProjectSlug() == slug {
+		_ = setActiveProject(kept[0].Slug)
+	}
+	return nil
+}
+
+// moveMemPage déplace une page mémoire (.md) d'un projet vers un autre, puis met à
+// jour les DEUX index MEMORY.md. Best-effort sur les index : reconcileMemIndex
+// répare au pire au démarrage suivant.
+func moveMemPage(name, fromSlug, toSlug string) error {
+	if strings.TrimSpace(fromSlug) == strings.TrimSpace(toSlug) {
+		return fmt.Errorf("déjà dans ce projet")
+	}
+	if !projectExists(toSlug) {
+		return fmt.Errorf("projet cible introuvable")
+	}
+	fn, err := memFileName(name)
+	if err != nil {
+		return err
+	}
+	if isIndexFile(fn) {
+		return fmt.Errorf("l'index du projet n'est pas déplaçable")
+	}
+	src := filepath.Join(projectMemoryDir(fromSlug), fn)
+	dst := filepath.Join(projectMemoryDir(toSlug), fn)
+	raw, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("page introuvable")
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return fmt.Errorf("une page du même nom existe déjà dans le projet cible")
+	}
+	if err := os.MkdirAll(projectMemoryDir(toSlug), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(dst, raw, 0o600); err != nil {
+		return err
+	}
+	_ = os.Remove(src)
+	withProject(fromSlug, func() { memIndexRemove(fn) })
+	withProject(toSlug, func() { memIndexAdd(fn) })
+	return nil
+}
+
+// ensureDefaultProject amorce le projet « Générale » et MIGRE l'existant (mémoire
+// plate + discussions sans projet) au premier démarrage de cette version.
+// Idempotent : à chaque démarrage suivant, il ne fait plus rien.
+func ensureDefaultProject() {
+	// 1. Le registre PERSISTÉ contient-il le projet par défaut ? On lit le brut (pas
+	//    listProjects, qui synthétise toujours un défaut) pour savoir s'il faut écrire.
+	var stored []Project
+	if b := getBytes(bkState, stProjectsKey); len(b) > 0 {
+		_ = json.Unmarshal(b, &stored)
+	}
+	hasDefault := false
+	for _, p := range stored {
+		if p.Slug == defaultProjectSlug {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		// Base neuve OU migration : on inscrit « Générale » en tête et on persiste.
+		stored = append([]Project{{Slug: defaultProjectSlug, Name: defaultProjectName, CreatedAt: time.Now().UnixMilli()}}, stored...)
+		_ = saveProjects(stored)
+	}
+
+	genMem := projectMemoryDir(defaultProjectSlug)
+	_ = os.MkdirAll(genMem, 0o755)
+
+	// 2. Migration de la mémoire plate historique (memory/*.md) vers le dossier du
+	//    projet Générale. Les pages plates vivaient à la RACINE de memory/, qui
+	//    accueille désormais les sous-dossiers de projet : on ne déplace donc que les
+	//    FICHIERS restés à la racine — les sous-dossiers sont déjà des projets.
+	if entries, err := os.ReadDir(projectsRoot()); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			src := filepath.Join(projectsRoot(), e.Name())
+			dst := filepath.Join(genMem, e.Name())
+			if _, err := os.Stat(dst); os.IsNotExist(err) {
+				_ = os.Rename(src, dst)
+			}
+		}
+	}
+
+	// 3. Index MEMORY.md du projet Générale s'il manque.
+	idx := filepath.Join(genMem, memIndexFile)
+	if _, err := os.Stat(idx); os.IsNotExist(err) {
+		_ = os.WriteFile(idx, []byte(memorySeed(defaultProjectName)), 0o600)
+	}
+
+	// 4. Discussions et tâches historiques sans projet → Générale.
+	tagOrphanConversations(defaultProjectSlug)
+	tagOrphanTasks(defaultProjectSlug)
+
+	// 5. Projet actif par défaut.
+	if strings.TrimSpace(getStr(bkState, stActiveProjectKey)) == "" {
+		_ = setActiveProject(defaultProjectSlug)
+	}
+
+	// 6. Index de Générale : les pages migrées (déplacées sur le disque) n'ont jamais
+	//    été indexées — l'index n'est alimenté que par la création d'une page. On le
+	//    complète depuis les pages réelles. On force temporairement le projet vu par
+	//    memoryDir sur Générale (sûr au démarrage, aucune génération en cours).
+	withProject(defaultProjectSlug, reconcileMemIndex)
+}

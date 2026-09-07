@@ -13,11 +13,57 @@ import (
 	"strings"
 )
 
-// readSysPrompt renvoie le prompt système personnalisé ("" si absent).
-func readSysPrompt() string { return getStr(bkState, "sysprompt") }
+// Le prompt était GLOBAL : un seul texte pour tous les modèles. En pratique il ne
+// l'est pas — la consigne qui va bien à un modèle à raisonnement en dessert un
+// petit modèle d'instruction, et changer de preset obligeait à réécrire le champ
+// à la main. Il est donc rattaché AU PRESET, et bascule avec lui.
+//
+// Il vit en base (une clé par preset) et NON dans le fichier .env du preset :
+// un .env est lu ligne à ligne, il ne peut pas porter un texte multiligne — et
+// un prompt système en fait presque toujours plusieurs.
+//
+// La clé globale historique reste le REPLI : une installation qui avait un prompt
+// le garde tant que le preset actif n'en définit pas, plutôt que de se retrouver
+// silencieusement sans consigne après mise à jour.
+const (
+	sysPromptGlobalKey = "sysprompt"
+	sysPromptKeyPrefix = "sysprompt:"
+)
 
+// activePresetID renvoie l'id du preset actif ("" si aucun ne correspond à la
+// configuration courante — config bricolée à la main, ou aucun preset créé).
+func activePresetID() string {
+	list, err := ListPresets()
+	if err != nil {
+		return ""
+	}
+	for _, p := range list {
+		if p.Active {
+			return p.ID
+		}
+	}
+	return ""
+}
+
+// readSysPrompt renvoie le prompt système à appliquer ("" si aucun).
+func readSysPrompt() string {
+	if id := activePresetID(); id != "" {
+		if s := strings.TrimSpace(getStr(bkState, sysPromptKeyPrefix+id)); s != "" {
+			return s
+		}
+	}
+	return getStr(bkState, sysPromptGlobalKey)
+}
+
+// saveSysPrompt écrit le prompt système DU PRESET ACTIF. Sans preset identifiable,
+// on écrit le global — c'est le seul emplacement qui aura un effet, et le champ
+// doit rester utilisable sur une installation sans preset.
 func saveSysPrompt(text string) error {
-	return putStr(bkState, "sysprompt", strings.TrimSpace(text))
+	text = strings.TrimSpace(text)
+	if id := activePresetID(); id != "" {
+		return putStr(bkState, sysPromptKeyPrefix+id, text)
+	}
+	return putStr(bkState, sysPromptGlobalKey, text)
 }
 
 // handleSysPrompt :

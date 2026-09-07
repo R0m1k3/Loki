@@ -149,9 +149,18 @@ function renderMemList(){
     const span=document.createElement('span');
     const b=document.createElement('b'); b.style.color='var(--text)'; b.textContent=x.name; span.appendChild(b);
     if(x.desc){ const d=document.createElement('span'); d.className='muted'; d.textContent=' — '+x.desc; span.appendChild(d); }
+    const acts=document.createElement('span'); acts.style.cssText='display:flex;gap:4px;flex:none';
     const btn=document.createElement('button'); btn.textContent='edit'; btn.style.cssText='margin:0;padding:2px 8px;font-size:11px';
     btn.onclick=e=>{ e.stopPropagation(); openMem(x.name); };
-    row.appendChild(span); row.appendChild(btn); list.appendChild(row);
+    acts.appendChild(btn);
+    // Déplacer vers un autre projet : proposé seulement s'il y en a un autre, et
+    // jamais sur l'index MEMORY.md, qui appartient au projet et ne se déplace pas.
+    if(typeof PROJECTS!=='undefined' && PROJECTS.length>1 && x.name.toUpperCase()!=='MEMORY.MD'){
+      const mv=document.createElement('button'); mv.textContent='déplacer'; mv.style.cssText='margin:0;padding:2px 8px;font-size:11px';
+      mv.onclick=e=>{ e.stopPropagation(); moveMemPageUI(x.name); };
+      acts.appendChild(mv);
+    }
+    row.appendChild(span); row.appendChild(acts); list.appendChild(row);
   });
   if(matches.length > shown.length){
     const more=document.createElement('div'); more.className='mem-more';
@@ -451,7 +460,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }

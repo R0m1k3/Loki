@@ -34,6 +34,14 @@ const (
 	bkState  = "state"  // clés, jetons, drapeaux, listes de dossiers, MCP
 	bkChat   = "chat"   // conversation partagée
 	bkTasks  = "tasks"  // tâches planifiées (une entrée JSON par tâche)
+	// bkRecall : blocs archivés au compactage, adressables par un id court
+	// (chat_recall.go). Séparé de bkChat parce que sa durée de vie est autre — un
+	// bloc survit à la suppression de la discussion qui l'a produit, et sa clé est
+	// une séquence bbolt, pas un identifiant de discussion.
+	bkRecall = "recall"
+	// bkTracker : les trackers, 3e type de mémoire (tracker.go). Clé
+	// « <slug-projet>/<slug-tracker> » — le cloisonnement par projet est dans la clé.
+	bkTracker = "tracker"
 )
 
 // La base n'est PAS gardée ouverte entre deux opérations, et c'est délibéré.

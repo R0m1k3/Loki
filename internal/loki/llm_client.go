@@ -329,6 +329,10 @@ func EnabledTools(caps Caps) []Tool {
 	}
 	if caps.Agent {
 		tools = append(tools, bashTool(), writeTool(), editTool())
+		// Mémoire longue de la conversation (chat_recall.go) : le compactage
+		// n'archive des blocs QUE quand le mode agent est actif — annoncer recall
+		// sans lui donnerait un outil qui ne peut rien trouver.
+		tools = append(tools, recallTool(), recallSearchTool())
 	}
 	if caps.Code {
 		tools = append(tools, readTool(), grepTool(), globTool(), askTool(),
@@ -338,6 +342,9 @@ func EnabledTools(caps Caps) []Tool {
 	// que le mode mémoire n'est pas « off » (que l'agent soit actif ou non).
 	if caps.Mem != MemOff {
 		tools = append(tools, memSearchTool(), memReadTool(), memAddTool(), memEditTool())
+		// Trackers : 3e type de mémoire (données datées). Même axe que les pages —
+		// un seul outil pour les quatre actions, cf. trackerTool.
+		tools = append(tools, trackerTool())
 	}
 	// Outils web : seulement si le mode agent ET l'accès internet sont actifs.
 	// caps.Internet intègre déjà la joignabilité (globalCaps / override web_server.go),
@@ -697,9 +704,14 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	repeatCount := map[string]int{}
 	// Garde-fou « pensé sans agir » : certains modèles à reasoning planifient un
 	// appel d'outil dans leur <think> puis émettent le token de fin SANS l'émettre
-	// (ni réponse, ni tool_call). On relance alors UNE fois le tour avec un nudge
-	// explicite au lieu d'afficher « pas de réponse ».
-	nudged := false
+	// (ni réponse, ni tool_call). On relance alors le tour avec un nudge explicite
+	// au lieu d'afficher « pas de réponse ». Le premier suffit la plupart du temps ;
+	// un second, plus direct, rattrape le cas où le modèle re-décrit le même plan
+	// en boucle sans jamais l'exécuter — une simple reformulation de « agis » ne
+	// suffit alors plus. Borné à maxNudges : un modèle vraiment bloqué doit finir
+	// par rendre la main plutôt que faire attendre.
+	const maxNudges = 2
+	nudgeCount := 0
 	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : une seule
 	// relance par tour, comme le nudge.
 	patternRetried := false
@@ -919,10 +931,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if cur := toolCalls[0]; cur != nil {
 					key := "command"
 					switch cur.Function.Name {
-					case "mem_search", "web_search":
+					case "mem_search", "web_search", "recall_search":
 						key = "query"
 					case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
 						key = "file"
+					case "recall":
+						key = "id"
 					case "web_open", "web_read", "web_grep":
 						key = "url"
 					case "grep", "glob":
@@ -1103,10 +1117,15 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// nothing while a slow shell command runs and looks frozen.
 				label := ""
 				switch tc.Function.Name {
-				case "mem_search", "web_search":
+				case "mem_search", "web_search", "recall_search":
 					label, _ = args["query"].(string)
 				case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
 					label, _ = args["file"].(string)
+				case "recall":
+					label, _ = args["id"].(string)
+				case "tracker":
+					// Libellé lisible : « nom » ou « action nom », pas un dump d'arguments.
+					label = strings.TrimSpace(str(args["action"]) + " " + str(args["name"]))
 				case "bash", "bash_bg":
 					label, _ = args["command"].(string)
 				case "grep", "glob":
@@ -1152,6 +1171,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					continue
 				}
 				switch tc.Function.Name {
+				case "recall":
+					result = toolRecall(args)
+				case "recall_search":
+					result = toolRecallSearch(args)
+				case "tracker":
+					result = toolTracker(args)
 				case "mem_search":
 					lim := 0
 					if v, ok := args["limit"].(float64); ok {
@@ -1368,18 +1393,22 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// instead of leaving the user staring at a silent, finished chat.
 		if strings.TrimSpace(assistantContent.String()) == "" {
 			// Filet de sécurité (le vrai fix est le prompt court, voir baseSystemPrompt) :
-			// si un modèle « pense sans agir » malgré tout, on le relance UNE fois avec
-			// une consigne impérative au lieu d'afficher « pas de réponse ».
-			if len(tools) > 0 && !disableTools && !nudged {
-				nudged = true
+			// si un modèle « pense sans agir » malgré tout, on le relance avec une
+			// consigne impérative au lieu d'afficher « pas de réponse ».
+			if len(tools) > 0 && !disableTools && nudgeCount < maxNudges {
+				nudgeCount++
 				// Le raisonnement de ce tour avorté ne mène à rien : on demande à
 				// l'UI de l'effacer avant de relancer, pour ne pas afficher deux
 				// blocs de réflexion successifs.
 				cb(StreamEvent{DropReasoning: true})
-				messages = append(messages, Message{
-					Role:    "user",
-					Content: "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.",
-				})
+				nudge := "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act."
+				if nudgeCount > 1 {
+					// Le premier nudge n'a pas suffi : le modèle re-décrit le même
+					// plan sans l'exécuter. Second nudge plus impératif, où on lui
+					// interdit explicitement de re-raisonner.
+					nudge = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant."
+				}
+				messages = append(messages, Message{Role: "user", Content: nudge})
 				continue
 			}
 			cb(StreamEvent{Content: "_(le modèle n'a pas produit de réponse — finish: " + finishReason + ")_"})

@@ -414,7 +414,14 @@ func DeletePreset(id string) error {
 	if presetFingerprint(target) == configFingerprint(ReadConfig()) {
 		return fmt.Errorf("preset actif, switche d'abord")
 	}
-	return os.Remove(p)
+	if err := os.Remove(p); err != nil {
+		return err
+	}
+	// Le prompt système du preset vit en base, pas dans son .env (web_sysprompt.go) :
+	// sans ce ménage, il resterait orphelin et ressusciterait sur un preset recréé
+	// sous le même id.
+	_ = putStr(bkState, sysPromptKeyPrefix+id, "")
+	return nil
 }
 
 // ReadPreset returns the contents of a preset by id (filename).
