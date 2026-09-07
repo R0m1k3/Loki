@@ -1631,6 +1631,16 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* --- Discussions ----------------------------------------------------- */
 /* La liste EST la barre latérale : titre à gauche, heure à droite, une ligne.
    Le reste (réglages) descend sous un unique repli. */
+/* Ligne du projet actif : posée au-dessus des discussions, qu'elle contient.
+   Le sélecteur prend toute la largeur restante — un nom de projet doit être
+   lisible en entier, c'est le repère qui dit dans quel chantier on écrit. */
+.projrow{display:flex;align-items:center;gap:6px;padding:10px 12px 8px}
+.projrow>select{flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:6px 9px}
+.projrow>select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+/* Le « + » des sections est masqué par défaut et révélé par details[open] : hors
+   d'un <details>, il faut le rendre visible explicitement. */
+.projrow>.preset-add{display:inline-block;margin:0}
 #conv-search{width:calc(100% - 24px);font:inherit;font-size:12.5px;color:var(--text);
   background:var(--panel);border:1px solid var(--border);border-radius:4px;
   padding:7px 11px;margin:0 12px 8px}

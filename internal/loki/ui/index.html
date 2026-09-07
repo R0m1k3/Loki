@@ -1662,6 +1662,16 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 /* --- Discussions ----------------------------------------------------- */
 /* La liste EST la barre latérale : titre à gauche, heure à droite, une ligne.
    Le reste (réglages) descend sous un unique repli. */
+/* Ligne du projet actif : posée au-dessus des discussions, qu'elle contient.
+   Le sélecteur prend toute la largeur restante — un nom de projet doit être
+   lisible en entier, c'est le repère qui dit dans quel chantier on écrit. */
+.projrow{display:flex;align-items:center;gap:6px;padding:10px 12px 8px}
+.projrow>select{flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text);
+  background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:6px 9px}
+.projrow>select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+/* Le « + » des sections est masqué par défaut et révélé par details[open] : hors
+   d'un <details>, il faut le rendre visible explicitement. */
+.projrow>.preset-add{display:inline-block;margin:0}
 #conv-search{width:calc(100% - 24px);font:inherit;font-size:12.5px;color:var(--text);
   background:var(--panel);border:1px solid var(--border);border-radius:4px;
   padding:7px 11px;margin:0 12px 8px}
@@ -2198,6 +2208,14 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
   <div id="side-scroll">
+  <!-- Projet actif : il gouverne la mémoire, les trackers ET la liste des
+       discussions en dessous. Posé AU-DESSUS d'elles parce qu'il les contient —
+       changer de projet change la liste. Le bouton ouvre le panneau de gestion
+       (créer, renommer, décrire, supprimer), geste bien plus rare que la bascule. -->
+  <div class="projrow">
+    <select id="proj-switch" onchange="onProjectSwitch(this)" title="projet actif — mémoire, trackers et discussions cloisonnés" aria-label="projet actif"></select>
+    <button class="preset-add" onclick="openSettings('projets')" title="gérer les projets" aria-label="gérer les projets"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+  </div>
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
        d'origine) : basculer ici bascule partout.
@@ -2312,7 +2330,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <option value="high">haute</option>
         <option value="xhigh">maximale</option>
       </select>
-      <!-- Dictée vocale : enregistre au micro, transcrit en local (whisper.cpp
+      <!-- Dictée vocale : enregistre au micro, transcrit en local (Parakeet
            côté serveur) et pose le texte dans le champ. Voir js/23-dictate.js.
            Le navigateur n'autorise le micro qu'en HTTPS (ou localhost). -->
       <button id="mic" onclick="dictateToggle()" title="dicter au micro" aria-label="dicter au micro">
@@ -2397,6 +2415,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <div class="set-shell">
       <nav class="set-nav" id="set-nav" aria-label="sections des réglages">
         <div class="set-nav-h">Intelligence artificielle</div>
+        <button data-pane="projets" onclick="settingsShow('projets')">Projets</button>
         <button data-pane="config" onclick="settingsShow('config')">Config active</button>
         <button data-pane="presets" onclick="settingsShow('presets')">Presets</button>
         <button data-pane="agent" onclick="settingsShow('agent')"><span>Mode agent</span><span id="agent-badge" class="sbadge"></span></button>
@@ -2425,6 +2444,19 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <span class="io-cap">Emplacements</span>
     </div>
     <div id="paths-msg" class="muted" style="font-size:10px;line-height:1.5"></div>
+  </section>
+  <!-- Projets : un chantier = une mémoire, ses discussions et ses trackers. La
+       BASCULE se fait dans la barre latérale (geste quotidien) ; ici on gère
+       (créer, décrire, renommer, supprimer), ce qui est rare. -->
+  <section class="set-pane" data-pane="projets">
+    <div class="set-pane-h"><span>Projets</span></div>
+    <div class="muted" style="font-size:12px;line-height:1.5;margin:0 2px 8px">Chaque projet a sa <b>mémoire</b>, ses <b>discussions</b> et ses <b>trackers</b>, séparés des autres. La <b>description</b> est donnée à l'IA au début de chaque discussion du projet : elle sait sur quoi elle travaille sans qu'on le lui réexplique.</div>
+    <div class="slist">
+      <div class="rowbody">
+        <div id="proj-list" class="mcp-list"></div>
+        <button class="addbtn" style="margin-top:6px" onclick="newProject()">+ ajouter un projet</button>
+      </div>
+    </div>
   </section>
   <section class="set-pane" data-pane="config" id="cfg-details">
     <div class="set-pane-h"><span>Config active</span></div>
@@ -2462,6 +2494,16 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <input id="mem-search" class="mem-search" type="search" placeholder="filtrer la mémoire…" oninput="renderMemList()" style="margin:0">
           </div>
           <div id="mem-list" class="mem-list rowlist muted" style="font-size:12px"></div>
+        </div>
+        <!-- Trackers : le 3e type de mémoire. Rangé sous « Mémoire » parce que
+             c'en est une — mais séparé des pages, parce qu'on ne les lit pas
+             pareil : une page se lit en entier, un tracker jamais. -->
+        <div id="track-bar" class="pages-bar" onclick="toggleTrackers()">
+          <span class="pages-title">Trackers <span id="track-count" class="mem-count"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Données <b>datées qui s'accumulent</b> : compteurs, relevés, journaux d'événements (poids, abonnés, relevés de compteur…). L'IA y ajoute des points et les consulte par niveaux — jamais en entier, quelle que soit l'ancienneté. La <b>dernière valeur</b> de chaque tracker lui est donnée d'emblée : elle répond sans appeler d'outil.</span></span></span>
+          <button class="addbtn" onclick="event.stopPropagation();newTracker()" title="créer un tracker">+ ajouter</button>
+        </div>
+        <div id="track-body" hidden>
+          <div id="track-list" class="mem-list rowlist muted" style="font-size:12px"></div>
         </div>
       </div>
     </div>
@@ -2617,18 +2659,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       </div>
     </div></div>
   </section>
-  <!-- Dictée vocale. Réglages de SERVEUR : le modèle chargé et le GPU occupé
-       sont des propriétés de la machine, identiques pour tous les onglets.
+  <!-- Dictée vocale. Réglages de SERVEUR : le modèle chargé est une propriété
+       de la machine, identique pour tous les onglets.
        Voir js/24-dictate-settings.js et internal/loki/dictate_*.go. -->
   <section class="set-pane" data-pane="dictee">
     <div class="set-pane-h"><span>Dictée</span></div>
-    <div class="subhead">Matériel<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">whisper tourne dans un processus séparé, allumé au premier clic sur le micro et éteint après <b>dix minutes</b> sans dictée — il ne garde pas la VRAM occupée pour rien. Le GPU choisi est transmis par <code>CUDA_VISIBLE_DEVICES</code>.</span></span></div>
-    <div class="slist">
-      <label class="switchrow"><span>processeur ou GPU</span>
-        <select id="dic-device" class="sctl"></select>
-      </label>
-    </div>
-    <div class="subhead">Modèle<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Les modèles ne sont <b>pas</b> dans l'image : ils sont téléchargés à la demande dans <code>/data/whisper/</code> et survivent aux recréations du conteneur. Plus le modèle est gros, mieux il comprend — et plus il occupe de mémoire.</span></span></div>
+    <div class="subhead">Modèle<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Transcription par <b>Parakeet</b> (NVIDIA), servie par sherpa-onnx. Le modèle n'est <b>pas</b> dans l'image : il est téléchargé à la demande dans <code>/data/asr/</code> et survit aux recréations du conteneur. Il tourne dans un processus séparé, allumé au premier clic sur le micro et éteint après <b>dix minutes</b> sans dictée. Sur le <b>processeur</b> : la carte reste au moteur de chat, et un modèle de cette taille n'en a pas besoin sur des tranches de quelques secondes.</span></span></div>
     <div class="slist">
       <label class="switchrow"><span>modèle</span>
         <select id="dic-model" class="sctl"></select>
@@ -2638,18 +2674,8 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <span id="dic-dl-state" class="dim"></span>
       </div>
     </div>
-    <div class="subhead">Reconnaissance</div>
+    <div class="subhead">Reconnaissance<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Il n'y a pas de réglage de <b>langue</b> : Parakeet la détecte lui-même, phrase par phrase. Le modèle v3 couvre 25 langues européennes dont le français ; le v2 ne comprend que l'anglais.</span></span></div>
     <div class="slist">
-      <label class="switchrow"><span>langue</span>
-        <select id="dic-lang" class="sctl">
-          <option value="fr">français</option>
-          <option value="en">anglais</option>
-          <option value="de">allemand</option>
-          <option value="es">espagnol</option>
-          <option value="it">italien</option>
-          <option value="auto">détection automatique</option>
-        </select>
-      </label>
       <label class="switchrow"><span>réactivité<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Longueur des tranches transcrites au fil de la dictée. Court = le texte arrive plus tôt, avec moins de contexte donc plus d'erreurs. Long = mieux reconnu, mais plus d'attente.</span></span></span>
         <select id="dic-react" class="sctl">
           <option value="court">court</option>
@@ -2849,6 +2875,29 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     </div>
   </div>
 </div>
+<!-- Détail d'un tracker : ses points, du plus récent au plus ancien. La LISTE
+     (panneau Mémoire) ne charge jamais les points — un tracker peut en compter
+     des milliers ; ils n'arrivent qu'ici, à l'ouverture. -->
+<div id="track-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeTracker()">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-head">
+      <strong id="track-modal-title">Tracker</strong>
+      <button class="modal-x" onclick="closeTracker()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="track-events" class="mcp-list"></div>
+      <button class="addbtn" style="margin-top:6px" onclick="addTrackerPoint()">+ ajouter un point</button>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-l">
+        <button onclick="renameTracker()">renommer</button>
+        <button onclick="moveTracker()">déplacer</button>
+        <button class="danger" onclick="deleteTracker()">supprimer</button>
+      </div>
+      <div class="foot-r"><button onclick="closeTracker()">fermer</button></div>
+    </div>
+  </div>
+</div>
 <div id="lc-custom-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeCustomBackends()">
   <div class="modal-card" style="max-width:560px">
     <div class="modal-head">
@@ -2985,6 +3034,13 @@ html[data-files="1"] #files-btn{color:var(--accent)}
           <div class="pe-row">
             <span class="pe-row-l">Modèle utilisé</span>
             <span class="pe-row-c"><span class="pe-selc"><select id="task-preset"></select></span></span>
+          </div>
+          <!-- Projet visé : gouverne la MÉMOIRE et les TRACKERS que la tâche voit
+               quand elle s'exécute, pas sa visibilité — le panneau reste global,
+               sinon une tâche semblerait déplanifiée en changeant de projet. -->
+          <div class="pe-row">
+            <span class="pe-row-l">Projet visé</span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="task-project"></select></span></span>
           </div>
         </div>
       </div>
@@ -4145,9 +4201,18 @@ function renderMemList(){
     const span=document.createElement('span');
     const b=document.createElement('b'); b.style.color='var(--text)'; b.textContent=x.name; span.appendChild(b);
     if(x.desc){ const d=document.createElement('span'); d.className='muted'; d.textContent=' — '+x.desc; span.appendChild(d); }
+    const acts=document.createElement('span'); acts.style.cssText='display:flex;gap:4px;flex:none';
     const btn=document.createElement('button'); btn.textContent='edit'; btn.style.cssText='margin:0;padding:2px 8px;font-size:11px';
     btn.onclick=e=>{ e.stopPropagation(); openMem(x.name); };
-    row.appendChild(span); row.appendChild(btn); list.appendChild(row);
+    acts.appendChild(btn);
+    // Déplacer vers un autre projet : proposé seulement s'il y en a un autre, et
+    // jamais sur l'index MEMORY.md, qui appartient au projet et ne se déplace pas.
+    if(typeof PROJECTS!=='undefined' && PROJECTS.length>1 && x.name.toUpperCase()!=='MEMORY.MD'){
+      const mv=document.createElement('button'); mv.textContent='déplacer'; mv.style.cssText='margin:0;padding:2px 8px;font-size:11px';
+      mv.onclick=e=>{ e.stopPropagation(); moveMemPageUI(x.name); };
+      acts.appendChild(mv);
+    }
+    row.appendChild(span); row.appendChild(acts); list.appendChild(row);
   });
   if(matches.length > shown.length){
     const more=document.createElement('div'); more.className='mem-more';
@@ -4447,7 +4512,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -5973,6 +6038,10 @@ function renderToolMsg(el, tu){
     git_status: {lbl:'git',       head:'git status'},
     git_diff:   {lbl:'git',       head:'git diff'},
     git_clone:  {lbl:'git',       head:'git clone'},
+    // Mémoire longue de la conversation : blocs archivés au compactage. Étiquette
+    // distincte de « mémoire » (les pages MEMORY), ce n'est pas la même chose.
+    recall:        {lbl:'archive', head:'rappel d’un bloc archivé'},
+    recall_search: {lbl:'archive', head:'recherche dans l’archive'},
   };
   // Outils MCP (nom mcp__<serveur>__<outil>) : en-tête = nom du serveur, libellé lisible,
   // pas le fallback mémoire. On extrait serveur et outil du nom namespacé.
@@ -8928,6 +8997,7 @@ let tasksList = [];
 let taskEditing = null; // id en cours d'édition ('' = nouvelle, null = fermé)
 let TASK_RUNNING = '';  // id de la tâche en cours d'exécution ('' = aucune)
 let TASK_PRESETS = [];  // presets disponibles (pour le sélecteur de la modale)
+let TASK_PROJECTS = []; // projets disponibles (sélecteur « projet visé »)
 let TASK_MEM_ON = true; // état mémoire global (défaut d'une nouvelle tâche)
 let TASK_WEB_ON = true; // état web global (défaut d'une nouvelle tâche)
 let tasksPollTimer = null;
@@ -8950,6 +9020,7 @@ function renderTasks(r){
   const paused = !!(r && r.paused);
   const agentOn = !!(r && r.agent);
   TASK_PRESETS = (r && r.presets) || [];
+  TASK_PROJECTS = (r && r.projects) || [];
   TASK_MEM_ON = !r || r.mem_on !== false;
   TASK_WEB_ON = !r || r.web_on !== false;
   TASK_RUNNING = (r && r.running_id) || '';
@@ -9110,6 +9181,9 @@ function openTask(id){
   document.getElementById('task-mem').checked = t ? !t.no_mem : TASK_MEM_ON;
   document.getElementById('task-web').checked = t ? !t.no_web : TASK_WEB_ON;
   fillPresetSelect(t ? (t.preset||'') : '');
+  // Nouvelle tâche : le projet ACTIF est proposé — on crée presque toujours une
+  // tâche pour le chantier qu'on a sous les yeux.
+  fillTaskProjectSelect(t ? (t.project||'') : (typeof PROJ_ACTIVE!=='undefined' ? PROJ_ACTIVE : ''));
 
   // Décompose le schedule en intervalle (par défaut) ou cron. Forme intervalle :
   // « @every N(m|h|d)[@HH:MM] » (l'heure n'existe que pour les jours).
@@ -9182,6 +9256,20 @@ function fillPresetSelect(selected){
   sel.value = selected || '';
 }
 
+// fillTaskProjectSelect peuple le sélecteur « projet visé ». Pas d'option vide :
+// une tâche appartient toujours à un projet — le serveur retombe sur le projet
+// actif si rien n'est envoyé, autant le montrer explicitement.
+function fillTaskProjectSelect(selected){
+  const sel = document.getElementById('task-project');
+  if(!sel) return;
+  sel.textContent = '';
+  TASK_PROJECTS.forEach(p=>{
+    const o = document.createElement('option'); o.value = p.slug; o.textContent = p.name;
+    sel.appendChild(o);
+  });
+  if(selected && [...sel.options].some(o=>o.value===selected)) sel.value = selected;
+}
+
 function setTaskFreqMode(mode){
   const r = document.querySelector('input[name="task-freq-mode"][value="'+mode+'"]');
   if(r) r.checked = true;
@@ -9221,13 +9309,14 @@ async function saveTask(){
   const schedule = buildSchedule();
   const enabled = document.getElementById('task-enabled').checked;
   const preset = document.getElementById('task-preset').value;
+  const project = (document.getElementById('task-project')||{}).value || '';
   const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || '';
   const no_mem = !document.getElementById('task-mem').checked;
   const no_web = !document.getElementById('task-web').checked;
   const st = document.getElementById('task-modal-status');
   if(!name || !prompt){ st.textContent = 'nom et consigne obligatoires'; st.style.color = 'var(--err)'; return; }
   if(!schedule){ st.textContent = 'fréquence invalide'; st.style.color = 'var(--err)'; return; }
-  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, prompt, schedule, enabled, preset, tz, no_mem, no_web});
+  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, prompt, schedule, enabled, preset, project, tz, no_mem, no_web});
   if(!r || !r.ok){ st.textContent = (r && r.error) || 'échec'; st.style.color = 'var(--err)'; return; }
   closeTask();
   await loadTasks();
@@ -9277,6 +9366,14 @@ let SET_LAST = 'config';
 const SET_HOOKS = {
   'engine-log': () => { loadSvcLog(); showPaths(); },
   'dictee': () => { loadDictateSettings(); },
+  // Les compteurs d'un projet (discussions, pages, trackers) bougent en
+  // permanence : on les relit à l'ouverture plutôt que d'afficher ceux du
+  // chargement de la page.
+  'projets': () => { loadProjects(); },
+  // Le prompt système appartient au PRESET actif : changer de modèle change le
+  // texte à afficher. On le relit à l'ouverture du panneau plutôt que de garder
+  // celui du chargement de la page, qui serait alors celui d'un autre preset.
+  'sysprompt': () => { loadSys(); },
 };
 function openSettings(pane){
   showModal('settings-modal');
@@ -9301,9 +9398,10 @@ document.addEventListener('keydown', e => {
 // ─── Dictée vocale ───────────────────────────────────────────────────────────
 // Bouton micro de la carte de saisie : un clic enregistre, un second arrête et
 // transcrit. La capture est encodée en WAV 16 kHz mono ICI, côté navigateur —
-// whisper.cpp ne lit que du PCM, et encoder au bon format évite d'embarquer
-// ffmpeg dans l'image. La transcription est locale (POST /api/transcribe →
-// whisper-cli). Le texte s'ajoute au champ sans écraser ce qui s'y trouve.
+// le moteur de transcription ne lit que du PCM, et encoder au bon format évite
+// d'embarquer ffmpeg dans l'image. La transcription est locale (POST
+// /api/transcribe → Parakeet côté serveur). Le texte s'ajoute au champ sans
+// écraser ce qui s'y trouve.
 //
 // ⚠️ Le micro n'est autorisé par le NAVIGATEUR qu'en contexte sécurisé (HTTPS
 // ou localhost) : servi en http://IP:8090, getUserMedia n'existe pas — on
@@ -9367,7 +9465,7 @@ async function dictateStop(){
 }
 
 // Ré-échantillonne le PCM capturé (44,1/48 kHz selon la machine) vers du WAV
-// 16 kHz mono 16 bits — le format d'entrée de whisper.cpp. Décimation simple :
+// 16 kHz mono 16 bits — le format d’entrée du moteur de dictée. Décimation simple :
 // pour de la voix ré-échantillonnée VERS LE BAS, largement suffisant.
 function encodeWav16k(chunks, fromRate){
   const toRate = 16000;
@@ -9391,43 +9489,35 @@ function encodeWav16k(chunks, fromRate){
   return buf;
 }
 // ─── Réglages de la dictée ───────────────────────────────────────────────────
-// Panneau Paramètres → Dictée : matériel, modèle, langue, réactivité, plus un
-// test du micro. Ce sont des réglages de SERVEUR (le modèle chargé et le GPU
-// occupé appartiennent à la machine), donc rien n'est gardé en localStorage :
-// tout passe par /api/dictate/*.
+// Panneau Paramètres → Dictée : modèle, réactivité, plus un test du micro. Ce
+// sont des réglages de SERVEUR (le modèle chargé appartient à la machine), donc
+// rien n'est gardé en localStorage : tout passe par /api/dictate/*.
+//
+// Ni langue ni matériel ici, et le moteur l'impose : Parakeet détecte la langue
+// lui-même, et le binaire livré est le build CPU. Afficher des sélecteurs qu'on
+// ne peut pas honorer serait pire que de ne rien afficher.
 let DIC_CFG = null;
 
 async function loadDictateSettings(){
-  const [cfg, modeles, gpus] = await Promise.all([
+  const [cfg, modeles] = await Promise.all([
     jfetch('/api/dictate/config').then(r => r.json()).catch(()=>({})),
     jfetch('/api/dictate/models').then(r => r.json()).catch(()=>[]),
-    jfetch('/api/vram').then(r => r.json()).catch(()=>[]),
   ]);
   DIC_CFG = cfg || {};
-
-  // Matériel : « CPU seul » d'abord — c'est le choix qui marche partout, y
-  // compris sur une image bâtie sans CUDA.
-  const dev = document.getElementById('dic-device');
-  dev.innerHTML = '';
-  dev.appendChild(new Option('processeur seul', 'cpu'));
-  (gpus||[]).forEach((g, i) => {
-    const libre = Math.max(0, (g.total|0) - (g.used|0));
-    dev.appendChild(new Option(`GPU ${i} — ${g.name} (${libre} Mo libres sur ${g.total|0})`, String(i)));
-  });
-  dev.value = cfg.device || 'cpu';
 
   const mod = document.getElementById('dic-model');
   mod.innerHTML = '';
   (modeles||[]).forEach(m => {
     const mo = Math.round(m.octets / 1e6);
     // Dire ce qui est déjà là : sans ça, choisir un modèle absent ressemble à
-    // un réglage instantané alors que c'est un téléchargement de 600 Mo.
+    // un réglage instantané alors que c'est un téléchargement de ~500 Mo.
+    // Et dire ce qu'il COMPREND : c'est le vrai critère de choix entre les deux
+    // (v3 multilingue, v2 anglais seul), pas leur taille, quasi identique.
     const etat = m.present ? 'déjà téléchargé' : mo + ' Mo à télécharger';
-    mod.appendChild(new Option(`${m.nom} — ${etat}, ~${m.vram_mo} Mo de mémoire`, m.id));
+    mod.appendChild(new Option(`${m.nom} — ${m.langues} · ${etat}`, m.id));
   });
   mod.value = cfg.model || '';
 
-  document.getElementById('dic-lang').value = cfg.lang || 'fr';
   document.getElementById('dic-react').value = cfg.reactivity || 'moyen';
   refreshDictateState();
 }
@@ -9435,8 +9525,6 @@ async function loadDictateSettings(){
 async function dictateSave(){
   const cfg = {
     model: document.getElementById('dic-model').value,
-    lang: document.getElementById('dic-lang').value,
-    device: document.getElementById('dic-device').value,
     reactivity: document.getElementById('dic-react').value,
   };
   const el = document.getElementById('dic-save-state');
@@ -9487,10 +9575,9 @@ async function refreshDictateState(){
   const bouts = [];
   bouts.push(j.actif ? `moteur allumé depuis ${j.depuis_s||0} s` : 'moteur éteint (il démarre au premier clic sur le micro)');
   bouts.push(j.present ? `modèle ${j.modele} présent` : `modèle ${j.modele} ABSENT — à télécharger`);
-  // note : le serveur nous dit quand il n'a pas pu respecter le matériel
-  // demandé (image sans CUDA, par exemple). Le taire ferait croire que le GPU
-  // choisi est utilisé.
-  if(j.note) bouts.push('⚠ ' + j.note);
+  // Le dire explicitement : sans ça, on cherche un réglage de carte qui
+  // n'existe pas, ou on croit à une panne devant un GPU inactif.
+  if(j.device === 'cpu') bouts.push('sur le processeur');
   if(j.dl && j.dl.running) bouts.push(`téléchargement ${j.dl.id} ${j.dl.pct||0} %`);
   el.textContent = bouts.join(' · ');
 }
@@ -9543,5 +9630,415 @@ async function dictateTestMic(){
   else out.textContent = tete + '« ' + j.text.trim() + ' »';
   btn.disabled = false;
   refreshDictateState();
+}
+// Projets — un chantier = une mémoire + ses discussions + ses trackers.
+//
+// Deux surfaces, volontairement asymétriques :
+//   - le SÉLECTEUR de la barre latérale, qu'on utilise dix fois par jour : il ne
+//     fait qu'une chose, changer de projet ;
+//   - le PANNEAU de réglages, qu'on ouvre rarement : créer, renommer, décrire,
+//     supprimer.
+//
+// Changer de projet change ce que voit l'IA (mémoire, trackers) ET la liste des
+// discussions : le serveur ouvre une discussion du projet d'arrivée, et le flux
+// SSE redessine le chat tout seul — comme une bascule de discussion.
+
+let PROJECTS = [], PROJ_ACTIVE = '';
+
+async function loadProjects(){
+  let r;
+  try{ r = await jget('/api/projects'); }catch(_){ return; }
+  if(!r || !r.ok) return;
+  PROJECTS = r.projects || [];
+  PROJ_ACTIVE = r.active || '';
+  renderProjectPicker();
+  renderProjectList();
+}
+
+// Le sélecteur de la barre latérale. Reconstruit à chaque chargement : la liste
+// est courte, et un rendu complet évite de synchroniser des options une par une.
+function renderProjectPicker(){
+  const sel = document.getElementById('proj-switch');
+  if(!sel) return;
+  sel.textContent = '';
+  PROJECTS.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.slug;
+    o.textContent = p.name;
+    sel.appendChild(o);
+  });
+  sel.value = PROJ_ACTIVE;
+}
+
+async function onProjectSwitch(sel){
+  const slug = sel.value;
+  if(!slug || slug === PROJ_ACTIVE) return;
+  const r = await jpost('/api/projects', {action:'switch', slug});
+  if(!r.ok){
+    // Refusé (génération en cours) : on remet le sélecteur sur le projet réel,
+    // sinon il affiche un projet où l'on n'est pas.
+    sel.value = PROJ_ACTIVE;
+    toast('erreur : ' + (r.error||''));
+    return;
+  }
+  PROJECTS = r.projects || PROJECTS;
+  PROJ_ACTIVE = r.active || PROJ_ACTIVE;
+  renderProjectPicker();
+  renderProjectList();
+  // La mémoire, les trackers et les discussions appartiennent au projet : tout
+  // ce qui est à l'écran parle du précédent.
+  if(typeof loadConversations === 'function') loadConversations();
+  if(typeof loadAgent === 'function') loadAgent();
+  if(typeof loadTrackers === 'function') loadTrackers();
+}
+
+// Le panneau de gestion. Une ligne par projet, avec ce qu'il contient — c'est ce
+// qui permet de décider quoi supprimer sans ouvrir chaque projet.
+function renderProjectList(){
+  const list = document.getElementById('proj-list');
+  if(!list) return;
+  list.textContent = '';
+  PROJECTS.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'preset';
+    row.style.fontSize = '12px';
+
+    const span = document.createElement('span');
+    const b = document.createElement('b');
+    b.style.color = 'var(--text)';
+    b.textContent = p.name;
+    span.appendChild(b);
+    if(p.active){
+      const a = document.createElement('span');
+      a.className = 'sbadge on';
+      a.textContent = 'actif';
+      a.style.marginLeft = '6px';
+      span.appendChild(a);
+    }
+    const d = document.createElement('span');
+    d.className = 'muted';
+    d.textContent = ' — ' + p.convs + ' discussion' + (p.convs > 1 ? 's' : '')
+                  + ' · ' + p.pages + ' page' + (p.pages > 1 ? 's' : '')
+                  + ' · ' + p.trackers + ' tracker' + (p.trackers > 1 ? 's' : '');
+    span.appendChild(d);
+    if(p.desc){
+      const desc = document.createElement('div');
+      desc.className = 'muted';
+      desc.style.cssText = 'font-size:11px;margin-top:2px';
+      desc.textContent = p.desc;
+      span.appendChild(desc);
+    }
+
+    const acts = document.createElement('span');
+    acts.style.cssText = 'display:flex;gap:4px;flex:none';
+    acts.appendChild(projBtn('décrire', () => editProjectDesc(p)));
+    acts.appendChild(projBtn('renommer', () => renameProjectUI(p)));
+    // Le dernier projet n'est pas supprimable côté serveur : ne pas proposer le
+    // bouton évite une erreur qu'on ne peut pas résoudre.
+    if(PROJECTS.length > 1) acts.appendChild(projBtn('supprimer', () => deleteProjectUI(p)));
+
+    row.appendChild(span);
+    row.appendChild(acts);
+    list.appendChild(row);
+  });
+}
+
+function projBtn(label, fn){
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.style.cssText = 'margin:0;padding:2px 8px;font-size:11px';
+  b.onclick = e => { e.stopPropagation(); fn(); };
+  return b;
+}
+
+// Applique une action et rafraîchit tout ce qui dépend des projets.
+async function projectAction(payload, okMsg){
+  const r = await jpost('/api/projects', payload);
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return false; }
+  PROJECTS = r.projects || PROJECTS;
+  PROJ_ACTIVE = r.active || PROJ_ACTIVE;
+  renderProjectPicker();
+  renderProjectList();
+  if(okMsg) toast(okMsg);
+  return true;
+}
+
+async function newProject(){
+  const name = await askPrompt('Nom du projet (ex. « Serveur NAS », « Recettes ») :', {title:'Nouveau projet', okText:'Créer'});
+  if(!name || !name.trim()) return;
+  await projectAction({action:'create', name:name.trim()}, 'projet créé');
+}
+
+async function renameProjectUI(p){
+  const name = await askPrompt('Nouveau nom :', {title:'Renommer le projet', default:p.name, okText:'Renommer'});
+  if(!name || !name.trim() || name.trim() === p.name) return;
+  // Seul le libellé change : les chemins disque, les discussions et les trackers
+  // restent accrochés au slug d'origine.
+  await projectAction({action:'rename', slug:p.slug, name:name.trim()}, 'renommé');
+}
+
+async function editProjectDesc(p){
+  const desc = await askPrompt(
+    'À quoi sert ce projet ? Ce texte est donné à l\'IA au début de chaque discussion du projet.',
+    {title:'Description du projet', default:p.desc||'', placeholder:'ex. administration du NAS Unraid, docker, sauvegardes', okText:'Enregistrer'});
+  if(desc === null) return;
+  await projectAction({action:'desc', slug:p.slug, desc}, 'description enregistrée');
+}
+
+async function deleteProjectUI(p){
+  const ok = await askConfirm(
+    'Supprimer « ' + p.name + ' » ?\n\nSes ' + p.pages + ' page(s) mémoire, ses '
+    + p.convs + ' discussion(s) et ses ' + p.trackers + ' tracker(s) seront effacés. Irréversible.',
+    {title:'Supprimer le projet', okText:'Supprimer', danger:true});
+  if(!ok) return;
+  await projectAction({action:'delete', slug:p.slug}, 'projet supprimé');
+  if(typeof loadConversations === 'function') loadConversations();
+  if(typeof loadAgent === 'function') loadAgent();
+  if(typeof loadTrackers === 'function') loadTrackers();
+}
+
+// Déplacer une page mémoire vers un autre projet — appelé depuis la liste des
+// pages (06-settings.js). Une page rangée dans le mauvais chantier n'a pas à
+// être recopiée à la main pour en changer.
+async function moveMemPageUI(name){
+  const others = PROJECTS.filter(p => p.slug !== PROJ_ACTIVE);
+  if(!others.length){ toast('aucun autre projet où déplacer'); return; }
+  const choice = await askPrompt(
+    'Déplacer « ' + name + ' » vers quel projet ?\n' + others.map(p => '· ' + p.name).join('\n'),
+    {title:'Déplacer la page', default:others[0].name, okText:'Déplacer'});
+  if(!choice) return;
+  const target = others.find(p => p.name.toLowerCase() === choice.trim().toLowerCase());
+  if(!target){ toast('projet inconnu : ' + choice); return; }
+  const r = await jpost('/api/mem/move', {name, to:target.slug});
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('déplacée vers ' + target.name);
+  if(typeof loadAgent === 'function') loadAgent();
+  loadProjects();
+}
+// Trackers — le 3ᵉ type de mémoire : les données DATÉES qui s'accumulent
+// (compteurs, relevés, journaux d'événements).
+//
+// Une page mémoire répond à « qu'est-ce que je sais » ; un tracker répond à
+// « comment ça évolue ». D'où deux affichages distincts : la liste montre la
+// DERNIÈRE valeur de chaque tracker (c'est presque toujours la question posée),
+// le détail montre les points, du plus récent au plus ancien.
+//
+// La liste ne charge jamais les points : un tracker peut compter des milliers
+// d'entrées, et le panneau doit s'ouvrir instantanément.
+
+let TRACKERS = [], TRACK_OPEN = null;
+
+async function loadTrackers(){
+  let r;
+  try{ r = await jget('/api/tracker'); }catch(_){ return; }
+  if(!r || !r.ok) return;
+  TRACKERS = r.trackers || [];
+  renderTrackers();
+}
+
+function toggleTrackers(){
+  const body = document.getElementById('track-body');
+  if(!body) return;
+  body.hidden = !body.hidden;
+  if(!body.hidden) loadTrackers();
+}
+
+// Date lisible : on n'affiche l'heure que si le point en a une côté serveur —
+// un relevé saisi « le 12 mars » ne doit pas s'afficher « 00:00 ».
+function trackWhen(ev){
+  const d = new Date(ev.ts);
+  const day = d.toLocaleDateString();
+  return ev.date_only ? day : day + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function renderTrackers(){
+  const list = document.getElementById('track-list');
+  const count = document.getElementById('track-count');
+  if(!list) return;
+  if(count) count.textContent = TRACKERS.length ? '(' + TRACKERS.length + ')' : '';
+  list.textContent = '';
+  if(!TRACKERS.length){
+    const e = document.createElement('div');
+    e.className = 'muted';
+    e.style.fontSize = '12px';
+    e.textContent = '(aucun tracker — ex. « poids », « abonnés », « relevés compteur »)';
+    list.appendChild(e);
+    return;
+  }
+  TRACKERS.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'preset';
+    row.style.fontSize = '12px';
+    row.onclick = () => openTracker(t.slug);
+
+    const span = document.createElement('span');
+    const b = document.createElement('b');
+    b.style.color = 'var(--text)';
+    b.textContent = t.name;
+    span.appendChild(b);
+    const d = document.createElement('span');
+    d.className = 'muted';
+    // La dernière valeur EST l'information : elle passe avant le compte.
+    d.textContent = t.last_text ? ' — ' + t.last_text : ' — (vide)';
+    span.appendChild(d);
+    const sub = document.createElement('div');
+    sub.className = 'muted';
+    sub.style.cssText = 'font-size:11px;margin-top:2px';
+    sub.textContent = t.count + ' point' + (t.count > 1 ? 's' : '')
+                    + (t.last_ts ? ' · dernier le ' + new Date(t.last_ts).toLocaleDateString() : '');
+    span.appendChild(sub);
+
+    row.appendChild(span);
+    list.appendChild(row);
+  });
+}
+
+// --- détail d'un tracker -----------------------------------------------------
+
+async function openTracker(slug){
+  const r = await jget('/api/tracker?slug=' + encodeURIComponent(slug));
+  if(!r || !r.ok){ toast('erreur : ' + ((r&&r.error)||'')); return; }
+  TRACK_OPEN = r.tracker;
+  document.getElementById('track-modal-title').textContent = TRACK_OPEN.name;
+  renderTrackerEvents();
+  showModal('track-modal');
+}
+
+function closeTracker(){ hideModal('track-modal'); TRACK_OPEN = null; }
+
+function renderTrackerEvents(){
+  const body = document.getElementById('track-events');
+  if(!body || !TRACK_OPEN) return;
+  body.textContent = '';
+  const evs = (TRACK_OPEN.events || []).slice().reverse(); // plus récent d'abord
+  if(!evs.length){
+    const e = document.createElement('div');
+    e.className = 'muted';
+    e.style.fontSize = '12px';
+    e.textContent = '(aucun point)';
+    body.appendChild(e);
+    return;
+  }
+  evs.forEach(ev => {
+    const row = document.createElement('div');
+    row.className = 'preset';
+    row.style.fontSize = '12px';
+    const span = document.createElement('span');
+    const w = document.createElement('b');
+    w.style.color = 'var(--text)';
+    w.textContent = trackWhen(ev);
+    span.appendChild(w);
+    const t = document.createElement('span');
+    t.className = 'muted';
+    t.textContent = ' — ' + ev.text;
+    span.appendChild(t);
+
+    const acts = document.createElement('span');
+    acts.style.cssText = 'display:flex;gap:4px;flex:none';
+    acts.appendChild(trackBtn('modifier', () => editTrackerPoint(ev)));
+    acts.appendChild(trackBtn('supprimer', () => deleteTrackerPoint(ev)));
+
+    row.appendChild(span);
+    row.appendChild(acts);
+    body.appendChild(row);
+  });
+}
+
+function trackBtn(label, fn){
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.style.cssText = 'margin:0;padding:2px 8px;font-size:11px';
+  b.onclick = e => { e.stopPropagation(); fn(); };
+  return b;
+}
+
+// Applique une action sur le tracker ouvert, puis recharge son détail ET la
+// liste : les deux affichent la même donnée, ils ne doivent pas diverger.
+async function trackerAction(payload, okMsg){
+  const r = await jpost('/api/tracker', payload);
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return false; }
+  TRACKERS = r.trackers || TRACKERS;
+  renderTrackers();
+  if(okMsg) toast(okMsg);
+  return true;
+}
+
+// La date est saisie en texte libre à précision variable (« 2026-07-15 »,
+// « 2026-07-15 14:30 », vide = maintenant) : c'est le serveur qui la comprend
+// (parseWhen), pour que l'outil du modèle et l'interface acceptent exactement
+// la même chose.
+const TRACK_WHEN_HINT = 'Date (vide = maintenant) — AAAA-MM-JJ ou AAAA-MM-JJ HH:MM';
+
+async function addTrackerPoint(){
+  if(!TRACK_OPEN) return;
+  const text = await askPrompt('Valeur ou note du point :', {title:'Ajouter un point', placeholder:'ex. 78,2 kg', okText:'Suivant'});
+  if(!text || !text.trim()) return;
+  const when = await askPrompt(TRACK_WHEN_HINT, {title:'Quand ?', placeholder:'vide = maintenant', okText:'Ajouter'});
+  if(when === null) return;
+  if(!await trackerAction({action:'add', name:TRACK_OPEN.name, when, text}, 'point ajouté')) return;
+  openTracker(TRACK_OPEN.slug);
+}
+
+async function newTracker(){
+  const name = await askPrompt('Nom du tracker (ex. « poids », « abonnés ») :', {title:'Nouveau tracker', okText:'Suivant'});
+  if(!name || !name.trim()) return;
+  const text = await askPrompt('Premier point — valeur ou note :', {title:'Premier point', placeholder:'ex. 78,2 kg', okText:'Suivant'});
+  if(!text || !text.trim()) return;
+  const when = await askPrompt(TRACK_WHEN_HINT, {title:'Quand ?', placeholder:'vide = maintenant', okText:'Créer'});
+  if(when === null) return;
+  // Un tracker naît de son premier point : pas de coquille vide à remplir plus tard.
+  await trackerAction({action:'add', name:name.trim(), when, text}, 'tracker créé');
+}
+
+async function editTrackerPoint(ev){
+  if(!TRACK_OPEN) return;
+  const text = await askPrompt('Valeur ou note :', {title:'Modifier le point', default:ev.text, okText:'Suivant'});
+  if(text === null) return;
+  const when = await askPrompt(TRACK_WHEN_HINT, {title:'Quand ?', default:'', placeholder:'vide = date inchangée', okText:'Enregistrer'});
+  if(when === null) return;
+  if(!await trackerAction({action:'edit', slug:TRACK_OPEN.slug, id:ev.id, text, when}, 'point modifié')) return;
+  openTracker(TRACK_OPEN.slug);
+}
+
+async function deleteTrackerPoint(ev){
+  if(!TRACK_OPEN) return;
+  if(!await askConfirm('Supprimer le point du ' + trackWhen(ev) + ' ?', {title:'Supprimer', okText:'Supprimer', danger:true})) return;
+  if(!await trackerAction({action:'delete', slug:TRACK_OPEN.slug, id:ev.id}, 'point supprimé')) return;
+  openTracker(TRACK_OPEN.slug);
+}
+
+async function renameTracker(){
+  if(!TRACK_OPEN) return;
+  const name = await askPrompt('Nouveau nom :', {title:'Renommer le tracker', default:TRACK_OPEN.name, okText:'Renommer'});
+  if(!name || !name.trim() || name.trim() === TRACK_OPEN.name) return;
+  // Le slug dérive du nom : le serveur re-clé le tracker si nécessaire, sinon un
+  // point ajouté ensuite créerait un tracker parallèle sous l'ancien nom.
+  if(!await trackerAction({action:'rename', slug:TRACK_OPEN.slug, name:name.trim()}, 'renommé')) return;
+  closeTracker();
+}
+
+async function moveTracker(){
+  if(!TRACK_OPEN) return;
+  const others = (typeof PROJECTS !== 'undefined' ? PROJECTS : []).filter(p => p.slug !== PROJ_ACTIVE);
+  if(!others.length){ toast('aucun autre projet où déplacer'); return; }
+  const choice = await askPrompt(
+    'Déplacer « ' + TRACK_OPEN.name + ' » vers quel projet ?\n' + others.map(p => '· ' + p.name).join('\n'),
+    {title:'Déplacer le tracker', default:others[0].name, okText:'Déplacer'});
+  if(!choice) return;
+  const target = others.find(p => p.name.toLowerCase() === choice.trim().toLowerCase());
+  if(!target){ toast('projet inconnu : ' + choice); return; }
+  if(!await trackerAction({action:'move', slug:TRACK_OPEN.slug, to:target.slug}, 'déplacé vers ' + target.name)) return;
+  closeTracker();
+  if(typeof loadProjects === 'function') loadProjects();
+}
+
+async function deleteTracker(){
+  if(!TRACK_OPEN) return;
+  const ok = await askConfirm(
+    'Supprimer le tracker « ' + TRACK_OPEN.name + ' » et ses ' + TRACK_OPEN.count + ' point(s) ? Irréversible.',
+    {title:'Supprimer le tracker', okText:'Supprimer', danger:true});
+  if(!ok) return;
+  if(!await trackerAction({action:'delete_tracker', slug:TRACK_OPEN.slug}, 'tracker supprimé')) return;
+  closeTracker();
 }
 </script></body></html>

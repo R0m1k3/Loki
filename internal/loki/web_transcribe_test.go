@@ -3,189 +3,105 @@ package loki
 import (
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-// etapesWhisperbuild découpe le Dockerfile en étapes « FROM … AS whisperbuild* »
-// et rend le texte de chacune.
-func etapesWhisperbuild(t *testing.T) map[string]string {
+func dockerfileSrc(t *testing.T) string {
 	t.Helper()
 	b, err := os.ReadFile("../../Dockerfile")
 	if err != nil {
 		t.Fatalf("lecture du Dockerfile : %v", err)
 	}
-	out := map[string]string{}
-	for _, bloc := range strings.Split(string(b), "\nFROM ") {
-		entete, reste, ok := strings.Cut(bloc, "\n")
-		if !ok {
-			continue
-		}
-		_, nom, ok := strings.Cut(entete, " AS ")
-		if !ok || !strings.HasPrefix(strings.TrimSpace(nom), "whisperbuild") {
-			continue
-		}
-		out[strings.TrimSpace(nom)] = entete + "\n" + reste
-	}
-	return out
+	return string(b)
 }
 
-// argWhisperFlags rend la valeur de l'ARG WHISPER_CMAKE_FLAGS, continuations
-// de ligne comprises. Vide si l'ARG n'existe pas : les étapes devront alors
-// porter les drapeaux en clair, et le test le vérifiera.
-func argWhisperFlags(t *testing.T) string {
-	t.Helper()
-	b, err := os.ReadFile("../../Dockerfile")
-	if err != nil {
-		t.Fatalf("lecture du Dockerfile : %v", err)
+// Le binaire de dictée est TÉLÉCHARGÉ, plus compilé. Ce qui remplace les
+// garde-fous de compilation d'avant (-march=native, SIGILL en production) est la
+// vérification d'empreinte : sans elle, une release remplacée en amont ferait
+// tourner un binaire inconnu sur la machine de l'utilisateur, en silence.
+func TestDockerfileASRVerifieLEmpreinte(t *testing.T) {
+	src := dockerfileSrc(t)
+	if !strings.Contains(src, "sha256sum -c -") {
+		t.Error("l'archive sherpa-onnx est extraite sans vérification d'empreinte")
 	}
-	_, apres, ok := strings.Cut(string(b), "ARG WHISPER_CMAKE_FLAGS=")
-	if !ok {
-		return ""
+	m := regexp.MustCompile(`(?m)^ARG SHERPA_ONNX_SHA256=([0-9a-f]{64})\s*$`).FindStringSubmatch(src)
+	if m == nil {
+		t.Fatal("ARG SHERPA_ONNX_SHA256 absent ou pas un sha256 de 64 caractères")
 	}
-	var val strings.Builder
-	for _, ligne := range strings.Split(apres, "\n") {
-		val.WriteString(" " + ligne)
-		if !strings.HasSuffix(strings.TrimSpace(ligne), "\\") {
-			break
-		}
-	}
-	return val.String()
-}
-
-// La dictée est morte en production parce que whisper avait été compilé avec
-// -march=native, donc pour le processeur du runner GitHub (AVX-512, AMX) et pas
-// pour la machine qui fait tourner l'image : SIGILL en pleine transcription.
-// Les drapeaux qui l'évitent ne se voient pas à l'exécution — rien ne les
-// rappelle au prochain qui touchera cette étape de build. Ce test le fait, sur
-// CHAQUE étape, y compris celle ajoutée pour CUDA.
-func TestDockerfileWhisperNonNatif(t *testing.T) {
-	etapes := etapesWhisperbuild(t)
-	if len(etapes) < 2 {
-		t.Fatalf("%d étape(s) whisperbuild, 2 attendues (CPU et CUDA) : %v", len(etapes), clefs(etapes))
-	}
-	// Les drapeaux communs sont factorisés dans WHISPER_CMAKE_FLAGS. Une étape
-	// est conforme si elle les porte en clair OU si elle référence cet ARG —
-	// ce qui compte est qu'ils atteignent cmake, pas qu'ils soient recopiés.
-	commun := argWhisperFlags(t)
-	for nom, txt := range etapes {
-		effectif := txt
-		if strings.Contains(txt, "${WHISPER_CMAKE_FLAGS}") {
-			effectif += " " + commun
-		}
-		for _, drapeau := range []string{"-DGGML_NATIVE=OFF", "-DGGML_AMX_TILE=OFF", "-DGGML_AVX512=OFF"} {
-			if !strings.Contains(effectif, drapeau) {
-				t.Errorf("étape %s : %s absent — le binaire sera compilé pour le processeur du runner et mourra d'un SIGILL ailleurs", nom, drapeau)
-			}
-		}
-		if !strings.Contains(txt, "whisper-server") {
-			t.Errorf("étape %s : ne construit pas la cible whisper-server", nom)
-		}
-		// « -j » nu autorise un parallélisme ILLIMITÉ chez Make. Sur l'étape
-		// CUDA (~200 nvcc à 1-2 Go pièce), le runner GitHub était tué par
-		// l'OOM sans écrire une ligne d'erreur. L'étape CPU y survivait, ce
-		// qui rendait le piège invisible.
-		for _, ligne := range strings.Split(txt, "\n") {
-			if !strings.Contains(ligne, "cmake --build") {
-				continue
-			}
-			if regexp.MustCompile(`-j(\s|$|\\)`).MatchString(ligne) {
-				t.Errorf("étape %s : « cmake --build -j » sans nombre — parallélisme illimité, le runner sera tué par l'OOM. Utiliser -j\"$(nproc)\".", nom)
-			}
-		}
+	if !strings.Contains(src, "${SHERPA_ONNX_SHA256}") {
+		t.Error("l'empreinte est déclarée mais jamais utilisée")
 	}
 }
 
-// Deux binaires, pas un : sur une image runtime bâtie sans CUDA, un binaire lié
-// à CUDA ne démarre pas du tout — l'éditeur de liens échoue avant la première
-// instruction, donc aucun repli n'est possible depuis le programme.
-func TestDockerfileDeuxBinairesWhisper(t *testing.T) {
-	b, err := os.ReadFile("../../Dockerfile")
-	if err != nil {
-		t.Fatalf("lecture du Dockerfile : %v", err)
+// La version doit être ÉPINGLÉE. « latest » ferait changer le binaire de dictée
+// sous les pieds de l'utilisateur au prochain build, sans qu'une seule ligne du
+// dépôt ait bougé — et l'empreinte figée ci-dessus casserait le build.
+func TestDockerfileASRVersionEpinglee(t *testing.T) {
+	src := dockerfileSrc(t)
+	m := regexp.MustCompile(`(?m)^ARG SHERPA_ONNX_VERSION=(\S+)\s*$`).FindStringSubmatch(src)
+	if m == nil {
+		t.Fatal("ARG SHERPA_ONNX_VERSION absent")
 	}
-	src := string(b)
-	var avecCuda bool
-	for nom, txt := range etapesWhisperbuild(t) {
-		if strings.Contains(txt, "-DGGML_CUDA=ON") {
-			avecCuda = true
-			_ = nom
-		}
-	}
-	if !avecCuda {
-		t.Error("aucune étape whisperbuild ne passe -DGGML_CUDA=ON : la dictée ne pourra jamais utiliser le GPU")
-	}
-	for _, bin := range []string{"whisper-server-cpu", "whisper-server-cuda"} {
-		if !strings.Contains(src, "/usr/local/bin/"+bin) {
-			t.Errorf("le runtime ne reçoit pas %s — dictate_server.go le cherche à cet emplacement", bin)
-		}
+	if !regexp.MustCompile(`^v\d+\.\d+\.\d+$`).MatchString(m[1]) {
+		t.Errorf("version de sherp-onnx non épinglée : %q", m[1])
 	}
 }
 
-// L'étape CUDA doit être bâtie avec un nvcc qui CONNAÎT les GPU visés. CUDA
-// 12.4 ignore Blackwell (RTX 50xx, sm_120) : il refuse l'architecture, et le
-// binaire ne tournerait au mieux que par recompilation PTX au chargement.
-// 12.8 est le plancher, et c'est aussi la version avec laquelle llama.cpp bâtit
-// l'image amont qui fournit libcudart.
-func TestDockerfileCudaAssezRecent(t *testing.T) {
-	const majeurMin, mineurMin = 12, 8
-	trouve := false
-	for nom, txt := range etapesWhisperbuild(t) {
-		m := regexp.MustCompile(`nvidia/cuda:(\d+)\.(\d+)`).FindStringSubmatch(txt)
-		if m == nil {
-			continue
-		}
-		trouve = true
-		maj, _ := strconv.Atoi(m[1])
-		min, _ := strconv.Atoi(m[2])
-		if maj < majeurMin || (maj == majeurMin && min < mineurMin) {
-			t.Errorf("étape %s : CUDA %s.%s — trop ancien pour Blackwell (sm_120), il faut au moins %d.%d",
-				nom, m[1], m[2], majeurMin, mineurMin)
-		}
-		// Sans borne d'architectures, ggml compile de Maxwell à Blackwell :
-		// chaque architecture multiplie le temps de compilation, et le build
-		// dépassait quarante minutes.
-		if !strings.Contains(txt, "CMAKE_CUDA_ARCHITECTURES") {
-			t.Errorf("étape %s : aucune borne CMAKE_CUDA_ARCHITECTURES — la compilation vise toutes les architectures connues", nom)
-		}
-	}
-	if !trouve {
-		t.Error("aucune étape whisperbuild ne part d'une image nvidia/cuda")
-	}
-}
-
-// L'ARG qui porte les drapeaux doit être déclaré AVANT le premier FROM. Un ARG
-// posé entre deux étapes appartient à l'étape où il apparaît ; les « ARG » nus
-// des étapes whisperbuild-* héritent alors du scope global — vide. cmake a
-// tourné sans aucun drapeau : ggml en bibliothèques partagées (échec de lien),
-// et -march=native — le SIGILL de la PR #18 revenu en silence. 51 minutes de
-// build pour le découvrir.
+// Régression (héritée de whisper) : un ARG déclaré APRÈS le premier FROM
+// n'appartient qu'à l'étape où il apparaît. Les « ARG SHERPA_* » nus de l'étape
+// asrfetch hériteraient alors d'une valeur vide — URL tronquée, build cassé, et
+// la cause invisible dans le journal.
 func TestDockerfileArgFlagsGlobal(t *testing.T) {
-	b, err := os.ReadFile("../../Dockerfile")
-	if err != nil {
-		t.Fatalf("lecture du Dockerfile : %v", err)
-	}
-	src := string(b)
+	src := dockerfileSrc(t)
+	fromLoc := regexp.MustCompile(`(?m)^FROM `).FindStringIndex(src)
 	// Ancré en début de ligne : une occurrence dans un commentaire ne compte
 	// pas — c'est précisément ainsi qu'une première version de ce test s'est
 	// laissée berner par sa propre contre-épreuve.
-	argLoc := regexp.MustCompile(`(?m)^ARG WHISPER_CMAKE_FLAGS=`).FindStringIndex(src)
-	fromLoc := regexp.MustCompile(`(?m)^FROM `).FindStringIndex(src)
-	if argLoc == nil {
-		t.Fatal("ARG WHISPER_CMAKE_FLAGS= introuvable dans le Dockerfile")
-	}
-	if fromLoc != nil && argLoc[0] > fromLoc[0] {
-		t.Error("ARG WHISPER_CMAKE_FLAGS= est déclaré APRÈS un FROM : les étapes whisperbuild-* hériteront d'une valeur vide et cmake tournera sans aucun drapeau")
+	for _, arg := range []string{"SHERPA_ONNX_VERSION", "SHERPA_ONNX_SHA256"} {
+		loc := regexp.MustCompile(`(?m)^ARG ` + arg + `=`).FindStringIndex(src)
+		if loc == nil {
+			t.Errorf("ARG %s= introuvable dans le Dockerfile", arg)
+			continue
+		}
+		if fromLoc != nil && loc[0] > fromLoc[0] {
+			t.Errorf("ARG %s= est déclaré APRÈS un FROM : l'étape asrfetch héritera d'une valeur vide", arg)
+		}
 	}
 }
 
-func clefs(m map[string]string) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+// Le chemin du binaire est lu depuis LOKI_ASR_SERVER (asrServerBin) : l'image
+// doit poser la variable ET copier le binaire à cette adresse, sinon la dictée
+// échoue au premier clic sur le micro avec « serveur de dictée introuvable ».
+func TestDockerfileASRBinaireEtVariableConcordent(t *testing.T) {
+	src := dockerfileSrc(t)
+	const chemin = "/usr/local/bin/sherpa-onnx-offline-websocket-server"
+	if !strings.Contains(src, "COPY --from=asrfetch /out/sherpa-onnx-offline-websocket-server "+chemin) {
+		t.Errorf("le binaire de dictée n'est pas copié vers %s", chemin)
 	}
-	return out
+	if !strings.Contains(src, "LOKI_ASR_SERVER="+chemin) {
+		t.Errorf("LOKI_ASR_SERVER ne pointe pas sur %s", chemin)
+	}
+}
+
+// whisper.cpp est parti : plus aucune étape ne doit le compiler, et aucune
+// variable ne doit prétendre le trouver. Un reste ferait rebâtir 35 minutes de
+// CUDA pour un binaire que plus personne n'exécute.
+func TestDockerfileSansWhisper(t *testing.T) {
+	src := dockerfileSrc(t)
+	for _, motif := range []string{"whisperbuild", "whisper-server", "LOKI_WHISPER_SERVER", "WHISPER_CMAKE_FLAGS"} {
+		// Les commentaires ont le droit de mentionner l'histoire ; les
+		// instructions, non. On ne regarde donc que les lignes actives.
+		for _, ligne := range strings.Split(src, "\n") {
+			l := strings.TrimSpace(ligne)
+			if l == "" || strings.HasPrefix(l, "#") {
+				continue
+			}
+			if strings.Contains(l, motif) {
+				t.Errorf("reste de whisper dans une instruction du Dockerfile (%s) : %s", motif, l)
+			}
+		}
+	}
 }
 
 func TestLastLine(t *testing.T) {
@@ -193,7 +109,7 @@ func TestLastLine(t *testing.T) {
 		{"", ""},
 		{"   \n\n  ", ""},
 		{"une seule ligne", "une seule ligne"},
-		{"AMX is not ready to be used!\nread_audio_data: ...\n", "read_audio_data: ..."},
+		{"erreur fatale\nderniere ligne utile\n", "derniere ligne utile"},
 		{"fin utile\n\n   \n", "fin utile"},
 	}
 	for _, c := range cas {

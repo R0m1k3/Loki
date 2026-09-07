@@ -15,16 +15,15 @@
 ARG LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:server-cuda
 
 # ⚠️ AVANT le premier FROM, obligatoirement. Un ARG posé entre deux étapes
-# appartient à l'étape où il apparaît ; les « ARG WHISPER_CMAKE_FLAGS » nus des
-# étapes whisperbuild-* héritent du scope GLOBAL — c'est-à-dire d'ici. Placé
-# plus bas, ils héritaient d'une valeur VIDE : cmake tournait sans aucun
-# drapeau, ggml se construisait en bibliothèques partagées (échec de lien sur
-# libcuda.so.1) et surtout en -march=native — le SIGILL de la PR #18 revenu en
-# silence. Un test (TestDockerfileArgFlagsGlobal) verrouille cette position.
-ARG WHISPER_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-    -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON \
-    -DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AMX_TILE=OFF \
-    -DGGML_AMX_INT8=OFF -DGGML_AMX_BF16=OFF"
+# appartient à l'étape où il apparaît ; les « ARG SHERPA_* » nus de l'étape
+# asrfetch héritent du scope GLOBAL — c'est-à-dire d'ici. Placés plus bas, ils
+# hériteraient d'une valeur VIDE, et l'étape téléchargerait une URL tronquée.
+# Un test (TestDockerfileArgFlagsGlobal) verrouille cette position.
+#
+# La version est ÉPINGLÉE, et l'empreinte avec : le binaire de dictée est
+# exécuté sur la machine de l'utilisateur, il ne se prend pas « au dernier ».
+ARG SHERPA_ONNX_VERSION=v1.13.7
+ARG SHERPA_ONNX_SHA256=2aa3965b37aa235e56aa3ebbb94942c20a23960059a006b4442b4bf893967983
 
 # ── Étape 1 : binaire Go loki ───────────────────────────────────────────
 FROM golang:1.25 AS gobuild
@@ -43,77 +42,37 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
 # limité à cette étape de build.
 RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 
-# ── Étape 1 bis : whisper-server (dictée vocale) ────────────────────────
-# DEUX binaires sont construits, pas un. LLAMACPP_IMAGE accepte la variante
-# CPU de l'image amont (voir ligne 11) : sur cette base, les bibliothèques
-# CUDA sont absentes et un binaire lié à CUDA ne démarre pas du tout —
-# l'éditeur de liens échoue avant la première instruction, donc aucun repli
-# n'est possible depuis l'intérieur du programme. Loki choisit à l'exécution
-# (whisperServerBin, dictate_server.go).
+# ── Étape 1 bis : serveur de dictée (Parakeet via sherpa-onnx) ──────────
+# On TÉLÉCHARGE un binaire préconstruit, on ne compile plus rien. C'est le
+# changement de fond par rapport à whisper.cpp, qu'il remplace : deux étapes de
+# compilation (dont une CUDA de ~200 fichiers nvcc, tuée par l'OOM du runner
+# plus d'une fois) laissent place à une extraction de 35 Mo.
 #
-# whisper-server et non whisper-cli : le modèle reste chargé entre deux
-# dictées. L'ancien chemin le relisait depuis le disque à chaque phrase, ce
-# qui dominait le temps de réponse.
+# Le build « static-no-tts » lie sherpa-onnx ET onnxruntime en statique : rien à
+# fournir côté image en dehors de la libc et de libstdc++, déjà présentes. Il
+# n'existe qu'en variante CPU — c'est assumé : un modèle de 0,6 B en int8 sur
+# des tranches de quelques secondes n'a pas besoin de la carte, qui reste au
+# moteur de chat. La variante CUDA existe mais tirerait onnxruntime-gpu et
+# cuDNN dans l'image, pour un gain sans intérêt à cette taille de tranche.
 #
-# ⚠️ GGML_NATIVE=OFF est OBLIGATOIRE sur LES DEUX cibles. Par défaut ggml
-# compile en -march=native, c'est-à-dire pour le processeur DU RUNNER DE
-# BUILD — un Xeon récent chez GitHub, avec AVX-512 et AMX. Le binaire partait
-# alors sur une machine qui n'a pas ces instructions et mourait d'un SIGILL en
-# pleine transcription : « AMX is not ready to be used! », puis plus rien,
-# l'interface affichant un échec sans raison. OFF retombe sur la ligne de base
-# AVX2/FMA/F16C de ggml, présente sur tout x86-64 depuis 2013.
-# Ubuntu 22.04 : glibc plus ancienne que l'image runtime, donc compatible quoi
-# qu'elle embarque.
-FROM ubuntu:22.04 AS whisperbuild-cpu
-ARG WHISPER_CMAKE_FLAGS
+# L'empreinte est vérifiée : le binaire s'exécute sur la machine de
+# l'utilisateur, une release remplacée en amont ne doit pas passer en silence.
+FROM debian:12-slim AS asrfetch
+ARG SHERPA_ONNX_VERSION
+ARG SHERPA_ONNX_SHA256
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake git ca-certificates \
+        curl ca-certificates bzip2 \
     && rm -rf /var/lib/apt/lists/*
-# Le grep final vérifie que ggml est bien lié EN STATIQUE : l'image finale ne
-# reçoit que le binaire, une .so ggml manquante ne se verrait qu'au premier
-# clic sur le micro. Des libs partagées ici = drapeaux non transmis.
-RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
-    && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} \
-    && cmake --build /w/build -j"$(nproc)" --target whisper-server \
-    && ( ! ldd /w/build/bin/whisper-server | grep -E "libggml|libwhisper" )
-
-# Version CUDA : la MÊME que celle de l'image amont (llama.cpp bâtit avec
-# CUDA 12.8.1 sur Ubuntu 24.04). Le binaire est lié dynamiquement à libcudart,
-# fournie par LLAMACPP_IMAGE et non par cette étape.
-#
-# ⚠️ 12.8 est un PLANCHER, pas un détail de version. Les GPU Blackwell
-# (RTX 50xx, sm_120) n'existent pas pour un nvcc 12.4 : il refuse l'archi, et
-# à défaut le binaire ne tourne que par recompilation PTX au chargement, quand
-# elle est possible.
-#
-# ⚠️ -j"$(nproc)" et JAMAIS -j nu. Avec Make, « -j » sans nombre autorise un
-# parallélisme ILLIMITÉ. ggml-cuda compte ~200 fichiers d'instanciation de
-# gabarits, et chaque nvcc réclame 1 à 2 Go : le runner GitHub (16 Go) était
-# tué par l'OOM après avoir lancé 92 % des compilations en treize secondes,
-# sans écrire la moindre ligne d'erreur. L'étape CPU y survivait — peu de
-# fichiers, compilation légère — ce qui rendait le piège invisible jusqu'ici.
-#
-# CUDA_ARCHS borne le travail : ggml compile sinon pour TOUTES les
-# architectures qu'il connaît, de Maxwell à Blackwell, et chacune multiplie le
-# temps de compilation. La liste par défaut couvre Turing à Blackwell
-# (RTX 20xx → 50xx) ; l'élargir pour un GPU plus ancien se fait sans toucher
-# au fichier : --build-arg CUDA_ARCHS="61;75;86".
-FROM nvidia/cuda:12.8.1-devel-ubuntu24.04 AS whisperbuild-cuda
-ARG WHISPER_CMAKE_FLAGS
-ARG CUDA_ARCHS="75;86;89;120"
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-# Même vérification statique que l'étape CPU. libcuda.so.1 (le PILOTE) reste
-# elle une dépendance dynamique normale : absente du runner de build, injectée
-# à l'exécution par le NVIDIA Container Toolkit — l'édition de liens la
-# résout via les stubs du toolkit.
-RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /w \
-    && cmake -S /w -B /w/build ${WHISPER_CMAKE_FLAGS} -DGGML_CUDA=ON \
-         -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHS}" \
-    && cmake --build /w/build -j"$(nproc)" --target whisper-server \
-    && strip /w/build/bin/whisper-server \
-    && ( ! ldd /w/build/bin/whisper-server | grep -E "libggml|libwhisper" )
+RUN set -eu; \
+    nom="sherpa-onnx-${SHERPA_ONNX_VERSION}-linux-x64-static-no-tts"; \
+    curl -fsSL -o /tmp/sherpa.tar.bz2 \
+      "https://github.com/k2-fsa/sherpa-onnx/releases/download/${SHERPA_ONNX_VERSION}/${nom}.tar.bz2"; \
+    echo "${SHERPA_ONNX_SHA256}  /tmp/sherpa.tar.bz2" | sha256sum -c -; \
+    mkdir -p /out; \
+    tar -xjf /tmp/sherpa.tar.bz2 -C /out --strip-components=2 \
+      "${nom}/bin/sherpa-onnx-offline-websocket-server"; \
+    chmod +x /out/sherpa-onnx-offline-websocket-server; \
+    /out/sherpa-onnx-offline-websocket-server --help >/dev/null 2>&1 || true
 
 # ── Étape 2 : runtime sur l'image serveur CUDA officielle ───────────────
 FROM ${LLAMACPP_IMAGE} AS runtime
@@ -168,11 +127,9 @@ RUN if [ "$PLAYWRIGHT" = "1" ]; then \
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
 COPY --from=gobuild /out/gopls /usr/local/bin/gopls
-# Dictée vocale (POST /api/transcribe). Les modèles (190 Mo à 1,1 Go) ne sont
-# PAS dans l'image : téléchargés à la demande dans /data/whisper/.
-# Deux binaires : voir l'étape whisperbuild-cpu pour la raison.
-COPY --from=whisperbuild-cpu  /w/build/bin/whisper-server /usr/local/bin/whisper-server-cpu
-COPY --from=whisperbuild-cuda /w/build/bin/whisper-server /usr/local/bin/whisper-server-cuda
+# Dictée vocale (POST /api/transcribe). Le modèle (~500 Mo) n'est PAS dans
+# l'image : téléchargé à la demande dans /data/asr/.
+COPY --from=asrfetch /out/sherpa-onnx-offline-websocket-server /usr/local/bin/sherpa-onnx-offline-websocket-server
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data /models
 
@@ -181,8 +138,7 @@ ENV LOKI_CONTAINER=1 \
     LOKI_HOME=/data \
     LOKI_MODEL_DIRS=/models \
     LOKI_ENGINE_BIN=/app/llama-server \
-    LOKI_WHISPER_SERVER_CPU=/usr/local/bin/whisper-server-cpu \
-    LOKI_WHISPER_SERVER_CUDA=/usr/local/bin/whisper-server-cuda \
+    LOKI_ASR_SERVER=/usr/local/bin/sherpa-onnx-offline-websocket-server \
     LD_LIBRARY_PATH=/app \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility

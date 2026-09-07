@@ -198,7 +198,7 @@ func handleVramUnload(w http.ResponseWriter, r *http.Request) {
 	// « vite » : ne jamais attendre derrière un démarrage de la dictée, qui
 	// peut tenir le verrou deux minutes — le navigateur aurait abandonné bien
 	// avant, moteur pourtant déjà arrêté.
-	whisperShutdownVite()
+	asrShutdownVite()
 
 	after := before
 	if gpus != nil {

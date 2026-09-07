@@ -15,12 +15,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # L'image runtime CUDA de llama.cpp (~4 Go) et Chromium/Playwright
+      # (~1 Go) tiennent large dans les ~14 Go libres d'un runner neuf, mais
+      # ces trois répertoires ne servent à rien ici et rendent une dizaine de
+      # gigaoctets en moins d'une minute. Gardé depuis l'époque où l'image
+      # compilait whisper.cpp avec CUDA : la marge reste bonne à prendre.
 
-      # Depuis que l'image compile whisper.cpp avec CUDA, le build empile
-      # nvidia/cuda:*-devel (~6 Go), l'image runtime CUDA de llama.cpp (~4 Go)
-      # et Chromium/Playwright (~1 Go) — pour ~14 Go libres sur un runner neuf.
-      # Ces trois répertoires ne servent à rien ici et rendent une dizaine de
-      # gigaoctets en moins d'une minute.
       - name: Libérer de l'espace disque
         run: |
           df -h /
@@ -56,8 +56,8 @@ jobs:
             LOKI_VERSION=${{ github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Le cache de couches réutilise les étapes whisperbuild-* (compilation
-          # whisper.cpp CUDA, ~35 min) tant que leurs lignes du Dockerfile ne
-          # bougent pas : seul le code Go et l'assemblage de l'image se refont.
+          # Le cache de couches réutilise l'étape asrfetch (téléchargement du
+          # binaire de dictée) tant que ses lignes du Dockerfile ne bougent
+          # pas : seul le code Go et l'assemblage de l'image se refont.
           cache-from: type=gha
           cache-to: type=gha,mode=max

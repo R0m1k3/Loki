@@ -9,7 +9,7 @@ import (
 
 func TestConfigRouteAllerRetour(t *testing.T) {
 	testHome(t)
-	corps := strings.NewReader(`{"model":"small-q5_1","lang":"en","device":"1","reactivity":"court"}`)
+	corps := strings.NewReader(`{"model":"parakeet-tdt-0.6b-v2","reactivity":"court"}`)
 	rec := httptest.NewRecorder()
 	handleDictateConfig(rec, httptest.NewRequest("POST", "/api/dictate/config", corps))
 	if rec.Code != 200 {
@@ -21,7 +21,7 @@ func TestConfigRouteAllerRetour(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("réponse illisible : %v", err)
 	}
-	if got.Device != "1" || got.Lang != "en" || got.Model != "small-q5_1" || got.Reactivity != "court" {
+	if got.Model != "parakeet-tdt-0.6b-v2" || got.Reactivity != "court" {
 		t.Errorf("relu %+v, attendu le réglage enregistré", got)
 	}
 }
@@ -30,7 +30,7 @@ func TestConfigRouteAllerRetour(t *testing.T) {
 // un 200 et croit son réglage pris en compte.
 func TestConfigRouteRefuseModeleInconnu(t *testing.T) {
 	testHome(t)
-	corps := strings.NewReader(`{"model":"nawak","lang":"fr","device":"cpu","reactivity":"moyen"}`)
+	corps := strings.NewReader(`{"model":"nawak","reactivity":"moyen"}`)
 	rec := httptest.NewRecorder()
 	handleDictateConfig(rec, httptest.NewRequest("POST", "/api/dictate/config", corps))
 	if rec.Code == 200 {
@@ -58,12 +58,12 @@ func TestModelsRoute(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &l); err != nil {
 		t.Fatalf("réponse illisible : %v", err)
 	}
-	if len(l) < 4 {
-		t.Errorf("%d modèles renvoyés, au moins 4 attendus", len(l))
+	if len(l) < 2 {
+		t.Errorf("%d modèles renvoyés, au moins 2 attendus", len(l))
 	}
 }
 
-// Un identifiant inconnu ne doit pas lancer de téléchargement : whisperDownload
+// Un identifiant inconnu ne doit pas lancer de téléchargement : asrDownload
 // bâtirait une URL vide et le message d'erreur n'arriverait qu'en arrière-plan.
 func TestDownloadRouteRefuseInconnu(t *testing.T) {
 	testHome(t)
@@ -93,7 +93,7 @@ func TestStateRoute(t *testing.T) {
 	}
 }
 
-// Un audio trop court est rejeté AVANT toute tentative de lancer whisper-server :
+// Un audio trop court est rejeté AVANT toute tentative de lancer le serveur :
 // inutile de charger un modèle pour un clic parasite.
 func TestTranscribeAudioTropCourt(t *testing.T) {
 	testHome(t)

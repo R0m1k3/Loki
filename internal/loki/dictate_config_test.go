@@ -2,86 +2,77 @@ package loki
 
 import (
 	"testing"
-	"time"
 )
 
-func TestDictateCfgDefauts(t *testing.T) {
+// Les défauts sont appliqués à la LECTURE : un réglage enregistré par une
+// version antérieure, sans le champ, doit être comblé plutôt que de produire un
+// modèle vide passé en argument au serveur.
+func TestDefautsCombles(t *testing.T) {
+	testHome(t)
 	c := DictateCfg{}.withDefauts()
-	if c.Model != "large-v3-turbo-q5_0" {
-		t.Errorf("modèle par défaut = %q, attendu large-v3-turbo-q5_0", c.Model)
+	if _, ok := asrCatalogue[c.Model]; !ok {
+		t.Errorf("modèle par défaut %q hors catalogue", c.Model)
 	}
-	if c.Lang != "fr" {
-		t.Errorf("langue par défaut = %q, attendu fr — la détection auto se trompe sur les tranches courtes", c.Lang)
-	}
-	if c.Device != "cpu" {
-		t.Errorf("matériel par défaut = %q, attendu cpu (aucun GPU supposé)", c.Device)
-	}
-	if c.Reactivity != "moyen" {
-		t.Errorf("réactivité par défaut = %q, attendu moyen", c.Reactivity)
+	if c.Reactivity == "" {
+		t.Error("réactivité par défaut vide")
 	}
 }
 
-func TestCudaVisibleDevices(t *testing.T) {
-	cas := []struct{ device, want string }{
-		{"cpu", ""},
-		{"0", "0"},
-		{"1", "1"},
-		{"", ""},
-		{"bidon", ""},
-		{"-1", ""},
+// Le passage de whisper à Parakeet laisse des réglages enregistrés dont le
+// Model ne veut plus rien dire (« large-v3-turbo-q5_0 »). Ils doivent retomber
+// sur le défaut, sans quoi la dictée serait morte après mise à jour, avec pour
+// seul indice « modèle de dictée inconnu » au premier clic sur le micro.
+func TestModeleWhisperHeriteRetombeSurLeDefaut(t *testing.T) {
+	testHome(t)
+	c := DictateCfg{Model: "large-v3-turbo-q5_0", Reactivity: "court"}.withDefauts()
+	if _, ok := asrCatalogue[c.Model]; !ok {
+		t.Fatalf("modèle hérité %q non corrigé", c.Model)
 	}
-	for _, c := range cas {
-		got := DictateCfg{Device: c.device}.cudaVisibleDevices()
-		if got != c.want {
-			t.Errorf("cudaVisibleDevices(%q) = %q, attendu %q", c.device, got, c.want)
-		}
+	if c.Reactivity != "court" {
+		t.Errorf("réactivité = %q, elle devait être conservée", c.Reactivity)
 	}
 }
 
+// Valider à l'ÉCRITURE : un modèle hors catalogue accepté en silence ne se
+// manifesterait qu'au premier clic sur le micro, loin du geste qui l'a causé.
+func TestSaveRefuseModeleInconnu(t *testing.T) {
+	testHome(t)
+	if err := dictateCfgSave(DictateCfg{Model: "nawak", Reactivity: "moyen"}); err == nil {
+		t.Error("un modèle hors catalogue a été accepté")
+	}
+}
+
+func TestSaveLoadAllerRetour(t *testing.T) {
+	testHome(t)
+	want := DictateCfg{Model: "parakeet-tdt-0.6b-v2", Reactivity: "long"}
+	if err := dictateCfgSave(want); err != nil {
+		t.Fatal(err)
+	}
+	if got := dictateCfgLoad(); got != want {
+		t.Errorf("relu %+v, attendu %+v", got, want)
+	}
+}
+
+// Les bornes de découpage pilotent la latence perçue : plus la réserve est
+// courte, plus le texte arrive vite, au prix d'un contexte plus maigre pour le
+// modèle. L'ordre entre les trois réglages est ce qui doit tenir.
 func TestChunkBounds(t *testing.T) {
-	cas := []struct {
-		react    string
-		min, max time.Duration
-	}{
-		{"court", 1000 * time.Millisecond, 5 * time.Second},
-		{"moyen", 1500 * time.Millisecond, 8 * time.Second},
-		{"long", 3 * time.Second, 15 * time.Second},
-		{"inconnu", 1500 * time.Millisecond, 8 * time.Second},
+	court, _ := DictateCfg{Reactivity: "court"}.chunkBounds()
+	moyen, _ := DictateCfg{Reactivity: "moyen"}.chunkBounds()
+	long, longMax := DictateCfg{Reactivity: "long"}.chunkBounds()
+	if !(court < moyen && moyen < long) {
+		t.Errorf("réserves non croissantes : court=%v moyen=%v long=%v", court, moyen, long)
 	}
-	for _, c := range cas {
-		min, max := DictateCfg{Reactivity: c.react}.chunkBounds()
-		if min != c.min || max != c.max {
-			t.Errorf("chunkBounds(%q) = %v/%v, attendu %v/%v", c.react, min, max, c.min, c.max)
-		}
+	if longMax <= long {
+		t.Error("la coupure forcée doit être plus grande que la réserve minimale")
 	}
-}
-
-func TestDictateCfgAllerRetour(t *testing.T) {
-	testHome(t)
-	in := DictateCfg{Model: "medium-q5_0", Lang: "en", Device: "1", Reactivity: "long"}
-	if err := dictateCfgSave(in); err != nil {
-		t.Fatalf("enregistrement : %v", err)
+	// Une valeur inconnue doit retomber sur le réglage moyen, pas sur zéro : une
+	// réserve nulle couperait à chaque échantillon.
+	inconnu, _ := DictateCfg{Reactivity: "nawak"}.chunkBounds()
+	if inconnu != moyen {
+		t.Errorf("réactivité inconnue = %v, attendu le réglage moyen %v", inconnu, moyen)
 	}
-	if out := dictateCfgLoad(); out != in {
-		t.Errorf("relu %+v, attendu %+v", out, in)
-	}
-}
-
-// Un modèle hors catalogue accepté en silence ne se manifesterait qu'au premier
-// clic sur le micro, loin du geste qui l'a causé.
-func TestDictateCfgSaveRefuseModeleInconnu(t *testing.T) {
-	testHome(t)
-	if err := dictateCfgSave(DictateCfg{Model: "modele-inexistant", Lang: "fr", Device: "cpu", Reactivity: "moyen"}); err == nil {
-		t.Error("un modèle hors catalogue doit être refusé")
-	}
-}
-
-// Sans réglage enregistré, la lecture doit rendre les défauts — et non le zéro
-// de la structure, qui donnerait un modèle vide à whisper-server.
-func TestDictateCfgLoadSansRien(t *testing.T) {
-	testHome(t)
-	c := dictateCfgLoad()
-	if c.Model == "" || c.Lang == "" || c.Device == "" || c.Reactivity == "" {
-		t.Errorf("lecture à vide = %+v, aucun champ ne doit rester vide", c)
+	if inconnu <= 0 {
+		t.Error("réserve nulle : la dictée couperait à chaque échantillon")
 	}
 }

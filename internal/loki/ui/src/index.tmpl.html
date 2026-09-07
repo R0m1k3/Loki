@@ -51,6 +51,14 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <span id="status-svc" class="statuspill" onclick="toggleSvcLog()" title="voir le journal du moteur">…</span>
   </div>
   <div id="side-scroll">
+  <!-- Projet actif : il gouverne la mémoire, les trackers ET la liste des
+       discussions en dessous. Posé AU-DESSUS d'elles parce qu'il les contient —
+       changer de projet change la liste. Le bouton ouvre le panneau de gestion
+       (créer, renommer, décrire, supprimer), geste bien plus rare que la bascule. -->
+  <div class="projrow">
+    <select id="proj-switch" onchange="onProjectSwitch(this)" title="projet actif — mémoire, trackers et discussions cloisonnés" aria-label="projet actif"></select>
+    <button class="preset-add" onclick="openSettings('projets')" title="gérer les projets" aria-label="gérer les projets"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+  </div>
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
        d'origine) : basculer ici bascule partout.
@@ -165,7 +173,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <option value="high">haute</option>
         <option value="xhigh">maximale</option>
       </select>
-      <!-- Dictée vocale : enregistre au micro, transcrit en local (whisper.cpp
+      <!-- Dictée vocale : enregistre au micro, transcrit en local (Parakeet
            côté serveur) et pose le texte dans le champ. Voir js/23-dictate.js.
            Le navigateur n'autorise le micro qu'en HTTPS (ou localhost). -->
       <button id="mic" onclick="dictateToggle()" title="dicter au micro" aria-label="dicter au micro">
@@ -250,6 +258,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <div class="set-shell">
       <nav class="set-nav" id="set-nav" aria-label="sections des réglages">
         <div class="set-nav-h">Intelligence artificielle</div>
+        <button data-pane="projets" onclick="settingsShow('projets')">Projets</button>
         <button data-pane="config" onclick="settingsShow('config')">Config active</button>
         <button data-pane="presets" onclick="settingsShow('presets')">Presets</button>
         <button data-pane="agent" onclick="settingsShow('agent')"><span>Mode agent</span><span id="agent-badge" class="sbadge"></span></button>
@@ -278,6 +287,19 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       <span class="io-cap">Emplacements</span>
     </div>
     <div id="paths-msg" class="muted" style="font-size:10px;line-height:1.5"></div>
+  </section>
+  <!-- Projets : un chantier = une mémoire, ses discussions et ses trackers. La
+       BASCULE se fait dans la barre latérale (geste quotidien) ; ici on gère
+       (créer, décrire, renommer, supprimer), ce qui est rare. -->
+  <section class="set-pane" data-pane="projets">
+    <div class="set-pane-h"><span>Projets</span></div>
+    <div class="muted" style="font-size:12px;line-height:1.5;margin:0 2px 8px">Chaque projet a sa <b>mémoire</b>, ses <b>discussions</b> et ses <b>trackers</b>, séparés des autres. La <b>description</b> est donnée à l'IA au début de chaque discussion du projet : elle sait sur quoi elle travaille sans qu'on le lui réexplique.</div>
+    <div class="slist">
+      <div class="rowbody">
+        <div id="proj-list" class="mcp-list"></div>
+        <button class="addbtn" style="margin-top:6px" onclick="newProject()">+ ajouter un projet</button>
+      </div>
+    </div>
   </section>
   <section class="set-pane" data-pane="config" id="cfg-details">
     <div class="set-pane-h"><span>Config active</span></div>
@@ -315,6 +337,16 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <input id="mem-search" class="mem-search" type="search" placeholder="filtrer la mémoire…" oninput="renderMemList()" style="margin:0">
           </div>
           <div id="mem-list" class="mem-list rowlist muted" style="font-size:12px"></div>
+        </div>
+        <!-- Trackers : le 3e type de mémoire. Rangé sous « Mémoire » parce que
+             c'en est une — mais séparé des pages, parce qu'on ne les lit pas
+             pareil : une page se lit en entier, un tracker jamais. -->
+        <div id="track-bar" class="pages-bar" onclick="toggleTrackers()">
+          <span class="pages-title">Trackers <span id="track-count" class="mem-count"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Données <b>datées qui s'accumulent</b> : compteurs, relevés, journaux d'événements (poids, abonnés, relevés de compteur…). L'IA y ajoute des points et les consulte par niveaux — jamais en entier, quelle que soit l'ancienneté. La <b>dernière valeur</b> de chaque tracker lui est donnée d'emblée : elle répond sans appeler d'outil.</span></span></span>
+          <button class="addbtn" onclick="event.stopPropagation();newTracker()" title="créer un tracker">+ ajouter</button>
+        </div>
+        <div id="track-body" hidden>
+          <div id="track-list" class="mem-list rowlist muted" style="font-size:12px"></div>
         </div>
       </div>
     </div>
@@ -470,18 +502,12 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       </div>
     </div></div>
   </section>
-  <!-- Dictée vocale. Réglages de SERVEUR : le modèle chargé et le GPU occupé
-       sont des propriétés de la machine, identiques pour tous les onglets.
+  <!-- Dictée vocale. Réglages de SERVEUR : le modèle chargé est une propriété
+       de la machine, identique pour tous les onglets.
        Voir js/24-dictate-settings.js et internal/loki/dictate_*.go. -->
   <section class="set-pane" data-pane="dictee">
     <div class="set-pane-h"><span>Dictée</span></div>
-    <div class="subhead">Matériel<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">whisper tourne dans un processus séparé, allumé au premier clic sur le micro et éteint après <b>dix minutes</b> sans dictée — il ne garde pas la VRAM occupée pour rien. Le GPU choisi est transmis par <code>CUDA_VISIBLE_DEVICES</code>.</span></span></div>
-    <div class="slist">
-      <label class="switchrow"><span>processeur ou GPU</span>
-        <select id="dic-device" class="sctl"></select>
-      </label>
-    </div>
-    <div class="subhead">Modèle<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Les modèles ne sont <b>pas</b> dans l'image : ils sont téléchargés à la demande dans <code>/data/whisper/</code> et survivent aux recréations du conteneur. Plus le modèle est gros, mieux il comprend — et plus il occupe de mémoire.</span></span></div>
+    <div class="subhead">Modèle<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Transcription par <b>Parakeet</b> (NVIDIA), servie par sherpa-onnx. Le modèle n'est <b>pas</b> dans l'image : il est téléchargé à la demande dans <code>/data/asr/</code> et survit aux recréations du conteneur. Il tourne dans un processus séparé, allumé au premier clic sur le micro et éteint après <b>dix minutes</b> sans dictée. Sur le <b>processeur</b> : la carte reste au moteur de chat, et un modèle de cette taille n'en a pas besoin sur des tranches de quelques secondes.</span></span></div>
     <div class="slist">
       <label class="switchrow"><span>modèle</span>
         <select id="dic-model" class="sctl"></select>
@@ -491,18 +517,8 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <span id="dic-dl-state" class="dim"></span>
       </div>
     </div>
-    <div class="subhead">Reconnaissance</div>
+    <div class="subhead">Reconnaissance<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Il n'y a pas de réglage de <b>langue</b> : Parakeet la détecte lui-même, phrase par phrase. Le modèle v3 couvre 25 langues européennes dont le français ; le v2 ne comprend que l'anglais.</span></span></div>
     <div class="slist">
-      <label class="switchrow"><span>langue</span>
-        <select id="dic-lang" class="sctl">
-          <option value="fr">français</option>
-          <option value="en">anglais</option>
-          <option value="de">allemand</option>
-          <option value="es">espagnol</option>
-          <option value="it">italien</option>
-          <option value="auto">détection automatique</option>
-        </select>
-      </label>
       <label class="switchrow"><span>réactivité<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Longueur des tranches transcrites au fil de la dictée. Court = le texte arrive plus tôt, avec moins de contexte donc plus d'erreurs. Long = mieux reconnu, mais plus d'attente.</span></span></span>
         <select id="dic-react" class="sctl">
           <option value="court">court</option>
@@ -702,6 +718,29 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     </div>
   </div>
 </div>
+<!-- Détail d'un tracker : ses points, du plus récent au plus ancien. La LISTE
+     (panneau Mémoire) ne charge jamais les points — un tracker peut en compter
+     des milliers ; ils n'arrivent qu'ici, à l'ouverture. -->
+<div id="track-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeTracker()">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-head">
+      <strong id="track-modal-title">Tracker</strong>
+      <button class="modal-x" onclick="closeTracker()" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="track-events" class="mcp-list"></div>
+      <button class="addbtn" style="margin-top:6px" onclick="addTrackerPoint()">+ ajouter un point</button>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-l">
+        <button onclick="renameTracker()">renommer</button>
+        <button onclick="moveTracker()">déplacer</button>
+        <button class="danger" onclick="deleteTracker()">supprimer</button>
+      </div>
+      <div class="foot-r"><button onclick="closeTracker()">fermer</button></div>
+    </div>
+  </div>
+</div>
 <div id="lc-custom-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeCustomBackends()">
   <div class="modal-card" style="max-width:560px">
     <div class="modal-head">
@@ -838,6 +877,13 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <div class="pe-row">
             <span class="pe-row-l">Modèle utilisé</span>
             <span class="pe-row-c"><span class="pe-selc"><select id="task-preset"></select></span></span>
+          </div>
+          <!-- Projet visé : gouverne la MÉMOIRE et les TRACKERS que la tâche voit
+               quand elle s'exécute, pas sa visibilité — le panneau reste global,
+               sinon une tâche semblerait déplanifiée en changeant de projet. -->
+          <div class="pe-row">
+            <span class="pe-row-l">Projet visé</span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="task-project"></select></span></span>
           </div>
         </div>
       </div>

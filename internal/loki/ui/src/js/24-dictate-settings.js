@@ -1,41 +1,33 @@
 // ─── Réglages de la dictée ───────────────────────────────────────────────────
-// Panneau Paramètres → Dictée : matériel, modèle, langue, réactivité, plus un
-// test du micro. Ce sont des réglages de SERVEUR (le modèle chargé et le GPU
-// occupé appartiennent à la machine), donc rien n'est gardé en localStorage :
-// tout passe par /api/dictate/*.
+// Panneau Paramètres → Dictée : modèle, réactivité, plus un test du micro. Ce
+// sont des réglages de SERVEUR (le modèle chargé appartient à la machine), donc
+// rien n'est gardé en localStorage : tout passe par /api/dictate/*.
+//
+// Ni langue ni matériel ici, et le moteur l'impose : Parakeet détecte la langue
+// lui-même, et le binaire livré est le build CPU. Afficher des sélecteurs qu'on
+// ne peut pas honorer serait pire que de ne rien afficher.
 let DIC_CFG = null;
 
 async function loadDictateSettings(){
-  const [cfg, modeles, gpus] = await Promise.all([
+  const [cfg, modeles] = await Promise.all([
     jfetch('/api/dictate/config').then(r => r.json()).catch(()=>({})),
     jfetch('/api/dictate/models').then(r => r.json()).catch(()=>[]),
-    jfetch('/api/vram').then(r => r.json()).catch(()=>[]),
   ]);
   DIC_CFG = cfg || {};
-
-  // Matériel : « CPU seul » d'abord — c'est le choix qui marche partout, y
-  // compris sur une image bâtie sans CUDA.
-  const dev = document.getElementById('dic-device');
-  dev.innerHTML = '';
-  dev.appendChild(new Option('processeur seul', 'cpu'));
-  (gpus||[]).forEach((g, i) => {
-    const libre = Math.max(0, (g.total|0) - (g.used|0));
-    dev.appendChild(new Option(`GPU ${i} — ${g.name} (${libre} Mo libres sur ${g.total|0})`, String(i)));
-  });
-  dev.value = cfg.device || 'cpu';
 
   const mod = document.getElementById('dic-model');
   mod.innerHTML = '';
   (modeles||[]).forEach(m => {
     const mo = Math.round(m.octets / 1e6);
     // Dire ce qui est déjà là : sans ça, choisir un modèle absent ressemble à
-    // un réglage instantané alors que c'est un téléchargement de 600 Mo.
+    // un réglage instantané alors que c'est un téléchargement de ~500 Mo.
+    // Et dire ce qu'il COMPREND : c'est le vrai critère de choix entre les deux
+    // (v3 multilingue, v2 anglais seul), pas leur taille, quasi identique.
     const etat = m.present ? 'déjà téléchargé' : mo + ' Mo à télécharger';
-    mod.appendChild(new Option(`${m.nom} — ${etat}, ~${m.vram_mo} Mo de mémoire`, m.id));
+    mod.appendChild(new Option(`${m.nom} — ${m.langues} · ${etat}`, m.id));
   });
   mod.value = cfg.model || '';
 
-  document.getElementById('dic-lang').value = cfg.lang || 'fr';
   document.getElementById('dic-react').value = cfg.reactivity || 'moyen';
   refreshDictateState();
 }
@@ -43,8 +35,6 @@ async function loadDictateSettings(){
 async function dictateSave(){
   const cfg = {
     model: document.getElementById('dic-model').value,
-    lang: document.getElementById('dic-lang').value,
-    device: document.getElementById('dic-device').value,
     reactivity: document.getElementById('dic-react').value,
   };
   const el = document.getElementById('dic-save-state');
@@ -95,10 +85,9 @@ async function refreshDictateState(){
   const bouts = [];
   bouts.push(j.actif ? `moteur allumé depuis ${j.depuis_s||0} s` : 'moteur éteint (il démarre au premier clic sur le micro)');
   bouts.push(j.present ? `modèle ${j.modele} présent` : `modèle ${j.modele} ABSENT — à télécharger`);
-  // note : le serveur nous dit quand il n'a pas pu respecter le matériel
-  // demandé (image sans CUDA, par exemple). Le taire ferait croire que le GPU
-  // choisi est utilisé.
-  if(j.note) bouts.push('⚠ ' + j.note);
+  // Le dire explicitement : sans ça, on cherche un réglage de carte qui
+  // n'existe pas, ou on croit à une panne devant un GPU inactif.
+  if(j.device === 'cpu') bouts.push('sur le processeur');
   if(j.dl && j.dl.running) bouts.push(`téléchargement ${j.dl.id} ${j.dl.pct||0} %`);
   el.textContent = bouts.join(' · ');
 }

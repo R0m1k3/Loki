@@ -1,9 +1,10 @@
 // ─── Dictée vocale ───────────────────────────────────────────────────────────
 // Bouton micro de la carte de saisie : un clic enregistre, un second arrête et
 // transcrit. La capture est encodée en WAV 16 kHz mono ICI, côté navigateur —
-// whisper.cpp ne lit que du PCM, et encoder au bon format évite d'embarquer
-// ffmpeg dans l'image. La transcription est locale (POST /api/transcribe →
-// whisper-cli). Le texte s'ajoute au champ sans écraser ce qui s'y trouve.
+// le moteur de transcription ne lit que du PCM, et encoder au bon format évite
+// d'embarquer ffmpeg dans l'image. La transcription est locale (POST
+// /api/transcribe → Parakeet côté serveur). Le texte s'ajoute au champ sans
+// écraser ce qui s'y trouve.
 //
 // ⚠️ Le micro n'est autorisé par le NAVIGATEUR qu'en contexte sécurisé (HTTPS
 // ou localhost) : servi en http://IP:8090, getUserMedia n'existe pas — on
@@ -67,7 +68,7 @@ async function dictateStop(){
 }
 
 // Ré-échantillonne le PCM capturé (44,1/48 kHz selon la machine) vers du WAV
-// 16 kHz mono 16 bits — le format d'entrée de whisper.cpp. Décimation simple :
+// 16 kHz mono 16 bits — le format d’entrée du moteur de dictée. Décimation simple :
 // pour de la voix ré-échantillonnée VERS LE BAS, largement suffisant.
 function encodeWav16k(chunks, fromRate){
   const toRate = 16000;
