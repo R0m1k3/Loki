@@ -115,7 +115,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
     </button>
     <div id="topbar-title">Nouvelle discussion</div>
-    <select id="model-switch" onchange="onModelSwitch(this)" title="modèle actif — changer relance le moteur" aria-label="modèle actif"></select>
+    <select id="model-switch" onchange="onModelSwitch(this)" title="preset actif — en changer recharge tous ses réglages et relance le moteur" aria-label="preset actif"></select>
     <button id="themebtn" class="iconbtn" onclick="toggleThemeQuick()" title="thème clair / sombre" aria-label="basculer le thème">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
@@ -980,6 +980,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <div class="pe-row stack">
               <span class="pe-row-l">Fichier</span>
               <span class="pe-selc wide"><select id="m-model" onchange="onPickModel()"></select></span>
+            </div>
+            <!-- Gestion des .gguf du disque. Un modèle ne se supprimait que « en
+                 même temps que son preset » : les fichiers téléchargés puis
+                 abandonnés (mauvaise quantization, essai) restaient là pour des
+                 dizaines de Go, sans aucun moyen de les effacer depuis Loki.
+                 Repliée par défaut — on n'y va que le jour où le disque sature. -->
+            <div id="m-mdl-toggle" class="pe-row" style="cursor:pointer" onclick="toggleInstalledModels()">
+              <span class="pe-row-l">Modèles installés<span class="pe-sub">supprimer un .gguf pour libérer de la place</span></span>
+              <span class="pe-row-c"><span id="m-mdl-state" class="pe-sub"></span><span id="m-mdl-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-mdl-body" class="pe-row stack" style="display:none">
+              <div id="m-mdl-list" class="pe-note"></div>
             </div>
             <div class="pe-row">
               <span class="pe-row-l">Quantization<span class="pe-sub">auto si vide</span></span>

@@ -855,6 +855,14 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .pe-bar.indet>i{width:35%;animation:pe-bar-slide 1.2s ease-in-out infinite;transition:none}
 .pe-bar.done>i{width:100%}
 @keyframes pe-bar-slide{0%{margin-left:-35%}100%{margin-left:100%}}
+/* Liste des modèles installés (suppression des .gguf). Le nom prend toute la
+   place restante et se tronque : un fichier de modèle mesure facilement 60
+   caractères, et c'est la taille + le bouton qu'on vient chercher ici. */
+.mdl-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.mdl-row:last-child{border-bottom:none}
+.mdl-name{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdl-size{flex:none;color:var(--dim);font-variant-numeric:tabular-nums}
+.mdl-del{align-self:center;flex:none}
 /* Action discrète en texte (annuler un téléchargement…). */
 .pe-link{align-self:flex-start;border:none;background:none;padding:0;font:inherit;font-size:11px;color:var(--dim);text-decoration:underline;cursor:pointer}
 .pe-link:hover{color:var(--text)}

@@ -161,7 +161,8 @@ async function openItem(kind, key){
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
     attachDownload();                      // téléchargement encore en cours côté serveur ?
-    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs()]);
+    setInstalledModelsOpen(false);
+    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
     if(seq !== openSeq) return;
   }
   // On lève le voile SANS transition (voir la note dans styles.css), puis on rend
@@ -252,6 +253,123 @@ async function populateModelPicker(){
   sel.innerHTML = html;
   if(cur && !matched) setModelDirsOpen(true);
 }
+// ---- Modèles installés : lister et SUPPRIMER les .gguf du disque ------------
+// Un modèle ne pouvait s'effacer qu'en même temps que son preset (case « supprimer
+// aussi le fichier .gguf »). Tout ce qu'on avait téléchargé sans preset — une
+// quantization essayée puis abandonnée, un projecteur du mauvais dépôt — restait
+// donc sur le disque pour des dizaines de gigaoctets, sans aucun moyen de partir
+// depuis Loki. La liste vit ici, à côté du sélecteur de fichier : c'est là qu'on
+// découvre qu'un modèle ne sert plus.
+//
+// Repliée par défaut : c'est un ménage, pas un réglage. La ligne fermée porte
+// déjà l'essentiel — combien de modèles, et la place qu'ils prennent.
+let installedModels = [];
+function setInstalledModelsOpen(open){
+  const b = document.getElementById('m-mdl-body');
+  const c = document.getElementById('m-mdl-caret');
+  if(!b) return;
+  b.style.display = open ? '' : 'none';
+  if(c) c.classList.toggle('open', open);
+}
+function toggleInstalledModels(){
+  setInstalledModelsOpen(document.getElementById('m-mdl-body').style.display === 'none');
+}
+async function loadInstalledModels(){
+  try{ installedModels = (await jget('/api/models')) || []; }catch(_){ installedModels = []; }
+  const st = document.getElementById('m-mdl-state');
+  if(st){
+    const total = installedModels.reduce((a, m) => a + (m.size || 0), 0);
+    st.textContent = installedModels.length ? installedModels.length + ' · ' + fmtSize(total) : 'aucun';
+  }
+  renderInstalledModels();
+}
+function renderInstalledModels(){
+  const box = document.getElementById('m-mdl-list');
+  if(!box) return;
+  // Construit en DOM : ces noms de fichiers viennent du disque, ils n'ont rien à
+  // faire dans du HTML concaténé ni dans un attribut onclick.
+  box.textContent = '';
+  if(!installedModels.length){
+    box.textContent = 'Aucun .gguf dans les dossiers de modèles.';
+    return;
+  }
+  const multi = new Set(installedModels.map(m => m.dir)).size > 1;
+  for(const m of installedModels){
+    const row = document.createElement('div');
+    row.className = 'mdl-row';
+    const nm = document.createElement('span');
+    nm.className = 'mdl-name';
+    nm.textContent = m.name;
+    nm.title = m.path;
+    const info = document.createElement('span');
+    info.className = 'mdl-size';
+    let t = fmtSize(m.size);
+    if(m.shards > 1) t += ' · ' + m.shards + ' fichiers';
+    if(m.missing && m.missing.length) t += ' · ⚠ ' + m.missing.length + ' manquant' + (m.missing.length>1?'s':'');
+    if(multi) t += ' · ' + (m.home ? 'dossier loki' : m.dir);
+    info.textContent = t;
+    row.append(nm, info);
+    // Chargé = intouchable (le moteur tient le fichier ouvert) ; référencé par des
+    // presets = supprimable, mais on le dit avant, pas au prochain démarrage raté.
+    if(m.loaded || (m.presets && m.presets.length)){
+      const tag = document.createElement('span');
+      tag.className = 'qtag';
+      if(m.loaded){
+        tag.textContent = 'chargé';
+        tag.title = 'modèle ouvert par le moteur';
+      } else {
+        tag.textContent = m.presets.length + ' preset' + (m.presets.length > 1 ? 's' : '');
+        tag.title = m.presets.join(', ');
+      }
+      row.append(tag);
+    }
+    const del = document.createElement('button');
+    del.className = 'pe-link mdl-del';
+    del.textContent = 'supprimer';
+    del.disabled = !!m.loaded;
+    del.title = m.loaded ? 'modèle chargé — bascule d’abord sur un autre preset' : 'supprimer ce fichier du disque';
+    del.onclick = () => deleteInstalledModel(m);
+    row.append(del);
+    box.append(row);
+  }
+}
+// Suppression d'un .gguf : irréversible, et de l'ordre de la dizaine de Go. Le
+// serveur refuse tout seul le modèle CHARGÉ, et refuse SANS `force` un modèle
+// que des presets réclament — en renvoyant leurs noms, qu'on pose alors dans une
+// seconde confirmation. Le premier « oui » porte sur le fichier, le second sur
+// les presets qu'on casse : ce ne sont pas la même décision.
+async function deleteInstalledModel(m){
+  const shards = m.shards > 1 ? '\n\n' + m.shards + ' fichiers seront effacés (modèle découpé).' : '';
+  if(!await askConfirm('Supprimer « ' + m.name + ' » (' + fmtSize(m.size) + ') du disque ? Il n’y a pas de corbeille.' + shards,
+      {title:'Supprimer le modèle', okText:'Supprimer', danger:true})) return;
+  const del = async force => { try{ return await jpost('/api/models/delete', {name: m.value, force}); }catch(_){ return null; } };
+  let r = await del(false);
+  if(r && !r.ok && r.needsForce){
+    if(!await askConfirm('Utilisé par : ' + (r.presets || []).join(', ')
+        + '.\n\nCes presets ne démarreront plus tant qu’un autre modèle ne leur aura pas été choisi.',
+        {title:'Modèle utilisé par un preset', okText:'Supprimer quand même', danger:true})) return;
+    r = await del(true);
+  }
+  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); return; }
+  toast('supprimé — ' + fmtSize(r.freed || m.size) + ' libérés');
+  await reloadModelsAndPreset();
+}
+// Après un changement dans les modèles du disque (suppression, téléchargement
+// terminé, dossier ajouté), on recharge le PRESET COMPLET, pas seulement la
+// liste déroulante : le fichier choisi, le projecteur vision, la quantization
+// déduite du nom, les réglages dérivés et l'espace libre des destinations
+// dépendent tous de ce qui est réellement sur le disque. N'en rafraîchir qu'une
+// partie laissait l'éditeur afficher un modèle qui n'existait plus.
+async function reloadModelsAndPreset(){
+  await Promise.all([
+    loadInstalledModels(), populateModelPicker(), populateMmproj(),
+    populateModelDirs(), populateDlDirs(),
+  ]);
+  document.getElementById('m-quant').value = currentQuantInTextarea();
+  populateSettings();
+  if(typeof loadPresets === 'function') loadPresets();
+}
+
 // ---- Dossiers de modèles : LOKI_HOME + dossiers ajoutés (disque externe…) ---
 // Réglage rare : replié derrière une ligne, comme l'éditeur de .env brut.
 function setModelDirsOpen(open){
@@ -368,13 +486,13 @@ async function addModelDir(){
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   inp.value = '';
   toast('dossier ajouté');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
 }
 async function removeModelDir(p){
   const r = await jpost('/api/models/dirs', {path: p, action: 'remove'});
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   toast('dossier retiré');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
 }
 function onPickModel(){
   const val = document.getElementById('m-model').value;
@@ -1005,7 +1123,7 @@ function watchDownload(fname){
       e.prog.innerHTML = '<span style="color:var(--ok)">✓ '+fname+' téléchargé ('+fmtSize(st.done)+')</span>';
       e.bar.className = 'pe-bar done'; e.bar.firstElementChild.style.width = '100%';
       stop();
-      await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs()]);
+      await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
       // Un projecteur (mmproj) se sélectionne dans le champ Vision, un modèle dans
       // le sélecteur de modèle — d'après le nom du fichier téléchargé. Le fichier
       // a pu atterrir hors du dossier loki : l'option porte alors le chemin

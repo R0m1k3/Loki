@@ -307,6 +307,15 @@ func handleModels(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	seen := map[string]bool{}
 	home := LokiHome()
+	// Ce que le moteur a ouvert, et ce que les presets réclament : l'interface en
+	// a besoin pour dire lesquels sont supprimables sans rien casser.
+	refs := modelPresetRefs()
+	loaded := ""
+	if cur := strings.TrimSpace(ReadConfig()["MODEL"]); cur != "" {
+		if q, err := resolveServeModelPath(cur); err == nil {
+			loaded = normDir(q)
+		}
+	}
 	for _, dir := range modelDirs() {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -340,6 +349,13 @@ func handleModels(w http.ResponseWriter, r *http.Request) {
 			m := map[string]any{
 				"name": e.Name(), "size": size, "value": value,
 				"path": full, "dir": dir, "home": isHome,
+			}
+			key := normDir(full)
+			if key == loaded {
+				m["loaded"] = true
+			}
+			if len(refs[key]) > 0 {
+				m["presets"] = refs[key]
 			}
 			// Taille annoncée = la famille entière, et on signale les tranches
 			// manquantes : un modèle incomplet démarre puis meurt sur un tenseur
@@ -463,13 +479,36 @@ func handlePresetDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	modelDeleted, modelErr := "", ""
 	if req.DeleteModel && model != "" {
-		if err := deleteModelFile(model); err != nil {
-			modelErr = err.Error()
-		} else {
-			modelDeleted = model
-		}
+		modelDeleted, modelErr = deletePresetModel(model)
 	}
 	sendJSON(w, 200, map[string]any{"ok": true, "modelDeleted": modelDeleted, "modelError": modelErr})
+}
+
+// deletePresetModel efface le .gguf d'un preset qu'on vient de supprimer, avec
+// les MÊMES garde-fous que la suppression directe (/api/models/delete) : la case
+// « supprimer aussi le fichier » ne doit pas être un chemin détourné pour
+// effacer un modèle qu'on protège ailleurs.
+//
+// Le modèle CHARGÉ est conservé (le preset supprimé n'était pas forcément celui
+// en service : deux presets peuvent désigner le même .gguf), et un modèle encore
+// réclamé par un AUTRE preset aussi — sinon supprimer un preset laissait son
+// voisin avec un moteur qui meurt au démarrage. Le refus est renvoyé à
+// l'interface, qui le dit ; la suppression du preset, elle, a déjà eu lieu.
+func deletePresetModel(model string) (deleted, errMsg string) {
+	p, err := resolveModelPath(model)
+	if err != nil {
+		return "", err.Error()
+	}
+	if modelIsLoaded(p) {
+		return "", "modèle chargé par le moteur — fichier conservé"
+	}
+	if used := presetsUsingModel(p); len(used) > 0 {
+		return "", "encore utilisé par : " + strings.Join(used, ", ") + " — fichier conservé"
+	}
+	if err := deleteModelFile(p); err != nil {
+		return "", err.Error()
+	}
+	return model, ""
 }
 
 // handleAgent renvoie l'état du mode agent ET la liste des pages mémoire (que
@@ -935,38 +974,6 @@ func handleMemDelete(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true})
-}
-
-// handleModelUse charge un MODÈLE précis (fichier .gguf) sans passer par un
-// preset : seul MODEL change dans la configuration active — contexte, NGL et
-// échantillonnage sont conservés — et le service redémarre en arrière-plan,
-// même contrat que handleSwitch. C'est ce qui rend le sélecteur de l'en-tête
-// utilisable même sans avoir créé de preset.
-func handleModelUse(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Value string `json:"value"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Value) == "" {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": "modèle manquant"})
-		return
-	}
-	// Le fichier doit exister AVANT d'écrire la config : une faute de frappe ne
-	// doit pas laisser un moteur qui boucle sur un modèle introuvable.
-	if _, err := resolveServeModelPath(req.Value); err != nil {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	if err := SetConfigKey("MODEL", req.Value); err != nil {
-		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	fmt.Printf("%s MODEL <- %s\n", green("[ok]"), req.Value)
-	go func() {
-		if err := serviceAction("restart"); err != nil {
-			fmt.Println(red("[err] redémarrage : " + err.Error()))
-		}
-	}()
 	sendJSON(w, 200, map[string]any{"ok": true})
 }
 

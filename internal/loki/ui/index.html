@@ -886,6 +886,14 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .pe-bar.indet>i{width:35%;animation:pe-bar-slide 1.2s ease-in-out infinite;transition:none}
 .pe-bar.done>i{width:100%}
 @keyframes pe-bar-slide{0%{margin-left:-35%}100%{margin-left:100%}}
+/* Liste des modèles installés (suppression des .gguf). Le nom prend toute la
+   place restante et se tronque : un fichier de modèle mesure facilement 60
+   caractères, et c'est la taille + le bouton qu'on vient chercher ici. */
+.mdl-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.mdl-row:last-child{border-bottom:none}
+.mdl-name{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdl-size{flex:none;color:var(--dim);font-variant-numeric:tabular-nums}
+.mdl-del{align-self:center;flex:none}
 /* Action discrète en texte (annuler un téléchargement…). */
 .pe-link{align-self:flex-start;border:none;background:none;padding:0;font:inherit;font-size:11px;color:var(--dim);text-decoration:underline;cursor:pointer}
 .pe-link:hover{color:var(--text)}
@@ -2272,7 +2280,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
     </button>
     <div id="topbar-title">Nouvelle discussion</div>
-    <select id="model-switch" onchange="onModelSwitch(this)" title="modèle actif — changer relance le moteur" aria-label="modèle actif"></select>
+    <select id="model-switch" onchange="onModelSwitch(this)" title="preset actif — en changer recharge tous ses réglages et relance le moteur" aria-label="preset actif"></select>
     <button id="themebtn" class="iconbtn" onclick="toggleThemeQuick()" title="thème clair / sombre" aria-label="basculer le thème">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
@@ -3137,6 +3145,18 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <div class="pe-row stack">
               <span class="pe-row-l">Fichier</span>
               <span class="pe-selc wide"><select id="m-model" onchange="onPickModel()"></select></span>
+            </div>
+            <!-- Gestion des .gguf du disque. Un modèle ne se supprimait que « en
+                 même temps que son preset » : les fichiers téléchargés puis
+                 abandonnés (mauvaise quantization, essai) restaient là pour des
+                 dizaines de Go, sans aucun moyen de les effacer depuis Loki.
+                 Repliée par défaut — on n'y va que le jour où le disque sature. -->
+            <div id="m-mdl-toggle" class="pe-row" style="cursor:pointer" onclick="toggleInstalledModels()">
+              <span class="pe-row-l">Modèles installés<span class="pe-sub">supprimer un .gguf pour libérer de la place</span></span>
+              <span class="pe-row-c"><span id="m-mdl-state" class="pe-sub"></span><span id="m-mdl-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-mdl-body" class="pe-row stack" style="display:none">
+              <div id="m-mdl-list" class="pe-note"></div>
             </div>
             <div class="pe-row">
               <span class="pe-row-l">Quantization<span class="pe-sub">auto si vide</span></span>
@@ -4512,7 +4532,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -4679,7 +4699,8 @@ async function openItem(kind, key){
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
     attachDownload();                      // téléchargement encore en cours côté serveur ?
-    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs()]);
+    setInstalledModelsOpen(false);
+    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
     if(seq !== openSeq) return;
   }
   // On lève le voile SANS transition (voir la note dans styles.css), puis on rend
@@ -4770,6 +4791,123 @@ async function populateModelPicker(){
   sel.innerHTML = html;
   if(cur && !matched) setModelDirsOpen(true);
 }
+// ---- Modèles installés : lister et SUPPRIMER les .gguf du disque ------------
+// Un modèle ne pouvait s'effacer qu'en même temps que son preset (case « supprimer
+// aussi le fichier .gguf »). Tout ce qu'on avait téléchargé sans preset — une
+// quantization essayée puis abandonnée, un projecteur du mauvais dépôt — restait
+// donc sur le disque pour des dizaines de gigaoctets, sans aucun moyen de partir
+// depuis Loki. La liste vit ici, à côté du sélecteur de fichier : c'est là qu'on
+// découvre qu'un modèle ne sert plus.
+//
+// Repliée par défaut : c'est un ménage, pas un réglage. La ligne fermée porte
+// déjà l'essentiel — combien de modèles, et la place qu'ils prennent.
+let installedModels = [];
+function setInstalledModelsOpen(open){
+  const b = document.getElementById('m-mdl-body');
+  const c = document.getElementById('m-mdl-caret');
+  if(!b) return;
+  b.style.display = open ? '' : 'none';
+  if(c) c.classList.toggle('open', open);
+}
+function toggleInstalledModels(){
+  setInstalledModelsOpen(document.getElementById('m-mdl-body').style.display === 'none');
+}
+async function loadInstalledModels(){
+  try{ installedModels = (await jget('/api/models')) || []; }catch(_){ installedModels = []; }
+  const st = document.getElementById('m-mdl-state');
+  if(st){
+    const total = installedModels.reduce((a, m) => a + (m.size || 0), 0);
+    st.textContent = installedModels.length ? installedModels.length + ' · ' + fmtSize(total) : 'aucun';
+  }
+  renderInstalledModels();
+}
+function renderInstalledModels(){
+  const box = document.getElementById('m-mdl-list');
+  if(!box) return;
+  // Construit en DOM : ces noms de fichiers viennent du disque, ils n'ont rien à
+  // faire dans du HTML concaténé ni dans un attribut onclick.
+  box.textContent = '';
+  if(!installedModels.length){
+    box.textContent = 'Aucun .gguf dans les dossiers de modèles.';
+    return;
+  }
+  const multi = new Set(installedModels.map(m => m.dir)).size > 1;
+  for(const m of installedModels){
+    const row = document.createElement('div');
+    row.className = 'mdl-row';
+    const nm = document.createElement('span');
+    nm.className = 'mdl-name';
+    nm.textContent = m.name;
+    nm.title = m.path;
+    const info = document.createElement('span');
+    info.className = 'mdl-size';
+    let t = fmtSize(m.size);
+    if(m.shards > 1) t += ' · ' + m.shards + ' fichiers';
+    if(m.missing && m.missing.length) t += ' · ⚠ ' + m.missing.length + ' manquant' + (m.missing.length>1?'s':'');
+    if(multi) t += ' · ' + (m.home ? 'dossier loki' : m.dir);
+    info.textContent = t;
+    row.append(nm, info);
+    // Chargé = intouchable (le moteur tient le fichier ouvert) ; référencé par des
+    // presets = supprimable, mais on le dit avant, pas au prochain démarrage raté.
+    if(m.loaded || (m.presets && m.presets.length)){
+      const tag = document.createElement('span');
+      tag.className = 'qtag';
+      if(m.loaded){
+        tag.textContent = 'chargé';
+        tag.title = 'modèle ouvert par le moteur';
+      } else {
+        tag.textContent = m.presets.length + ' preset' + (m.presets.length > 1 ? 's' : '');
+        tag.title = m.presets.join(', ');
+      }
+      row.append(tag);
+    }
+    const del = document.createElement('button');
+    del.className = 'pe-link mdl-del';
+    del.textContent = 'supprimer';
+    del.disabled = !!m.loaded;
+    del.title = m.loaded ? 'modèle chargé — bascule d’abord sur un autre preset' : 'supprimer ce fichier du disque';
+    del.onclick = () => deleteInstalledModel(m);
+    row.append(del);
+    box.append(row);
+  }
+}
+// Suppression d'un .gguf : irréversible, et de l'ordre de la dizaine de Go. Le
+// serveur refuse tout seul le modèle CHARGÉ, et refuse SANS `force` un modèle
+// que des presets réclament — en renvoyant leurs noms, qu'on pose alors dans une
+// seconde confirmation. Le premier « oui » porte sur le fichier, le second sur
+// les presets qu'on casse : ce ne sont pas la même décision.
+async function deleteInstalledModel(m){
+  const shards = m.shards > 1 ? '\n\n' + m.shards + ' fichiers seront effacés (modèle découpé).' : '';
+  if(!await askConfirm('Supprimer « ' + m.name + ' » (' + fmtSize(m.size) + ') du disque ? Il n’y a pas de corbeille.' + shards,
+      {title:'Supprimer le modèle', okText:'Supprimer', danger:true})) return;
+  const del = async force => { try{ return await jpost('/api/models/delete', {name: m.value, force}); }catch(_){ return null; } };
+  let r = await del(false);
+  if(r && !r.ok && r.needsForce){
+    if(!await askConfirm('Utilisé par : ' + (r.presets || []).join(', ')
+        + '.\n\nCes presets ne démarreront plus tant qu’un autre modèle ne leur aura pas été choisi.',
+        {title:'Modèle utilisé par un preset', okText:'Supprimer quand même', danger:true})) return;
+    r = await del(true);
+  }
+  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); return; }
+  toast('supprimé — ' + fmtSize(r.freed || m.size) + ' libérés');
+  await reloadModelsAndPreset();
+}
+// Après un changement dans les modèles du disque (suppression, téléchargement
+// terminé, dossier ajouté), on recharge le PRESET COMPLET, pas seulement la
+// liste déroulante : le fichier choisi, le projecteur vision, la quantization
+// déduite du nom, les réglages dérivés et l'espace libre des destinations
+// dépendent tous de ce qui est réellement sur le disque. N'en rafraîchir qu'une
+// partie laissait l'éditeur afficher un modèle qui n'existait plus.
+async function reloadModelsAndPreset(){
+  await Promise.all([
+    loadInstalledModels(), populateModelPicker(), populateMmproj(),
+    populateModelDirs(), populateDlDirs(),
+  ]);
+  document.getElementById('m-quant').value = currentQuantInTextarea();
+  populateSettings();
+  if(typeof loadPresets === 'function') loadPresets();
+}
+
 // ---- Dossiers de modèles : LOKI_HOME + dossiers ajoutés (disque externe…) ---
 // Réglage rare : replié derrière une ligne, comme l'éditeur de .env brut.
 function setModelDirsOpen(open){
@@ -4886,13 +5024,13 @@ async function addModelDir(){
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   inp.value = '';
   toast('dossier ajouté');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
 }
 async function removeModelDir(p){
   const r = await jpost('/api/models/dirs', {path: p, action: 'remove'});
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   toast('dossier retiré');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
 }
 function onPickModel(){
   const val = document.getElementById('m-model').value;
@@ -5523,7 +5661,7 @@ function watchDownload(fname){
       e.prog.innerHTML = '<span style="color:var(--ok)">✓ '+fname+' téléchargé ('+fmtSize(st.done)+')</span>';
       e.bar.className = 'pe-bar done'; e.bar.firstElementChild.style.width = '100%';
       stop();
-      await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs()]);
+      await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
       // Un projecteur (mmproj) se sélectionne dans le champ Vision, un modèle dans
       // le sélecteur de modèle — d'après le nom du fichier téléchargé. Le fichier
       // a pu atterrir hors du dossier loki : l'option porte alors le chemin
@@ -8649,17 +8787,18 @@ function openDetails(el){
   }
 }
 
-// Sélecteur de modèle de l'en-tête. Il liste les presets ; en choisir un revient
-// à cliquer la ligne correspondante dans les réglages (switchTo demande
+// Sélecteur de modèle de l'en-tête. Il ne liste QUE des presets ; en choisir un
+// revient à cliquer la ligne correspondante dans les réglages (switchTo demande
 // confirmation puis relance le moteur).
+//
+// Il a listé un temps les .gguf du disque, qu'on chargeait en n'écrivant que
+// MODEL= : le contexte, le NGL et l'échantillonnage du modèle PRÉCÉDENT
+// restaient en place. Un 27B chargé par-dessus les réglages d'un 4B partait sur
+// 100k de contexte et mourait en OOM, sans que rien ne dise pourquoi. Charger un
+// modèle, c'est appliquer TOUS ses réglages : ça s'appelle un preset, et c'est
+// le seul chemin.
 function onModelSwitch(sel){
   const v = sel.value;
-  // Entrée du groupe « Modèles » : charger CE .gguf, sans preset — la config
-  // active garde son contexte et son échantillonnage, seul MODEL change.
-  if(v && v.startsWith('m:')){
-    switchModelFile(v.slice(2), sel.options[sel.selectedIndex].textContent);
-    return;
-  }
   const n = parseInt(v, 10);
   if(!n) return;
   const name = sel.options[sel.selectedIndex].textContent;
@@ -8667,22 +8806,6 @@ function onModelSwitch(sel){
   // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
   // pendant les quelques secondes du redémarrage.
   switchTo(n, name);
-}
-
-// Bascule directe vers un fichier de modèle (POST /api/models/use) : confirme,
-// écrit MODEL, le service redémarre derrière. Annulé ou en échec, la sélection
-// revient sur le modèle réellement chargé.
-async function switchModelFile(value, name){
-  if(!await askConfirm('Charger « ' + name + ' » et redémarrer le moteur ?', {title:'Changer de modèle', okText:'Charger'})){
-    paintModelSwitch();
-    return;
-  }
-  toast('changement de modèle…');
-  let r = null;
-  try{ r = await jpost('/api/models/use', {value}); }catch(_){}
-  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); paintModelSwitch(); return; }
-  toast('modèle en cours de chargement…');
-  loadAll();
 }
 
 // Le sélecteur affiche LE MODÈLE CHARGÉ, pas seulement le preset actif.
@@ -8697,20 +8820,10 @@ async function switchModelFile(value, name){
 // Deux sources, deux moments : loadPresets() donne la liste, loadCfg() donne le
 // modèle. Chacune dépose ce qu'elle sait et redemande le dessin — elles partent
 // en parallèle (loadAll), aucun ordre n'est garanti.
-let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '', MS_FILES = [];
+let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '';
 
 function renderModelSwitch(presets, active){
   MS_PRESETS = presets || []; MS_ACTIVE = active || null;
-  paintModelSwitch();
-}
-// Les fichiers .gguf découverts sur le disque : le sélecteur doit permettre de
-// CHARGER un modèle, pas seulement de rappeler un preset — sans preset créé,
-// il n'offrait aucun choix. Chargé par loadAll(), rafraîchi avec le reste.
-async function loadModelSwitchFiles(){
-  try{
-    const r = await jget('/api/models');
-    MS_FILES = Array.isArray(r) ? r : [];
-  }catch(_){ return; }
   paintModelSwitch();
 }
 // Appelé par loadCfg avec la valeur MODEL de la configuration active.
@@ -8750,20 +8863,7 @@ function paintModelSwitch(){
     });
     sel.appendChild(g);
   }
-  // Modèles du disque : en choisir un le CHARGE (voir switchModelFile). Un
-  // preset règle tout (contexte, sampling…) ; un modèle ne change que MODEL.
-  if(MS_FILES.length){
-    const g = document.createElement('optgroup'); g.label = 'Modèles (.gguf)';
-    for(const m of MS_FILES){
-      const o = document.createElement('option');
-      o.value = 'm:' + m.value;
-      o.textContent = modelLabel(m.name);
-      if(m.missing && m.missing.length) o.disabled = true; // tranches manquantes
-      g.appendChild(o);
-    }
-    sel.appendChild(g);
-  }
-  sel.disabled = !MS_PRESETS.length && !MS_FILES.length;
+  sel.disabled = !MS_PRESETS.length;
   sel.title = MS_MODEL
     ? 'modèle chargé : ' + MS_MODEL + ' — changer de preset relance le moteur'
     : 'aucun modèle configuré';

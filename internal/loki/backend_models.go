@@ -219,20 +219,123 @@ func deleteModelFile(name string) error {
 	return nil
 }
 
-// handleModelDelete deletes a single .gguf from LOKI_HOME.
+// modelSizeOnDisk additionne les octets qu'un modèle occupe RÉELLEMENT — la
+// famille de tranches entière, pas le seul fichier nommé. C'est ce chiffre
+// qu'on annonce après une suppression : « 42 Go libérés » pour un modèle
+// découpé, et non les 15 Go de sa première tranche.
+func modelSizeOnDisk(p string) int64 {
+	return shardFamilySize(filepath.Dir(p), filepath.Base(p))
+}
+
+// modelIsLoaded dit si p est le modèle de la configuration ACTIVE, celui que
+// llama-server a ouvert. L'effacer sous ses pieds ne libère rien tant que le
+// processus tient le descripteur, et le prochain démarrage meurt sur un fichier
+// introuvable : on refuse, et on renvoie vers un changement de preset.
+func modelIsLoaded(p string) bool {
+	cur := strings.TrimSpace(ReadConfig()["MODEL"])
+	if cur == "" {
+		return false
+	}
+	q, err := resolveServeModelPath(cur)
+	if err != nil {
+		return false
+	}
+	return samePath(p, q)
+}
+
+// modelPresetRefs mappe chaque .gguf référencé par un preset (MODEL= ou
+// MMPROJ=, chemin normalisé) vers les noms des presets qui le réclament. Calculé
+// UNE fois par listage : sans ça, chercher les références d'un modèle à la fois
+// relisait tous les presets pour chaque fichier du disque.
+func modelPresetRefs() map[string][]string {
+	refs := map[string][]string{}
+	list, err := ListPresets()
+	if err != nil {
+		return refs
+	}
+	for _, pr := range list {
+		content, err := os.ReadFile(pr.Path)
+		if err != nil {
+			continue
+		}
+		env := parseEnv(string(content))
+		for _, ref := range []string{env["MODEL"], env["MMPROJ"]} {
+			if strings.TrimSpace(ref) == "" {
+				continue
+			}
+			q, err := resolveServeModelPath(ref)
+			if err != nil {
+				continue
+			}
+			k := normDir(q)
+			// Un preset qui pointe le même fichier en MODEL et en MMPROJ ne compte
+			// qu'une fois.
+			if n := len(refs[k]); n > 0 && refs[k][n-1] == pr.Name {
+				continue
+			}
+			refs[k] = append(refs[k], pr.Name)
+		}
+	}
+	return refs
+}
+
+// presetsUsingModel liste les noms d'affichage des presets dont MODEL= ou
+// MMPROJ= désigne p. Supprimer un .gguf ne casse pas qu'un fichier : chaque
+// preset qui le référence devient un moteur qui meurt au démarrage. On les
+// nomme AVANT, dans la confirmation, plutôt que de laisser la découverte au
+// prochain switch.
+func presetsUsingModel(p string) []string {
+	return modelPresetRefs()[normDir(p)]
+}
+
+// handleModelDelete supprime un .gguf (et toutes ses tranches) d'un dossier de
+// modèles déclaré.
+//
+// Deux garde-fous, parce que rien n'est réversible ici et qu'un modèle pèse des
+// dizaines de gigaoctets :
+//   - le modèle CHARGÉ est intouchable (modelIsLoaded) ;
+//   - un modèle référencé par des presets ne part qu'avec `force`, l'appelant
+//     ayant reçu leur liste dans la réponse 409 pour la poser à l'utilisateur.
 func handleModelDelete(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Force bool   `json:"force"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	if err := deleteModelFile(req.Name); err != nil {
+	p, err := resolveModelPath(req.Name)
+	if err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true})
+	if st, err := os.Stat(p); err != nil || st.IsDir() {
+		sendJSON(w, 404, map[string]any{"ok": false, "error": "modèle introuvable : " + filepath.Base(p)})
+		return
+	}
+	if modelIsLoaded(p) {
+		sendJSON(w, 409, map[string]any{"ok": false, "loaded": true,
+			"error": "modèle chargé par le moteur — bascule d'abord sur un autre preset"})
+		return
+	}
+	used := presetsUsingModel(p)
+	if len(used) > 0 && !req.Force {
+		sendJSON(w, 409, map[string]any{"ok": false, "presets": used, "needsForce": true,
+			"error": "modèle utilisé par un preset"})
+		return
+	}
+	freed := modelSizeOnDisk(p)
+	if err := deleteModelFile(p); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	fmt.Printf("%s modèle supprimé : %s\n", green("[ok]"), p)
+	resp := map[string]any{"ok": true, "freed": freed}
+	if len(used) > 0 {
+		resp["presets"] = used // presets cassés par la suppression forcée
+	}
+	sendJSON(w, 200, resp)
 }
 
 // ---- Hugging Face downloads -------------------------------------------------
