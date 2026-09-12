@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -88,6 +89,18 @@ const (
 	loadConvRetryWait = 250 * time.Millisecond
 )
 
+// loadConvRetries compte les ATTENTES de reprise du dernier LoadConversation
+// (0 = le premier essai a suffi). Il n'existe que pour être observable.
+//
+// Le test de non-régression veut vérifier qu'une absence légitime — première
+// installation, rien d'enregistré — ne déclenche AUCUNE reprise. Il le mesurait
+// au chronomètre (« moins de 250 ms »), ce qui confond « aucune reprise » avec
+// « une seule tentative, mais lente » : sur un runner CI chargé, créer et
+// ouvrir la base bbolt a pris 435 ms et le test a échoué alors qu'aucune reprise
+// n'avait eu lieu. On compte donc les reprises au lieu de les déduire d'un
+// temps de mur, qui ne dépend pas que de nous.
+var loadConvRetries atomic.Int32
+
 // LoadConversation recharge l'état persisté au démarrage du process. Sans état
 // enregistré (première fois) on part d'une conversation vide.
 //
@@ -101,11 +114,16 @@ const (
 func LoadConversation() {
 	var b []byte
 	var err error
+	loadConvRetries.Store(0)
+	retry := func() {
+		loadConvRetries.Add(1)
+		time.Sleep(loadConvRetryWait)
+	}
 	for attempt := 0; attempt < loadConvAttempts; attempt++ {
 		// Sonde : lire la clé de la discussion active en gardant l'erreur. Tant
 		// qu'elle échoue, convEnsureActive ne doit surtout pas être appelée.
 		if _, err = getBytesErr(bkChat, ckActive); err != nil {
-			time.Sleep(loadConvRetryWait)
+			retry()
 			continue
 		}
 		// convEnsureActive reprend au passage le fil unique des versions
@@ -113,7 +131,7 @@ func LoadConversation() {
 		if b, err = getBytesErr(bkChat, convKey(convEnsureActive())); err == nil {
 			break
 		}
-		time.Sleep(loadConvRetryWait)
+		retry()
 	}
 	if err != nil {
 		// Toujours en échec : on le DIT au lieu de repartir à vide en silence, et
