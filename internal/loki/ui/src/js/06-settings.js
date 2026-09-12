@@ -69,6 +69,16 @@ async function loadPresets(){
     nm.appendChild(document.createTextNode(x.name)); nm.title=x.name;
     // Second row: quant tag + bench perf, so the title row stays full-width.
     const meta=document.createElement('div'); meta.className='preset-meta';
+    // Preset externe : ni quant ni bench à montrer — le modèle tourne ailleurs.
+    // On affiche à la place d'où vient la réponse, sans quoi rien à l'écran ne
+    // distinguerait un preset local d'un appel qui part sur internet.
+    if(x.external){
+      const et=document.createElement('span'); et.className='xtag';
+      et.title='API externe — le chat part vers un serveur distant';
+      et.innerHTML='<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>';
+      et.appendChild(document.createTextNode(x.model || 'externe'));
+      meta.appendChild(et);
+    }
     if(x.quant){
       const q=document.createElement('span'); q.className='qtag';
       q.textContent=x.quant; q.title='quantization';
@@ -94,7 +104,10 @@ async function loadPresets(){
     // lit comme centrée dans son coin, là où le crayon penché tirait de travers.
     edit.className='preset-edit'; edit.title='réglages du preset';
     edit.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
-    edit.onclick=(e)=>{ e.stopPropagation(); openPreset(x.id); };
+    // Deux éditeurs, deux mondes : les réglages d'un preset externe (URL, modèle
+    // distant, clé) n'ont rien à voir avec ceux d'un modèle local.
+    edit.title = x.external ? 'réglages de l’API externe' : 'réglages du preset';
+    edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : openPreset(x.id); };
     row.appendChild(info); row.appendChild(edit);
     cont.appendChild(row);
   });

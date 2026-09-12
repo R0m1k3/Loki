@@ -359,6 +359,13 @@ func EnabledTools(caps Caps) []Tool {
 	// une sortie sur le web — et sans elle, le modèle croyait n'avoir aucun
 	// navigateur et perdait des minutes à installer puppeteer. La borne aux
 	// adresses locales vit dans toolWebScreenshot.
+	// Voir une image du DISQUE : seulement quand la vision est réellement active
+	// (projecteur MMPROJ déclaré). Sinon l'outil ne saurait que renvoyer une
+	// erreur, et l'annoncer ferait croire au modèle qu'il a des yeux qu'il n'a
+	// pas — il promettrait alors de regarder, puis se contredirait.
+	if caps.Agent && visionEnabled() {
+		tools = append(tools, seeImageTool())
+	}
 	if caps.Agent && (caps.Internet || caps.Code) && screenshotAvailable() {
 		tools = append(tools, webScreenshotTool())
 	}
@@ -658,6 +665,55 @@ func isNetTimeout(err error) bool {
 	return errors.As(err, &ne) && ne.Timeout()
 }
 
+// toolCallLabel dérive le libellé HUMAIN d'un appel d'outil : la commande, le
+// chemin, la requête… Il est annoncé à l'interface AVANT l'exécution — sans ça,
+// une commande shell lente laisse l'écran figé sans rien dire — et il sert
+// ensuite d'argument principal à plusieurs outils.
+//
+// Cette double fonction est un piège : un outil absent de cette table reçoit un
+// libellé VIDE, et si son exécution lit ce libellé (see_image, read, bash…), il
+// s'exécute sur une chaîne vide. Vécu à l'ajout de see_image : l'outil répondait
+// « chemin de fichier manquant » quoi qu'on lui passe, sans que rien d'autre ne
+// bronche. D'où l'extraction : une table pareille se teste.
+func toolCallLabel(name string, args map[string]any) string {
+	label := ""
+	switch name {
+	case "mem_search", "web_search", "recall_search":
+		label, _ = args["query"].(string)
+	case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff", "see_image":
+		label, _ = args["file"].(string)
+	case "recall":
+		label, _ = args["id"].(string)
+	case "tracker":
+		// Libellé lisible : « nom » ou « action nom », pas un dump d'arguments.
+		label = strings.TrimSpace(str(args["action"]) + " " + str(args["name"]))
+	case "bash", "bash_bg":
+		label, _ = args["command"].(string)
+	case "grep", "glob":
+		label, _ = args["pattern"].(string)
+	case "ask":
+		label, _ = args["question"].(string)
+	case "criteria":
+		label, _ = args["action"].(string)
+	case "bash_tail":
+		label, _ = args["id"].(string)
+	case "git_clone":
+		label, _ = args["url"].(string)
+	case "web_open", "web_read":
+		label, _ = args["url"].(string)
+	case "web_grep":
+		u, _ := args["url"].(string)
+		p, _ := args["pattern"].(string)
+		label = p + " @ " + u
+	default:
+		// Outils MCP : libellé = un aperçu compact des arguments.
+		if isMCPTool(name) {
+			label = mcpArgLabel(args)
+		}
+	}
+	return label
+}
+
 func runChat(ctx context.Context, messages []Message, temperature float64, caps Caps, cb ChatCallback) ([]Message, error) {
 	var extra []Message
 	tools := EnabledTools(caps)
@@ -715,6 +771,15 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : une seule
 	// relance par tour, comme le nudge.
 	patternRetried := false
+	// Reprises RÉSEAU consécutives (llm_retry_net.go). Remis à zéro dès qu'une
+	// réponse arrive : une boucle d'outils longue retrouve son budget à chaque
+	// itération réussie, un moteur durablement mort finit par rendre la main.
+	netRetries := 0
+	// Destination des complétions : llama-server local, ou une API OpenAI-compatible
+	// externe si le preset actif en est un (backend_external.go). Résolu UNE FOIS
+	// par tour — une bascule de preset en plein tour est rare, et se rejoue de
+	// toute façon au message suivant.
+	ep := resolveChatEndpoint()
 	// Budget SOUPLE d'appels d'outils (llm_budget.go). Toujours pas de plafond
 	// d'itérations : couper un tour cassait des recherches légitimes. Mais au-delà
 	// d'un palier on RAPPELLE au modèle combien d'appels il a déjà faits et on lui
@@ -730,7 +795,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			messages = append(messages, Message{Role: "user", Content: msg})
 		}
 		payload := map[string]any{
-			"model": "loki",
+			"model": ep.Model,
 			// Normalisé juste avant l'envoi : un seul système, en tête. Les gabarits
 			// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
 			"messages":    normalizeSystemMessages(messages),
@@ -762,15 +827,28 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			payload["parallel_tool_calls"] = false
 		}
 		body, _ := json.Marshal(payload)
-		url := fmt.Sprintf("http://localhost:%d/v1/chat/completions", LLMPort())
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 		if err != nil {
 			return extra, err
 		}
 		req.Header.Set("Content-Type", "application/json")
-		authHeader(req)
+		// ⚠️ Surtout pas authHeader : celui-ci pose la clé du serveur LOCAL, et
+		// l'envoyer à api.openai.com serait fuiter un secret chez un tiers en même
+		// temps qu'un 401 garanti. Chaque endpoint porte la sienne.
+		ep.auth(req.Header.Set)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
+			// Rien n'est encore parti à l'écran : le tour est rejouable tel quel.
+			// C'est le cas du moteur qui redémarre (bascule de preset, rechargement
+			// de modèle) — quelques secondes de connexion refusée qui faisaient
+			// échouer pour de bon une tâche planifiée tombée pile là.
+			if netRetries < llmNetRetries && llmRetryableErr(ctx, err) {
+				logLLMRetry(netRetries+1, friendlyLLMError(err).Error())
+				if werr := llmNetBackoff(ctx, netRetries); werr == nil {
+					netRetries++
+					continue
+				}
+			}
 			err = friendlyLLMError(err)
 			cb(StreamEvent{Err: err})
 			return extra, err
@@ -832,10 +910,30 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				messages = steerSystem(messages, "N'appelle plus d'outil. Réponds maintenant directement en français à partir des informations déjà obtenues.")
 				continue
 			}
-			err := fmt.Errorf("llama-server a renvoyé %d : %s", resp.StatusCode, msg)
+			// Dernier recours, APRÈS les filets sémantiques ci-dessus : un statut
+			// qui dit « pas maintenant » (passerelle, service indisponible, trop de
+			// requêtes) et non « ta requête est fautive ». Le corps n'a pas été
+			// diffusé, le tour est rejouable.
+			if netRetries < llmNetRetries && llmRetryableStatus(resp.StatusCode) && ctx.Err() == nil {
+				logLLMRetry(netRetries+1, fmt.Sprintf("le moteur a renvoyé %d", resp.StatusCode))
+				if werr := llmNetBackoff(ctx, netRetries); werr == nil {
+					netRetries++
+					continue
+				}
+			}
+			// Nommer la BONNE machine : « llama-server a renvoyé 401 » sur un preset
+			// externe envoie chercher la panne du mauvais côté.
+			who := "llama-server"
+			if ep.External {
+				who = "l'API externe"
+			}
+			err := fmt.Errorf("%s a renvoyé %d : %s", who, resp.StatusCode, msg)
 			cb(StreamEvent{Err: err})
 			return extra, err
 		}
+		// Une réponse est arrivée : le budget de reprise réseau repart à neuf pour
+		// la suite de la boucle d'outils.
+		netRetries = 0
 		toolCalls := map[int]*ToolCall{}
 		assistantContent := strings.Builder{}
 		finishReason := ""
@@ -1112,50 +1210,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				toolRuns++ // alimente le budget souple (voir budgetNudge)
 				var args map[string]any
 				_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
-				// Derive the human label (command / skill name) up front so we can
-				// announce the call BEFORE running it — otherwise the UI shows
-				// nothing while a slow shell command runs and looks frozen.
-				label := ""
-				switch tc.Function.Name {
-				case "mem_search", "web_search", "recall_search":
-					label, _ = args["query"].(string)
-				case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
-					label, _ = args["file"].(string)
-				case "recall":
-					label, _ = args["id"].(string)
-				case "tracker":
-					// Libellé lisible : « nom » ou « action nom », pas un dump d'arguments.
-					label = strings.TrimSpace(str(args["action"]) + " " + str(args["name"]))
-				case "bash", "bash_bg":
-					label, _ = args["command"].(string)
-				case "grep", "glob":
-					label, _ = args["pattern"].(string)
-				case "ask":
-					label, _ = args["question"].(string)
-				case "criteria":
-					label, _ = args["action"].(string)
-				case "bash_tail":
-					label, _ = args["id"].(string)
-				case "git_clone":
-					label, _ = args["url"].(string)
-				case "web_open", "web_read":
-					label, _ = args["url"].(string)
-				case "web_grep":
-					u, _ := args["url"].(string)
-					p, _ := args["pattern"].(string)
-					label = p + " @ " + u
-				default:
-					// Outils MCP : libellé = un aperçu compact des arguments.
-					if isMCPTool(tc.Function.Name) {
-						label = mcpArgLabel(args)
-					}
-				}
+				// Libellé humain, annoncé AVANT l'exécution (voir toolCallLabel) : sans
+				// ça l'interface reste muette pendant une commande lente. Il sert
+				// aussi d'argument principal à plusieurs outils.
+				label := toolCallLabel(tc.Function.Name, args)
 				cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label}})
 
 				result := ""
 				// diff : rempli par les outils d'écriture (edit / mémoire) pour que
 				// l'UI montre les lignes ajoutées et retirées.
 				var diff []DiffLine
+				// visionImg : partie image_url rendue par see_image, réinjectée après
+				// le résultat de l'outil (un message `tool` ne porte que du texte).
+				var visionImg map[string]any
 				// Appel rigoureusement identique déjà exécuté dans ce tour : on ne le
 				// rejoue pas. Les petits modèles réémettent volontiers deux fois la
 				// même écriture ; la rejouer produisait une fausse erreur (« old
@@ -1171,6 +1238,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					continue
 				}
 				switch tc.Function.Name {
+				case "see_image":
+					result, visionImg = toolSeeImage(label)
 				case "recall":
 					result = toolRecall(args)
 				case "recall_search":
@@ -1352,6 +1421,15 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						}
 					}
 				}
+				// see_image a réussi : même relais, et surtout même règle ÉPHÉMÈRE
+				// que la capture — l'image va dans `messages` (le tour en cours)
+				// mais PAS dans `extra` (l'historique persistant). Un base64
+				// persisté repartirait à CHAQUE tour suivant et finirait par
+				// dépasser la fenêtre pour de bon. Le modèle regarde l'image
+				// maintenant ; ce qu'il en dit, lui, reste.
+				if visionImg != nil {
+					messages = append(messages, seeImageMessage(label, visionImg))
+				}
 			}
 			// Compaction EN COURS DE TOUR. Le seuil n'était testé qu'AU DÉBUT du tour :
 			// une boucle d'outils peut à elle seule remplir la fenêtre (résultats
@@ -1426,7 +1504,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 var healthClient = &http.Client{Timeout: 3 * time.Second}
 
 // healthCheck pings llama.cpp's /health endpoint.
+//
+// Preset externe : il n'y a pas de llama-server local à sonder. On répond
+// « prêt » sans latence — la vraie joignabilité de l'API distante se révèle à
+// l'appel de complétion, avec un message d'erreur explicite si elle échoue.
+// Sans ce court-circuit, la saisie resterait bloquée sur un moteur éteint que
+// personne n'allumera jamais.
 func healthCheck() bool {
+	if externalActive() {
+		return true
+	}
 	resp, err := healthClient.Get(fmt.Sprintf("http://localhost:%d/health", LLMPort()))
 	if err != nil {
 		return false

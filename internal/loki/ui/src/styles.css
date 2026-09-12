@@ -170,8 +170,8 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:4px}
-  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg{width:11px;height:11px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
@@ -363,6 +363,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
+   un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
+   carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.
+   min-width:0 + ellipsis : un nom de modèle distant peut être très long
+   (« llama-3.3-70b-versatile ») et ne doit pas pousser le reste hors de la ligne. */
+.xtag{flex-shrink:1;min-width:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;
+  padding:1px 6px;border:1px solid var(--accent);color:var(--accent);border-radius:4px;letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xtag svg{flex:none}
 .btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
 /* Petit « ? » d'aide : bulle au survol/clic au lieu d'un pavé de texte permanent. */
 .help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;flex-shrink:0;font-size:10px;font-weight:600;line-height:1;color:var(--dim);border:1px solid var(--border);border-radius:50%;cursor:help;user-select:none;vertical-align:middle}

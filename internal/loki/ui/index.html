@@ -201,8 +201,8 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:4px}
-  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg{width:11px;height:11px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
@@ -394,6 +394,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
+   un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
+   carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.
+   min-width:0 + ellipsis : un nom de modèle distant peut être très long
+   (« llama-3.3-70b-versatile ») et ne doit pas pousser le reste hors de la ligne. */
+.xtag{flex-shrink:1;min-width:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;
+  padding:1px 6px;border:1px solid var(--accent);color:var(--accent);border-radius:4px;letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xtag svg{flex:none}
 .btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
 /* Petit « ? » d'aide : bulle au survol/clic au lieu d'un pavé de texte permanent. */
 .help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;flex-shrink:0;font-size:10px;font-weight:600;line-height:1;color:var(--dim);border:1px solid var(--border);border-radius:50%;cursor:help;user-select:none;vertical-align:middle}
@@ -2417,6 +2426,54 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     </div>
   </div>
 </div>
+<!-- Preset « externe » : le chat part vers une API OpenAI-compatible distante
+     (OpenAI, Groq, OpenRouter, un vLLM sur une autre machine…) au lieu du
+     llama-server local. C'est un preset comme un autre — il apparaît dans la
+     même liste, se bascule pareil — mais ses réglages n'ont rien à voir avec
+     ceux d'un modèle local : ni quantification, ni couches GPU, ni moteur.
+     D'où une fenêtre à part plutôt que des champs grisés dans l'éditeur. -->
+<div id="ext-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeExternal()">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;width:100%;max-width:520px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong id="ext-title">API externe</strong>
+      <button onclick="closeExternal()" style="margin:0" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="pe-body" style="padding:0">
+      <div class="pe-group">
+        <div class="pe-gh">Connexion</div>
+        <div class="pe-list">
+          <div class="pe-row stack plain"><input id="ext-name" class="pe-inp" placeholder="Nom du preset (ex. Groq 70B)"></div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">URL<span class="pe-sub">base (…/v1) ou URL complète des complétions</span></span>
+            <input id="ext-url" class="pe-inp" placeholder="https://api.groq.com/openai/v1" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Modèle<span class="pe-sub">le nom exact attendu par l'API</span></span>
+            <input id="ext-model" class="pe-inp" placeholder="llama-3.3-70b-versatile" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Clé d'API<span class="pe-sub" id="ext-key-sub">vide = aucune authentification</span></span>
+            <input id="ext-key" class="pe-inp" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" oninput="extKeyTouched=true">
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">Contexte<span class="pe-sub">pilote la jauge et le seuil de compactage</span></span>
+            <span class="pe-row-c"><input id="ext-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768"><span class="pe-unit">tok</span></span>
+          </div>
+          <div class="pe-row stack">
+            <button id="ext-test" class="pe-link" onclick="testExternal()">Tester la connexion</button>
+            <div id="ext-test-out" class="pe-note"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:6px">
+      <button id="ext-del" onclick="deleteExternal()" class="danger" style="display:none">supprimer</button>
+      <span style="flex:1"></span>
+      <button onclick="closeExternal()">annuler</button>
+      <button id="ext-save" onclick="saveExternal()" style="border-color:var(--accent);color:var(--accent)">enregistrer</button>
+    </div>
+  </div>
+</div>
 <!-- Fenêtre d'export. Un fil relu pour retrouver une réponse n'a que faire des
      mille lignes de raisonnement qui l'ont produite : on choisit ce qu'on
      emporte plutôt que de tout prendre ou rien. Les options de CONTENU sont les
@@ -2484,7 +2541,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <div id="cfg" class="slist">…</div>
   </section>
   <section class="set-pane" data-pane="presets">
-    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
+    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openExternal('')" title="ajouter une API externe" aria-label="ajouter une API externe"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg></button><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
     <div class="slist"><div id="presets" class="rowlist"></div></div>
   </section>
   <section class="set-pane" data-pane="agent">
@@ -4153,6 +4210,16 @@ async function loadPresets(){
     nm.appendChild(document.createTextNode(x.name)); nm.title=x.name;
     // Second row: quant tag + bench perf, so the title row stays full-width.
     const meta=document.createElement('div'); meta.className='preset-meta';
+    // Preset externe : ni quant ni bench à montrer — le modèle tourne ailleurs.
+    // On affiche à la place d'où vient la réponse, sans quoi rien à l'écran ne
+    // distinguerait un preset local d'un appel qui part sur internet.
+    if(x.external){
+      const et=document.createElement('span'); et.className='xtag';
+      et.title='API externe — le chat part vers un serveur distant';
+      et.innerHTML='<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>';
+      et.appendChild(document.createTextNode(x.model || 'externe'));
+      meta.appendChild(et);
+    }
     if(x.quant){
       const q=document.createElement('span'); q.className='qtag';
       q.textContent=x.quant; q.title='quantization';
@@ -4178,7 +4245,10 @@ async function loadPresets(){
     // lit comme centrée dans son coin, là où le crayon penché tirait de travers.
     edit.className='preset-edit'; edit.title='réglages du preset';
     edit.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
-    edit.onclick=(e)=>{ e.stopPropagation(); openPreset(x.id); };
+    // Deux éditeurs, deux mondes : les réglages d'un preset externe (URL, modèle
+    // distant, clé) n'ont rien à voir avec ceux d'un modèle local.
+    edit.title = x.external ? 'réglages de l’API externe' : 'réglages du preset';
+    edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : openPreset(x.id); };
     row.appendChild(info); row.appendChild(edit);
     cont.appendChild(row);
   });
@@ -7531,6 +7601,106 @@ function lcToggleLog(){
   const bar = document.querySelector('.lc-logbar');
   if(pre.hasAttribute('hidden')){ pre.removeAttribute('hidden'); bar.classList.add('open'); pre.scrollTop = pre.scrollHeight; }
   else { pre.setAttribute('hidden',''); bar.classList.remove('open'); }
+}
+// 11-external.js — presets « externes » : le chat part vers une API
+// OpenAI-compatible distante (OpenAI, Groq, OpenRouter, un vLLM sur une autre
+// machine…) au lieu du llama-server local.
+//
+// Un preset externe vit dans la même liste que les autres et se bascule pareil.
+// Mais ses réglages n'ont rien de commun avec ceux d'un modèle local — ni
+// quantification, ni couches GPU, ni moteur, ni projecteur vision : la machine
+// distante décide de tout ça. D'où cette fenêtre à part, plutôt qu'un éditeur de
+// preset aux trois quarts grisé.
+
+// La clé n'est JAMAIS renvoyée en clair par le serveur : le champ s'affiche
+// vide même quand une clé est enregistrée. Un champ vide ne vaut donc pas
+// « efface la clé » — il faut y avoir touché. Sans ce drapeau, rouvrir la
+// fenêtre pour corriger une faute de frappe dans l'URL effaçait la clé au
+// passage, et le preset tombait en 401 au message suivant.
+let extKeyTouched = false;
+let extEditing = '';
+
+function closeExternal(){ hideModal('ext-modal'); }
+
+async function openExternal(id){
+  extEditing = id || '';
+  extKeyTouched = false;
+  const set = (el, v) => { const e = document.getElementById(el); if(e) e.value = v; };
+  document.getElementById('ext-title').textContent = id ? 'API externe' : 'Nouvelle API externe';
+  document.getElementById('ext-del').style.display = id ? '' : 'none';
+  document.getElementById('ext-test-out').textContent = '';
+  document.getElementById('ext-key-sub').textContent = 'vide = aucune authentification';
+  set('ext-name',''); set('ext-url',''); set('ext-model',''); set('ext-key',''); set('ext-ctx','');
+  showModal('ext-modal');
+  if(!id) return;
+  let d = {};
+  try{ d = await jget('/api/preset/external?id=' + encodeURIComponent(id)); }catch(_){ return; }
+  if(extEditing !== id) return;           // une autre ouverture a pris la main
+  set('ext-name', d.name || ''); set('ext-url', d.url || '');
+  set('ext-model', d.model || ''); set('ext-ctx', d.ctx || '');
+  if(d.hasKey){
+    document.getElementById('ext-key-sub').textContent =
+      'une clé est enregistrée — laisse vide pour la conserver';
+  }
+}
+
+// Le corps commun aux deux routes (enregistrement et test).
+function extPayload(){
+  return {
+    id: extEditing,
+    name: (document.getElementById('ext-name').value || '').trim(),
+    url: (document.getElementById('ext-url').value || '').trim(),
+    model: (document.getElementById('ext-model').value || '').trim(),
+    key: document.getElementById('ext-key').value || '',
+    ctx: (document.getElementById('ext-ctx').value || '').trim(),
+    keyTouched: extKeyTouched,
+  };
+}
+
+// Tester AVANT d'enregistrer n'est pas un confort : une URL mal collée ou une
+// clé expirée ne se voit sinon qu'au premier message, sous la forme d'un code
+// HTTP nu au milieu d'une conversation.
+async function testExternal(){
+  const out = document.getElementById('ext-test-out');
+  const btn = document.getElementById('ext-test');
+  const p = extPayload();
+  if(!p.url || !p.model){ out.innerHTML = '<span style="color:var(--err)">URL et modèle requis</span>'; return; }
+  btn.disabled = true;
+  out.textContent = 'appel de test en cours…';
+  let r = {};
+  try{ r = await jpost('/api/preset/external/test', p); }
+  catch(_){ r = {ok:false, error:'réseau'}; }
+  btn.disabled = false;
+  out.innerHTML = r.ok
+    ? '<span style="color:var(--ok)">✓ l’API répond</span>'
+    : '<span style="color:var(--err)">' + escHtml((r.status ? r.status + ' — ' : '') + (r.error || 'échec')) + '</span>';
+}
+
+async function saveExternal(){
+  const p = extPayload();
+  if(!p.name){ toast('nom requis'); return; }
+  if(!p.url){ toast('URL requise'); return; }
+  if(!p.model){ toast('modèle requis'); return; }
+  const r = await jpost('/api/preset/external/save', p);
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('enregistré');
+  closeExternal();
+  loadPresets();
+}
+
+// Même route de suppression que n'importe quel preset — et même refus si c'est
+// celui en service. Pas de case « supprimer aussi le .gguf » : il n'y a pas de
+// fichier, le modèle est chez quelqu'un d'autre.
+async function deleteExternal(){
+  if(!extEditing) return;
+  const name = (document.getElementById('ext-name').value || '').trim() || extEditing;
+  if(!await askConfirm('Supprimer le preset « ' + name + ' » ?',
+      {title:'Suppression', okText:'Supprimer', danger:true})) return;
+  const r = await jpost('/api/preset/delete', {id: extEditing});
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('supprimé');
+  closeExternal();
+  loadPresets();
 }
 // ─── Serveurs MCP ────────────────────────────────────────────────────────────
 // Gestion des serveurs MCP (Model Context Protocol) : liste, ajout/édition via

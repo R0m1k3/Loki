@@ -156,9 +156,10 @@ func engineSeesImages() bool {
 //   - garantir l'invariant à l'avenir, quel que soit le chemin d'écriture.
 //
 // Le texte restant reçoit imageLostMarker : sans lui, une conversation rouverte
-// ne garde que la légende de la capture (« Capture … ») et le modèle n'a plus
-// aucun indice qu'il A VU une image — il la redécrit de mémoire au lieu d'en
-// reprendre une. Même raison que dans msgText, autre bout de la chaîne.
+// ne garde que la légende (« Capture … », « Image demandée (x.png) : ») et le
+// modèle n'a plus aucun indice qu'il A VU une image — il la redécrit de mémoire
+// au lieu d'y revenir. Même raison que dans msgText, autre bout de la chaîne.
+// Vaut pour toutes les provenances : capture, pièce jointe, see_image.
 func stripImageParts(msgs []Message) []Message {
 	for i, m := range msgs {
 		parts, ok := m.Content.([]any)

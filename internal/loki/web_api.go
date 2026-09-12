@@ -29,6 +29,13 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	if active {
 		health = healthCheck()
 	}
+	// Preset externe : aucun service llama-server local, mais le chat EST prêt
+	// (il tape vers l'API distante). Sans ça l'interface afficherait un moteur
+	// éteint pour toujours et laisserait la saisie bloquée.
+	external := externalActive()
+	if external {
+		active, state, health = true, "active", true
+	}
 	ctx := 32768
 	if v := ReadConfig()["CTX"]; v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -67,9 +74,10 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"port":       LLMPort(),
 		"ctx":        ctx,
 		"version":    Version,
-		"warn":       warn,    // App Translocation macOS, /data non monté… — vide si tout va bien
-		"load_error": loadErr, // modèle qui ne charge pas (incompat moteur…) — vide sinon
-		"load_pct":   loadPct, // % estimé du chargement en cours (-1 = non mesurable)
+		"warn":       warn,     // App Translocation macOS, /data non monté… — vide si tout va bien
+		"load_error": loadErr,  // modèle qui ne charge pas (incompat moteur…) — vide sinon
+		"load_pct":   loadPct,  // % estimé du chargement en cours (-1 = non mesurable)
+		"external":   external, // preset externe : le chat part vers une API distante
 	})
 }
 
@@ -390,6 +398,16 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	for _, p := range list {
 		item := map[string]any{"id": p.ID, "name": p.Name, "active": p.Active}
 		if content, err := ReadPreset(p.ID); err == nil {
+			// Preset externe : ni quant, ni raisonnement local à annoncer — on
+			// l'étiquette et on donne le nom du modèle distant à afficher.
+			if cfg := parseEnv(content); isExternalConfig(cfg) {
+				item["external"] = true
+				if m := strings.TrimSpace(cfg[extKeyModel]); m != "" {
+					item["model"] = m
+				}
+				out = append(out, item)
+				continue
+			}
 			if q := detectQuant(content); q != "" {
 				item["quant"] = q
 			}
@@ -1030,6 +1048,22 @@ func handleSwitch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("%s config.env <- %s\n", green("[ok]"), filepath.Base(target.Path))
+	// Preset externe : aucun moteur local à (re)démarrer — il n'a pas de MODEL et
+	// llama-server partirait en boucle de crash. On ARRÊTE au contraire celui qui
+	// tourne encore : le chat part désormais vers l'API distante, garder le modèle
+	// en VRAM ne sert plus à rien.
+	if isExternalConfig(ReadConfig()) {
+		fmt.Println(dim("[info] preset externe — arrêt du moteur local"))
+		go func() {
+			if serviceIsActive() {
+				if err := serviceAction("stop"); err != nil {
+					fmt.Printf("%s arrêt du moteur après bascule externe : %v\n", red("[ERREUR]"), err)
+				}
+			}
+		}()
+		sendJSON(w, 200, map[string]any{"ok": true, "preset": target.Name})
+		return
+	}
 	fmt.Println(dim("[info] redémarrage du service..."))
 	go func() {
 		if err := serviceAction("restart"); err != nil {

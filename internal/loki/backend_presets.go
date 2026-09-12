@@ -264,6 +264,17 @@ func SwitchToPreset(target string) error {
 		return err
 	}
 	fmt.Printf("%s configuration <- %s\n", green("[ok]"), filepath.Base(target))
+	// Preset externe (backend_external.go) : rien à redémarrer, il n'a pas de
+	// MODEL et llama-server partirait en boucle de crash. On arrête au contraire
+	// le moteur encore en vie — le chat part vers l'API distante, garder le
+	// modèle en VRAM ne sert plus à rien.
+	if isExternalConfig(ReadConfig()) {
+		fmt.Println(dim("[info] preset externe — arrêt du moteur local"))
+		if !serviceIsActive() {
+			return nil
+		}
+		return serviceAction("stop")
+	}
 	fmt.Println(dim("[info] redémarrage du service..."))
 	return serviceAction("restart")
 }

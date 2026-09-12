@@ -239,6 +239,54 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     </div>
   </div>
 </div>
+<!-- Preset « externe » : le chat part vers une API OpenAI-compatible distante
+     (OpenAI, Groq, OpenRouter, un vLLM sur une autre machine…) au lieu du
+     llama-server local. C'est un preset comme un autre — il apparaît dans la
+     même liste, se bascule pareil — mais ses réglages n'ont rien à voir avec
+     ceux d'un modèle local : ni quantification, ni couches GPU, ni moteur.
+     D'où une fenêtre à part plutôt que des champs grisés dans l'éditeur. -->
+<div id="ext-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeExternal()">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;width:100%;max-width:520px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong id="ext-title">API externe</strong>
+      <button onclick="closeExternal()" style="margin:0" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="pe-body" style="padding:0">
+      <div class="pe-group">
+        <div class="pe-gh">Connexion</div>
+        <div class="pe-list">
+          <div class="pe-row stack plain"><input id="ext-name" class="pe-inp" placeholder="Nom du preset (ex. Groq 70B)"></div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">URL<span class="pe-sub">base (…/v1) ou URL complète des complétions</span></span>
+            <input id="ext-url" class="pe-inp" placeholder="https://api.groq.com/openai/v1" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Modèle<span class="pe-sub">le nom exact attendu par l'API</span></span>
+            <input id="ext-model" class="pe-inp" placeholder="llama-3.3-70b-versatile" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Clé d'API<span class="pe-sub" id="ext-key-sub">vide = aucune authentification</span></span>
+            <input id="ext-key" class="pe-inp" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" oninput="extKeyTouched=true">
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">Contexte<span class="pe-sub">pilote la jauge et le seuil de compactage</span></span>
+            <span class="pe-row-c"><input id="ext-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768"><span class="pe-unit">tok</span></span>
+          </div>
+          <div class="pe-row stack">
+            <button id="ext-test" class="pe-link" onclick="testExternal()">Tester la connexion</button>
+            <div id="ext-test-out" class="pe-note"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:6px">
+      <button id="ext-del" onclick="deleteExternal()" class="danger" style="display:none">supprimer</button>
+      <span style="flex:1"></span>
+      <button onclick="closeExternal()">annuler</button>
+      <button id="ext-save" onclick="saveExternal()" style="border-color:var(--accent);color:var(--accent)">enregistrer</button>
+    </div>
+  </div>
+</div>
 <!-- Fenêtre d'export. Un fil relu pour retrouver une réponse n'a que faire des
      mille lignes de raisonnement qui l'ont produite : on choisit ce qu'on
      emporte plutôt que de tout prendre ou rien. Les options de CONTENU sont les
@@ -306,7 +354,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <div id="cfg" class="slist">…</div>
   </section>
   <section class="set-pane" data-pane="presets">
-    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
+    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openExternal('')" title="ajouter une API externe" aria-label="ajouter une API externe"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg></button><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
     <div class="slist"><div id="presets" class="rowlist"></div></div>
   </section>
   <section class="set-pane" data-pane="agent">
