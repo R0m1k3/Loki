@@ -1465,7 +1465,28 @@ button:hover{border-color:var(--dim);color:var(--text)}
    endroit et ça décide autant de la suite — un dépôt gated ne se télécharge
    pas sans jeton. */
 .hf-fit.gated{color:var(--warn);border-color:var(--warn);text-transform:none}
+/* Déjà sur le disque : ce n'est pas un verdict mémoire non plus, mais c'est
+   l'information qui décide du clic — cliquer sélectionne au lieu de télécharger. */
+.hf-fit.here{color:var(--accent);border-color:var(--accent);text-transform:none}
 .hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
+
+/* --- Modèles installés (liste + suppression) --------------------------------
+   Même allure que la liste Hugging Face juste au-dessus, mais la LIGNE n'est
+   pas cliquable : ici c'est le bouton « supprimer » qui agit, et un curseur
+   main sur toute la ligne laisserait croire le contraire. */
+.mdl-list{display:flex;flex-direction:column;max-height:240px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:3px;margin-top:6px}
+.mdl-row{display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-top:1px solid var(--border);font-size:12px}
+.mdl-row:first-child{border-top:0}
+.mdl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.mdl-meta{flex:none;color:var(--dim);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+.mdl-tag{flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:.03em;
+  border:1px solid var(--border);color:var(--dim)}
+.mdl-tag.on{color:var(--accent);border-color:var(--accent)}
+.mdl-tag.warn{color:var(--warn);border-color:var(--warn)}
+.mdl-row .pe-link{flex:none}
+.mdl-row .pe-link:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
 .hf-mm.muted{cursor:default}

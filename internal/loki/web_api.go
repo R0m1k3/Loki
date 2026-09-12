@@ -299,14 +299,30 @@ func handleLlamacppUninstallCustom(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleModels lists *.gguf files (size in bytes) for the preset editor's model
-// picker, dans LOKI_HOME ET dans les dossiers supplémentaires déclarés (disque
-// externe…). "value" est ce qu'il faut écrire dans MODEL= : un simple nom de
-// fichier pour LOKI_HOME (compatibilité avec l'existant), le chemin complet
-// pour un dossier externe.
+// picker, dans le dossier de modèles de Loki ET dans les dossiers
+// supplémentaires déclarés (disque externe…). "value" est ce qu'il faut écrire
+// dans MODEL= : un simple nom de fichier pour le dossier de Loki
+// (compatibilité avec l'existant, et preset portable d'une machine à l'autre),
+// le chemin complet pour un dossier externe.
+//
+// ⚠️ Le dossier « maison » est modelsDir() — $LOKI_HOME/models — et non
+// LokiHome() : c'est là que les téléchargements atterrissent (downloadDestPath)
+// et c'est lui que resolveModelPath essaie en premier pour un nom simple. Le
+// comparer à LokiHome() ne pouvait JAMAIS être vrai : chaque modèle sortait en
+// chemin absolu, l'étiquette « dossier loki » ne s'affichait nulle part, et un
+// preset écrit à la main avec MODEL=modele.gguf ne correspondait à aucune
+// option du sélecteur — il s'affichait « introuvable » alors que le fichier
+// était bien là.
+//
+// Chaque entrée porte aussi QUI la référence (« used » : noms de presets,
+// « active » : la configuration en service). C'est ce qui permet à l'interface
+// de proposer la suppression d'un .gguf sans faire disparaître le modèle sous
+// le moteur qui tourne.
 func handleModels(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	seen := map[string]bool{}
-	home := LokiHome()
+	home := modelsDir()
+	refs := buildModelRefIndex()
 	for _, dir := range modelDirs() {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -340,6 +356,12 @@ func handleModels(w http.ResponseWriter, r *http.Request) {
 			m := map[string]any{
 				"name": e.Name(), "size": size, "value": value,
 				"path": full, "dir": dir, "home": isHome,
+			}
+			if users, active := refs.lookup(full); len(users) > 0 || active {
+				if len(users) > 0 {
+					m["used"] = users
+				}
+				m["active"] = active
 			}
 			// Taille annoncée = la famille entière, et on signale les tranches
 			// manquantes : un modèle incomplet démarre puis meurt sur un tenseur
@@ -462,14 +484,24 @@ func handlePresetDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	modelDeleted, modelErr := "", ""
+	freed := int64(0)
 	if req.DeleteModel && model != "" {
-		if err := deleteModelFile(model); err != nil {
+		// Le preset vient de disparaître : les « utilisé par » comptés ici sont
+		// donc les AUTRES presets, et le refus « en service » vise bien le modèle
+		// que le moteur a ouvert. On ne bloque pas sur un autre preset — c'est un
+		// geste explicite, coché dans la confirmation — mais on le DIT.
+		others, _ := modelUsers(model)
+		if n, err := deleteModelFile(model); err != nil {
 			modelErr = err.Error()
 		} else {
-			modelDeleted = model
+			modelDeleted, freed = model, n
+			if len(others) > 0 {
+				modelErr = "supprimé, mais il était aussi référencé par : " + strings.Join(others, ", ")
+			}
 		}
 	}
-	sendJSON(w, 200, map[string]any{"ok": true, "modelDeleted": modelDeleted, "modelError": modelErr})
+	sendJSON(w, 200, map[string]any{"ok": true, "modelDeleted": modelDeleted,
+		"modelError": modelErr, "freed": freed})
 }
 
 // handleAgent renvoie l'état du mode agent ET la liste des pages mémoire (que

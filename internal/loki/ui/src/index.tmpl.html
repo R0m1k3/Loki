@@ -1028,6 +1028,17 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               </div>
               <div class="pe-note">Ces dossiers servent aussi de destination de téléchargement.</div>
             </div>
+            <!-- Modèles installés. Un .gguf survit à la suppression de son preset
+                 (c'est voulu : on le réutilise dans un autre). Encore faut-il
+                 pouvoir le REPRENDRE et, un jour, l'effacer — sans ça les
+                 fichiers gardés devenaient invisibles et indéboulonnables. -->
+            <div id="m-inst-toggle" class="pe-row" style="cursor:pointer" onclick="toggleInstalled()">
+              <span class="pe-row-l">Modèles installés<span class="pe-sub">les .gguf présents sur le disque — et de quoi en effacer un</span></span>
+              <span class="pe-row-c"><span id="m-inst-state" class="pe-sub"></span><span id="m-inst-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-inst-body" class="pe-row stack" style="display:none">
+              <div id="m-inst-list"></div>
+            </div>
             <!-- Jeton Hugging Face. Replié comme « Dossiers de modèles » : on n'y
                  touche qu'une fois, le jour où un dépôt à accès restreint refuse
                  le téléchargement. Il vaut aussi pour la recherche, d'où sa place

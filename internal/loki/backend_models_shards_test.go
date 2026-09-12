@@ -106,8 +106,12 @@ func TestDeleteModelFileEmporteLesTranches(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := deleteModelFile("m-00001-of-00002.gguf"); err != nil {
+	freed, err := deleteModelFile("m-00001-of-00002.gguf")
+	if err != nil {
 		t.Fatal(err)
+	}
+	if freed != 2 {
+		t.Fatalf("octets libérés = %d, attendu 2 (les deux tranches d'un octet)", freed)
 	}
 	for _, n := range names[:2] {
 		if _, err := os.Stat(filepath.Join(dir, n)); !os.IsNotExist(err) {
