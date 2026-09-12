@@ -29,6 +29,13 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	if active {
 		health = healthCheck()
 	}
+	// Preset externe : aucun service llama-server local, mais le chat EST prêt
+	// (il tape vers l'API distante). Sans ça l'interface afficherait un moteur
+	// éteint pour toujours et laisserait la saisie bloquée.
+	external := externalActive()
+	if external {
+		active, state, health = true, "active", true
+	}
 	ctx := 32768
 	if v := ReadConfig()["CTX"]; v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -67,9 +74,10 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"port":       LLMPort(),
 		"ctx":        ctx,
 		"version":    Version,
-		"warn":       warn,    // App Translocation macOS, /data non monté… — vide si tout va bien
-		"load_error": loadErr, // modèle qui ne charge pas (incompat moteur…) — vide sinon
-		"load_pct":   loadPct, // % estimé du chargement en cours (-1 = non mesurable)
+		"warn":       warn,     // App Translocation macOS, /data non monté… — vide si tout va bien
+		"load_error": loadErr,  // modèle qui ne charge pas (incompat moteur…) — vide sinon
+		"load_pct":   loadPct,  // % estimé du chargement en cours (-1 = non mesurable)
+		"external":   external, // preset externe : le chat part vers une API distante
 	})
 }
 
@@ -299,23 +307,30 @@ func handleLlamacppUninstallCustom(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleModels lists *.gguf files (size in bytes) for the preset editor's model
-// picker, dans LOKI_HOME ET dans les dossiers supplémentaires déclarés (disque
-// externe…). "value" est ce qu'il faut écrire dans MODEL= : un simple nom de
-// fichier pour LOKI_HOME (compatibilité avec l'existant), le chemin complet
-// pour un dossier externe.
+// picker, dans le dossier de modèles de Loki ET dans les dossiers
+// supplémentaires déclarés (disque externe…). "value" est ce qu'il faut écrire
+// dans MODEL= : un simple nom de fichier pour le dossier de Loki
+// (compatibilité avec l'existant, et preset portable d'une machine à l'autre),
+// le chemin complet pour un dossier externe.
+//
+// ⚠️ Le dossier « maison » est modelsDir() — $LOKI_HOME/models — et non
+// LokiHome() : c'est là que les téléchargements atterrissent (downloadDestPath)
+// et c'est lui que resolveModelPath essaie en premier pour un nom simple. Le
+// comparer à LokiHome() ne pouvait JAMAIS être vrai : chaque modèle sortait en
+// chemin absolu, l'étiquette « dossier loki » ne s'affichait nulle part, et un
+// preset écrit à la main avec MODEL=modele.gguf ne correspondait à aucune
+// option du sélecteur — il s'affichait « introuvable » alors que le fichier
+// était bien là.
+//
+// Chaque entrée porte aussi QUI la référence (« used » : noms de presets,
+// « active » : la configuration en service). C'est ce qui permet à l'interface
+// de proposer la suppression d'un .gguf sans faire disparaître le modèle sous
+// le moteur qui tourne.
 func handleModels(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	seen := map[string]bool{}
-	home := LokiHome()
-	// Ce que le moteur a ouvert, et ce que les presets réclament : l'interface en
-	// a besoin pour dire lesquels sont supprimables sans rien casser.
-	refs := modelPresetRefs()
-	loaded := ""
-	if cur := strings.TrimSpace(ReadConfig()["MODEL"]); cur != "" {
-		if q, err := resolveServeModelPath(cur); err == nil {
-			loaded = normDir(q)
-		}
-	}
+	home := modelsDir()
+	refs := buildModelRefIndex()
 	for _, dir := range modelDirs() {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -350,12 +365,11 @@ func handleModels(w http.ResponseWriter, r *http.Request) {
 				"name": e.Name(), "size": size, "value": value,
 				"path": full, "dir": dir, "home": isHome,
 			}
-			key := normDir(full)
-			if key == loaded {
-				m["loaded"] = true
-			}
-			if len(refs[key]) > 0 {
-				m["presets"] = refs[key]
+			if users, active := refs.lookup(full); len(users) > 0 || active {
+				if len(users) > 0 {
+					m["used"] = users
+				}
+				m["active"] = active
 			}
 			// Taille annoncée = la famille entière, et on signale les tranches
 			// manquantes : un modèle incomplet démarre puis meurt sur un tenseur
@@ -384,6 +398,16 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	for _, p := range list {
 		item := map[string]any{"id": p.ID, "name": p.Name, "active": p.Active}
 		if content, err := ReadPreset(p.ID); err == nil {
+			// Preset externe : ni quant, ni raisonnement local à annoncer — on
+			// l'étiquette et on donne le nom du modèle distant à afficher.
+			if cfg := parseEnv(content); isExternalConfig(cfg) {
+				item["external"] = true
+				if m := strings.TrimSpace(cfg[extKeyModel]); m != "" {
+					item["model"] = m
+				}
+				out = append(out, item)
+				continue
+			}
 			if q := detectQuant(content); q != "" {
 				item["quant"] = q
 			}
@@ -478,37 +502,24 @@ func handlePresetDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	modelDeleted, modelErr := "", ""
+	freed := int64(0)
 	if req.DeleteModel && model != "" {
-		modelDeleted, modelErr = deletePresetModel(model)
+		// Le preset vient de disparaître : les « utilisé par » comptés ici sont
+		// donc les AUTRES presets, et le refus « en service » vise bien le modèle
+		// que le moteur a ouvert. On ne bloque pas sur un autre preset — c'est un
+		// geste explicite, coché dans la confirmation — mais on le DIT.
+		others, _ := modelUsers(model)
+		if n, err := deleteModelFile(model); err != nil {
+			modelErr = err.Error()
+		} else {
+			modelDeleted, freed = model, n
+			if len(others) > 0 {
+				modelErr = "supprimé, mais il était aussi référencé par : " + strings.Join(others, ", ")
+			}
+		}
 	}
-	sendJSON(w, 200, map[string]any{"ok": true, "modelDeleted": modelDeleted, "modelError": modelErr})
-}
-
-// deletePresetModel efface le .gguf d'un preset qu'on vient de supprimer, avec
-// les MÊMES garde-fous que la suppression directe (/api/models/delete) : la case
-// « supprimer aussi le fichier » ne doit pas être un chemin détourné pour
-// effacer un modèle qu'on protège ailleurs.
-//
-// Le modèle CHARGÉ est conservé (le preset supprimé n'était pas forcément celui
-// en service : deux presets peuvent désigner le même .gguf), et un modèle encore
-// réclamé par un AUTRE preset aussi — sinon supprimer un preset laissait son
-// voisin avec un moteur qui meurt au démarrage. Le refus est renvoyé à
-// l'interface, qui le dit ; la suppression du preset, elle, a déjà eu lieu.
-func deletePresetModel(model string) (deleted, errMsg string) {
-	p, err := resolveModelPath(model)
-	if err != nil {
-		return "", err.Error()
-	}
-	if modelIsLoaded(p) {
-		return "", "modèle chargé par le moteur — fichier conservé"
-	}
-	if used := presetsUsingModel(p); len(used) > 0 {
-		return "", "encore utilisé par : " + strings.Join(used, ", ") + " — fichier conservé"
-	}
-	if err := deleteModelFile(p); err != nil {
-		return "", err.Error()
-	}
-	return model, ""
+	sendJSON(w, 200, map[string]any{"ok": true, "modelDeleted": modelDeleted,
+		"modelError": modelErr, "freed": freed})
 }
 
 // handleAgent renvoie l'état du mode agent ET la liste des pages mémoire (que
@@ -1005,6 +1016,22 @@ func handleSwitch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("%s config.env <- %s\n", green("[ok]"), filepath.Base(target.Path))
+	// Preset externe : aucun moteur local à (re)démarrer — il n'a pas de MODEL et
+	// llama-server partirait en boucle de crash. On ARRÊTE au contraire celui qui
+	// tourne encore : le chat part désormais vers l'API distante, garder le modèle
+	// en VRAM ne sert plus à rien.
+	if isExternalConfig(ReadConfig()) {
+		fmt.Println(dim("[info] preset externe — arrêt du moteur local"))
+		go func() {
+			if serviceIsActive() {
+				if err := serviceAction("stop"); err != nil {
+					fmt.Printf("%s arrêt du moteur après bascule externe : %v\n", red("[ERREUR]"), err)
+				}
+			}
+		}()
+		sendJSON(w, 200, map[string]any{"ok": true, "preset": target.Name})
+		return
+	}
 	fmt.Println(dim("[info] redémarrage du service..."))
 	go func() {
 		if err := serviceAction("restart"); err != nil {

@@ -201,101 +201,45 @@ func modelFromPresetContent(content string) string {
 // n'effacer que la première laissait des dizaines de Go de fichiers que plus
 // rien ne référence, et que rien ne sait plus supprimer depuis l'interface (les
 // tranches suivantes n'y apparaissent pas).
-func deleteModelFile(name string) error {
+//
+// Renvoie le nombre d'octets réellement libérés — l'interface le dit, et
+// « 41,2 Go libérés » est la seule confirmation qui vaille quelque chose après
+// un ménage de disque.
+//
+// Un modèle EN SERVICE n'est jamais effacé : le fichier reste mappé par
+// llama-server (la place n'est donc même pas rendue) et le prochain démarrage
+// meurt sur un .gguf absent, sans que rien n'ait prévenu.
+func deleteModelFile(name string) (int64, error) {
 	p, err := resolveModelPath(name)
 	if err != nil {
-		return err
+		return 0, err
 	}
+	if _, active := modelUsers(name); active {
+		return 0, fmt.Errorf("%s", modelInServiceMsg)
+	}
+	freed := modelFamilySize(p)
 	if err := os.Remove(p); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("modèle introuvable: %s", filepath.Base(p))
+			return 0, fmt.Errorf("modèle introuvable: %s", filepath.Base(p))
 		}
-		return err
+		return 0, err
 	}
 	dir := filepath.Dir(p)
 	for _, n := range shardFamily(filepath.Base(p)) {
 		_ = os.Remove(filepath.Join(dir, n)) // déjà supprimée ou absente = rien à faire
 	}
-	return nil
+	return freed, nil
 }
 
-// modelSizeOnDisk additionne les octets qu'un modèle occupe RÉELLEMENT — la
-// famille de tranches entière, pas le seul fichier nommé. C'est ce chiffre
-// qu'on annonce après une suppression : « 42 Go libérés » pour un modèle
-// découpé, et non les 15 Go de sa première tranche.
-func modelSizeOnDisk(p string) int64 {
-	return shardFamilySize(filepath.Dir(p), filepath.Base(p))
-}
-
-// modelIsLoaded dit si p est le modèle de la configuration ACTIVE, celui que
-// llama-server a ouvert. L'effacer sous ses pieds ne libère rien tant que le
-// processus tient le descripteur, et le prochain démarrage meurt sur un fichier
-// introuvable : on refuse, et on renvoie vers un changement de preset.
-func modelIsLoaded(p string) bool {
-	cur := strings.TrimSpace(ReadConfig()["MODEL"])
-	if cur == "" {
-		return false
-	}
-	q, err := resolveServeModelPath(cur)
-	if err != nil {
-		return false
-	}
-	return samePath(p, q)
-}
-
-// modelPresetRefs mappe chaque .gguf référencé par un preset (MODEL= ou
-// MMPROJ=, chemin normalisé) vers les noms des presets qui le réclament. Calculé
-// UNE fois par listage : sans ça, chercher les références d'un modèle à la fois
-// relisait tous les presets pour chaque fichier du disque.
-func modelPresetRefs() map[string][]string {
-	refs := map[string][]string{}
-	list, err := ListPresets()
-	if err != nil {
-		return refs
-	}
-	for _, pr := range list {
-		content, err := os.ReadFile(pr.Path)
-		if err != nil {
-			continue
-		}
-		env := parseEnv(string(content))
-		for _, ref := range []string{env["MODEL"], env["MMPROJ"]} {
-			if strings.TrimSpace(ref) == "" {
-				continue
-			}
-			q, err := resolveServeModelPath(ref)
-			if err != nil {
-				continue
-			}
-			k := normDir(q)
-			// Un preset qui pointe le même fichier en MODEL et en MMPROJ ne compte
-			// qu'une fois.
-			if n := len(refs[k]); n > 0 && refs[k][n-1] == pr.Name {
-				continue
-			}
-			refs[k] = append(refs[k], pr.Name)
-		}
-	}
-	return refs
-}
-
-// presetsUsingModel liste les noms d'affichage des presets dont MODEL= ou
-// MMPROJ= désigne p. Supprimer un .gguf ne casse pas qu'un fichier : chaque
-// preset qui le référence devient un moteur qui meurt au démarrage. On les
-// nomme AVANT, dans la confirmation, plutôt que de laisser la découverte au
-// prochain switch.
-func presetsUsingModel(p string) []string {
-	return modelPresetRefs()[normDir(p)]
-}
-
-// handleModelDelete supprime un .gguf (et toutes ses tranches) d'un dossier de
-// modèles déclaré.
+// handleModelDelete efface un .gguf d'un des dossiers de modèles déclarés.
 //
-// Deux garde-fous, parce que rien n'est réversible ici et qu'un modèle pèse des
-// dizaines de gigaoctets :
-//   - le modèle CHARGÉ est intouchable (modelIsLoaded) ;
-//   - un modèle référencé par des presets ne part qu'avec `force`, l'appelant
-//     ayant reçu leur liste dans la réponse 409 pour la poser à l'utilisateur.
+// Deux garde-fous, et un seul est un refus définitif :
+//
+//   - modèle en service → refus net (deleteModelFile), il faut basculer d'abord ;
+//   - modèle nommé par un ou plusieurs presets → 409 avec la LISTE des presets
+//     concernés. L'interface la montre, l'utilisateur tranche, et renvoie la
+//     même requête avec force:true. Refuser tout court transformerait le
+//     nettoyage en impasse — c'est exactement le travers qu'on corrige ici.
 func handleModelDelete(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name  string `json:"name"`
@@ -305,37 +249,22 @@ func handleModelDelete(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	p, err := resolveModelPath(req.Name)
+	users, active := modelUsers(req.Name)
+	if active {
+		sendJSON(w, 409, map[string]any{"ok": false, "error": modelInServiceMsg, "active": true})
+		return
+	}
+	if len(users) > 0 && !req.Force {
+		sendJSON(w, 409, map[string]any{"ok": false, "used": users,
+			"error": "modèle utilisé par : " + strings.Join(users, ", ")})
+		return
+	}
+	freed, err := deleteModelFile(req.Name)
 	if err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	if st, err := os.Stat(p); err != nil || st.IsDir() {
-		sendJSON(w, 404, map[string]any{"ok": false, "error": "modèle introuvable : " + filepath.Base(p)})
-		return
-	}
-	if modelIsLoaded(p) {
-		sendJSON(w, 409, map[string]any{"ok": false, "loaded": true,
-			"error": "modèle chargé par le moteur — bascule d'abord sur un autre preset"})
-		return
-	}
-	used := presetsUsingModel(p)
-	if len(used) > 0 && !req.Force {
-		sendJSON(w, 409, map[string]any{"ok": false, "presets": used, "needsForce": true,
-			"error": "modèle utilisé par un preset"})
-		return
-	}
-	freed := modelSizeOnDisk(p)
-	if err := deleteModelFile(p); err != nil {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	fmt.Printf("%s modèle supprimé : %s\n", green("[ok]"), p)
-	resp := map[string]any{"ok": true, "freed": freed}
-	if len(used) > 0 {
-		resp["presets"] = used // presets cassés par la suppression forcée
-	}
-	sendJSON(w, 200, resp)
+	sendJSON(w, 200, map[string]any{"ok": true, "freed": freed, "used": users})
 }
 
 // ---- Hugging Face downloads -------------------------------------------------
@@ -485,7 +414,16 @@ func handleModelDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(todoURLs) == 0 {
 		dlMu.Unlock()
-		sendJSON(w, 409, map[string]any{"ok": false, "error": "le modèle existe déjà: " + name})
+		// Rien à faire : toutes les tranches sont là. Ce n'était pas une erreur,
+		// c'était le résultat voulu — le modèle est installé. On répond ok avec la
+		// valeur à écrire dans MODEL=, l'interface le sélectionne et enchaîne la
+		// file (le projecteur vision, par exemple) au lieu de s'arrêter en rouge.
+		value, _, _ := modelPresence(name, req.Dir)
+		if value == "" {
+			value = modelPickerValue(filepath.Dir(dests[0]), name)
+		}
+		sendJSON(w, 200, map[string]any{"ok": true, "filename": name, "exists": true,
+			"value": value, "parts": 0})
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -565,6 +503,21 @@ func handleModelDownloadProbe(w http.ResponseWriter, r *http.Request) {
 	// puis échouer au deux tiers du transfert.
 	urls, names := shardURLSet(dlURL, name)
 	name = names[0]
+	// Déjà sur le disque : on ne sonde même pas Hugging Face. C'est le cas qui
+	// mettait l'interface dans une impasse — un modèle gardé après la suppression
+	// de son preset ne pouvait plus être re-choisi qu'en le retéléchargeant, et
+	// le téléchargement refusait d'écraser. Il n'y a rien à télécharger : il y a
+	// un modèle à SÉLECTIONNER, et l'UI a besoin de sa valeur MODEL= pour ça.
+	// Cherché dans TOUS les dossiers déclarés, pas seulement la destination
+	// choisie : re-télécharger 40 Go sur le SSD parce que le fichier est sur le
+	// disque externe déjà déclaré n'aide personne — le sélecteur, lui, le trouve
+	// où qu'il soit.
+	if value, path, ok := modelPresence(name, ""); ok {
+		sendJSON(w, 200, map[string]any{"ok": true, "filename": name, "dir": filepath.Dir(path),
+			"exists": true, "value": value, "size": modelFamilySize(path),
+			"free": diskFree(dir), "free_exact": diskFreeReliable(dir), "enough": true, "parts": len(urls)})
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	var total int64

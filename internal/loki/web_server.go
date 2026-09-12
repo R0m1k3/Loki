@@ -222,6 +222,11 @@ func newWebMux() *http.ServeMux {
 	api("/api/preset", handlePreset)
 	api("/api/preset/save", handlePresetSave)
 	api("/api/preset/delete", handlePresetDelete)
+	// Presets externes : le chat part vers une API OpenAI-compatible distante au
+	// lieu du llama-server local (backend_external.go).
+	api("/api/preset/external", handlePresetExternal)
+	api("/api/preset/external/save", handlePresetExternalSave)
+	api("/api/preset/external/test", handlePresetExternalTest)
 	api("/api/agent", handleAgent)
 	api("/api/agent/toggle", handleAgentToggle)
 	api("/api/agent/compact", handleCompactToggle)

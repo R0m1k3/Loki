@@ -111,8 +111,15 @@ func compactSummaryBudget() int {
 //
 // Ce marqueur ne rend pas l'image récupérable (le résumé est du texte), il rend
 // sa PERTE visible : le résumeur peut la mentionner, et le modèle sait qu'il
-// doit reprendre une capture plutôt que deviner.
-const imageLostMarker = " [image — not kept in the conversation past this point; take the screenshot again if you still need to see it]"
+// doit REVOIR l'image plutôt que deviner.
+//
+// Formulation volontairement générale depuis l'arrivée de see_image : une image
+// peut désormais venir d'une capture (web_screenshot), d'une pièce jointe ou
+// d'un fichier du disque. Dire « reprends la capture » enverrait le modèle
+// photographier une page web alors que l'image perdue était un PNG sur le
+// disque — le geste juste dépend de la provenance, que la légende conservée
+// juste avant ce marqueur indique.
+const imageLostMarker = " [image — not kept in the conversation past this point; look at it again (see_image on the file, or a new screenshot) if you still need to see it]"
 
 // msgText extrait le texte d'un message (Content est `any`, en pratique string
 // ou nil quand l'assistant n'a que des tool_calls). Un message multimodal
@@ -577,8 +584,13 @@ Summarize densely and faithfully, keeping ONLY the essentials:
 Strict rules: no preamble or conclusion, no verbatim or long quotes, no throwaway detail. Use short bullet points. Be as concise as you can WHILE keeping every fact, decision and still-open task: a detail you drop here is lost for good, so when in doubt keep it. This is a dense compression summary, not a report. Always write ACTUAL prose sentences/bullets — never answer with just an id or a reference.
 Write the summary in the SAME language as the conversation.`
 
+	// Le résumé part au MÊME endroit que le chat : sur un preset externe, il
+	// s'appuie sur l'API distante (backend_external.go). Le laisser taper le
+	// llama-server local ferait échouer toute compaction dès qu'aucun moteur
+	// local ne tourne — et la compaction, c'est ce qui empêche le fil de mourir.
+	ep := resolveChatEndpoint()
 	payload := map[string]any{
-		"model": "loki",
+		"model": ep.Model,
 		"messages": []Message{
 			{Role: "system", Content: sys},
 			{Role: "user", Content: transcript},
@@ -594,13 +606,12 @@ Write the summary in the SAME language as the conversation.`
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
 	}
 	body, _ := json.Marshal(payload)
-	url := fmt.Sprintf("http://localhost:%d/v1/chat/completions", LLMPort())
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	authHeader(req)
+	ep.auth(req.Header.Set)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", friendlyLLMError(err)
@@ -608,7 +619,11 @@ Write the summary in the SAME language as the conversation.`
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
-		return "", fmt.Errorf("résumé: llama-server %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		who := "llama-server"
+		if ep.External {
+			who = "API externe"
+		}
+		return "", fmt.Errorf("résumé: %s %d: %s", who, resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 	var out summarizeResp
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {

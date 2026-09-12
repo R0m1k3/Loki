@@ -108,6 +108,12 @@ func TestLoadConversationBaseIllisibleNeForgePasDeDiscussion(t *testing.T) {
 	if max := time.Duration(loadConvAttempts)*loadConvRetryWait + 2*time.Second; elapsed > max {
 		t.Fatalf("démarrage retardé de %v par une base illisible (budget %v)", elapsed, max)
 	}
+	// Contrepartie de l'assertion « aucune reprise » du test d'absence légitime :
+	// un compteur bloqué à zéro la rendrait vraie sans rien prouver. Ici les
+	// reprises ont bel et bien lieu, et on le vérifie.
+	if n := loadConvRetries.Load(); int(n) != loadConvAttempts {
+		t.Fatalf("%d reprise(s) comptée(s) sur une base illisible, attendu %d", n, loadConvAttempts)
+	}
 	after, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -130,12 +136,15 @@ func TestLoadConversationAbsenceLegitimeResteRapide(t *testing.T) {
 	t.Setenv("LOKI_HOME", t.TempDir())
 	resetConvForTest()
 
-	start := time.Now()
 	LoadConversation()
-	elapsed := time.Since(start)
 
-	if elapsed >= loadConvRetryWait {
-		t.Fatalf("absence légitime traitée comme une erreur : %v d'attente, aucune reprise ne devait être déclenchée", elapsed)
+	// Mesuré sur le COMPTEUR de reprises, pas au chronomètre : une absence
+	// légitime doit sortir au premier essai. Le temps de mur ne disait pas ça —
+	// il mêlait le coût de l'essai lui-même (création de la base bbolt, fsync)
+	// à l'attente de reprise, et un runner CI chargé l'a fait échouer à 435 ms
+	// alors qu'aucune reprise n'avait été déclenchée.
+	if n := loadConvRetries.Load(); n != 0 {
+		t.Fatalf("absence légitime traitée comme une erreur : %d reprise(s) déclenchée(s), aucune ne devait l'être", n)
 	}
 	conv.mu.Lock()
 	n := len(conv.Messages)

@@ -201,8 +201,8 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:4px}
-  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg{width:11px;height:11px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
@@ -394,6 +394,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
+   un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
+   carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.
+   min-width:0 + ellipsis : un nom de modèle distant peut être très long
+   (« llama-3.3-70b-versatile ») et ne doit pas pousser le reste hors de la ligne. */
+.xtag{flex-shrink:1;min-width:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;
+  padding:1px 6px;border:1px solid var(--accent);color:var(--accent);border-radius:4px;letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xtag svg{flex:none}
 .btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
 /* Petit « ? » d'aide : bulle au survol/clic au lieu d'un pavé de texte permanent. */
 .help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;flex-shrink:0;font-size:10px;font-weight:600;line-height:1;color:var(--dim);border:1px solid var(--border);border-radius:50%;cursor:help;user-select:none;vertical-align:middle}
@@ -886,14 +895,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .pe-bar.indet>i{width:35%;animation:pe-bar-slide 1.2s ease-in-out infinite;transition:none}
 .pe-bar.done>i{width:100%}
 @keyframes pe-bar-slide{0%{margin-left:-35%}100%{margin-left:100%}}
-/* Liste des modèles installés (suppression des .gguf). Le nom prend toute la
-   place restante et se tronque : un fichier de modèle mesure facilement 60
-   caractères, et c'est la taille + le bouton qu'on vient chercher ici. */
-.mdl-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
-.mdl-row:last-child{border-bottom:none}
-.mdl-name{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mdl-size{flex:none;color:var(--dim);font-variant-numeric:tabular-nums}
-.mdl-del{align-self:center;flex:none}
 /* Action discrète en texte (annuler un téléchargement…). */
 .pe-link{align-self:flex-start;border:none;background:none;padding:0;font:inherit;font-size:11px;color:var(--dim);text-decoration:underline;cursor:pointer}
 .pe-link:hover{color:var(--text)}
@@ -1504,7 +1505,28 @@ button:hover{border-color:var(--dim);color:var(--text)}
    endroit et ça décide autant de la suite — un dépôt gated ne se télécharge
    pas sans jeton. */
 .hf-fit.gated{color:var(--warn);border-color:var(--warn);text-transform:none}
+/* Déjà sur le disque : ce n'est pas un verdict mémoire non plus, mais c'est
+   l'information qui décide du clic — cliquer sélectionne au lieu de télécharger. */
+.hf-fit.here{color:var(--accent);border-color:var(--accent);text-transform:none}
 .hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
+
+/* --- Modèles installés (liste + suppression) --------------------------------
+   Même allure que la liste Hugging Face juste au-dessus, mais la LIGNE n'est
+   pas cliquable : ici c'est le bouton « supprimer » qui agit, et un curseur
+   main sur toute la ligne laisserait croire le contraire. */
+.mdl-list{display:flex;flex-direction:column;max-height:240px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:3px;margin-top:6px}
+.mdl-row{display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-top:1px solid var(--border);font-size:12px}
+.mdl-row:first-child{border-top:0}
+.mdl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.mdl-meta{flex:none;color:var(--dim);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+.mdl-tag{flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:.03em;
+  border:1px solid var(--border);color:var(--dim)}
+.mdl-tag.on{color:var(--accent);border-color:var(--accent)}
+.mdl-tag.warn{color:var(--warn);border-color:var(--warn)}
+.mdl-row .pe-link{flex:none}
+.mdl-row .pe-link:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
 .hf-mm.muted{cursor:default}
@@ -2404,6 +2426,54 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     </div>
   </div>
 </div>
+<!-- Preset « externe » : le chat part vers une API OpenAI-compatible distante
+     (OpenAI, Groq, OpenRouter, un vLLM sur une autre machine…) au lieu du
+     llama-server local. C'est un preset comme un autre — il apparaît dans la
+     même liste, se bascule pareil — mais ses réglages n'ont rien à voir avec
+     ceux d'un modèle local : ni quantification, ni couches GPU, ni moteur.
+     D'où une fenêtre à part plutôt que des champs grisés dans l'éditeur. -->
+<div id="ext-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeExternal()">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;width:100%;max-width:520px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong id="ext-title">API externe</strong>
+      <button onclick="closeExternal()" style="margin:0" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div class="pe-body" style="padding:0">
+      <div class="pe-group">
+        <div class="pe-gh">Connexion</div>
+        <div class="pe-list">
+          <div class="pe-row stack plain"><input id="ext-name" class="pe-inp" placeholder="Nom du preset (ex. Groq 70B)"></div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">URL<span class="pe-sub">base (…/v1) ou URL complète des complétions</span></span>
+            <input id="ext-url" class="pe-inp" placeholder="https://api.groq.com/openai/v1" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Modèle<span class="pe-sub">le nom exact attendu par l'API</span></span>
+            <input id="ext-model" class="pe-inp" placeholder="llama-3.3-70b-versatile" spellcheck="false">
+          </div>
+          <div class="pe-row stack">
+            <span class="pe-row-l">Clé d'API<span class="pe-sub" id="ext-key-sub">vide = aucune authentification</span></span>
+            <input id="ext-key" class="pe-inp" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" oninput="extKeyTouched=true">
+          </div>
+          <div class="pe-row">
+            <span class="pe-row-l">Contexte<span class="pe-sub">pilote la jauge et le seuil de compactage</span></span>
+            <span class="pe-row-c"><input id="ext-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768"><span class="pe-unit">tok</span></span>
+          </div>
+          <div class="pe-row stack">
+            <button id="ext-test" class="pe-link" onclick="testExternal()">Tester la connexion</button>
+            <div id="ext-test-out" class="pe-note"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:6px">
+      <button id="ext-del" onclick="deleteExternal()" class="danger" style="display:none">supprimer</button>
+      <span style="flex:1"></span>
+      <button onclick="closeExternal()">annuler</button>
+      <button id="ext-save" onclick="saveExternal()" style="border-color:var(--accent);color:var(--accent)">enregistrer</button>
+    </div>
+  </div>
+</div>
 <!-- Fenêtre d'export. Un fil relu pour retrouver une réponse n'a que faire des
      mille lignes de raisonnement qui l'ont produite : on choisit ce qu'on
      emporte plutôt que de tout prendre ou rien. Les options de CONTENU sont les
@@ -2471,7 +2541,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <div id="cfg" class="slist">…</div>
   </section>
   <section class="set-pane" data-pane="presets">
-    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
+    <div class="set-pane-h"><span>Presets</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openExternal('')" title="ajouter une API externe" aria-label="ajouter une API externe"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg></button><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();openPreset('')" title="ajouter" aria-label="ajouter"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></div>
     <div class="slist"><div id="presets" class="rowlist"></div></div>
   </section>
   <section class="set-pane" data-pane="agent">
@@ -3146,18 +3216,6 @@ html[data-files="1"] #files-btn{color:var(--accent)}
               <span class="pe-row-l">Fichier</span>
               <span class="pe-selc wide"><select id="m-model" onchange="onPickModel()"></select></span>
             </div>
-            <!-- Gestion des .gguf du disque. Un modèle ne se supprimait que « en
-                 même temps que son preset » : les fichiers téléchargés puis
-                 abandonnés (mauvaise quantization, essai) restaient là pour des
-                 dizaines de Go, sans aucun moyen de les effacer depuis Loki.
-                 Repliée par défaut — on n'y va que le jour où le disque sature. -->
-            <div id="m-mdl-toggle" class="pe-row" style="cursor:pointer" onclick="toggleInstalledModels()">
-              <span class="pe-row-l">Modèles installés<span class="pe-sub">supprimer un .gguf pour libérer de la place</span></span>
-              <span class="pe-row-c"><span id="m-mdl-state" class="pe-sub"></span><span id="m-mdl-caret" class="pe-caret"></span></span>
-            </div>
-            <div id="m-mdl-body" class="pe-row stack" style="display:none">
-              <div id="m-mdl-list" class="pe-note"></div>
-            </div>
             <div class="pe-row">
               <span class="pe-row-l">Quantization<span class="pe-sub">auto si vide</span></span>
               <span class="pe-row-c"><input id="m-quant" class="pe-val" oninput="applyQuant()" placeholder="Auto"></span>
@@ -3204,6 +3262,17 @@ html[data-files="1"] #files-btn{color:var(--accent)}
                 <button id="m-dir-add" onclick="addModelDir()" title="Ajouter ce dossier">+</button>
               </div>
               <div class="pe-note">Ces dossiers servent aussi de destination de téléchargement.</div>
+            </div>
+            <!-- Modèles installés. Un .gguf survit à la suppression de son preset
+                 (c'est voulu : on le réutilise dans un autre). Encore faut-il
+                 pouvoir le REPRENDRE et, un jour, l'effacer — sans ça les
+                 fichiers gardés devenaient invisibles et indéboulonnables. -->
+            <div id="m-inst-toggle" class="pe-row" style="cursor:pointer" onclick="toggleInstalled()">
+              <span class="pe-row-l">Modèles installés<span class="pe-sub">les .gguf présents sur le disque — et de quoi en effacer un</span></span>
+              <span class="pe-row-c"><span id="m-inst-state" class="pe-sub"></span><span id="m-inst-caret" class="pe-caret"></span></span>
+            </div>
+            <div id="m-inst-body" class="pe-row stack" style="display:none">
+              <div id="m-inst-list"></div>
             </div>
             <!-- Jeton Hugging Face. Replié comme « Dossiers de modèles » : on n'y
                  touche qu'une fois, le jour où un dépôt à accès restreint refuse
@@ -4141,6 +4210,16 @@ async function loadPresets(){
     nm.appendChild(document.createTextNode(x.name)); nm.title=x.name;
     // Second row: quant tag + bench perf, so the title row stays full-width.
     const meta=document.createElement('div'); meta.className='preset-meta';
+    // Preset externe : ni quant ni bench à montrer — le modèle tourne ailleurs.
+    // On affiche à la place d'où vient la réponse, sans quoi rien à l'écran ne
+    // distinguerait un preset local d'un appel qui part sur internet.
+    if(x.external){
+      const et=document.createElement('span'); et.className='xtag';
+      et.title='API externe — le chat part vers un serveur distant';
+      et.innerHTML='<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>';
+      et.appendChild(document.createTextNode(x.model || 'externe'));
+      meta.appendChild(et);
+    }
     if(x.quant){
       const q=document.createElement('span'); q.className='qtag';
       q.textContent=x.quant; q.title='quantization';
@@ -4166,7 +4245,10 @@ async function loadPresets(){
     // lit comme centrée dans son coin, là où le crayon penché tirait de travers.
     edit.className='preset-edit'; edit.title='réglages du preset';
     edit.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
-    edit.onclick=(e)=>{ e.stopPropagation(); openPreset(x.id); };
+    // Deux éditeurs, deux mondes : les réglages d'un preset externe (URL, modèle
+    // distant, clé) n'ont rien à voir avec ceux d'un modèle local.
+    edit.title = x.external ? 'réglages de l’API externe' : 'réglages du preset';
+    edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : openPreset(x.id); };
     row.appendChild(info); row.appendChild(edit);
     cont.appendChild(row);
   });
@@ -4659,6 +4741,9 @@ async function openItem(kind, key){
     // Dossiers de modèles : replié par défaut (réglage rare), chargé à l'ouverture.
     document.getElementById('m-dir-path').value = '';
     setModelDirsOpen(false);
+    // Modèles installés : replié aussi, mais son RÉSUMÉ (« 4 modèles · 87 Go »)
+    // est lu tout de suite — c'est lui qui s'affiche sur la ligne repliée.
+    setInstalledOpen(false);
     // Jeton Hugging Face : même traitement, mais son ÉTAT est lu tout de suite —
     // c'est lui qui s'affiche sur la ligne repliée (« aucun », « enregistré »).
     setHFTokenOpen(false);
@@ -4699,8 +4784,8 @@ async function openItem(kind, key){
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
     attachDownload();                      // téléchargement encore en cours côté serveur ?
-    setInstalledModelsOpen(false);
-    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
+    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(),
+                       populateDlDirs(), refreshInstalled()]);
     if(seq !== openSeq) return;
   }
   // On lève le voile SANS transition (voir la note dans styles.css), puis on rend
@@ -4749,12 +4834,31 @@ function samePath(a, b){
   return !!a && !!b && n(a) === n(b);
 }
 function baseName(p){ return String(p||'').replace(/\\/g,'/').split('/').pop().trim(); }
+// Retrouve dans `list` (/api/models) l'entrée que désigne la valeur MODEL= d'un
+// preset. Trois écritures possibles et toutes légitimes : le chemin complet, la
+// valeur produite par le sélecteur, ou le SIMPLE NOM DE FICHIER (config écrite à
+// la main, preset repris d'une autre machine, ancien preset). Le nom simple se
+// résout comme le fait le moteur — dossier de loki d'abord, puis les autres.
+//
+// Sans ce dernier cas, un MODEL=modele.gguf parfaitement valide s'affichait
+// « introuvable ; ajoute son dossier ci-dessous » alors que le fichier était là,
+// et le sélecteur ne proposait rien : impossible de refaire un preset sur un
+// modèle déjà présent sans le retélécharger.
+function matchModel(cur, list){
+  if(!cur) return null;
+  const all = list || [];
+  const hit = all.find(x => samePath(cur, x.value) || samePath(cur, x.path));
+  if(hit) return hit;
+  const b = baseName(cur);
+  return all.find(x => x.home && samePath(b, x.name)) || all.find(x => samePath(b, x.name)) || null;
+}
 async function populateModelPicker(){
   const sel = document.getElementById('m-model');
   const list = await jget('/api/models');
   const cur = currentModelInTextarea();
+  const hit = matchModel(cur, list);
   // Les modèles peuvent venir de plusieurs dossiers (disque externe…) : on les
-  // regroupe par dossier, LOKI_HOME d'abord (l'API les renvoie dans cet ordre).
+  // regroupe par dossier, celui de loki d'abord (l'API les renvoie dans cet ordre).
   const groups = [];
   for(const m of (list||[])){
     let g = groups.find(x => x.dir === m.dir);
@@ -4766,9 +4870,7 @@ async function populateModelPicker(){
   for(const g of groups){
     let opts = '';
     for(const m of g.items){
-      // Le preset peut référencer le chemin complet OU le simple nom de fichier.
-      const on = samePath(cur, m.value) || samePath(cur, m.path) ||
-                 (g.home && samePath(baseName(cur), m.name)) ? ' selected' : '';
+      const on = (m === hit) ? ' selected' : '';
       if(on) matched = true;
       // Modèle en plusieurs fichiers : l'API ne renvoie que la première tranche
       // (les autres ne se lancent pas seules) et la taille de la famille entière.
@@ -4791,123 +4893,6 @@ async function populateModelPicker(){
   sel.innerHTML = html;
   if(cur && !matched) setModelDirsOpen(true);
 }
-// ---- Modèles installés : lister et SUPPRIMER les .gguf du disque ------------
-// Un modèle ne pouvait s'effacer qu'en même temps que son preset (case « supprimer
-// aussi le fichier .gguf »). Tout ce qu'on avait téléchargé sans preset — une
-// quantization essayée puis abandonnée, un projecteur du mauvais dépôt — restait
-// donc sur le disque pour des dizaines de gigaoctets, sans aucun moyen de partir
-// depuis Loki. La liste vit ici, à côté du sélecteur de fichier : c'est là qu'on
-// découvre qu'un modèle ne sert plus.
-//
-// Repliée par défaut : c'est un ménage, pas un réglage. La ligne fermée porte
-// déjà l'essentiel — combien de modèles, et la place qu'ils prennent.
-let installedModels = [];
-function setInstalledModelsOpen(open){
-  const b = document.getElementById('m-mdl-body');
-  const c = document.getElementById('m-mdl-caret');
-  if(!b) return;
-  b.style.display = open ? '' : 'none';
-  if(c) c.classList.toggle('open', open);
-}
-function toggleInstalledModels(){
-  setInstalledModelsOpen(document.getElementById('m-mdl-body').style.display === 'none');
-}
-async function loadInstalledModels(){
-  try{ installedModels = (await jget('/api/models')) || []; }catch(_){ installedModels = []; }
-  const st = document.getElementById('m-mdl-state');
-  if(st){
-    const total = installedModels.reduce((a, m) => a + (m.size || 0), 0);
-    st.textContent = installedModels.length ? installedModels.length + ' · ' + fmtSize(total) : 'aucun';
-  }
-  renderInstalledModels();
-}
-function renderInstalledModels(){
-  const box = document.getElementById('m-mdl-list');
-  if(!box) return;
-  // Construit en DOM : ces noms de fichiers viennent du disque, ils n'ont rien à
-  // faire dans du HTML concaténé ni dans un attribut onclick.
-  box.textContent = '';
-  if(!installedModels.length){
-    box.textContent = 'Aucun .gguf dans les dossiers de modèles.';
-    return;
-  }
-  const multi = new Set(installedModels.map(m => m.dir)).size > 1;
-  for(const m of installedModels){
-    const row = document.createElement('div');
-    row.className = 'mdl-row';
-    const nm = document.createElement('span');
-    nm.className = 'mdl-name';
-    nm.textContent = m.name;
-    nm.title = m.path;
-    const info = document.createElement('span');
-    info.className = 'mdl-size';
-    let t = fmtSize(m.size);
-    if(m.shards > 1) t += ' · ' + m.shards + ' fichiers';
-    if(m.missing && m.missing.length) t += ' · ⚠ ' + m.missing.length + ' manquant' + (m.missing.length>1?'s':'');
-    if(multi) t += ' · ' + (m.home ? 'dossier loki' : m.dir);
-    info.textContent = t;
-    row.append(nm, info);
-    // Chargé = intouchable (le moteur tient le fichier ouvert) ; référencé par des
-    // presets = supprimable, mais on le dit avant, pas au prochain démarrage raté.
-    if(m.loaded || (m.presets && m.presets.length)){
-      const tag = document.createElement('span');
-      tag.className = 'qtag';
-      if(m.loaded){
-        tag.textContent = 'chargé';
-        tag.title = 'modèle ouvert par le moteur';
-      } else {
-        tag.textContent = m.presets.length + ' preset' + (m.presets.length > 1 ? 's' : '');
-        tag.title = m.presets.join(', ');
-      }
-      row.append(tag);
-    }
-    const del = document.createElement('button');
-    del.className = 'pe-link mdl-del';
-    del.textContent = 'supprimer';
-    del.disabled = !!m.loaded;
-    del.title = m.loaded ? 'modèle chargé — bascule d’abord sur un autre preset' : 'supprimer ce fichier du disque';
-    del.onclick = () => deleteInstalledModel(m);
-    row.append(del);
-    box.append(row);
-  }
-}
-// Suppression d'un .gguf : irréversible, et de l'ordre de la dizaine de Go. Le
-// serveur refuse tout seul le modèle CHARGÉ, et refuse SANS `force` un modèle
-// que des presets réclament — en renvoyant leurs noms, qu'on pose alors dans une
-// seconde confirmation. Le premier « oui » porte sur le fichier, le second sur
-// les presets qu'on casse : ce ne sont pas la même décision.
-async function deleteInstalledModel(m){
-  const shards = m.shards > 1 ? '\n\n' + m.shards + ' fichiers seront effacés (modèle découpé).' : '';
-  if(!await askConfirm('Supprimer « ' + m.name + ' » (' + fmtSize(m.size) + ') du disque ? Il n’y a pas de corbeille.' + shards,
-      {title:'Supprimer le modèle', okText:'Supprimer', danger:true})) return;
-  const del = async force => { try{ return await jpost('/api/models/delete', {name: m.value, force}); }catch(_){ return null; } };
-  let r = await del(false);
-  if(r && !r.ok && r.needsForce){
-    if(!await askConfirm('Utilisé par : ' + (r.presets || []).join(', ')
-        + '.\n\nCes presets ne démarreront plus tant qu’un autre modèle ne leur aura pas été choisi.',
-        {title:'Modèle utilisé par un preset', okText:'Supprimer quand même', danger:true})) return;
-    r = await del(true);
-  }
-  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); return; }
-  toast('supprimé — ' + fmtSize(r.freed || m.size) + ' libérés');
-  await reloadModelsAndPreset();
-}
-// Après un changement dans les modèles du disque (suppression, téléchargement
-// terminé, dossier ajouté), on recharge le PRESET COMPLET, pas seulement la
-// liste déroulante : le fichier choisi, le projecteur vision, la quantization
-// déduite du nom, les réglages dérivés et l'espace libre des destinations
-// dépendent tous de ce qui est réellement sur le disque. N'en rafraîchir qu'une
-// partie laissait l'éditeur afficher un modèle qui n'existait plus.
-async function reloadModelsAndPreset(){
-  await Promise.all([
-    loadInstalledModels(), populateModelPicker(), populateMmproj(),
-    populateModelDirs(), populateDlDirs(),
-  ]);
-  document.getElementById('m-quant').value = currentQuantInTextarea();
-  populateSettings();
-  if(typeof loadPresets === 'function') loadPresets();
-}
-
 // ---- Dossiers de modèles : LOKI_HOME + dossiers ajoutés (disque externe…) ---
 // Réglage rare : replié derrière une ligne, comme l'éditeur de .env brut.
 function setModelDirsOpen(open){
@@ -5024,13 +5009,148 @@ async function addModelDir(){
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   inp.value = '';
   toast('dossier ajouté');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
 }
 async function removeModelDir(p){
   const r = await jpost('/api/models/dirs', {path: p, action: 'remove'});
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   toast('dossier retiré');
-  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs(), loadInstalledModels()]);
+  await Promise.all([populateModelDirs(), populateModelPicker(), populateDlDirs()]);
+}
+
+// ---- Modèles installés : ce qu'il y a sur le disque, et comment l'effacer ---
+// La route /api/models/delete existait depuis longtemps ; AUCUN bouton ne
+// l'appelait. Le seul moment où un .gguf pouvait disparaître, c'était en cochant
+// « supprimer aussi le fichier » à la suppression de son preset — la case pas
+// cochée, le fichier devenait inatteignable : 40 Go sur le disque que plus rien
+// dans l'interface ne savait ni nommer ni reprendre. D'où cette liste.
+//
+// Elle dit aussi QUI se sert de chaque fichier : le modèle en service ne
+// s'efface pas (le moteur l'a ouvert), et un modèle nommé par d'autres presets
+// prévient avant, en les nommant.
+let installedList = [];
+function setInstalledOpen(open){
+  const b = document.getElementById('m-inst-body');
+  const c = document.getElementById('m-inst-caret');
+  if(!b) return;
+  b.style.display = open ? '' : 'none';
+  if(c) c.classList.toggle('open', open);
+  // Relu à chaque dépliage : un modèle a pu arriver (téléchargement) ou partir
+  // depuis l'ouverture de la fenêtre, et une liste périmée ferait cliquer
+  // « supprimer » sur un fichier qui n'est plus là.
+  if(open) refreshInstalled();
+}
+function toggleInstalled(){
+  setInstalledOpen(document.getElementById('m-inst-body').style.display === 'none');
+}
+// Recharge la liste ET le résumé de la ligne repliée (« 4 modèles · 87 Go »),
+// qui reste juste même quand la section n'est pas dépliée.
+async function refreshInstalled(){
+  try{ installedList = await jget('/api/models') || []; }catch(_){ return; }
+  const st = document.getElementById('m-inst-state');
+  if(st){
+    const total = installedList.reduce((a, m) => a + (m.size||0), 0);
+    st.textContent = installedList.length
+      ? installedList.length + ' modèle' + (installedList.length>1?'s':'') + ' · ' + fmtSize(total)
+      : 'aucun';
+  }
+  const b = document.getElementById('m-inst-body');
+  if(b && b.style.display !== 'none') renderInstalled();
+}
+// Construit en DOM et jamais en innerHTML : ces noms de fichiers viennent du
+// disque de l'utilisateur, pas de nous.
+function renderInstalled(){
+  const box = document.getElementById('m-inst-list');
+  if(!box) return;
+  box.textContent = '';
+  if(!installedList.length){
+    const d = document.createElement('div');
+    d.className = 'pe-note muted';
+    d.textContent = 'Aucun .gguf dans les dossiers déclarés.';
+    box.append(d);
+    return;
+  }
+  const list = document.createElement('div');
+  list.className = 'mdl-list';
+  for(const m of installedList){
+    const row = document.createElement('div');
+    row.className = 'mdl-row';
+    const n = document.createElement('span');
+    n.className = 'mdl-name';
+    n.textContent = m.name;
+    n.title = m.path;
+    const meta = document.createElement('span');
+    meta.className = 'mdl-meta';
+    meta.textContent = fmtSize(m.size||0)
+      + (m.shards > 1 ? ' · ' + m.shards + ' fichiers' : '')
+      + (m.home ? '' : ' · ' + m.dir);
+    row.append(n, meta);
+    // Ce qui EMPÊCHE ou ce qui COÛTE : le modèle en service ne s'efface pas, et
+    // celui que des presets nomment se signale avant le clic, pas après.
+    if(m.active){
+      const b = document.createElement('span');
+      b.className = 'mdl-tag on';
+      b.textContent = 'en service';
+      b.title = 'Ce modèle est celui de la configuration en cours : bascule sur un autre preset avant de l’effacer.';
+      row.append(b);
+    } else if((m.used||[]).length){
+      const b = document.createElement('span');
+      b.className = 'mdl-tag';
+      b.textContent = m.used.length + ' preset' + (m.used.length>1?'s':'');
+      b.title = 'Utilisé par : ' + m.used.join(', ');
+      row.append(b);
+    }
+    if((m.missing||[]).length){
+      const b = document.createElement('span');
+      b.className = 'mdl-tag warn';
+      b.textContent = m.missing.length + ' tranche' + (m.missing.length>1?'s':'') + ' manquante' + (m.missing.length>1?'s':'');
+      b.title = 'Téléchargement incomplet : ' + m.missing.join(', ');
+      row.append(b);
+    }
+    const del = document.createElement('button');
+    del.className = 'pe-link';
+    del.textContent = 'supprimer';
+    del.disabled = !!m.active;
+    del.onclick = () => deleteInstalled(m);
+    row.append(del);
+    list.append(row);
+  }
+  box.append(list);
+}
+async function deleteInstalled(m){
+  if(m.active){
+    toast('modèle en service — bascule sur un autre preset d’abord');
+    return;
+  }
+  const known = m.used || [];
+  const why = known.length
+    ? '\n\nIl est référencé par : ' + known.join(', ') + '. Ces presets ne démarreront plus tant qu’un autre modèle n’y sera pas choisi.'
+    : '';
+  const what = (m.shards > 1 ? ' et ses ' + m.shards + ' fichiers' : '');
+  if(!await askConfirm('Effacer « ' + m.name + ' » (' + fmtSize(m.size||0) + ')' + what + ' du disque ?' + why
+      + '\n\nIrréversible : il faudra le retélécharger.',
+      {title:'Supprimer le modèle', okText:'Supprimer', danger:true})) return;
+  // force dès le premier envoi quand les presets concernés étaient DÉJÀ dans la
+  // confirmation : redemander la même chose une seconde fois ne protège de rien.
+  let r = await jpost('/api/models/delete', {name: m.path, force: known.length > 0});
+  // Le serveur connaît des références que la liste affichée ignorait (preset créé
+  // entre-temps, depuis un autre onglet) : là, la question se pose vraiment.
+  if(!r.ok && (r.used||[]).length){
+    if(!await askConfirm('Ce modèle est référencé par : ' + r.used.join(', ') + '.',
+        {title:'Supprimer quand même ?', okText:'Supprimer', danger:true})) return;
+    r = await jpost('/api/models/delete', {name: m.path, force: true});
+  }
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('modèle supprimé — ' + fmtSize(r.freed||0) + ' libérés');
+  await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(),
+                     populateModelDirs(), refreshInstalled()]);
+}
+// Un .gguf donné est-il déjà sur le disque, complet ? Sert avant de proposer un
+// téléchargement (recherche Hugging Face).
+async function modelIsOnDisk(name){
+  let list = [];
+  try{ list = await jget('/api/models') || []; }catch(_){ return false; }
+  return !!list.find(m => samePath(m.name, baseName(name)) && !(m.missing||[]).length);
 }
 function onPickModel(){
   const val = document.getElementById('m-model').value;
@@ -5073,11 +5193,11 @@ async function populateMmproj(){
   const list = await jget('/api/models');
   const cur = currentMmprojInTextarea();
   const items = (list||[]).filter(m => isMmprojName(m.name));
+  const hit = matchModel(cur, items);
   let html = '<option value="">— aucune —</option>';
   let matched = false;
   for(const m of items){
-    const on = samePath(cur, m.value) || samePath(cur, m.path) ||
-               samePath(baseName(cur), m.name) ? ' selected' : '';
+    const on = (m === hit) ? ' selected' : '';
     if(on) matched = true;
     html += '<option value="'+escHtml(m.value)+'"'+on+'>'+escHtml(m.name)+' ('+fmtSize(m.size)+')</option>';
   }
@@ -5533,8 +5653,11 @@ async function delItem(){
   const r = await jpost(K.delUrl, payload);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   if(delModel){
-    if(r.modelError) toast('preset supprimé, modèle : ' + r.modelError);
-    else if(r.modelDeleted) toast('preset + modèle supprimés');
+    // modelError est renseigné même quand le fichier A ÉTÉ supprimé (il servait
+    // aussi à d'autres presets) : on regarde donc modelDeleted d'abord.
+    if(r.modelDeleted) toast('preset + modèle supprimés — ' + fmtSize(r.freed||0) + ' libérés'
+                            + (r.modelError ? ' (' + r.modelError + ')' : ''));
+    else if(r.modelError) toast('preset supprimé, modèle : ' + r.modelError);
     else toast('supprimé (aucun modèle référencé)');
   } else { toast('supprimé'); }
   closeModal(); K.reload();
@@ -5588,6 +5711,22 @@ async function populateDlDirs(){
 // ensemble — deux transferts concurrents sur la même liaison ne vont pas plus
 // vite et brouillent la progression affichée.
 let dlQueue = [];
+// Un .gguf est disponible (il vient d'arriver, ou il était déjà là) : on le
+// sélectionne dans le bon champ du preset. Un projecteur (mmproj) va dans
+// « Vision », un modèle dans le sélecteur de modèle — d'après son nom de
+// fichier. Le fichier a pu atterrir hors du dossier loki : l'option porte alors
+// le chemin complet, pas le simple nom.
+async function selectInstalled(fname){
+  await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(), refreshInstalled()]);
+  const pick = (id, cb)=>{
+    const s = document.getElementById(id);
+    if(!s) return false;
+    const o = Array.from(s.options).find(o => samePath(baseName(o.value), fname));
+    if(!o) return false;
+    s.value = o.value; cb(); return true;
+  };
+  return isMmprojName(fname) ? pick('m-mmproj', onPickMmproj) : pick('m-model', onPickModel);
+}
 async function startDownload(){
   const url = document.getElementById('m-hf-url').value.trim();
   if(!url){ toast('colle un lien .gguf'); return; }
@@ -5605,6 +5744,20 @@ async function startDownloadURL(url){
   // Sonde d'abord : on connaît la taille exacte du fichier et l'espace restant
   // AVANT d'écrire quoi que ce soit, plutôt que d'échouer à 90 % du transfert.
   const p = await jpost('/api/models/download/probe', {url, dir});
+  // Modèle DÉJÀ sur le disque : il n'y a rien à télécharger, il y a un modèle à
+  // choisir. C'était le cul-de-sac — un .gguf gardé après la suppression de son
+  // preset ne pouvait plus servir à en refaire un : le téléchargement répondait
+  // « le modèle existe déjà » en rouge et s'arrêtait là.
+  if(p.ok && p.exists){
+    e.bar.style.display = 'none';
+    e.btn.disabled = false;
+    const done = await selectInstalled(p.filename);
+    e.prog.innerHTML = '<span style="color:var(--ok)">✓ ' + escHtml(p.filename)
+      + ' est déjà sur le disque' + (done ? ' — sélectionné' : '')
+      + (p.size > 0 ? ' (' + fmtSize(p.size) + ')' : '') + '</span>';
+    if(dlQueue.length) startDownloadURL(dlQueue.shift());
+    return;
+  }
   if(!p.ok || !p.enough){
     e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+escHtml(p.error||'espace insuffisant')+'</span>';
     e.bar.style.display = 'none'; e.btn.disabled=false;
@@ -5620,8 +5773,18 @@ async function startDownloadURL(url){
     + (p.free_exact === false ? ' (estimation : partage réseau ou agrégé)' : '');
   const r = await jpost('/api/models/download', {url, dir});
   if(!r.ok){
-    e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+(r.error||'')+'</span>';
+    e.prog.innerHTML = '<span style="color:var(--err)">erreur : '+escHtml(r.error||'')+'</span>';
     e.bar.style.display = 'none'; e.btn.disabled=false; dlQueue = []; return;
+  }
+  // Le serveur peut constater lui aussi que tout est déjà là (fichier apparu
+  // entre la sonde et l'envoi, ou lien collé à la main sans passer par la sonde).
+  if(r.exists){
+    e.bar.style.display = 'none'; e.btn.disabled = false;
+    const done = await selectInstalled(r.filename);
+    e.prog.innerHTML = '<span style="color:var(--ok)">✓ ' + escHtml(r.filename)
+      + ' est déjà sur le disque' + (done ? ' — sélectionné' : '') + '</span>';
+    if(dlQueue.length) startDownloadURL(dlQueue.shift());
+    return;
   }
   watchDownload(r.filename);
 }
@@ -5661,18 +5824,7 @@ function watchDownload(fname){
       e.prog.innerHTML = '<span style="color:var(--ok)">✓ '+fname+' téléchargé ('+fmtSize(st.done)+')</span>';
       e.bar.className = 'pe-bar done'; e.bar.firstElementChild.style.width = '100%';
       stop();
-      await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(), loadInstalledModels()]);
-      // Un projecteur (mmproj) se sélectionne dans le champ Vision, un modèle dans
-      // le sélecteur de modèle — d'après le nom du fichier téléchargé. Le fichier
-      // a pu atterrir hors du dossier loki : l'option porte alors le chemin
-      // complet, pas le simple nom de fichier.
-      const pick = (id, cb)=>{
-        const s = document.getElementById(id);
-        const o = Array.from(s.options).find(o => samePath(baseName(o.value), fname));
-        if(o){ s.value = o.value; cb(); }
-      };
-      if(isMmprojName(fname)) pick('m-mmproj', onPickMmproj);
-      else pick('m-model', onPickModel);
+      await selectInstalled(fname);
       // Suite de la file : c'est ici que le projecteur part, une fois le modèle
       // arrivé. L'ordre compte — le champ Vision ne se remplit que si le modèle
       // est déjà sélectionné.
@@ -5789,10 +5941,19 @@ function fmtCount(n){
 
 async function hfPickRepo(repo){
   hfMsg('lecture du dépôt…');
-  let r;
-  try{ r = await jget('/api/hf/files?repo='+encodeURIComponent(repo)); }
+  let r, onDisk = [];
+  try{
+    // Les .gguf déjà présents sont demandés EN MÊME TEMPS que l'arborescence :
+    // c'est ce qui permet de dire « déjà installé » sur la ligne d'un quant au
+    // lieu de le découvrir après le clic, par un refus.
+    [r, onDisk] = await Promise.all([
+      jget('/api/hf/files?repo='+encodeURIComponent(repo)),
+      jget('/api/models').catch(()=>[]),
+    ]);
+  }
   catch(_){ hfMsg('Hugging Face injoignable', true); return; }
   if(!r.ok){ hfMsg(r.error||'dépôt illisible', true); return; }
+  const installed = n => (onDisk||[]).find(m => samePath(m.name, baseName(n)) && !(m.missing||[]).length);
   hfRepoFiles = r;
   if(!r.models || !r.models.length){ hfMsg('ce dépôt ne publie aucun modèle GGUF utilisable'); return; }
 
@@ -5847,7 +6008,8 @@ async function hfPickRepo(repo){
     mmChk = document.createElement('input');
     mmChk.type = 'checkbox'; mmChk.checked = true;
     const t = document.createElement('span');
-    t.textContent = ' installer aussi le projecteur vision — '+mm.name+' ('+fmtSize(mm.size)+')';
+    t.textContent = ' installer aussi le projecteur vision — '+mm.name+' ('+fmtSize(mm.size)+')'
+      + (installed(mm.name) ? ' — déjà sur le disque' : '');
     note.append(mmChk, t);
   } else {
     note.textContent = 'Ce dépôt ne publie pas de projecteur : ce modèle n’aura pas la vision.';
@@ -5865,6 +6027,17 @@ async function hfPickRepo(repo){
     const meta = document.createElement('span'); meta.className = 'hf-meta';
     meta.textContent = fmtSize(m.size) + (m.shards > 1 ? ' · '+m.shards+' fichiers' : '');
     row.append(n, meta);
+    // Déjà sur le disque : la pastille le dit AVANT le clic, et le clic ne
+    // télécharge alors rien — il sélectionne le fichier présent. Le verdict
+    // mémoire n'a plus grand-chose à arbitrer dans ce cas, mais il reste
+    // affiché : « juste » vaut d'être su même sur un modèle déjà installé.
+    if(installed(m.name)){
+      const here = document.createElement('span');
+      here.className = 'hf-fit here';
+      here.textContent = 'déjà installé';
+      here.title = 'Ce fichier est déjà dans un de tes dossiers de modèles : le choisir le sélectionne, sans rien retélécharger.';
+      row.appendChild(here);
+    }
     if(m.verdict){
       const fit = document.createElement('span');
       fit.className = 'hf-fit ' + m.verdict;
@@ -5896,7 +6069,10 @@ function hfBestProjector(list){
 // Installe : le modèle d'abord, le projecteur ensuite (la file s'en charge). Le
 // champ Vision du preset ne se remplit correctement que dans cet ordre.
 async function hfInstall(model, projector){
-  if(model.verdict === 'trop' && !await askConfirm(
+  // Le fichier est là : rien à télécharger, donc rien à confirmer — la sonde le
+  // constate côté serveur et startDownloadURL le sélectionne.
+  const here = await modelIsOnDisk(model.name);
+  if(!here && model.verdict === 'trop' && !await askConfirm(
       (model.why||'Ce modèle dépasse la mémoire disponible.')+'\n\nLe téléchargement fonctionnera, mais le moteur risque de ne pas le charger.',
       {title:'Installer quand même ?', okText:'Installer', danger:true})) return;
   dlQueue = projector ? [projector.url] : [];
@@ -7425,6 +7601,106 @@ function lcToggleLog(){
   const bar = document.querySelector('.lc-logbar');
   if(pre.hasAttribute('hidden')){ pre.removeAttribute('hidden'); bar.classList.add('open'); pre.scrollTop = pre.scrollHeight; }
   else { pre.setAttribute('hidden',''); bar.classList.remove('open'); }
+}
+// 11-external.js — presets « externes » : le chat part vers une API
+// OpenAI-compatible distante (OpenAI, Groq, OpenRouter, un vLLM sur une autre
+// machine…) au lieu du llama-server local.
+//
+// Un preset externe vit dans la même liste que les autres et se bascule pareil.
+// Mais ses réglages n'ont rien de commun avec ceux d'un modèle local — ni
+// quantification, ni couches GPU, ni moteur, ni projecteur vision : la machine
+// distante décide de tout ça. D'où cette fenêtre à part, plutôt qu'un éditeur de
+// preset aux trois quarts grisé.
+
+// La clé n'est JAMAIS renvoyée en clair par le serveur : le champ s'affiche
+// vide même quand une clé est enregistrée. Un champ vide ne vaut donc pas
+// « efface la clé » — il faut y avoir touché. Sans ce drapeau, rouvrir la
+// fenêtre pour corriger une faute de frappe dans l'URL effaçait la clé au
+// passage, et le preset tombait en 401 au message suivant.
+let extKeyTouched = false;
+let extEditing = '';
+
+function closeExternal(){ hideModal('ext-modal'); }
+
+async function openExternal(id){
+  extEditing = id || '';
+  extKeyTouched = false;
+  const set = (el, v) => { const e = document.getElementById(el); if(e) e.value = v; };
+  document.getElementById('ext-title').textContent = id ? 'API externe' : 'Nouvelle API externe';
+  document.getElementById('ext-del').style.display = id ? '' : 'none';
+  document.getElementById('ext-test-out').textContent = '';
+  document.getElementById('ext-key-sub').textContent = 'vide = aucune authentification';
+  set('ext-name',''); set('ext-url',''); set('ext-model',''); set('ext-key',''); set('ext-ctx','');
+  showModal('ext-modal');
+  if(!id) return;
+  let d = {};
+  try{ d = await jget('/api/preset/external?id=' + encodeURIComponent(id)); }catch(_){ return; }
+  if(extEditing !== id) return;           // une autre ouverture a pris la main
+  set('ext-name', d.name || ''); set('ext-url', d.url || '');
+  set('ext-model', d.model || ''); set('ext-ctx', d.ctx || '');
+  if(d.hasKey){
+    document.getElementById('ext-key-sub').textContent =
+      'une clé est enregistrée — laisse vide pour la conserver';
+  }
+}
+
+// Le corps commun aux deux routes (enregistrement et test).
+function extPayload(){
+  return {
+    id: extEditing,
+    name: (document.getElementById('ext-name').value || '').trim(),
+    url: (document.getElementById('ext-url').value || '').trim(),
+    model: (document.getElementById('ext-model').value || '').trim(),
+    key: document.getElementById('ext-key').value || '',
+    ctx: (document.getElementById('ext-ctx').value || '').trim(),
+    keyTouched: extKeyTouched,
+  };
+}
+
+// Tester AVANT d'enregistrer n'est pas un confort : une URL mal collée ou une
+// clé expirée ne se voit sinon qu'au premier message, sous la forme d'un code
+// HTTP nu au milieu d'une conversation.
+async function testExternal(){
+  const out = document.getElementById('ext-test-out');
+  const btn = document.getElementById('ext-test');
+  const p = extPayload();
+  if(!p.url || !p.model){ out.innerHTML = '<span style="color:var(--err)">URL et modèle requis</span>'; return; }
+  btn.disabled = true;
+  out.textContent = 'appel de test en cours…';
+  let r = {};
+  try{ r = await jpost('/api/preset/external/test', p); }
+  catch(_){ r = {ok:false, error:'réseau'}; }
+  btn.disabled = false;
+  out.innerHTML = r.ok
+    ? '<span style="color:var(--ok)">✓ l’API répond</span>'
+    : '<span style="color:var(--err)">' + escHtml((r.status ? r.status + ' — ' : '') + (r.error || 'échec')) + '</span>';
+}
+
+async function saveExternal(){
+  const p = extPayload();
+  if(!p.name){ toast('nom requis'); return; }
+  if(!p.url){ toast('URL requise'); return; }
+  if(!p.model){ toast('modèle requis'); return; }
+  const r = await jpost('/api/preset/external/save', p);
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('enregistré');
+  closeExternal();
+  loadPresets();
+}
+
+// Même route de suppression que n'importe quel preset — et même refus si c'est
+// celui en service. Pas de case « supprimer aussi le .gguf » : il n'y a pas de
+// fichier, le modèle est chez quelqu'un d'autre.
+async function deleteExternal(){
+  if(!extEditing) return;
+  const name = (document.getElementById('ext-name').value || '').trim() || extEditing;
+  if(!await askConfirm('Supprimer le preset « ' + name + ' » ?',
+      {title:'Suppression', okText:'Supprimer', danger:true})) return;
+  const r = await jpost('/api/preset/delete', {id: extEditing});
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('supprimé');
+  closeExternal();
+  loadPresets();
 }
 // ─── Serveurs MCP ────────────────────────────────────────────────────────────
 // Gestion des serveurs MCP (Model Context Protocol) : liste, ajout/édition via

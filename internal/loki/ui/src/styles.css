@@ -170,8 +170,8 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag{font-size:11px;padding:2px 9px;border-radius:4px}
-  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg{width:11px;height:11px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
 /* Logo : « Loki » dessiné en pixels (SVG 4x5 par lettre, trait d'un module). Le « A »
@@ -363,6 +363,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
+   un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
+   carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.
+   min-width:0 + ellipsis : un nom de modèle distant peut être très long
+   (« llama-3.3-70b-versatile ») et ne doit pas pousser le reste hors de la ligne. */
+.xtag{flex-shrink:1;min-width:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;
+  padding:1px 6px;border:1px solid var(--accent);color:var(--accent);border-radius:4px;letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xtag svg{flex:none}
 .btag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
 /* Petit « ? » d'aide : bulle au survol/clic au lieu d'un pavé de texte permanent. */
 .help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;flex-shrink:0;font-size:10px;font-weight:600;line-height:1;color:var(--dim);border:1px solid var(--border);border-radius:50%;cursor:help;user-select:none;vertical-align:middle}
@@ -855,14 +864,6 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
 .pe-bar.indet>i{width:35%;animation:pe-bar-slide 1.2s ease-in-out infinite;transition:none}
 .pe-bar.done>i{width:100%}
 @keyframes pe-bar-slide{0%{margin-left:-35%}100%{margin-left:100%}}
-/* Liste des modèles installés (suppression des .gguf). Le nom prend toute la
-   place restante et se tronque : un fichier de modèle mesure facilement 60
-   caractères, et c'est la taille + le bouton qu'on vient chercher ici. */
-.mdl-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
-.mdl-row:last-child{border-bottom:none}
-.mdl-name{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mdl-size{flex:none;color:var(--dim);font-variant-numeric:tabular-nums}
-.mdl-del{align-self:center;flex:none}
 /* Action discrète en texte (annuler un téléchargement…). */
 .pe-link{align-self:flex-start;border:none;background:none;padding:0;font:inherit;font-size:11px;color:var(--dim);text-decoration:underline;cursor:pointer}
 .pe-link:hover{color:var(--text)}
@@ -1473,7 +1474,28 @@ button:hover{border-color:var(--dim);color:var(--text)}
    endroit et ça décide autant de la suite — un dépôt gated ne se télécharge
    pas sans jeton. */
 .hf-fit.gated{color:var(--warn);border-color:var(--warn);text-transform:none}
+/* Déjà sur le disque : ce n'est pas un verdict mémoire non plus, mais c'est
+   l'information qui décide du clic — cliquer sélectionne au lieu de télécharger. */
+.hf-fit.here{color:var(--accent);border-color:var(--accent);text-transform:none}
 .hf-head{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:12px}
+
+/* --- Modèles installés (liste + suppression) --------------------------------
+   Même allure que la liste Hugging Face juste au-dessus, mais la LIGNE n'est
+   pas cliquable : ici c'est le bouton « supprimer » qui agit, et un curseur
+   main sur toute la ligne laisserait croire le contraire. */
+.mdl-list{display:flex;flex-direction:column;max-height:240px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:3px;margin-top:6px}
+.mdl-row{display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-top:1px solid var(--border);font-size:12px}
+.mdl-row:first-child{border-top:0}
+.mdl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.mdl-meta{flex:none;color:var(--dim);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+.mdl-tag{flex:none;padding:1px 8px;border-radius:999px;font-size:10px;letter-spacing:.03em;
+  border:1px solid var(--border);color:var(--dim)}
+.mdl-tag.on{color:var(--accent);border-color:var(--accent)}
+.mdl-tag.warn{color:var(--warn);border-color:var(--warn)}
+.mdl-row .pe-link{flex:none}
+.mdl-row .pe-link:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
 .hf-mm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;
   color:var(--dim);cursor:pointer}
 .hf-mm.muted{cursor:default}
