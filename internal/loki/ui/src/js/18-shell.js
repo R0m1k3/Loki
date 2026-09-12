@@ -48,17 +48,18 @@ function openDetails(el){
   }
 }
 
-// Sélecteur de modèle de l'en-tête. Il liste les presets ; en choisir un revient
-// à cliquer la ligne correspondante dans les réglages (switchTo demande
+// Sélecteur de modèle de l'en-tête. Il ne liste QUE des presets ; en choisir un
+// revient à cliquer la ligne correspondante dans les réglages (switchTo demande
 // confirmation puis relance le moteur).
+//
+// Il a listé un temps les .gguf du disque, qu'on chargeait en n'écrivant que
+// MODEL= : le contexte, le NGL et l'échantillonnage du modèle PRÉCÉDENT
+// restaient en place. Un 27B chargé par-dessus les réglages d'un 4B partait sur
+// 100k de contexte et mourait en OOM, sans que rien ne dise pourquoi. Charger un
+// modèle, c'est appliquer TOUS ses réglages : ça s'appelle un preset, et c'est
+// le seul chemin.
 function onModelSwitch(sel){
   const v = sel.value;
-  // Entrée du groupe « Modèles » : charger CE .gguf, sans preset — la config
-  // active garde son contexte et son échantillonnage, seul MODEL change.
-  if(v && v.startsWith('m:')){
-    switchModelFile(v.slice(2), sel.options[sel.selectedIndex].textContent);
-    return;
-  }
   const n = parseInt(v, 10);
   if(!n) return;
   const name = sel.options[sel.selectedIndex].textContent;
@@ -66,22 +67,6 @@ function onModelSwitch(sel){
   // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
   // pendant les quelques secondes du redémarrage.
   switchTo(n, name);
-}
-
-// Bascule directe vers un fichier de modèle (POST /api/models/use) : confirme,
-// écrit MODEL, le service redémarre derrière. Annulé ou en échec, la sélection
-// revient sur le modèle réellement chargé.
-async function switchModelFile(value, name){
-  if(!await askConfirm('Charger « ' + name + ' » et redémarrer le moteur ?', {title:'Changer de modèle', okText:'Charger'})){
-    paintModelSwitch();
-    return;
-  }
-  toast('changement de modèle…');
-  let r = null;
-  try{ r = await jpost('/api/models/use', {value}); }catch(_){}
-  if(!r || !r.ok){ toast('erreur : ' + ((r && r.error) || 'réseau')); paintModelSwitch(); return; }
-  toast('modèle en cours de chargement…');
-  loadAll();
 }
 
 // Le sélecteur affiche LE MODÈLE CHARGÉ, pas seulement le preset actif.
@@ -96,20 +81,10 @@ async function switchModelFile(value, name){
 // Deux sources, deux moments : loadPresets() donne la liste, loadCfg() donne le
 // modèle. Chacune dépose ce qu'elle sait et redemande le dessin — elles partent
 // en parallèle (loadAll), aucun ordre n'est garanti.
-let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '', MS_FILES = [];
+let MS_PRESETS = [], MS_ACTIVE = null, MS_MODEL = '';
 
 function renderModelSwitch(presets, active){
   MS_PRESETS = presets || []; MS_ACTIVE = active || null;
-  paintModelSwitch();
-}
-// Les fichiers .gguf découverts sur le disque : le sélecteur doit permettre de
-// CHARGER un modèle, pas seulement de rappeler un preset — sans preset créé,
-// il n'offrait aucun choix. Chargé par loadAll(), rafraîchi avec le reste.
-async function loadModelSwitchFiles(){
-  try{
-    const r = await jget('/api/models');
-    MS_FILES = Array.isArray(r) ? r : [];
-  }catch(_){ return; }
   paintModelSwitch();
 }
 // Appelé par loadCfg avec la valeur MODEL de la configuration active.
@@ -149,20 +124,7 @@ function paintModelSwitch(){
     });
     sel.appendChild(g);
   }
-  // Modèles du disque : en choisir un le CHARGE (voir switchModelFile). Un
-  // preset règle tout (contexte, sampling…) ; un modèle ne change que MODEL.
-  if(MS_FILES.length){
-    const g = document.createElement('optgroup'); g.label = 'Modèles (.gguf)';
-    for(const m of MS_FILES){
-      const o = document.createElement('option');
-      o.value = 'm:' + m.value;
-      o.textContent = modelLabel(m.name);
-      if(m.missing && m.missing.length) o.disabled = true; // tranches manquantes
-      g.appendChild(o);
-    }
-    sel.appendChild(g);
-  }
-  sel.disabled = !MS_PRESETS.length && !MS_FILES.length;
+  sel.disabled = !MS_PRESETS.length;
   sel.title = MS_MODEL
     ? 'modèle chargé : ' + MS_MODEL + ' — changer de preset relance le moteur'
     : 'aucun modèle configuré';
