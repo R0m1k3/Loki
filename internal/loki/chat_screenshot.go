@@ -16,7 +16,6 @@ package loki
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -213,11 +212,13 @@ func screenshotImageMessage(relPath string) (Message, bool) {
 	if err != nil || len(b) == 0 {
 		return Message{}, false
 	}
+	// Redimensionnement sous maxImageDim avant l'envoi : une capture de page
+	// fait facilement 1500×4000 px, dont le base64 pèse plus que ce que le
+	// projecteur regarde (voir prepareImageForModel, web_upload_orient.go).
+	b, mime = prepareImageForModel(b, mime)
 	return Message{Role: "user", Content: []map[string]any{
 		{"type": "text", "text": "Voici la capture demandée."},
-		{"type": "image_url", "image_url": map[string]any{
-			"url": "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(b),
-		}},
+		imageURLPart(b, mime),
 	}}, true
 }
 

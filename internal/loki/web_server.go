@@ -245,6 +245,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/node/target", handleNodeTarget) // choisit la machine cible de l'agent
 	api("/api/node/revoke", handleNodeRevoke) // oublie la clé + déconnecte
 	api("/api/internet", handleInternet)
+	api("/api/computer", handleComputer) // pilotage de navigateur (outils browser_*)
 	api("/api/mcp", handleMCP)
 	api("/api/mcp/catalog", handleMCPCatalog)
 	api("/api/mcp/save", handleMCPSave)

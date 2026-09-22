@@ -133,7 +133,7 @@ async function loadAgent(){
 // les outils mem_* ni les outils web ne sont fournis (voir globalCaps côté Go). On
 // grise donc ces blocs quand l'agent est off pour que l'UI ne mente pas.
 function setAgentGate(on){
-  ['mem-block','net-block','mcp-block','param-block'].forEach(id=>{
+  ['mem-block','net-block','computer-block','mcp-block','param-block'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.toggle('gated', !on);
   });
 }
@@ -242,6 +242,32 @@ function renderInternet(s){
   else { st.innerHTML='⚠ serveur injoignable — les outils web ne seront pas proposés'; }
 }
 async function loadInternet(){ renderInternet(await jget('/api/internet')); }
+// Contrôle du navigateur (outils browser_*). Le serveur dit s'il a trouvé un
+// binaire Chromium : sans lui, les outils ne sont pas annoncés au modèle, et
+// l'interrupteur ne servirait qu'à promettre ce qui n'existe pas.
+function renderComputer(s){
+  const tg=document.getElementById('computer-toggle');
+  if(tg) tg.checked = !!s.enabled;
+  // La pastille ne redit pas l'interrupteur : elle ne signale que l'anomalie
+  // (actif mais aucun navigateur trouvé).
+  if(s.enabled && !s.browser_ok) setBadge('computer-badge','warn','sans navigateur');
+  else setBadge('computer-badge', null);
+  const st=document.getElementById('computer-status');
+  if(!st) return;
+  if(!s.enabled){
+    st.textContent = "inactif : l'IA n'a aucun outil de navigateur" + (s.browser_ok ? '.' : " (aucun navigateur détecté dans le conteneur).");
+    st.style.color='';
+    return;
+  }
+  if(!s.browser_ok){ st.innerHTML = '⚠ aucun Chromium détecté — image bâtie avec PLAYWRIGHT=0 ? sinon définis LOKI_CHROME=&lt;chemin du binaire&gt;'; return; }
+  st.innerHTML = '<span style="color:var(--accent)">✓</span> navigateur prêt, outils de contrôle actifs'
+    + (s.vision ? '' : ' — vision inactive : browser_screenshot indisponible');
+}
+async function loadComputer(){ renderComputer(await jget('/api/computer')); }
+async function toggleComputer(){
+  const on=document.getElementById('computer-toggle').checked;
+  renderComputer(await jpost('/api/computer',{on}));
+}
 // --- Accès OpenAI (endpoint /v1 + clé API des complétions) -----------------
 let OAI_KEY='', OAI_REVEAL=false;
 async function copyText(txt, msg){
@@ -473,7 +499,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadComputer(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }

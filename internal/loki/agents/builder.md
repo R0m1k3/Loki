@@ -13,3 +13,4 @@ Rules:
 - You may NOT mark a criterion passed — the verification pass does that.
 - If a command fails, read the error and fix the cause; do not retry the same command unchanged.
 - Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.
+- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.

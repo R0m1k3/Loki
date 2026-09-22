@@ -80,7 +80,17 @@ func toolSeeImage(path string) (string, map[string]any) {
 	if len(b) == 0 {
 		return "[erreur] fichier vide : " + path, nil
 	}
-	return "[ok] image chargée : " + filepath.Base(abs), map[string]any{
+	// Même préparation que les pièces jointes : orientation EXIF redressée et
+	// grand côté ramené sous maxImageDim (voir web_upload_orient.go).
+	b, mime = prepareImageForModel(b, mime)
+	return "[ok] image chargée : " + filepath.Base(abs), imageURLPart(b, mime)
+}
+
+// imageURLPart construit la partie multimodale {type:image_url, image_url:{url}}
+// à partir d'octets image déjà préparés — le SEUL format qu'un llama-server
+// --mmproj comprend. Partagé par see_image, web_screenshot et browser_screenshot.
+func imageURLPart(b []byte, mime string) map[string]any {
+	return map[string]any{
 		"type": "image_url",
 		"image_url": map[string]any{
 			"url": "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(b),
@@ -93,8 +103,14 @@ func toolSeeImage(path string) (string, map[string]any) {
 // restera qu'elle et imageLostMarker, et « Image demandée : » tout court ne
 // dirait pas LAQUELLE rouvrir.
 func seeImageMessage(label string, img map[string]any) Message {
+	// Sans parenthèses vides : browser_screenshot n'a pas d'argument (label=""),
+	// là où see_image porte le chemin du fichier.
+	text := "Image :"
+	if label != "" {
+		text = "Image demandée (" + label + ") :"
+	}
 	return Message{Role: "user", Content: []map[string]any{
-		{"type": "text", "text": "Image demandée (" + label + ") :"},
+		{"type": "text", "text": text},
 		img,
 	}}
 }

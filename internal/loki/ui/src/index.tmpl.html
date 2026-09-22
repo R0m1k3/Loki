@@ -434,6 +434,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         </div>
       </div>
     </div>
+    <!-- Pilotage de navigateur (computer use) : axe de capacité à part, sous le
+         mode agent comme l'accès internet — un outil qui clique et tape dans une
+         page fait des actions RÉELLES, même niveau de confiance que bash. -->
+    <div id="computer-block" class="gated-group">
+      <div class="subhead">Contrôle du navigateur<span id="computer-badge" class="sbadge"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Donne à l'IA le contrôle d'un <b>navigateur</b> dans le conteneur (outils <b>browser_open / browser_find / browser_click / browser_type / browser_key / browser_scroll</b>). L'IA lit les éléments <b>numérotés</b> de la page et agit par numéro — aucune vision requise, ça marche avec de petits modèles. <code>browser_screenshot</code> s'ajoute si la vision est active. Utilise le Chromium de Playwright embarqué dans l'image ; à défaut, <code>LOKI_CHROME=&lt;chemin&gt;</code>. Actif seulement si le <b>mode agent</b> est actif.</span></span></div>
+      <div class="slist">
+        <label class="switchrow"><span class="switch"><input type="checkbox" id="computer-toggle" onchange="toggleComputer()"><span class="slider"></span></span> laisser l'IA piloter un navigateur</label>
+        <div class="rowbody">
+          <div id="computer-status" class="muted" style="font-size:11px;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
     <div id="mcp-block" class="gated-group">
       <div class="subhead">Serveurs MCP<span id="mcp-badge" class="sbadge"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Connecte des <b>serveurs MCP</b> (Model Context Protocol) pour donner de nouveaux outils à l'IA : accès fichiers, bases de données, APIs métier… <b>stdio</b> = programme lancé localement (npx/uvx/binaire) · <b>http</b> = serveur distant. ⚠ un serveur stdio exécute du code sur cette machine, au même titre que le shell.</span></span></div>
       <div class="slist">

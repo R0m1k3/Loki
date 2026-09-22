@@ -28,6 +28,14 @@ La licence d'origine est conservée à l'identique dans [`LICENSE`](LICENSE).
   d'**[OpenFox](https://github.com/co-l/openfox)** (MIT) et réécrite en Go
   pour ce fork ; les prompts de rôles sont des réécritures originales.
 
+## Reprises depuis l'amont après le fork
+
+Le fork continue de suivre AJEAN et y reprend des fonctionnalités, adaptées au
+conteneur : le **contrôle du navigateur** (`computer_use.go`, `computer_cdp.go`,
+`browser_grid.go` — pilotage d'un Chromium en CDP, ici celui de Playwright déjà
+présent dans l'image) et la **préparation des images** envoyées au modèle
+(`web_upload_orient.go` — orientation EXIF et redimensionnement).
+
 ## Services externes
 
 Le tunnel d'accès distant continue de pointer vers **ajean.link**, le relais

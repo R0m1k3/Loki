@@ -202,6 +202,9 @@ type Caps struct {
 	// "verifier" (passe de vérification, seule autorisée à marquer un critère
 	// passed), "explorer", "code-reviewer". Voir code_roles.go.
 	Role string
+	// ComputerUse = pilotage du navigateur du conteneur (outils browser_*).
+	// Requiert aussi Agent (mêmes actions réelles que bash). Voir computer_use.go.
+	ComputerUse bool
 }
 
 // globalCaps reads the machine-wide config — the default when a request doesn't
@@ -219,7 +222,7 @@ func globalCaps() Caps {
 	if !agent {
 		return Caps{Agent: false, Internet: false, Mem: MemOff}
 	}
-	return Caps{Agent: true, Internet: internetEnabled() && crawlReachable(), Mem: memMode()}
+	return Caps{Agent: true, Internet: internetEnabled() && crawlReachable(), Mem: memMode(), ComputerUse: computerUseEnabled()}
 }
 
 // InjectSkills prepends context system messages to msgs: the decisive-agent
@@ -369,6 +372,14 @@ func EnabledTools(caps Caps) []Tool {
 	if caps.Agent && (caps.Internet || caps.Code) && screenshotAvailable() {
 		tools = append(tools, webScreenshotTool())
 	}
+	// Pilotage de navigateur (browser_*) : l'IA ouvre une page, lit ses éléments
+	// interactifs NUMÉROTÉS et agit par numéro. Ce sont des actions réelles sur
+	// le web (cliquer, taper, valider un formulaire) : même niveau de confiance
+	// que bash, donc mode agent requis, plus son propre interrupteur (Réglages).
+	// Voir computer_use.go.
+	if caps.Agent && caps.ComputerUse {
+		tools = append(tools, computerUseTools()...)
+	}
 	// Outils MCP : serveurs tiers configurés par le propriétaire de la machine.
 	// Comme bash, ils exécutent du code arbitraire côté hôte → réservés au mode
 	// agent. La découverte est paresseuse et cachée (voir mcp_client.go).
@@ -456,6 +467,33 @@ func shownResult(s string) string {
 		return string(r[:shownDisplayMax]) + "\n…[tronqué]"
 	}
 	return s
+}
+
+// dedupableTool indique si un appel RIGOUREUSEMENT identique (même outil, mêmes
+// arguments) doit être court-circuité au lieu d'être rejoué. Vrai pour les outils
+// où un ré-appel identique n'a pas de sens ou produit une fausse erreur (rejouer
+// une écriture déjà appliquée → « old introuvable »).
+//
+// FAUX pour bash : relancer la MÊME commande est un usage courant et légitime —
+// l'IA crée un fichier, le lance, le modifie, puis le RELANCE avec la même ligne ;
+// le résultat change parce que le fichier a changé. La dédup la bloquait par un
+// « [déjà fait] » exaspérant. bash a des effets de bord : on le laisse toujours
+// s'exécuter. Même raison pour bash_bg / bash_tail (suivre un job, c'est relire
+// la même sortie qui, elle, avance).
+//
+// FAUX aussi pour see_image et tout le pilotage de navigateur (browser_*) :
+//   - leur résultat dépend de l'ÉTAT VIVANT de la page (un browser_snapshot sans
+//     argument a forcément la même clé de dédup à chaque appel, alors que la page
+//     a changé) — les dédupliquer fige l'IA sur un vieux cliché ;
+//   - surtout, browser_screenshot et see_image portent leur IMAGE dans un message
+//     à part (visionImg) que le chemin de dédup ne rejoue PAS : l'IA recevrait
+//     « [déjà fait] » SANS l'image et tournerait en boucle.
+func dedupableTool(name string) bool {
+	switch name {
+	case "bash", "bash_bg", "bash_tail", "see_image":
+		return false
+	}
+	return !strings.HasPrefix(name, "browser_")
 }
 
 // repeatedCallResult construit ce qu'on renvoie quand le modèle redemande un
@@ -1228,7 +1266,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// même écriture ; la rejouer produisait une fausse erreur (« old
 				// introuvable », puisque le remplacement est déjà fait).
 				callKey := tc.Function.Name + "\x00" + tc.Function.Arguments
-				if prev, seen := doneCalls[callKey]; seen {
+				if prev, seen := doneCalls[callKey]; seen && dedupableTool(tc.Function.Name) {
 					repeatCount[callKey]++
 					result = repeatedCallResult(prev, repeatCount[callKey])
 					cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true}})
@@ -1381,6 +1419,24 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					result = capWebOutput(toolWebGrep(args))
 				case "web_screenshot":
 					result = toolWebScreenshot(args, caps)
+				case "browser_open":
+					result = capCUOutput(toolCUOpen(args))
+				case "browser_snapshot":
+					result = capCUOutput(toolCUSnapshot())
+				case "browser_find":
+					result = capCUOutput(toolCUFind(args))
+				case "browser_click":
+					result = capCUOutput(toolCUClick(args))
+				case "browser_click_xy":
+					result = capCUOutput(toolCUClickXY(args))
+				case "browser_type":
+					result = capCUOutput(toolCUType(args))
+				case "browser_key":
+					result = capCUOutput(toolCUKey(args))
+				case "browser_scroll":
+					result = capCUOutput(toolCUScroll(args))
+				case "browser_screenshot":
+					result, visionImg = toolCUScreenshot()
 				default:
 					if isMCPTool(tc.Function.Name) {
 						result = mcpCall(tc.Function.Name, args)

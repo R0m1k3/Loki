@@ -122,6 +122,8 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_HOME` | données (volume) | `/data` |
 | `LOKI_MODEL_DIRS` | dossiers .gguf additionnels | `/models` |
 | `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint (repli : le jeton réglé dans l'UI prime) | — |
+| `LOKI_CHROME` | binaire du navigateur piloté (contrôle du navigateur) ; par défaut le Chromium de Playwright de l'image | — |
+| `LOKI_CU_HEADFUL` | `1` : ouvre une vraie fenêtre au lieu du mode headless (machine avec écran) | — |
 
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `test`…).
@@ -175,11 +177,29 @@ Héritées d'AJEAN :
 
 - **Tchat** avec streaming, raisonnement visible, pièces jointes, export de
   conversations. La **vision** demande un modèle multimodal *et* son projecteur
-  `mmproj` — voir [Installer un modèle](#installer-un-modèle).
+  `mmproj` — voir [Installer un modèle](#installer-un-modèle). Toute image
+  envoyée au modèle (pièce jointe, `see_image`, capture) est d'abord
+  **redressée** — l'orientation EXIF d'une photo de téléphone est cuite dans
+  les pixels, sinon le projecteur, qui ignore l'EXIF, la voyait couchée — et
+  **ramenée sous 1568 px** de grand côté, taille au-delà de laquelle le base64
+  grossit sans rien apprendre de plus au modèle.
 - **Mémoire persistante** (`memory off|ondemand|always`).
 - **Accès internet** : recherche + lecture de pages, moteur Go intégré ou
   [Crawl4AI](https://github.com/unclecode/crawl4ai) pour les pages JS.
 - **Agent** : shell, fichiers, workspace (`agent on`).
+- **Contrôle du navigateur** (`computer on`, ou *Réglages → Contrôle du
+  navigateur*) : l'IA **pilote** un Chromium — celui de Playwright, déjà dans
+  l'image — par le protocole DevTools. Elle ouvre une page, en reçoit les
+  éléments interactifs **numérotés** (`[12] bouton « Se connecter »`) et agit
+  par numéro : `browser_open`, `browser_snapshot`, `browser_find`,
+  `browser_click`, `browser_type`, `browser_key`, `browser_scroll`. Aucune
+  vision requise — ça marche avec de petits modèles texte. Avec un projecteur
+  `mmproj` chargé s'ajoutent `browser_screenshot` (image quadrillée tous les
+  100 px) et `browser_click_xy`, pour ce que l'arbre d'accessibilité ne montre
+  pas (canvas, bandeau en iframe). Ce sont des **actions réelles** sur le web :
+  l'interrupteur est distinct de l'accès internet et n'agit qu'en **mode
+  agent**, au même niveau de confiance que `bash`. La session navigateur est
+  unique et réutilisée entre les appels ; couper l'interrupteur la ferme.
 - **Serveurs MCP** : Node.js (`npx`) et uv (`uvx`) sont inclus dans l'image, pour
   les serveurs écrits en JavaScript comme en Python. Au **premier** lancement,
   `npx`/`uvx` téléchargent le paquet du serveur — Loki attend jusqu'à 3 minutes

@@ -84,6 +84,8 @@ func Main() {
 		mustExit(cmdOAI(args))
 	case "agent":
 		mustExit(cmdAgent(args))
+	case "computer":
+		mustExit(cmdComputer(args))
 	case "internet":
 		mustExit(cmdInternet(args))
 	case "memory":
@@ -156,6 +158,7 @@ Interaction:
   memory [off|ondemand|always|status]  mode mémoire de l'IA
   internet [on|off|status|engine <go|crawl4ai>|url <url>|key <clé>]
                                 accès web de l'IA (moteur intégré ou serveur Crawl4AI)
+  computer [on|off|status]      laisse l'IA piloter un navigateur (browser_open/click/type…)
 
 Accès distant (ajean.link) :
   link <token>                  enregistre le jeton et ouvre le tunnel

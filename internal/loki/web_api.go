@@ -698,6 +698,37 @@ func localIP() string {
 	return "localhost"
 }
 
+// handleComputer pilote le pilotage de navigateur (outils browser_*).
+//
+//	GET  → {enabled, browser, browser_ok, vision}
+//	POST {on} → active/désactive (et ferme le navigateur quand on coupe).
+func handleComputer(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var req struct {
+			On bool `json:"on"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := setComputerUseEnabled(req.On); err != nil {
+			sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		// Couper l'interrupteur ferme le navigateur : le laisser tourner
+		// garderait un Chromium (et son profil temporaire) sur les bras alors
+		// que plus aucun outil ne peut s'en servir.
+		if !req.On {
+			cdpShutdown()
+		}
+	}
+	bin := chromePath()
+	sendJSON(w, 200, map[string]any{
+		"ok":         true,
+		"enabled":    computerUseEnabled(),
+		"browser":    bin,
+		"browser_ok": bin != "",
+		"vision":     visionEnabled(),
+	})
+}
+
 func handleInternet(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var req struct {

@@ -215,12 +215,12 @@ func userMessageContent(files []attachInfo, prompt string) any {
 			textFiles = append(textFiles, f) // illisible ici : au moins l'annoncer comme fichier
 			continue
 		}
-		imgParts = append(imgParts, map[string]any{
-			"type": "image_url",
-			"image_url": map[string]any{
-				"url": "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(b),
-			},
-		})
+		// Photo prise au téléphone : l'orientation vit dans un tag EXIF que le
+		// projecteur ignore (il voit les pixels bruts, donc l'image couchée), et
+		// une image de plusieurs milliers de pixels ne fait que gonfler le base64
+		// — voir prepareImageForModel (web_upload_orient.go).
+		b, mime = prepareImageForModel(b, mime)
+		imgParts = append(imgParts, imageURLPart(b, mime))
 	}
 	if len(imgParts) == 0 {
 		return attachNote(files) + prompt
