@@ -3,6 +3,7 @@
 package loki
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func handlePing(w http.ResponseWriter, r *http.Request) {
@@ -696,6 +698,175 @@ func localIP() string {
 		return a.IP.String()
 	}
 	return "localhost"
+}
+
+// --- Chiffrement de la mémoire (mem_crypto/mem_vault/mem_migrate) -----------
+
+// handleMemHealth : état du chiffrement (actif ? verrouillé ? tout chiffré ?),
+// nombre de pages et snapshots locaux.
+func handleMemHealth(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, 200, memHealth())
+}
+
+// handleMemEncrypt active le chiffrement. Le corps porte le mot de passe
+// mémoire. La réponse contient la CLÉ DE RÉCUPÉRATION, à afficher UNE fois :
+// elle n'est jamais reconsultable ensuite.
+func handleMemEncrypt(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Password string `json:"password"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	rec, err := EnableMemEncryption(req.Password)
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "recovery": rec, "health": memHealth()})
+}
+
+// handleMemDecrypt remet la mémoire en clair (exige d'être déverrouillé).
+func handleMemDecrypt(w http.ResponseWriter, r *http.Request) {
+	if err := DisableMemEncryption(); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "health": memHealth()})
+}
+
+// handleMemUnlock déverrouille la mémoire : accepte le mot de passe OU la clé
+// de récupération (on tente les deux formes). Charge la DEK en RAM.
+func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Secret string `json:"secret"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if strings.TrimSpace(req.Secret) == "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "secret vide"})
+		return
+	}
+	v, err := loadVault()
+	if err != nil || v == nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "aucun coffre (mémoire non chiffrée ?)"})
+		return
+	}
+	dek, kind, err := v.unlockWith(req.Secret)
+	if err != nil {
+		// La clé de récupération se saisit avec tirets/espaces : on retente normalisée.
+		if d2, k2, e2 := v.unlockWith(normalizeRecovery(req.Secret)); e2 == nil {
+			dek, kind, err = d2, k2, e2
+		}
+	}
+	if err != nil {
+		sendJSON(w, 401, map[string]any{"ok": false, "error": "secret incorrect"})
+		return
+	}
+	setMemDEK(dek)
+	resumeMemMigration()    // si une migration attendait le déverrouillage
+	reloadEncryptedStores() // recharge la discussion chiffrée en RAM
+	// Migration douce : chiffre ce qui serait resté en clair (discussions,
+	// blocs archivés, trackers). Idempotent — n'encode que ce qui ne l'est pas.
+	if memEncActive() && memUnlocked() {
+		_ = reencryptChatStores()
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "kind": kind, "health": memHealth()})
+}
+
+// handleMemLock purge la DEK de la RAM (reverrouille sans redémarrer).
+func handleMemLock(w http.ResponseWriter, r *http.Request) {
+	clearMemDEK()
+	sendJSON(w, 200, map[string]any{"ok": true, "health": memHealth()})
+}
+
+// handleMemSnapshots liste les snapshots locaux de la mémoire (GET) ou en
+// restaure un (POST {id}). Un snapshot est pris avant chaque opération qui
+// touche à tout (chiffrement, déchiffrement) : c'est le filet.
+func handleMemSnapshots(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var req struct {
+			ID string `json:"id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := restoreSnapshot(req.ID); err != nil {
+			sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		sendJSON(w, 200, map[string]any{"ok": true})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "snapshots": listSnapshots()})
+}
+
+// --- Sauvegarde chiffrée, en FICHIER (pas de relais) ------------------------
+//
+// L'amont sauvegarde vers son relais (ajean.link). Ici, le même paquet chiffré
+// se télécharge et se réimporte À LA MAIN : rien ne quitte la machine sans que
+// tu l'aies demandé, et un conteneur se remonte ailleurs avec un seul fichier.
+// Le corps est chiffré avec la DEK de la mémoire ; l'entête porte le coffre, si
+// bien que la restauration n'a besoin que de la clé de pilotage (ou de la clé
+// de récupération) — aucun état de l'ancienne machine.
+
+// handleBackupExport (GET) télécharge le paquet chiffré {mémoire, presets,
+// réglages}. Exige une mémoire chiffrée ET déverrouillée : sans DEK, il n'y a
+// pas de quoi sceller le paquet, et l'envoyer en clair serait un piège.
+func handleBackupExport(w http.ResponseWriter, r *http.Request) {
+	v, err := loadVault()
+	if err != nil || v == nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "aucun coffre : active d'abord le chiffrement de la mémoire"})
+		return
+	}
+	dek, err := currentDEK()
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "mémoire verrouillée"})
+		return
+	}
+	tarData, err := buildBundleTar()
+	if err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	blob, err := buildBackupBlob(v, dek, tarData)
+	if err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	name := "loki-backup-" + time.Now().Format("20060102-150405") + ".lkbk"
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+name+"\"")
+	w.Header().Set("Content-Length", strconv.Itoa(len(blob)))
+	_, _ = w.Write(blob)
+}
+
+// handleBackupImport (POST {data: base64, secret}) restaure un paquet exporté.
+// Un snapshot de la mémoire est pris AVANT d'écrire quoi que ce soit.
+func handleBackupImport(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Data   string `json:"data"`
+		Secret string `json:"secret"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	// "data:application/octet-stream;base64,…" : on ne garde que la charge utile.
+	data := req.Data
+	if i := strings.Index(data, ","); i >= 0 && strings.HasPrefix(data, "data:") {
+		data = data[i+1:]
+	}
+	blob, err := base64.StdEncoding.DecodeString(strings.TrimSpace(data))
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "fichier illisible (base64 attendu)"})
+		return
+	}
+	tarData, err := openBackupBlob(blob, req.Secret)
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if err := restoreBundleTar(tarData); err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "health": memHealth()})
 }
 
 // handleComputer pilote le pilotage de navigateur (outils browser_*).

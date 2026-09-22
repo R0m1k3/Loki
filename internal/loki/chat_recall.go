@@ -84,8 +84,14 @@ func recallIDToSeq(id string) (uint64, bool) {
 // (base indisponible, ex. tests sans LOKI_HOME) on renvoie une erreur et
 // l'appelant se rabat sur le compactage classique (troncature sans id).
 func archiveRecallBlock(label, role, content string) (string, error) {
+	// Résolu AVANT d'ouvrir la base : chiffrer dans la transaction relirait la
+	// configuration, donc la base, qui n'est pas rentrante (voir memEncoderNow).
+	encode, err := memEncoderNow()
+	if err != nil {
+		return "", err
+	}
 	var id string
-	err := withDB(func(d *bolt.DB) error {
+	err = withDB(func(d *bolt.DB) error {
 		return d.Update(func(tx *bolt.Tx) error {
 			b, err := tx.CreateBucketIfNotExists([]byte(bkRecall))
 			if err != nil {
@@ -108,7 +114,15 @@ func archiveRecallBlock(label, role, content string) (string, error) {
 			if err != nil {
 				return err
 			}
-			return b.Put(recallKey(seq), raw)
+			// Un bloc archivé, c'est du verbatim de conversation : chiffré comme
+			// le reste quand la mémoire l'est (l'encodeur rend le clair inchangé
+			// si le chiffrement est inactif ; verrouillé, memEncoderNow a déjà
+			// refusé plus haut).
+			enc, err := encode(raw)
+			if err != nil {
+				return err
+			}
+			return b.Put(recallKey(seq), enc)
 		})
 	})
 	if err != nil {
@@ -131,7 +145,11 @@ func recallGet(id string) (recallBlock, bool) {
 		if v == nil {
 			return nil
 		}
-		found = json.Unmarshal(v, &blk) == nil
+		dec, err := decodeMemContent(v)
+		if err != nil {
+			return nil // chiffré et verrouillé : le bloc reste hors de portée
+		}
+		found = json.Unmarshal(dec, &blk) == nil
 		return nil
 	})
 	return blk, found
@@ -161,7 +179,11 @@ func recallSearch(query string, limit int) []recallBlock {
 	_ = view(bkRecall, func(b *bolt.Bucket) error {
 		return b.ForEach(func(_, v []byte) error {
 			var blk recallBlock
-			if json.Unmarshal(v, &blk) != nil {
+			dec, err := decodeMemContent(v)
+			if err != nil {
+				return nil // chiffré et verrouillé : ce bloc ne participe pas
+			}
+			if json.Unmarshal(dec, &blk) != nil {
 				return nil
 			}
 			label := strings.ToLower(blk.Label)

@@ -139,7 +139,8 @@ et modèles compris.
 | `/data/loki.db` | base bbolt : préférences, discussions, mémoire des réglages |
 | `/data/presets/` | un `.env` par preset (modèle, contexte, NGL, vision…) |
 | `/data/models/` | modèles téléchargés depuis l'interface |
-| `/data/memory/` | pages de mémoire persistante (`.md`) — joignables **uniquement** par les outils `mem_*`, pas au shell |
+| `/data/memory/` | pages de mémoire persistante (`.md`) — joignables **uniquement** par les outils `mem_*`, pas au shell ; chiffrées si le chiffrement est actif |
+| `/data/backups/memory/` | snapshots de la mémoire pris avant chaque opération qui touche à tout |
 | `/data/scripts/` | scripts durables de l'agent, hors du workspace jetable (planifiables sans modèle) |
 | `/data/workspace/` | racine du dossier de travail de l'agent |
 | `/data/workspace/discussions/<id>/` | fichiers d'UNE discussion : dépôts, captures, ce que l'agent y écrit |
@@ -234,6 +235,24 @@ Héritées d'AJEAN :
   d'accueil. Les clés VAPID sont générées à la première demande et rangées avec
   le reste sous `/data` ; le corps de la notification reste générique (aucun
   extrait de réponse), puisqu'elle transite par Apple ou Google.
+- **Chiffrement de la mémoire** (*Réglages → Mémoire*) : pages mémoire,
+  discussions, blocs archivés au compactage et trackers chiffrés en
+  **AES-256-GCM** sur le disque. Chiffrement à enveloppe : une clé de données
+  (DEK) tirée une fois, enfermée dans un coffre par une clé dérivée en
+  **Argon2id**. Ce qui ouvre le coffre : la **clé de pilotage de l'appareil**
+  (le serveur n'en garde qu'une empreinte — il ne peut pas ouvrir le coffre
+  seul) ou une **clé de récupération** affichée une seule fois à l'activation.
+  La DEK ne vit qu'en RAM : après un redémarrage à froid, la mémoire est
+  verrouillée jusqu'à ce qu'un navigateur se reconnecte — verrouillée, Loki
+  n'écrit jamais de clair par-dessus du chiffré, il refuse d'écrire. Règle
+  tenue partout : **rien n'est supprimé avant que son remplaçant ait été relu
+  et vérifié**, un **snapshot** est pris avant chaque bascule, et une migration
+  interrompue reprend au démarrage.
+- **Sauvegarde chiffrée en fichier** : *exporter* télécharge un paquet scellé
+  (mémoire, presets, réglages) que *importer* rejoue sur un autre serveur avec
+  la seule clé — de quoi remonter le conteneur ailleurs. C'est la sauvegarde de
+  l'amont sans son relais : ici rien ne part sur un service tiers, le fichier
+  reste chez toi.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
   `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces

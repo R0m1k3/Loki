@@ -34,7 +34,14 @@ Le fork continue de suivre AJEAN et y reprend des fonctionnalités, adaptées au
 conteneur : le **contrôle du navigateur** (`computer_use.go`, `computer_cdp.go`,
 `browser_grid.go` — pilotage d'un Chromium en CDP, ici celui de Playwright déjà
 présent dans l'image) et la **préparation des images** envoyées au modèle
-(`web_upload_orient.go` — orientation EXIF et redimensionnement).
+(`web_upload_orient.go` — orientation EXIF et redimensionnement), les
+**notifications Web Push** (`push.go`, `web_push.go`), les **tâches script** et
+le dossier de scripts (`chat_scripts.go`, `tasks_script.go`, `tasks_tools.go`),
+et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
+`mem_store.go`, `mem_io.go`, `mem_migrate.go`, `mem_snapshots.go`,
+`backup_bundle.go`). La sauvegarde vers le relais (`relay_backup.go`) n'est
+**pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
+expose à la place un export/import de paquet chiffré en fichier local.
 
 ## Services externes
 

@@ -383,6 +383,22 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <option value="off">désactivée</option>
           </select>
         </label>
+        <!-- Chiffrement au repos. La clé est celle de pilotage de CET appareil
+             (localStorage) : le serveur n'en a que l'empreinte, il ne peut pas
+             ouvrir le coffre seul. Couvre les pages, les discussions, les blocs
+             archivés au compactage et les trackers. -->
+        <label class="switchrow"><span class="switch"><input type="checkbox" id="mem-enc-toggle" onchange="toggleMemEncrypt()"><span class="slider"></span></span> chiffrer la mémoire sur le disque<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Chiffre en <b>AES-256-GCM</b> les pages mémoire, les discussions, les blocs archivés et les trackers sous <code>/data</code>. La clé de données est enfermée dans un coffre (Argon2id) ouvert par la <b>clé de pilotage de cet appareil</b> ou par une <b>clé de récupération</b> donnée une seule fois à l'activation. Un <b>snapshot</b> est pris avant chaque bascule, et rien n'est supprimé avant relecture vérifiée.</span></span></label>
+        <div class="rowbody"><div id="mem-enc-status" class="muted" style="font-size:11px"></div></div>
+        <!-- Sauvegarde : le MÊME paquet chiffré que l'amont envoie à son relais,
+             mais en fichier local — rien ne quitte la machine sans qu'on le
+             demande. Nécessite le chiffrement actif : c'est sa clé qui scelle. -->
+        <div class="pe-row">
+          <span class="pe-row-l">Sauvegarde chiffrée</span>
+          <span class="pe-row-c">
+            <button onclick="backupExport()">exporter</button>
+            <button onclick="backupImport()">importer</button>
+          </span>
+        </div>
         <div id="mem-pages-bar" class="pages-bar" onclick="toggleMemPages()">
           <span class="pages-title">Voir la mémoire <span id="mem-count" class="mem-count"></span></span>
           <button class="addbtn" onclick="event.stopPropagation();openMem('')" title="ajouter une page mémoire">+ ajouter</button>

@@ -128,7 +128,11 @@ func LoadConversation() {
 		}
 		// convEnsureActive reprend au passage le fil unique des versions
 		// précédentes (clé « conversation ») comme première discussion.
-		if b, err = getBytesErr(bkChat, convKey(convEnsureActive())); err == nil {
+		// getStoreBytesErr : même lecture, en DÉCHIFFRANT au besoin (mémoire
+		// chiffrée). Verrouillé, elle rend (nil, nil) — pas une erreur d'accès :
+		// on démarre alors sur un fil vide sans rien écraser, et tout revient au
+		// déverrouillage.
+		if b, err = getStoreBytesErr(bkChat, convKey(convEnsureActive())); err == nil {
 			break
 		}
 		retry()
@@ -173,6 +177,19 @@ func (c *Conversation) loadFrom(b []byte) {
 	c.mu.Unlock()
 }
 
+// reloadEncryptedStores recharge la discussion depuis le disque après un
+// déverrouillage : verrouillée, la lecture au démarrage a rendu un fil vide.
+// On ne recharge QUE dans ce cas — écraser un fil déjà rempli ferait perdre le
+// tour en cours, qui n'a pas pu être persisté.
+func reloadEncryptedStores() {
+	conv.mu.Lock()
+	empty := len(conv.Log) == 0
+	conv.mu.Unlock()
+	if empty {
+		LoadConversation()
+	}
+}
+
 // persist enregistre l'état (appelé en fin de tour et sur reset, pas à chaque
 // delta) sous la discussion active, et rafraîchit ses métadonnées (titre déduit
 // du premier message, date, nombre d'échanges). L'appelant NE doit PAS détenir mu.
@@ -191,7 +208,10 @@ func (c *Conversation) persist() {
 		return
 	}
 	id := convEnsureActive()
-	_ = putBytes(bkChat, convKey(id), b)
+	// Chiffré si la mémoire l'est et qu'elle est déverrouillée. Verrouillée,
+	// l'écriture est REFUSÉE plutôt que de remplacer un blob chiffré par du
+	// clair — le fil de ce tour reste en RAM, rien n'est perdu sur disque.
+	_ = putStoreBytes(bkChat, convKey(id), b)
 	convTouchMeta(id, title, turns)
 }
 

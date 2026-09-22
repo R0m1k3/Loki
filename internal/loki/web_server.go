@@ -122,6 +122,10 @@ func newWebMux() *http.ServeMux {
 	// recharge son état pour l'annoncer « interrompue » au lieu de n'afficher
 	// plus rien du tout.
 	lcRestoreOnce.Do(lcRestore)
+	// Chiffrement de la mémoire : une migration interrompue (coupure de courant
+	// en plein chiffrement) reprend ici, si la clé est disponible. Sans clé, elle
+	// attend le déverrouillage (voir handleMemUnlock). Idempotent.
+	resumeMemMigration()
 	// Planificateur des tâches : une goroutine, un tic par minute, dans le process
 	// qui détient la conversation et le modèle (idempotent, cf. sync.Once).
 	StartTaskScheduler()
@@ -262,7 +266,15 @@ func newWebMux() *http.ServeMux {
 	api("/api/node/target", handleNodeTarget) // choisit la machine cible de l'agent
 	api("/api/node/revoke", handleNodeRevoke) // oublie la clé + déconnecte
 	api("/api/internet", handleInternet)
-	api("/api/computer", handleComputer) // pilotage de navigateur (outils browser_*)
+	api("/api/computer", handleComputer)          // pilotage de navigateur (outils browser_*)
+	api("/api/mem/health", handleMemHealth)       // état chiffrement/verrou/pages/snapshots
+	api("/api/mem/encrypt", handleMemEncrypt)     // active le chiffrement (renvoie la clé de récupération)
+	api("/api/mem/decrypt", handleMemDecrypt)     // remet la mémoire en clair
+	api("/api/mem/unlock", handleMemUnlock)       // déverrouille (mot de passe ou clé de récupération)
+	api("/api/mem/lock", handleMemLock)           // reverrouille (purge la DEK de la RAM)
+	api("/api/mem/snapshots", handleMemSnapshots) // liste + restauration des snapshots locaux
+	api("/api/backup/export", handleBackupExport) // télécharge le paquet chiffré (mémoire+presets+réglages)
+	api("/api/backup/import", handleBackupImport) // restaure un paquet exporté
 	api("/api/mcp", handleMCP)
 	api("/api/mcp/catalog", handleMCPCatalog)
 	api("/api/mcp/save", handleMCPSave)

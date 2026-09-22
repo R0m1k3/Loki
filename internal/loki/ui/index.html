@@ -2584,6 +2584,22 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <option value="off">désactivée</option>
           </select>
         </label>
+        <!-- Chiffrement au repos. La clé est celle de pilotage de CET appareil
+             (localStorage) : le serveur n'en a que l'empreinte, il ne peut pas
+             ouvrir le coffre seul. Couvre les pages, les discussions, les blocs
+             archivés au compactage et les trackers. -->
+        <label class="switchrow"><span class="switch"><input type="checkbox" id="mem-enc-toggle" onchange="toggleMemEncrypt()"><span class="slider"></span></span> chiffrer la mémoire sur le disque<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Chiffre en <b>AES-256-GCM</b> les pages mémoire, les discussions, les blocs archivés et les trackers sous <code>/data</code>. La clé de données est enfermée dans un coffre (Argon2id) ouvert par la <b>clé de pilotage de cet appareil</b> ou par une <b>clé de récupération</b> donnée une seule fois à l'activation. Un <b>snapshot</b> est pris avant chaque bascule, et rien n'est supprimé avant relecture vérifiée.</span></span></label>
+        <div class="rowbody"><div id="mem-enc-status" class="muted" style="font-size:11px"></div></div>
+        <!-- Sauvegarde : le MÊME paquet chiffré que l'amont envoie à son relais,
+             mais en fichier local — rien ne quitte la machine sans qu'on le
+             demande. Nécessite le chiffrement actif : c'est sa clé qui scelle. -->
+        <div class="pe-row">
+          <span class="pe-row-l">Sauvegarde chiffrée</span>
+          <span class="pe-row-c">
+            <button onclick="backupExport()">exporter</button>
+            <button onclick="backupImport()">importer</button>
+          </span>
+        </div>
         <div id="mem-pages-bar" class="pages-bar" onclick="toggleMemPages()">
           <span class="pages-title">Voir la mémoire <span id="mem-count" class="mem-count"></span></span>
           <button class="addbtn" onclick="event.stopPropagation();openMem('')" title="ajouter une page mémoire">+ ajouter</button>
@@ -4328,6 +4344,7 @@ async function loadAgent(){
   document.getElementById('mem-count').textContent = memPages.length ? '('+memPages.length+')' : '';
   document.getElementById('mem-search-row').style.display = memPages.length > MEM_PAGE ? '' : 'none';
   renderMemList();
+  loadMemEnc();
 }
 // Mémoire + accès internet sont des sous-réglages du mode agent : sans agent, ni
 // les outils mem_* ni les outils web ne sont fournis (voir globalCaps côté Go). On
@@ -4385,6 +4402,120 @@ function renderMemList(){
 }
 // alias : plusieurs appelants rafraîchissent juste la liste des pages mémoire
 const loadMem = loadAgent;
+
+// --- Chiffrement de la mémoire (pages, discussions, blocs archivés, trackers) -
+//
+// La clé de chiffrement EST la clé de pilotage (localStorage 'loki.key'), qui ne
+// vit que sur cet appareil — le serveur n'en garde qu'une empreinte, il ne peut
+// donc pas ouvrir le coffre seul. Une seule clé pour l'accès ET le chiffrement :
+// avoir l'interface sous les yeux suffit à déverrouiller, sans second secret à
+// retenir.
+let memUnlockDone=false; // tentative de déverrouillage déjà faite ce chargement
+async function loadMemEnc(){
+  let h; try{ h=await jget('/api/mem/health'); }catch(e){ return; }
+  const tog=document.getElementById('mem-enc-toggle'); if(!tog) return;
+  // La case n'est cochée QUE si TOUT est réellement chiffré (h.fully). Un
+  // chiffrement partiel, raté ou verrouillé-incomplet la laisse décochée : si
+  // elle est cochée, c'est que ça l'est vraiment.
+  tog.checked=!!h.fully;
+  const st=document.getElementById('mem-enc-status');
+  if(st){
+    if(!h.encrypted) st.textContent='pages, discussions, blocs archivés et trackers sont en clair sous /data.';
+    else if(h.locked) st.textContent='chiffré — verrouillé : rien n\'est lisible tant que la clé n\'est pas fournie.';
+    else st.textContent='chiffré et déverrouillé · '+(h.pages|0)+' page(s)'+(h.mixed?' ⚠ certaines pages sont encore en clair':'');
+  }
+  // Résilience : si le drapeau a disparu mais qu'un coffre existe encore
+  // (vault_copies>0), on propose QUAND MÊME le déverrouillage — sinon la
+  // mémoire reste muette et rien ne demande la clé.
+  const flagLost = !h.encrypted && (h.vault_copies|0) > 0;
+  if(((h.encrypted && h.locked) || flagLost) && !memUnlockDone){
+    memUnlockDone=true;
+    const apiKey=localStorage.getItem('loki.key')||'';
+    if(apiKey){ const r=await jpost('/api/mem/unlock',{secret:apiKey}); if(r.ok){ loadMem(); return; } }
+    // Boucle : une clé fausse redemande tout de suite (pas besoin de recharger).
+    while(true){
+      const s2=await askPrompt('Saisis la clé de pilotage de cet appareil, ou la clé de récupération notée à l\'activation.',{title:'Mémoire verrouillée',placeholder:'clé de pilotage ou clé de récupération'});
+      if(!s2){ memUnlockDone=false; break; } // annulé : on redemandera au prochain chargement
+      const r=await jpost('/api/mem/unlock',{secret:s2});
+      if(r.ok){ loadMem(); return; }
+      await askAlert('Clé refusée.',{title:'Refusé'});
+    }
+  }
+}
+// --- Sauvegarde chiffrée en fichier (mémoire + presets + réglages) ----------
+// Le corps est scellé avec la clé de la mémoire ; la restauration ne demande que
+// la clé de pilotage (ou la clé de récupération). Aucun relais : c'est un
+// fichier, que tu ranges où tu veux.
+async function backupExport(){
+  let r;
+  try{ r = await jfetch('/api/backup/export'); }
+  catch(e){ await askAlert('échec : '+e); return; }
+  if(!r.ok){
+    let msg='échec'; try{ const j=await r.json(); msg=j.error||msg; }catch(_){}
+    await askAlert(msg, {title:'Sauvegarde impossible'});
+    return;
+  }
+  const blob = await r.blob();
+  // Le nom vient du serveur (Content-Disposition) ; repli daté côté client.
+  let name = 'loki-backup.lkbk';
+  const cd = r.headers.get('Content-Disposition')||'';
+  const m = /filename="([^"]+)"/.exec(cd);
+  if(m) name = m[1];
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  toast('sauvegarde téléchargée');
+}
+async function backupImport(){
+  if(!await askConfirm("La mémoire, les presets et les réglages de CE serveur seront remplacés par ceux du paquet. Un snapshot de la mémoire actuelle est pris avant.",{title:'Restaurer une sauvegarde ?',okText:'Choisir le fichier',danger:true})) return;
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.lkbk,application/octet-stream';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+    const buf = new Uint8Array(await f.arrayBuffer());
+    // btoa par tranches : un spread sur un tableau de plusieurs Mo fait sauter
+    // la pile d'appels.
+    let bin = '';
+    for(let i=0;i<buf.length;i+=0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i+0x8000));
+    const data = btoa(bin);
+    // Boucle : une clé fausse redemande tout de suite.
+    while(true){
+      const secret = await askPrompt("Clé de pilotage de la machine d'origine, ou clé de récupération.",{title:'Restaurer',placeholder:'clé'});
+      if(!secret) return;
+      toast('restauration…');
+      let r; try{ r = await jpost('/api/backup/import',{data, secret}); }catch(e){ await askAlert('échec : '+e); return; }
+      if(r && r.ok){ await askAlert('Sauvegarde restaurée.',{title:'Terminé'}); loadMem(); return; }
+      await askAlert((r&&r.error)||'échec',{title:'Refusé'});
+    }
+  };
+  inp.click();
+}
+async function toggleMemEncrypt(){
+  const tog=document.getElementById('mem-enc-toggle');
+  if(tog.checked){
+    // Déjà chiffré mais incomplet (verrouillé, ou discussions à migrer) : on ne
+    // relance PAS un chiffrement, on complète en déverrouillant.
+    let cur; try{ cur=await jget('/api/mem/health'); }catch(e){}
+    if(cur && cur.encrypted){ memUnlockDone=false; await loadMemEnc(); return; }
+    const apiKey=localStorage.getItem('loki.key')||'';
+    if(!apiKey){ await askAlert("Le chiffrement utilise la clé de pilotage de cet appareil, et il n'y en a pas. Règle-la d'abord (loki set-web-key), puis reviens.",{title:'Clé de pilotage requise'}); tog.checked=false; return; }
+    const ok=await askConfirm("Les pages mémoire, les discussions, les blocs archivés et les trackers seront chiffrés sur le disque. La clé de cet appareil les ouvre ; une clé de récupération te sera donnée UNE fois — note-la, elle est ta seule porte de secours.",{title:'Chiffrer la mémoire ?',okText:'Chiffrer'});
+    if(!ok){ tog.checked=false; return; }
+    let r; try{ r=await jpost('/api/mem/encrypt',{password:apiKey}); }catch(e){ await askAlert('échec : '+e); tog.checked=false; return; }
+    if(!r.ok){ await askAlert('échec : '+(r.error||'inconnu')); tog.checked=false; loadMemEnc(); return; }
+    memUnlockDone=true;
+    await askAlert("Note cette clé de récupération, elle ne sera plus jamais affichée :\n\n"+r.recovery,{title:'Clé de récupération'});
+    toast('chiffrement activé'); loadMem();
+  } else {
+    const ok=await askConfirm('Tout sera réécrit EN CLAIR sur le disque.',{title:'Déchiffrer la mémoire ?',okText:'Déchiffrer',danger:true});
+    if(!ok){ tog.checked=true; return; }
+    let r; try{ r=await jpost('/api/mem/decrypt',{}); }catch(e){ await askAlert('échec : '+e); tog.checked=true; return; }
+    if(!r.ok){ await askAlert('échec : '+(r.error||'inconnu')); tog.checked=true; loadMemEnc(); return; }
+    toast('chiffrement désactivé'); loadMem();
+  }
+}
 async function toggleAgent(){
   const on=document.getElementById('agent-toggle').checked;
   if(on && !await askConfirm("L'IA aura un accès shell complet au serveur (bash) et pourra lire/écrire sa mémoire.", {title:'Activer le mode agent ?', okText:'Activer', danger:true})){ document.getElementById('agent-toggle').checked=false; return; }

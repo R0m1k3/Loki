@@ -278,7 +278,7 @@ func migrateLegacyUploads(src string) {
 // d'une discussion (delta `files`, cf. StartTurn). C'est la seule trace qui
 // relie un fichier déposé à sa discussion.
 func convAttachNames(id string) []string {
-	b := getBytes(bkChat, convKey(id))
+	b := storeBytes(bkChat, convKey(id))
 	if len(b) == 0 {
 		return nil
 	}

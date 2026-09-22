@@ -89,8 +89,15 @@ func MemList() []MemPage {
 		if !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
 			continue
 		}
-		b, _ := os.ReadFile(filepath.Join(memoryDir(), e.Name()))
-		out = append(out, MemPage{Name: e.Name(), Title: titleOf(string(b))})
+		// Page chiffrée + mémoire verrouillée : on la LISTE quand même (elle
+		// existe, la cacher ferait croire à une perte) avec un titre qui dit
+		// pourquoi son contenu n'apparaît pas.
+		txt, ok := memPageText(e.Name())
+		title := titleOf(txt)
+		if !ok {
+			title = "🔒 (chiffré — mémoire verrouillée)"
+		}
+		out = append(out, MemPage{Name: e.Name(), Title: title})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
@@ -125,8 +132,7 @@ func MemSearch(query string, limit int) []MemHit {
 	docs := make([]doc, 0)
 	df := make(map[string]int) // nb de pages contenant chaque terme
 	for _, p := range MemList() {
-		b, _ := os.ReadFile(filepath.Join(memoryDir(), p.Name))
-		content := string(b)
+		content, _ := memPageText(p.Name) // "" si chiffré et verrouillé : matche alors sur le nom seul
 		d := doc{
 			p:       p,
 			name:    strings.ToLower(p.Name),
@@ -246,12 +252,11 @@ func snippetAround(content string, terms []string) string {
 // MemRead lit une plage de lignes d'une page (1-indexé, lignes préfixées du
 // numéro). offset/limit par défaut : tout depuis la ligne 1 (cap 500).
 func MemRead(name string, offset, limit int) (string, error) {
-	p, err := safeMemPath(name)
+	b, err := memReadPage(name)
 	if err != nil {
-		return "", err
-	}
-	b, err := os.ReadFile(p)
-	if err != nil {
+		if errors.Is(err, errMemLocked) {
+			return "", fmt.Errorf("page '%s' chiffrée — mémoire verrouillée", name)
+		}
 		return "", fmt.Errorf("page '%s' introuvable", name)
 	}
 	lines := strings.Split(string(b), "\n")
@@ -278,11 +283,8 @@ func MemAdd(name, content string) error {
 	if _, err := os.Stat(p); err == nil {
 		return fmt.Errorf("la page existe déjà — utilise mem_edit pour la modifier")
 	}
-	if err := os.MkdirAll(memoryDir(), 0o755); err != nil {
-		return err
-	}
 	body := strings.TrimRight(content, "\n") + "\n"
-	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+	if err := writeMemFile(name, []byte(body)); err != nil {
 		return err
 	}
 	// L'index MEMORY.md est tenu par le CODE (mem_index.go) : une page créée y
@@ -298,12 +300,11 @@ func MemAdd(name, content string) error {
 var errAlreadyApplied = errors.New("déjà à jour — la page contient déjà cette modification")
 
 func MemEdit(name, oldText, newText string) error {
-	p, err := safeMemPath(name)
+	b, err := memReadPage(name)
 	if err != nil {
-		return err
-	}
-	b, err := os.ReadFile(p)
-	if err != nil {
+		if errors.Is(err, errMemLocked) {
+			return fmt.Errorf("page '%s' chiffrée — mémoire verrouillée", name)
+		}
 		return fmt.Errorf("page '%s' introuvable", name)
 	}
 	content := string(b)
@@ -323,17 +324,13 @@ func MemEdit(name, oldText, newText string) error {
 		return fmt.Errorf("old apparaît %d fois — ajoute du contexte pour le rendre unique", n)
 	}
 	updated := strings.Replace(content, oldText, newText, 1)
-	return os.WriteFile(p, []byte(updated), 0o644)
+	return writeMemFile(name, []byte(updated))
 }
 
 // MemContent renvoie le contenu brut d'une page (vide si absente). Utilisé par
 // l'éditeur web.
 func MemContent(name string) string {
-	p, err := safeMemPath(name)
-	if err != nil {
-		return ""
-	}
-	b, err := os.ReadFile(p)
+	b, err := memReadPage(name)
 	if err != nil {
 		return ""
 	}
@@ -353,15 +350,8 @@ func MemSave(name, old, content string) error {
 			}
 		}
 	}
-	p, err := safeMemPath(name)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(memoryDir(), 0o755); err != nil {
-		return err
-	}
 	body := strings.TrimRight(content, "\n") + "\n"
-	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+	if err := writeMemFile(name, []byte(body)); err != nil {
 		return err
 	}
 	// Renommage depuis l'éditeur web : l'index suit (ancienne ligne retirée,

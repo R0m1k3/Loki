@@ -47,7 +47,7 @@ func trackerStoreKey(proj, slug string) string { return proj + "/" + slug }
 // trackerLoad lit un tracker du projet actif par son slug. false si absent.
 func trackerLoad(slug string) (*Tracker, bool) {
 	var s Tracker
-	if !getJSON(bkTracker, trackerStoreKey(activeProjectSlug(), slug), &s) {
+	if !getStoreJSON(bkTracker, trackerStoreKey(activeProjectSlug(), slug), &s) {
 		return nil, false
 	}
 	return &s, true
@@ -55,7 +55,7 @@ func trackerLoad(slug string) (*Tracker, bool) {
 
 func trackerSave(slug string, s *Tracker) error {
 	sort.SliceStable(s.Events, func(i, j int) bool { return s.Events[i].TS < s.Events[j].TS })
-	return putJSON(bkTracker, trackerStoreKey(activeProjectSlug(), slug), s)
+	return putStoreJSON(bkTracker, trackerStoreKey(activeProjectSlug(), slug), s)
 }
 
 // trackerKeysForProject renvoie les clés brutes du bucket appartenant à un projet.

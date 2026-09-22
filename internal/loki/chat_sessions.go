@@ -101,7 +101,10 @@ func tagOrphanConversations(slug string) {
 
 func convIndex() []convMeta {
 	var idx []convMeta
-	if b := getBytes(bkChat, ckIndex); len(b) > 0 {
+	// L'index porte les TITRES des discussions : chiffré comme leur contenu
+	// quand la mémoire l'est. Verrouillé, il se lit vide — la liste est masquée,
+	// rien n'est perdu.
+	if b, ok := getStoreBytes(bkChat, ckIndex); ok && len(b) > 0 {
 		_ = json.Unmarshal(b, &idx)
 	}
 	// Plus récemment modifiée en tête : c'est l'ordre attendu d'une liste de
@@ -115,7 +118,7 @@ func convIndexSave(idx []convMeta) {
 	if err != nil {
 		return
 	}
-	_ = putBytes(bkChat, ckIndex, b)
+	_ = putStoreBytes(bkChat, ckIndex, b)
 }
 
 // convEnsureActive garantit qu'une discussion active existe, et reprend le fil
@@ -128,7 +131,7 @@ func convEnsureActive() string {
 	if legacy := getBytes(bkChat, ckLegacy); len(legacy) > 0 {
 		// Migration : le fil unique devient la première discussion. On garde la
 		// clé d'origine intacte — en cas de retour arrière, rien n'est perdu.
-		_ = putBytes(bkChat, convKey(id), legacy)
+		_ = putStoreBytes(bkChat, convKey(id), legacy)
 	}
 	_ = putStr(bkChat, ckActive, id)
 	now := time.Now().Unix()
@@ -215,7 +218,7 @@ func projectSwitch(slug string) error {
 	}
 	// convIndex rend la plus récemment modifiée en tête.
 	_ = putStr(bkChat, ckActive, list[0].ID)
-	conv.loadFrom(getBytes(bkChat, convKey(list[0].ID)))
+	conv.loadFrom(storeBytes(bkChat, convKey(list[0].ID)))
 	return nil
 }
 
@@ -243,7 +246,7 @@ func convSwitch(id string) error {
 	}
 	conv.persist() // fige la discussion qu'on quitte
 	_ = putStr(bkChat, ckActive, id)
-	conv.loadFrom(getBytes(bkChat, convKey(id)))
+	conv.loadFrom(storeBytes(bkChat, convKey(id)))
 	return nil
 }
 
@@ -323,6 +326,6 @@ func convDelete(id string) error {
 		return nil
 	}
 	_ = putStr(bkChat, ckActive, next[0].ID)
-	conv.loadFrom(getBytes(bkChat, convKey(next[0].ID)))
+	conv.loadFrom(storeBytes(bkChat, convKey(next[0].ID)))
 	return nil
 }
