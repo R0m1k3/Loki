@@ -1349,6 +1349,12 @@ type chatReq struct {
 	// vu par le client (le flux d'abonnement rejoue Log[From:] puis suit le direct).
 	Message string `json:"message"`
 	From    int    `json:"from"`
+	// Full = rejouer TOUT le journal de la discussion. Par défaut le replay est
+	// BORNÉ à sa fin (voir replayTailMax) : une discussion de plusieurs centaines
+	// de tours mettait des secondes à s'afficher et laissait autant de bulles
+	// dans le DOM. Le bouton « charger le début » de l'interface se réabonne
+	// avec full=true.
+	Full bool `json:"full"`
 	// Files = chemins relatifs des fichiers déposés juste avant par
 	// /api/chat/upload ("uploads/rapport.pdf"). Ils sont annoncés au modèle en
 	// tête du message (voir attachNote) ; le contenu, lui, reste sur le disque et

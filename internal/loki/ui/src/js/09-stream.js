@@ -4,6 +4,10 @@
 // suit le direct. Fermer l'onglet n'arrête plus la génération (détachée côté
 // serveur) ; se reconnecter rejoue tout le fil, détails compris.
 let lastSeq=0, streamAbort=null;
+// REPLAY_FULL : demander le journal ENTIER au prochain abonnement. Le serveur
+// ne rejoue par défaut que la fin d'une longue discussion (voir replayTailMax) ;
+// le bandeau « charger le début » rouvre le flux avec ce drapeau.
+let REPLAY_FULL=false;
 // Bulle « en attente » : affichée EN GRIS dès l'appui sur envoyer, avant tout
 // aller-retour réseau. Le message ne disparaît donc plus de l'écran entre la
 // frappe et la réponse du serveur. Elle s'éclaircit (classe retirée) quand
@@ -403,10 +407,44 @@ function feedBlock(el, full){ if(REPLAYING) scheduleRender(el, full); else smoot
 // bulle d'outil) doit voir le texte complet.
 function settleBlocks(){ smoothSnap(); flushRender(); }
 
+// showReplayBanner affiche, en tête du fil, le bandeau « début masqué ». Un clic
+// coupe le flux et se réabonne depuis zéro en demandant TOUT le journal.
+function showReplayBanner(hidden){
+  const c=chatEl(); if(!c) return;
+  let b=document.getElementById('replay-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='replay-banner'; b.className='replay-banner';
+    c.insertBefore(b, c.firstChild);
+  }
+  b.textContent='';
+  const txt=document.createElement('span');
+  txt.textContent='Début de la discussion masqué ('+hidden+' événements) — ';
+  const btn=document.createElement('button');
+  btn.type='button'; btn.className='replay-more'; btn.textContent='charger le début';
+  btn.onclick=()=>{ btn.disabled=true; btn.textContent='chargement…'; loadFullReplay(); };
+  b.appendChild(txt); b.appendChild(btn);
+}
+
+// loadFullReplay relance l'abonnement depuis le début, journal entier. On repart
+// d'un fil VIDE : rejouer par-dessus l'existant ferait doublon.
+function loadFullReplay(){
+  REPLAY_FULL=true; lastSeq=0; REPLAYING=true;
+  if(streamAbort) streamAbort.abort();
+  const c=chatEl(); if(c){ c.innerHTML=''; c.style.opacity='0'; }
+  PENDING=null; newTurn();
+  setChatLoading('chargement du début de la conversation…');
+  connectStream();
+}
+
 // Traite UN événement du flux — même sémantique que l'ancien switch inline, mais
 // piloté par le serveur et rejouable à l'identique.
 function handleDelta(d){
   if(typeof d.seq==='number' && d.seq>lastSeq) lastSeq=d.seq;
+  // Replay borné : le serveur a sauté le début d'une longue discussion. On
+  // l'annonce en tête du fil, avec le bouton qui va le chercher. Rien n'est
+  // perdu : le journal complet est sur le disque.
+  if(typeof d.replay_truncated==='number'){ showReplayBanner(d.replay_truncated); return; }
   // Recalage de l'horloge : un événement reçu en DIRECT vient d'être émis, son
   // `ts` serveur et l'heure locale désignent donc le même instant. Surtout pas
   // pendant le rejeu, où les `ts` sont vieux de plusieurs heures.
@@ -557,7 +595,7 @@ async function connectStream(){
     while(document.hidden){ await new Promise(res=>setTimeout(res, 500)); }
     streamAbort=new AbortController();
     try{
-      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq}),signal:streamAbort.signal});
+      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq, full:REPLAY_FULL}),signal:streamAbort.signal});
       if(REPLAYING) setChatLoading('chargement de la conversation…');
       const reader=r.body.getReader(); const dec=new TextDecoder(); let buf='';
       while(true){

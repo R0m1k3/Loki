@@ -27,7 +27,7 @@ func TestSubscribeReplayAndLive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	got := make(chan int, 32)
-	go c.Subscribe(ctx, 0, func(m map[string]any) bool {
+	go c.Subscribe(ctx, 0, false, func(m map[string]any) bool {
 		if s, ok := m["seq"].(int); ok {
 			got <- s
 		}
@@ -51,7 +51,7 @@ func TestSubscribeFromOffset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	got := make(chan int, 8)
-	go c.Subscribe(ctx, 1, func(m map[string]any) bool {
+	go c.Subscribe(ctx, 1, false, func(m map[string]any) bool {
 		if s, ok := m["seq"].(int); ok {
 			got <- s
 		}
@@ -68,7 +68,7 @@ func TestResetNotifiesSubscribers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resetSeen := make(chan bool, 4)
-	go c.Subscribe(ctx, 0, func(m map[string]any) bool {
+	go c.Subscribe(ctx, 0, false, func(m map[string]any) bool {
 		if _, ok := m["reset"]; ok {
 			resetSeen <- true
 		}
@@ -202,7 +202,7 @@ func TestLiveSelectionSurJournalTronque(t *testing.T) {
 	} {
 		ctx, cancel := context.WithCancel(context.Background())
 		got := make(chan int, 8)
-		go c.Subscribe(ctx, tc.from, func(m map[string]any) bool {
+		go c.Subscribe(ctx, tc.from, false, func(m map[string]any) bool {
 			if s, ok := m["seq"].(int); ok {
 				got <- s
 			}
@@ -216,7 +216,7 @@ func TestLiveSelectionSurJournalTronque(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	got := make(chan int, 8)
-	go c.Subscribe(ctx, 502, func(m map[string]any) bool {
+	go c.Subscribe(ctx, 502, false, func(m map[string]any) bool {
 		if s, ok := m["seq"].(int); ok {
 			got <- s
 		}
@@ -289,7 +289,7 @@ func TestSubscribeStaleFromCrossSession(t *testing.T) {
 	var got []map[string]any
 	done := make(chan struct{})
 	go func() {
-		c.Subscribe(ctx, 9999, func(ev map[string]any) bool {
+		c.Subscribe(ctx, 9999, false, func(ev map[string]any) bool {
 			got = append(got, ev)
 			if ev["caught_up"] != nil {
 				cancel()
@@ -307,5 +307,52 @@ func TestSubscribeStaleFromCrossSession(t *testing.T) {
 	}
 	if !strings.Contains(seen, "premier message") {
 		t.Fatalf("le premier message n'a pas été rejoué avec un from périmé (reçu: %q)", seen)
+	}
+}
+
+// Replay borné : une discussion très longue ne rejoue que sa fin, annonce
+// combien d'événements manquent, et rend TOUT si le client le demande.
+func TestReplayTailIsBoundedUnlessFull(t *testing.T) {
+	c := &Conversation{}
+	c.cond = sync.NewCond(&c.mu)
+	for i := 0; i < replayTailMax+50; i++ {
+		c.Log = append(c.Log, LogEvent{Seq: i + 1, Delta: map[string]any{"user": "m"}})
+	}
+
+	collect := func(full bool) (events int, hidden int) {
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			c.Subscribe(ctx, 0, full, func(m map[string]any) bool {
+				if h, ok := m["replay_truncated"].(int); ok {
+					hidden = h
+					return true
+				}
+				if m["caught_up"] != nil {
+					cancel()
+					return false
+				}
+				if _, ok := m["pad"]; ok {
+					return true
+				}
+				events++
+				return true
+			})
+		}()
+		<-done
+		cancel()
+		return
+	}
+
+	events, hidden := collect(false)
+	if hidden != 50 {
+		t.Fatalf("50 événements auraient dû être annoncés masqués, obtenu %d", hidden)
+	}
+	if events > replayTailMax {
+		t.Fatalf("replay borné dépassé : %d événements rejoués", events)
+	}
+	if full, h := collect(true); full <= replayTailMax || h != 0 {
+		t.Fatalf("full=true doit tout rejouer sans bandeau, obtenu %d événements / %d masqués", full, h)
 	}
 }

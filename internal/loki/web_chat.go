@@ -84,7 +84,7 @@ func sseHeartbeat(w http.ResponseWriter, flusher http.Flusher) (*sync.Mutex, fun
 // goroutine détachée — fermer le navigateur n'arrête donc plus rien. Partagé par
 // handleChat (clair) et handleE2EChat (chiffré).
 func runChatStream(ctx context.Context, body chatReq, emit func(map[string]any) bool) {
-	conv.Subscribe(ctx, body.From, emit)
+	conv.Subscribe(ctx, body.From, body.Full, emit)
 }
 
 // handleChatSend ajoute un message et lance la génération en arrière-plan. Réponse

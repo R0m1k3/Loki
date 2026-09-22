@@ -952,7 +952,18 @@ func coalesceReplay(events []LogEvent, from int) []map[string]any {
 // de Log[from:] (léger), puis un caught_up, puis le DIRECT événement par événement.
 // Bloque jusqu'à ce que ctx (la connexion HTTP) soit annulé — la génération, elle,
 // continue indépendamment. emit renvoie false si l'écriture échoue (client parti).
-func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[string]any) bool) {
+// replayTailMax borne le nombre d'événements REJOUÉS au chargement d'une
+// discussion. Ce n'est pas une troncature du journal (rien n'est effacé) : le
+// début reste sur disque et le client le demande d'un clic (full=true).
+//
+// Une discussion de plusieurs centaines de tours rejouait des dizaines de
+// milliers d'événements à chaque ouverture d'onglet : quelques secondes de voile
+// de chargement, et autant de bulles dans le DOM que le navigateur devait ensuite
+// traîner à chaque rendu. On rejoue la fin — ce qu'on vient lire — et on annonce
+// combien d'événements sont restés en arrière.
+const replayTailMax = 4000
+
+func (c *Conversation) Subscribe(ctx context.Context, from int, full bool, emit func(map[string]any) bool) {
 	// Réveille les attentes de cond quand la connexion se ferme.
 	go func() {
 		<-ctx.Done()
@@ -988,7 +999,19 @@ func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[st
 		from = 0
 	}
 	last := from
-	for _, ev := range coalesceReplay(snapshot, from) {
+	events := coalesceReplay(snapshot, from)
+	// Replay borné : on ne garde que la fin, et on DIT au client combien
+	// d'événements manquent devant (il affiche « charger le début »). Jamais
+	// borné sur une reprise de flux (from > 0) : là, le client a déjà tout le
+	// début à l'écran et attend la SUITE.
+	if !full && from == 0 && len(events) > replayTailMax {
+		hidden := len(events) - replayTailMax
+		events = events[hidden:]
+		if !emit(map[string]any{"replay_truncated": hidden}) {
+			return
+		}
+	}
+	for _, ev := range events {
 		if ctx.Err() != nil {
 			return
 		}

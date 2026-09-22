@@ -318,6 +318,11 @@ Ajoutées par ce fork :
   → maximale) et rejoue le message sans rien perdre de l'historique — une fois,
   puis la traduction est retenue pour ce modèle. La liste est grisée quand le
   raisonnement est coupé pour ce modèle.
+- **Ouverture rapide des longues discussions** : le serveur ne rejoue que la
+  **fin** du journal (les 4000 derniers événements). Un fil de plusieurs
+  centaines de tours s'affichait en quelques secondes et laissait autant de
+  bulles dans le DOM à traîner ensuite. Rien n'est effacé : un bandeau en tête
+  dit combien d'événements sont masqués et **charge le début** d'un clic.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

@@ -443,6 +443,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .diff-count{margin-left:8px;letter-spacing:0;text-transform:none}
 .diff-count .a{color:var(--add)}
 .diff-count .d{color:var(--del)}
+/* Bandeau « début de la discussion masqué » : le serveur ne rejoue que la fin
+   d'un très long fil (replayTailMax). Discret, en tête du fil, avec le bouton
+   qui va chercher le reste. */
+.replay-banner{margin:4px auto 10px;padding:6px 10px;font-size:11px;color:var(--dim);background:var(--panel);border:1px solid var(--border);border-radius:3px;text-align:center;max-width:680px}
+.replay-banner .replay-more{padding:2px 8px;font-size:11px;background:none;border:1px solid var(--border);color:var(--dim);border-radius:3px;cursor:pointer}
+.replay-banner .replay-more:hover{color:var(--accent);border-color:var(--accent)}
+.replay-banner .replay-more:disabled{cursor:default;opacity:.6}
 .msg.tool .tool-sub{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px}
 /* Résultat d'outil tronqué : « voir plus » et « copier » réunis dans une barre
    ancrée en bas à droite, au lieu d'une ligne séparée sous le bloc. Le pre
