@@ -26,7 +26,11 @@ La licence d'origine est conservée à l'identique dans [`LICENSE`](LICENSE).
   (contrat builder/verifier, tracker « lu avant d'écrire », auto-retry
   patterns, table languages.json) est reprise
   d'**[OpenFox](https://github.com/co-l/openfox)** (MIT) et réécrite en Go
-  pour ce fork ; les prompts de rôles sont des réécritures originales.
+  pour ce fork ; les prompts de rôles sont des réécritures originales. S'y
+  ajoutent depuis deux idées reprises d'OpenFox et réimplémentées ici : les
+  **sous-agents** (`code_subagent.go` — un rôle délégué qui travaille dans son
+  propre contexte) et le **fenêtrage du fil** au chargement d'une longue
+  discussion.
 
 ## Reprises depuis l'amont après le fork
 
