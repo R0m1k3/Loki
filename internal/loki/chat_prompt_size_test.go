@@ -26,10 +26,27 @@ import (
 //	              et recherches déjà faites. Il récupère bien plus qu'il ne coûte.
 //	7900 → 8600 : tracker (tracker.go), ~620 car. Un seul schéma pour les quatre
 //	              actions — quatre outils auraient coûté quatre fois ça.
+//	8600 → 11000 : les quatre outils task_* (tasks_tools.go), ~1290 car. L'IA se
+//	              donne elle-même ses rappels et ses veilles ; sans eux il fallait
+//	              passer par l'interface. Descriptions déjà au plus court, et un
+//	              seul schéma par action (create/update/delete ne partagent pas
+//	              assez d'arguments pour fusionner sans rendre chacun ambigu).
+//	              Les ~500 car restants couvrent web_screenshot, déclaré dès que
+//	              Playwright est présent — c'est le cas dans l'image, pas sur le
+//	              runner de CI : le budget doit tenir pour l'image, la vraie.
+//	              (Le pilotage de navigateur, lui, est HORS de ce décompte : ses
+//	              schémas n'existent que si on arme son interrupteur.)
 //
-// Descriptions déjà réduites au strict nécessaire dans les deux cas. La consigne
-// d'origine tient pour la suite : ce budget ne se relève pas pour du prompt.
-const promptCharBudget = 8600 // ~2150 tokens, tout allumé
+//	              Les ~200 car de prompt qui les accompagnent sont le seul écart
+//	              assumé à la règle « pas de relèvement pour du prompt » : un outil
+//	              qu'aucune ligne ne mentionne n'est jamais appelé de lui-même, et
+//	              la ligne dit ce que les schémas ne disent pas (quand se planifier,
+//	              et qu'un script planifié ne charge aucun modèle). Elle a été
+//	              ramenée de trois lignes à une.
+//
+// Descriptions déjà réduites au strict nécessaire. La consigne d'origine tient
+// pour la suite : ce budget ne se relève pas pour du prompt.
+const promptCharBudget = 11000 // ~2750 tokens, tout allumé
 
 func TestSystemPromptStaysLean(t *testing.T) {
 	caps := Caps{Agent: true, Internet: true, Mem: MemAlways}

@@ -139,7 +139,8 @@ et modèles compris.
 | `/data/loki.db` | base bbolt : préférences, discussions, mémoire des réglages |
 | `/data/presets/` | un `.env` par preset (modèle, contexte, NGL, vision…) |
 | `/data/models/` | modèles téléchargés depuis l'interface |
-| `/data/memory/` | pages de mémoire persistante (`.md`) |
+| `/data/memory/` | pages de mémoire persistante (`.md`) — joignables **uniquement** par les outils `mem_*`, pas au shell |
+| `/data/scripts/` | scripts durables de l'agent, hors du workspace jetable (planifiables sans modèle) |
 | `/data/workspace/` | racine du dossier de travail de l'agent |
 | `/data/workspace/discussions/<id>/` | fichiers d'UNE discussion : dépôts, captures, ce que l'agent y écrit |
 | `/data/loki-engine.log` | journal de `llama-server` (aussi via `loki logs`) |
@@ -215,7 +216,15 @@ Héritées d'AJEAN :
   activer avant l'exécution, accès mémoire et web. Un **interrupteur maître**
   suspend tout d'un coup. Sans **mode agent**, une tâche s'exécute mais n'a aucun
   outil pour agir — l'interface le dit. Une seule inférence tourne à la fois : une
-  tâche attend son tour, et le bouton stop du chat l'interrompt.
+  tâche attend son tour, et le bouton stop du chat l'interrompt. Deux types de
+  tâche : une **consigne IA**, ou un **script seul** — un fichier du dossier
+  `/data/scripts` lancé directement, **sans charger le modèle ni consommer un
+  token** (sauvegarde, synchro, nettoyage n'ont rien à demander à un LLM). Ce
+  dossier vit **hors du workspace** : vider une discussion, ou la supprimer,
+  n'y touche pas. L'IA elle-même dispose des outils `task_create`, `task_list`,
+  `task_update` et `task_delete` — elle peut donc se poser ses propres rappels
+  et veilles — cloisonnés par projet : dans un projet, elle ne voit et ne
+  pilote que les tâches de ce projet.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
   `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces

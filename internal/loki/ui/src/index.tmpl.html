@@ -926,9 +926,32 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         </div>
       </div>
 
+      <!-- Type de tâche : une consigne exécutée par l'IA, ou un script du dossier
+           protégé lancé SEUL — sans charger le modèle ni consommer de tokens.
+           Une sauvegarde, une synchro, un nettoyage n'ont rien à demander à un
+           LLM ; les faire passer par lui coûtait un chargement de modèle. -->
       <div class="pe-group">
+        <div class="pe-gh">Type</div>
+        <div class="pe-seg">
+          <label><input type="radio" name="task-kind" value="agent" onchange="taskKindUI('agent')"><span>Consigne IA</span></label>
+          <label><input type="radio" name="task-kind" value="script" onchange="taskKindUI('script')"><span>Script seul</span></label>
+        </div>
+      </div>
+
+      <div class="pe-group" id="task-prompt-group">
         <div class="pe-gh">Consigne</div>
         <textarea id="task-prompt" class="pe-inp task-consigne" spellcheck="false" placeholder="Ce que l'IA doit faire, et comment livrer le résultat.&#10;&#10;Tu peux détailler librement : contexte, étapes, format du compte-rendu attendu…"></textarea>
+      </div>
+
+      <div class="pe-group" id="task-script-group" style="display:none">
+        <div class="pe-gh">Script</div>
+        <div class="pe-list">
+          <div class="pe-row">
+            <span class="pe-row-l">À exécuter</span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="task-script"></select></span></span>
+          </div>
+          <div class="pe-row stack plain"><div id="task-script-hint" class="muted" style="font-size:11px"></div></div>
+        </div>
       </div>
 
       <div class="pe-group">

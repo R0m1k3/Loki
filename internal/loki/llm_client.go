@@ -336,6 +336,12 @@ func EnabledTools(caps Caps) []Tool {
 		// n'archive des blocs QUE quand le mode agent est actif — annoncer recall
 		// sans lui donnerait un outil qui ne peut rien trouver.
 		tools = append(tools, recallTool(), recallSearchTool())
+		// Tâches planifiées : l'IA se donne elle-même des rappels et des veilles
+		// récurrentes, et gère les siennes (tasks_tools.go). Cloisonnées par
+		// projet : dans un projet, elle ne voit et ne pilote QUE ses tâches.
+		// Réservé au mode agent — une tâche sans outils pour agir n'aurait rien
+		// à livrer.
+		tools = append(tools, taskListTool(), taskCreateTool(), taskUpdateTool(), taskDeleteTool())
 	}
 	if caps.Code {
 		tools = append(tools, readTool(), grepTool(), globTool(), askTool(),
@@ -1445,6 +1451,14 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					result = capWebOutput(toolWebGrep(args))
 				case "web_screenshot":
 					result = toolWebScreenshot(args, caps)
+				case "task_list":
+					result = toolTaskList(args)
+				case "task_create":
+					result = toolTaskCreate(args)
+				case "task_update":
+					result = toolTaskUpdate(args)
+				case "task_delete":
+					result = toolTaskDelete(args)
 				case "browser_open":
 					result = capCUOutput(toolCUOpen(args))
 				case "browser_snapshot":

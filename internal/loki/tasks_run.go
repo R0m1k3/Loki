@@ -149,6 +149,14 @@ const reportMax = 4000
 func runTask(t Task) {
 	start := time.Now()
 
+	// Tâche « script seul » : aucun modèle à charger, aucun token consommé — on
+	// lance le script du dossier protégé et sa sortie devient le compte-rendu.
+	// Testé AVANT le preset : basculer le moteur pour un script serait absurde.
+	if t.Kind == "script" {
+		runScriptTask(t)
+		return
+	}
+
 	// Preset épinglé : on bascule le moteur dessus AVANT d'exécuter (rechargement
 	// du modèle). Vide = on garde le preset actif. Un échec de bascule est un vrai
 	// échec de la tâche : la faire tourner sur le mauvais modèle serait pire.

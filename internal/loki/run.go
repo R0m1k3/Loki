@@ -243,6 +243,12 @@ func memoryDir() string    { return projectMemoryDir(activeProjectSlug()) }
 func modelsDir() string    { return filepath.Join(LokiHome(), "models") }
 func workspaceDir() string { return filepath.Join(LokiHome(), "workspace") }
 
+// scriptsDir est le dossier des scripts de l'agent : à côté de memory/presets,
+// HORS du workspace. Le workspace est un bac à sable jetable (clones, tests,
+// fichiers d'une discussion) qu'un nettoyage — ou la suppression de la
+// discussion — peut raser ; les scripts qu'on veut CONSERVER vivent ici.
+func scriptsDir() string { return filepath.Join(LokiHome(), "scripts") }
+
 // serviceName est le nom de l'unité qui exécute llama-server. Son pendant est
 // uiUnitName (« loki-ui »), qui sert l'interface et le tunnel.
 func serviceName() string {

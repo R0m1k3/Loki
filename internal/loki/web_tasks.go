@@ -21,6 +21,14 @@ func handleTasks(w http.ResponseWriter, r *http.Request) {
 	conv.mu.Lock()
 	runningID := conv.runningTaskID
 	conv.mu.Unlock()
+	// Une tâche script tourne HORS du verrou de génération (aucune inférence) :
+	// conv ne la voit pas, on complète donc avec le registre des scripts en cours
+	// (tasks_script.go), sinon l'UI l'affiche à l'arrêt pendant qu'elle tourne.
+	if runningID == "" {
+		if sid, _ := scriptRunningAny(); sid != "" {
+			runningID = sid
+		}
+	}
 	// Presets (id + nom + actif) pour peupler le sélecteur du formulaire de tâche.
 	presets := []map[string]any{}
 	if list, err := ListPresets(); err == nil {
@@ -28,13 +36,20 @@ func handleTasks(w http.ResponseWriter, r *http.Request) {
 			presets = append(presets, map[string]any{"id": p.ID, "name": p.Name, "active": p.Active})
 		}
 	}
+	// Scripts durables disponibles, pour le sélecteur d'une tâche « script seul ».
+	scripts, _ := listScripts()
+	if scripts == nil {
+		scripts = []scriptInfo{}
+	}
 	sendJSON(w, 200, map[string]any{
-		"ok":         true,
-		"tasks":      tasks,
-		"paused":     tasksPaused(),
-		"agent":      agentEnabled(),
-		"running_id": runningID,
-		"presets":    presets,
+		"ok":          true,
+		"tasks":       tasks,
+		"scripts":     scripts,
+		"scripts_dir": scriptsDir(),
+		"paused":      tasksPaused(),
+		"agent":       agentEnabled(),
+		"running_id":  runningID,
+		"presets":     presets,
 		// Projets, pour le sélecteur « projet visé » du formulaire de tâche.
 		"projects": projectDTOs(),
 		// État global mémoire/web, pour proposer des défauts cohérents à la création.
@@ -54,6 +69,8 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 		TZ       string `json:"tz"`
 		Preset   string `json:"preset"`
 		Project  string `json:"project"`
+		Kind     string `json:"kind"`
+		Script   string `json:"script"`
 		NoMem    bool   `json:"no_mem"`
 		NoWeb    bool   `json:"no_web"`
 		Enabled  bool   `json:"enabled"`
@@ -65,8 +82,26 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 	req.Name = strings.TrimSpace(req.Name)
 	req.Prompt = strings.TrimSpace(req.Prompt)
 	req.Schedule = strings.TrimSpace(req.Schedule)
-	if req.Name == "" || req.Prompt == "" {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": "nom et consigne obligatoires"})
+	req.Kind = strings.TrimSpace(req.Kind)
+	req.Script = strings.TrimSpace(req.Script)
+	if req.Name == "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "nom obligatoire"})
+		return
+	}
+	// Une tâche script exige un script EXISTANT (le vérifier ici évite une tâche
+	// planifiée qui échouera silencieusement au premier tic) ; une tâche IA exige
+	// une consigne.
+	if req.Kind == "script" {
+		if req.Script == "" {
+			sendJSON(w, 400, map[string]any{"ok": false, "error": "script obligatoire pour une tâche script"})
+			return
+		}
+		if err := scriptExists(req.Script); err != nil {
+			sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+	} else if req.Prompt == "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": "consigne obligatoire"})
 		return
 	}
 	if err := validateSchedule(req.Schedule, req.TZ); err != nil {
@@ -87,6 +122,7 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 	}
 	t.Name, t.Prompt, t.Enabled = req.Name, req.Prompt, req.Enabled
 	t.TZ, t.Preset = req.TZ, req.Preset
+	t.Kind, t.Script = req.Kind, req.Script
 	// Projet visé : vide = le projet actif au moment de l'enregistrement. Une tâche
 	// créée depuis un projet appartient à ce projet — c'est là que sa mémoire et
 	// ses trackers l'attendent quand elle tournera (voir runTask).
@@ -162,6 +198,22 @@ func handleTasksPause(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"ok": true, "paused": tasksPaused()})
 }
 
+// handleTaskStop arrête la tâche en cours. Une tâche SCRIPT ne passe pas par le
+// verrou de génération : on l'annule via son registre (tasks_script.go). Sinon
+// (tâche IA), on retombe sur conv.Stop, qui annule la génération autonome.
+func handleTaskStop(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID != "" && scriptRunStop(req.ID) {
+		sendJSON(w, 200, map[string]any{"ok": true})
+		return
+	}
+	conv.Stop()
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
 // handleTaskRun lance une tâche MAINTENANT (bouton « tester »). Exécution
 // détachée : on rend la main tout de suite et on rafraîchit l'état à la fin.
 // 409 si une génération est déjà en cours.
@@ -173,6 +225,14 @@ func handleTaskRun(w http.ResponseWriter, r *http.Request) {
 	t, ok := getTask(req.ID)
 	if !ok {
 		sendJSON(w, 404, map[string]any{"ok": false, "error": "tâche introuvable"})
+		return
+	}
+	// Tâche script : aucune inférence, donc ni verrou de génération ni moteur
+	// chargé à attendre — la refuser parce que le modèle répond ailleurs n'aurait
+	// aucun sens.
+	if t.Kind == "script" {
+		go runTask(t)
+		sendJSON(w, 200, map[string]any{"ok": true})
 		return
 	}
 	// Vérifie la disponibilité AVANT de détacher, pour pouvoir répondre 409/503.

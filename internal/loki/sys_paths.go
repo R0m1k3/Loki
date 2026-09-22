@@ -22,6 +22,7 @@ type lokiPaths struct {
 	Installed string `json:"installed"` // binaire installé (peut différer de Exe)
 	Workspace string `json:"workspace"` // dossier de travail du mode agent
 	Memory    string `json:"memory"`
+	Scripts   string `json:"scripts"` // scripts durables de l'agent (hors workspace jetable)
 	Presets   string `json:"presets"`
 	Models    string `json:"models"`
 	Backends  string `json:"backends"`
@@ -50,6 +51,7 @@ func currentPaths() lokiPaths {
 		Installed: installedExePath(),
 		Workspace: agentWorkspace(),
 		Memory:    memoryDir(),
+		Scripts:   scriptsDir(),
 		Presets:   presetsDir(),
 		Models:    modelsDir(),
 		Backends:  backendsDir(),
@@ -66,6 +68,7 @@ func cmdWhere(args []string) error {
 		{"binaire installé", p.Installed},
 		{"travail de l'agent", p.Workspace},
 		{"mémoire", p.Memory},
+		{"scripts", p.Scripts},
 		{"presets", p.Presets},
 		{"modèles", p.Models},
 		{"backends", p.Backends},

@@ -31,6 +31,12 @@ type Task struct {
 	// chantier — une veille « NAS » n'écrit pas dans la mémoire « recettes ». Vide
 	// sur les tâches d'avant les projets : traitées comme « Générale ».
 	Project string `json:"project,omitempty"`
+	// Kind distingue une tâche IA d'une tâche script. Vide ou "agent" = Prompt est
+	// une consigne exécutée par le modèle (RunAutonomous). "script" = on lance
+	// directement le script Script du dossier protégé, SANS charger le modèle ni
+	// consommer de tokens. Le zéro JSON ("") garde le comportement historique (IA).
+	Kind   string `json:"kind,omitempty"`
+	Script string `json:"script,omitempty"` // pour Kind=="script" : nom du script dans scriptsDir()
 	// Accès de la tâche. On stocke la NÉGATION (« pas de… ») pour que le zéro JSON
 	// (tâches créées avant ces champs) garde le comportement historique : accès.
 	NoMem      bool   `json:"no_mem"` // true = pas d'accès à la mémoire pour cette tâche
@@ -75,9 +81,11 @@ func listTasks() []Task {
 }
 
 // taskProjectOf renvoie le projet d'une tâche, l'absence valant projet par défaut :
-// une tâche d'avant les projets ne doit ni disparaître ni changer de mémoire.
+// une tâche d'avant les projets ne doit ni disparaître ni changer de mémoire. Un
+// projet SUPPRIMÉ depuis retombe de même sur « Générale » : sans ça, la tâche
+// restait rattachée à un slug fantôme et n'apparaissait plus dans aucun projet.
 func taskProjectOf(t Task) string {
-	if s := strings.TrimSpace(t.Project); s != "" {
+	if s := strings.TrimSpace(t.Project); s != "" && projectExists(s) {
 		return s
 	}
 	return defaultProjectSlug
@@ -99,6 +107,19 @@ func tagOrphanTasks(slug string) {
 		t.Project = slug
 		_ = saveTask(t)
 	}
+}
+
+// listTasksForProject ne renvoie que les tâches rattachées au projet `slug`
+// (mêmes tri et résolution que listTasks). Sert à cloisonner les outils task_*
+// exposés à l'IA : dans un projet, elle ne voit et ne pilote QUE ses tâches.
+func listTasksForProject(slug string) []Task {
+	var out []Task
+	for _, t := range listTasks() {
+		if taskProjectOf(t) == slug {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // getTask lit une tâche par ID. Renvoie false si absente.

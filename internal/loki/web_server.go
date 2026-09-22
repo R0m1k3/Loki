@@ -263,6 +263,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/tasks/toggle", handleTaskToggle)
 	api("/api/tasks/pause", handleTasksPause)
 	api("/api/tasks/run", handleTaskRun)
+	api("/api/tasks/stop", handleTaskStop)              // arrête la tâche en cours (script : via son registre)
 	api("/api/reasoning-effort", handleReasoningEffort) // intensité réglable depuis la barre de saisie
 	api("/api/network", handleNetwork)                  // écoute LAN du moteur + pare-feu (Windows)
 	api("/api/prefs", handleWebPrefs)
@@ -304,13 +305,13 @@ func newWebMux() *http.ServeMux {
 	api("/api/conversations/switch", handleConvSwitch)
 	api("/api/conversations/rename", handleConvRename)
 	api("/api/conversations/delete", handleConvDelete)
-	api("/api/chat/mode", handleChatMode)         // GET mode+critères / POST bascule Chat|Code
-	api("/api/chat/criteria", handleChatCriteria) // édition manuelle des critères (mode code)
-	api("/api/chat/compact", handleChatCompact)   // compaction manuelle du contexte
-	api("/api/chat/state", handleChatState)       // instantané léger {seq, generating, ctx_used}
+	api("/api/chat/mode", handleChatMode)          // GET mode+critères / POST bascule Chat|Code
+	api("/api/chat/criteria", handleChatCriteria)  // édition manuelle des critères (mode code)
+	api("/api/chat/compact", handleChatCompact)    // compaction manuelle du contexte
+	api("/api/chat/state", handleChatState)        // instantané léger {seq, generating, ctx_used}
 	api("/api/chat/tool-result", handleToolResult) // résultat complet d'un outil, chargé à la demande (bouton « voir plus »)
-	api("/api/chat/export", handleChatExport)     // téléchargement du fil (?format=md|json)
-	api("/api/e2e/chat", handleE2EChat)           // même flux mais chiffré E2E (boîte noire via le relais)
+	api("/api/chat/export", handleChatExport)      // téléchargement du fil (?format=md|json)
+	api("/api/e2e/chat", handleE2EChat)            // même flux mais chiffré E2E (boîte noire via le relais)
 	return mux
 }
 

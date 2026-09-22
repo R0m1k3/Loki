@@ -12,6 +12,8 @@ let taskEditing = null; // id en cours d'édition ('' = nouvelle, null = fermé)
 let TASK_RUNNING = '';  // id de la tâche en cours d'exécution ('' = aucune)
 let TASK_PRESETS = [];  // presets disponibles (pour le sélecteur de la modale)
 let TASK_PROJECTS = []; // projets disponibles (sélecteur « projet visé »)
+let TASK_SCRIPTS = [];  // scripts durables disponibles (tâche « script seul »)
+let TASK_SCRIPTS_DIR = ''; // chemin du dossier de scripts, pour l'aide affichée
 let TASK_MEM_ON = true; // état mémoire global (défaut d'une nouvelle tâche)
 let TASK_WEB_ON = true; // état web global (défaut d'une nouvelle tâche)
 let tasksPollTimer = null;
@@ -35,6 +37,8 @@ function renderTasks(r){
   const agentOn = !!(r && r.agent);
   TASK_PRESETS = (r && r.presets) || [];
   TASK_PROJECTS = (r && r.projects) || [];
+  TASK_SCRIPTS = (r && r.scripts) || [];
+  TASK_SCRIPTS_DIR = (r && r.scripts_dir) || 'le dossier de scripts';
   TASK_MEM_ON = !r || r.mem_on !== false;
   TASK_WEB_ON = !r || r.web_on !== false;
   TASK_RUNNING = (r && r.running_id) || '';
@@ -194,6 +198,9 @@ function openTask(id){
   // stockés en négation) ; sur une nouvelle on suit l'état global de la machine.
   document.getElementById('task-mem').checked = t ? !t.no_mem : TASK_MEM_ON;
   document.getElementById('task-web').checked = t ? !t.no_web : TASK_WEB_ON;
+  // Type : IA par défaut. Une tâche script n'a ni consigne ni preset utile.
+  setTaskKind(t && t.kind === 'script' ? 'script' : 'agent');
+  fillScriptSelect(t ? (t.script||'') : '');
   fillPresetSelect(t ? (t.preset||'') : '');
   // Nouvelle tâche : le projet ACTIF est proposé — on crée presque toujours une
   // tâche pour le chantier qu'on a sous les yeux.
@@ -284,6 +291,51 @@ function fillTaskProjectSelect(selected){
   if(selected && [...sel.options].some(o=>o.value===selected)) sel.value = selected;
 }
 
+// fillScriptSelect peuple le sélecteur de script avec les fichiers du dossier
+// protégé (LOKI_HOME/scripts). Dossier vide = on le dit et on laisse le
+// sélecteur vide : l'enregistrement sera refusé côté serveur, autant l'annoncer.
+function fillScriptSelect(selected){
+  const sel = document.getElementById('task-script');
+  if(!sel) return;
+  sel.textContent = '';
+  TASK_SCRIPTS.forEach(sc=>{
+    const o = document.createElement('option'); o.value = sc.name;
+    o.textContent = sc.name + (sc.size ? '  ·  ' + fmtSize(sc.size) : '');
+    sel.appendChild(o);
+  });
+  if(selected && [...sel.options].some(o=>o.value===selected)) sel.value = selected;
+  const hint = document.getElementById('task-script-hint');
+  if(hint){
+    hint.textContent = TASK_SCRIPTS.length
+      ? 'Scripts de ' + TASK_SCRIPTS_DIR + ' — l\'IA peut y écrire les siens.'
+      : 'Aucun script dans ' + TASK_SCRIPTS_DIR + ' : demande à l\'IA d\'y en écrire un, ou dépose-le toi-même.';
+  }
+}
+
+// setTaskKind bascule le formulaire entre « consigne IA » et « script seul ».
+function setTaskKind(kind){
+  const r = document.querySelector('input[name="task-kind"][value="'+kind+'"]');
+  if(r) r.checked = true;
+  taskKindUI(kind);
+}
+
+// taskKindUI n'affiche que les champs du type choisi : une tâche script n'a pas
+// de consigne, et le preset ne la concerne pas (aucun modèle n'est chargé).
+function taskKindUI(kind){
+  const script = kind === 'script';
+  const pg = document.getElementById('task-prompt-group');
+  const sg = document.getElementById('task-script-group');
+  if(pg) pg.style.display = script ? 'none' : '';
+  if(sg) sg.style.display = script ? '' : 'none';
+  const pr = document.getElementById('task-preset');
+  if(pr) pr.closest('.pe-row').style.display = script ? 'none' : '';
+}
+
+function taskKind(){
+  const r = document.querySelector('input[name="task-kind"]:checked');
+  return (r && r.value === 'script') ? 'script' : 'agent';
+}
+
 function setTaskFreqMode(mode){
   const r = document.querySelector('input[name="task-freq-mode"][value="'+mode+'"]');
   if(r) r.checked = true;
@@ -319,6 +371,8 @@ function buildSchedule(){
 
 async function saveTask(){
   const name = document.getElementById('task-name').value.trim();
+  const kind = taskKind();
+  const script = (document.getElementById('task-script')||{}).value || '';
   const prompt = document.getElementById('task-prompt').value.trim();
   const schedule = buildSchedule();
   const enabled = document.getElementById('task-enabled').checked;
@@ -328,9 +382,13 @@ async function saveTask(){
   const no_mem = !document.getElementById('task-mem').checked;
   const no_web = !document.getElementById('task-web').checked;
   const st = document.getElementById('task-modal-status');
-  if(!name || !prompt){ st.textContent = 'nom et consigne obligatoires'; st.style.color = 'var(--err)'; return; }
+  if(!name){ st.textContent = 'nom obligatoire'; st.style.color = 'var(--err)'; return; }
+  if(kind === 'script' ? !script : !prompt){
+    st.textContent = kind === 'script' ? 'choisis un script' : 'consigne obligatoire';
+    st.style.color = 'var(--err)'; return;
+  }
   if(!schedule){ st.textContent = 'fréquence invalide'; st.style.color = 'var(--err)'; return; }
-  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, prompt, schedule, enabled, preset, project, tz, no_mem, no_web});
+  const r = await jpost('/api/tasks/save', {id: taskEditing||'', name, kind, script, prompt, schedule, enabled, preset, project, tz, no_mem, no_web});
   if(!r || !r.ok){ st.textContent = (r && r.error) || 'échec'; st.style.color = 'var(--err)'; return; }
   closeTask();
   await loadTasks();

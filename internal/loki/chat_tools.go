@@ -89,6 +89,13 @@ func baseSystemPrompt(caps Caps) string {
 		// un téléchargement (voir /api/chat/file). Aucun outil ni syntaxe spéciale
 		// à connaître pour le modèle — juste [texte](chemin).
 		b.WriteString("To give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\n")
+		// Auto-planification : les schémas task_* partent déjà dans la requête, donc
+		// on n'y répète NI leur usage NI leurs arguments — seulement QUAND s'en
+		// servir (sinon le modèle ne pense jamais à se planifier quoi que ce soit)
+		// et le fait qu'un script planifié tourne sans modèle, que les schémas ne
+		// disent pas. Une ligne, pas trois : le budget du préambule est compté
+		// (TestSystemPromptStaysLean).
+		b.WriteString("You can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n")
 		if caps.Mem == MemAlways {
 			b.WriteString("Before answering anything about yourself or this machine, call mem_search first — even trivial-seeming questions. A tool check never replaces it: memory may hold context the tool won't reveal.\n")
 		}
@@ -180,7 +187,7 @@ func machineSystemPrompt(caps Caps) string {
 		// EST (l'endroit par défaut de tout ce que le modèle produit) marche mieux
 		// que d'interdire d'en sortir — et nommer les dossiers système coupe court
 		// aux « installations » en /usr/local/bin qui échouent faute de root.
-		b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for everything you create — scripts, notes, outputs, even a command-line tool you build. Just use a relative name. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder when the user explicitly named that location.")
+		b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder " + scriptsDir() + " instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.")
 	}
 	return b.String()
 }
@@ -195,6 +202,14 @@ func machineSystemPrompt(caps Caps) string {
 // génération n'arrêtait rien du tout — le tour restait bloqué jusqu'au bout du
 // délai (5 minutes au maximum), bouton stop sans effet.
 func runShell(parent context.Context, command string, timeoutSec int) string {
+	// Accès réservé aux outils : le dossier mémoire n'est JAMAIS touché au shell
+	// (ni lu, ni écrit, ni listé) — uniquement via les outils mem_*, qui savent
+	// tenir l'index MEMORY.md à jour. Un `cat memory/…` contournait l'index et
+	// laissait le modèle croire qu'il avait lu une page que la mémoire, elle,
+	// n'avait pas servie.
+	if msg := guardToolOnlyCommand(command); msg != "" {
+		return msg
+	}
 	if timeoutSec <= 0 {
 		timeoutSec = toolDefaultTimeout
 	}
@@ -277,6 +292,10 @@ func fileWrite(path, content string) string {
 		return "[erreur] chemin vide"
 	}
 	path = resolveAgentPath(path)
+	// Le dossier mémoire est réservé à ses outils dédiés : pas d'écriture directe.
+	if msg := guardToolOnlyPath(path); msg != "" {
+		return msg
+	}
 	// Sérialise les écritures concurrentes sur un même fichier (code_policy.go).
 	mu := fileMu(path)
 	mu.Lock()
@@ -315,6 +334,10 @@ func fileEdit(path, oldText, newText string) string {
 		return "[erreur] old vide"
 	}
 	path = resolveAgentPath(path)
+	// Le dossier mémoire est réservé à ses outils dédiés : pas d'écriture directe.
+	if msg := guardToolOnlyPath(path); msg != "" {
+		return msg
+	}
 	// Sérialise les écritures concurrentes sur un même fichier (code_policy.go).
 	mu := fileMu(path)
 	mu.Lock()
