@@ -291,7 +291,15 @@ Ajoutées par ce fork :
   de code fait apparaître une puce « passer en mode Code ? » — suggestion,
   jamais bascule automatique. Conception reprise
   d'[OpenFox](https://github.com/co-l/openfox) (MIT), réécrite en Go — voir
-  `NOTICE.md`.
+  `NOTICE.md`. **Sous-agents** : l'outil `subagent` délègue une recherche
+  (`explorer`), une relecture (`code-reviewer`) ou un découpage (`planner`) à
+  un rôle qui travaille dans **son propre contexte** et ne rend que sa réponse.
+  Sur un modèle local, c'est ce qui sauve la fenêtre : « trouve où est géré le
+  cache » coûte dix lectures de fichiers, qui resteraient sinon dans
+  l'historique jusqu'à la compaction alors que seule la réponse comptait. Tous
+  les rôles délégués sont en **lecture seule** — ce qui modifie le dépôt reste
+  dans le fil principal, sous tes yeux — et un sous-agent ne peut pas en
+  appeler un autre.
 - **Catalogue MCP** : le panneau *Serveurs MCP* offre un bouton **catalogue** —
   une vingtaine de serveurs connus (filesystem, git, fetch, memory, sqlite,
   playwright, context7, github…) avec leur commande déjà renseignée, classés par

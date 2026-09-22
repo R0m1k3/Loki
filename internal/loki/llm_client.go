@@ -330,6 +330,28 @@ func EnabledTools(caps Caps) []Tool {
 	if caps.Code && caps.Role == "verifier" {
 		return []Tool{bashTool(), readTool(), grepTool(), globTool(), gitStatusTool(), gitDiffTool(), criteriaTool()}
 	}
+	// Rôles DÉLÉGUÉS (outil subagent) : lecture seule, et rien d'autre. Ni
+	// write/edit (ce qui modifie le dépôt reste dans le fil principal, sous les
+	// yeux de l'utilisateur), ni critères (seule la passe de vérification les
+	// marque), ni subagent (pas de récursion), ni mémoire ni web — chaque schéma
+	// coûte du contexte, et un explorateur n'a que du code à lire.
+	if caps.Code && isSubagentRole(caps.Role) {
+		tools := []Tool{readTool(), grepTool(), globTool(), gitStatusTool(), gitDiffTool()}
+		if caps.Role == "planner" {
+			// Le planificateur POSE le contrat (criteria action=add) : c'est la
+			// moitié de son travail, et son prompt le lui demande. Marquer un
+			// critère « passé » lui reste interdit — allowPass ne vaut que pour
+			// la passe de vérification (voir toolCriteria).
+			tools = append(tools, criteriaTool())
+		}
+		if caps.Role == "explorer" || caps.Role == "code-reviewer" {
+			// bash : lancer un test, compter des occurrences. Les commandes
+			// catastrophiques restent refusées (code_policy.go) et les chemins
+			// bornés au dossier de la discussion.
+			tools = append(tools, bashTool())
+		}
+		return tools
+	}
 	if caps.Agent {
 		tools = append(tools, bashTool(), writeTool(), editTool())
 		// Mémoire longue de la conversation (chat_recall.go) : le compactage
@@ -346,6 +368,9 @@ func EnabledTools(caps Caps) []Tool {
 	if caps.Code {
 		tools = append(tools, readTool(), grepTool(), globTool(), askTool(),
 			bashBgTool(), bashTailTool(), gitStatusTool(), gitDiffTool(), gitCloneTool(), criteriaTool())
+		// Délégation à un rôle en contexte isolé (code_subagent.go). Réservée au
+		// fil principal : un sous-agent ne délègue pas à son tour.
+		tools = append(tools, subagentTool())
 	}
 	// Mémoire = axe indépendant du mode agent : les outils mem_* sont fournis dès
 	// que le mode mémoire n'est pas « off » (que l'agent soit actif ou non).
@@ -1419,6 +1444,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					result = toolGitClone(ctx, args)
 				case "criteria":
 					result = toolCriteria(args, caps.Role == "verifier")
+				case "subagent":
+					result = toolSubagent(ctx, args, caps)
 				case "bash":
 					to := 0
 					switch v := args["timeout"].(type) {
