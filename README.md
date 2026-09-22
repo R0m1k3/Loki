@@ -253,6 +253,12 @@ Héritées d'AJEAN :
   la seule clé — de quoi remonter le conteneur ailleurs. C'est la sauvegarde de
   l'amont sans son relais : ici rien ne part sur un service tiers, le fichier
   reste chez toi.
+- **Interface en anglais** (*Réglages → Apparence → Langue*) : la source reste
+  française et « English » applique un dictionnaire sur la coque — navigation,
+  intitulés, boutons, interrupteurs. Ce qui n'y figure pas **reste en
+  français** plutôt que d'afficher une clé technique, et le fil de discussion
+  n'est jamais touché : c'est ton contenu. Le dictionnaire s'enrichit sans
+  toucher au reste de l'interface (`ui/src/js/28-i18n.js`).
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
   `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces

@@ -659,6 +659,15 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
   <section class="set-pane" data-pane="appearance">
     <div class="set-pane-h"><span>Apparence</span></div>
     <div class="slist">
+      <!-- Langue de l'interface. La source est française ; « English » applique
+           un dictionnaire sur la coque (navigation, libellés, boutons) — ce qui
+           n'y figure pas reste en français plutôt que d'afficher une clé. -->
+      <label class="switchrow"><span>Langue</span>
+        <select id="ui-lang" class="sctl" onchange="setUiLang(this.value)">
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </label>
       <label class="switchrow rev"><span>mode sombre</span>
         <span class="switch"><input type="checkbox" id="theme-dark" onchange="toggleThemeDark()"><span class="slider"></span></span>
       </label>
