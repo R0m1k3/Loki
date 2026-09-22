@@ -449,24 +449,50 @@ type ToolUsedEvent struct {
 	// pensait à recopier la ligne markdown rendue par l'outil : un petit modèle
 	// l'oublie, et l'utilisateur ne voyait jamais l'image qu'il avait demandée.
 	Image string
+	// ResultChars : taille RÉELLE du résultat (en runes), même quand Result n'en
+	// porte qu'un APERÇU. Sert au compteur « ~N tok » de la bulle, qui affichait
+	// sinon la taille de l'aperçu — toujours le même chiffre, quelle que soit la
+	// page lue.
+	ResultChars int
+	// ResultID : identifiant (tool_call_id) avec lequel l'UI CHARGE le résultat
+	// complet à la demande via /api/chat/tool-result. Le flux ne transporte que
+	// l'aperçu ; le reste ne descend qu'au clic sur « voir plus ». Vide = Result
+	// est déjà complet (rien à charger).
+	ResultID string
 }
 
-// shownDisplayMax borne ce qu'un résultat d'outil occupe dans le FLUX vers l'UI.
-// Aligné sur le plus haut plafond côté modèle (mcpMaxOutput = 12000 ; shell et
-// web = 8000) : le modèle et l'UI voient donc la même chose, et l'étiquette
-// « ~N tok » de la bulle dit la VRAIE taille du résultat.
+// toolPreviewChars borne l'aperçu de résultat d'outil envoyé à l'UI. Le résultat
+// COMPLET reste côté serveur (conv.Messages) et se charge à la demande.
 //
-// Avant, cette borne était à 4000 : toute page web un peu longue s'affichait
-// « ~1004 tok » — la valeur du plafond, pas celle de la page. Le compteur
-// mentait, et il mentait toujours avec le même chiffre.
-const shownDisplayMax = 12000
+// Avant, l'UI recevait tout le résultat tronqué à 12000 caractères : chaque tour
+// poussait des dizaines de kilo-octets dans le flux SSE et dans le journal
+// persisté, pour un bloc que personne ne déplie une fois sur dix.
+const toolPreviewChars = 1600
 
-// shownResult prépare un résultat d'outil pour l'affichage.
-func shownResult(s string) string {
-	if r := []rune(s); len(r) > shownDisplayMax {
-		return string(r[:shownDisplayMax]) + "\n…[tronqué]"
+// toolResultPreview renvoie (aperçu, taille réelle en runes, coupé ?).
+func toolResultPreview(s string) (string, int, bool) {
+	r := []rune(s)
+	if len(r) <= toolPreviewChars {
+		return s, len(r), false
 	}
-	return s
+	return string(r[:toolPreviewChars]), len(r), true
+}
+
+// fillToolResult pose sur l'événement l'aperçu envoyé à l'UI, la taille réelle
+// (pour le compteur ~N tok) et, si le résultat est coupé et qu'on a un id, la
+// référence pour charger le reste à la demande. Sans id utilisable, on envoie le
+// résultat entier : mieux vaut un flux plus lourd qu'un bloc qu'on ne peut plus
+// déplier.
+func fillToolResult(ev *ToolUsedEvent, result, tcID string) *ToolUsedEvent {
+	prev, n, cut := toolResultPreview(result)
+	ev.ResultChars = n
+	if cut && tcID != "" {
+		ev.Result = prev
+		ev.ResultID = tcID
+	} else {
+		ev.Result = result
+	}
+	return ev
 }
 
 // dedupableTool indique si un appel RIGOUREUSEMENT identique (même outil, mêmes
@@ -1269,7 +1295,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if prev, seen := doneCalls[callKey]; seen && dedupableTool(tc.Function.Name) {
 					repeatCount[callKey]++
 					result = repeatedCallResult(prev, repeatCount[callKey])
-					cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true}})
+					cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true}, result, tc.ID)})
 					toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 					messages = append(messages, toolMsg)
 					extra = append(extra, toolMsg)
@@ -1453,7 +1479,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if tc.Function.Name == "web_screenshot" {
 					shot = capturedRelPath(result)
 				}
-				cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true, Diff: diff, Image: shot}})
+				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Image: shot}, result, tc.ID)})
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)

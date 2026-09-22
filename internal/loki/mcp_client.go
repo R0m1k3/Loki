@@ -48,8 +48,6 @@ const (
 	mcpConnectTimeoutCold = 3 * time.Minute
 	// mcpCallTimeout borne un appel d'outil MCP.
 	mcpCallTimeout = 120 * time.Second
-	// mcpMaxOutput cap la sortie renvoyée au modèle (cohérent avec toolMaxOutput).
-	mcpMaxOutput = 12000
 )
 
 // mcpSession est une connexion vivante à un serveur MCP.
@@ -398,10 +396,12 @@ func mcpCallOnce(ref mcpToolRef, args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Le résultat complet part au modèle (même règle que la lecture mémoire) :
+	// plus de troncature ici. Un serveur MCP est configuré EXPRÈS par le
+	// propriétaire de la machine pour ce qu'il rend ; le couper au milieu, c'est
+	// rendre la réponse inutilisable. L'UI, elle, n'affiche qu'un aperçu et
+	// charge le reste à la demande (voir fillToolResult et /api/chat/tool-result).
 	out := flattenMCPContent(res)
-	if r := []rune(out); len(r) > mcpMaxOutput {
-		out = string(r[:mcpMaxOutput]) + "\n…[tronqué]"
-	}
 	if res.IsError {
 		return "[l'outil a renvoyé une erreur]\n" + out, nil
 	}

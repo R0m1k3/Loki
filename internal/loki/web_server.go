@@ -308,6 +308,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/chat/criteria", handleChatCriteria) // édition manuelle des critères (mode code)
 	api("/api/chat/compact", handleChatCompact)   // compaction manuelle du contexte
 	api("/api/chat/state", handleChatState)       // instantané léger {seq, generating, ctx_used}
+	api("/api/chat/tool-result", handleToolResult) // résultat complet d'un outil, chargé à la demande (bouton « voir plus »)
 	api("/api/chat/export", handleChatExport)     // téléchargement du fil (?format=md|json)
 	api("/api/e2e/chat", handleE2EChat)           // même flux mais chiffré E2E (boîte noire via le relais)
 	return mux

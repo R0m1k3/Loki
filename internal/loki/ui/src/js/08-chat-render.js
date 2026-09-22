@@ -286,7 +286,10 @@ function renderToolMsg(el, tu){
   meta = meta || {lbl:'mémoire', head:'mémoire'};
   let lbl = meta.lbl;
   // Indication du volume de la réponse de l'outil (~tokens, estimation 1 tok ≈ 4 car).
-  if(tu.result){ lbl += '  ·  ~' + Math.max(1, Math.round(tu.result.length/4)) + ' tok'; }
+  // Taille RÉELLE (result_chars) quand le flux n'a envoyé qu'un aperçu — sinon
+  // la bulle affichait toujours le même chiffre, celui du plafond d'aperçu.
+  const realChars = tu.result_chars || (tu.result ? tu.result.length : 0);
+  if(realChars){ lbl += '  ·  ~' + Math.max(1, Math.round(realChars/4)) + ' tok'; }
   setLabel(el, lbl);
   // Volume de l'écriture (final si le diff est là, provisoire pendant la frappe)
   // reporté sur l'étiquette, pour rester lisible bulle repliée.
@@ -365,8 +368,49 @@ function renderToolMsg(el, tu){
     const sub=document.createElement('div'); sub.className='tool-sub'; sub.textContent='réponse';
     body.appendChild(sub);
     const pre=document.createElement('pre');
-    const code=document.createElement('code'); code.textContent=tu.result;
-    pre.appendChild(code); body.appendChild(pre);
+    const code=document.createElement('code');
+    const preview=tu.result, rid=tu.result_id, PREVIEW=1600;
+    // Deux cas :
+    //  - result_id présent : le flux n'a envoyé qu'un aperçu (résultat coupé),
+    //    « voir plus » CHARGE le reste à la demande via l'API ;
+    //  - sinon : le résultat est déjà complet ; s'il est long, « voir plus » le
+    //    déplie localement (rien à charger).
+    if(rid){
+      code.textContent=preview+'…';
+      pre.appendChild(code);
+      const more=document.createElement('button');
+      more.className='tool-more'; more.type='button'; more.textContent='voir plus';
+      let full=null, open=false;
+      more.onclick=async(e)=>{ e.stopPropagation();
+        if(full===null){
+          more.disabled=true; more.textContent='…';
+          // Résultat introuvable côté serveur (compacté, autre discussion) : on
+          // garde l'aperçu plutôt que de vider la bulle.
+          try{ const j=await jget('/api/chat/tool-result?id='+encodeURIComponent(rid)); full=(j&&j.result)||preview; }
+          catch(_){ full=preview; }
+          more.disabled=false;
+        }
+        open=!open;
+        code.textContent = open ? full : preview+'…';
+        pre.classList.toggle('expanded', open);
+        more.textContent = open ? 'voir moins' : 'voir plus';
+      };
+      body.appendChild(toolBlock(pre, more));
+    } else if(preview.length>PREVIEW){
+      code.textContent=preview.slice(0,PREVIEW)+'…';
+      pre.appendChild(code);
+      const more=document.createElement('button');
+      more.className='tool-more'; more.type='button'; more.textContent='voir plus';
+      let open=false;
+      more.onclick=(e)=>{ e.stopPropagation(); open=!open;
+        code.textContent = open ? preview : preview.slice(0,PREVIEW)+'…';
+        pre.classList.toggle('expanded', open);
+        more.textContent = open ? 'voir moins' : 'voir plus';
+      };
+      body.appendChild(toolBlock(pre, more));
+    } else {
+      code.textContent=preview; pre.appendChild(code); body.appendChild(pre);
+    }
   } else if(!tu.done && !tu.typing){
     const wait=document.createElement('div'); wait.className='tool-wait'; wait.textContent='exécution en cours…';
     body.appendChild(wait);
@@ -378,10 +422,26 @@ function renderToolMsg(el, tu){
   const bw = el.querySelector('.bodywrap');
   if(bw){ bw.scrollTop = tu.done ? 0 : bw.scrollHeight; }
 }
+// Bloc d'un résultat d'outil : le pre scrolle (max-height), donc la barre
+// d'actions vit sur un bloc-parent NON scrollant, ancrée en bas à droite — elle
+// reste au coin quoi qu'on scrolle dans le résultat. La barre réunit « voir
+// plus » (passé ici) et, ajouté ensuite par addCopyButtons, « copier ».
+function toolBlock(pre, more){
+  const block=document.createElement('div'); block.className='tool-block';
+  block.appendChild(pre);
+  const bar=document.createElement('div'); bar.className='tool-actions';
+  bar.appendChild(more);
+  block.appendChild(bar);
+  return block;
+}
 // Inject a "copier" button into every <pre> code block (idempotent).
 function addCopyButtons(root){
   root.querySelectorAll('pre').forEach(pre=>{
-    if(pre.querySelector('.copybtn')) return;
+    // Résultat d'outil : le pre est enrobé dans .tool-block et la barre
+    // d'actions est SŒUR du pre (pas dedans) ; on cherche donc le copier dans
+    // ce périmètre.
+    const scope = pre.closest('.tool-block') || pre;
+    if(scope.querySelector('.copybtn')) return;
     // Pas de bouton copier sur un diff : on copierait les préfixes + / - .
     if(pre.classList.contains('diff')) return;
     const btn=document.createElement('button');
@@ -394,7 +454,9 @@ function addCopyButtons(root){
       btn.textContent='copié ✓'; btn.classList.add('done');
       setTimeout(()=>{ btn.textContent='copier'; btn.classList.remove('done'); },1500);
     };
-    pre.appendChild(btn);
+    // S'il y a une barre d'actions (résultat d'outil avec « voir plus »), le
+    // bouton copier s'y range à côté ; sinon il se colle en bas à droite du bloc.
+    (scope.querySelector('.tool-actions')||pre).appendChild(btn);
   });
 }
 // Vider la discussion POUR TOUS LES APPAREILS : le serveur vide le fil et
