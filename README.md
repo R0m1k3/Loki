@@ -225,6 +225,15 @@ Héritées d'AJEAN :
   `task_update` et `task_delete` — elle peut donc se poser ses propres rappels
   et veilles — cloisonnés par projet : dans un projet, elle ne voit et ne
   pilote que les tâches de ce projet.
+- **Notifications** (Web Push) : le serveur prévient le navigateur **à la fin
+  d'une réponse et à la fin d'une tâche planifiée**, même l'app fermée ou le
+  téléphone verrouillé — c'est le serveur qui pousse, pas la page (un onglet
+  caché relâche son flux). L'interrupteur est dans *Réglages → Mode agent*, à
+  armer **sur chaque appareil** (l'abonnement appartient au navigateur). Exige
+  **HTTPS** ou localhost ; sur iPhone, il faut d'abord ajouter Loki à l'écran
+  d'accueil. Les clés VAPID sont générées à la première demande et rangées avec
+  le reste sous `/data` ; le corps de la notification reste générique (aucun
+  extrait de réponse), puisqu'elle transite par Apple ou Google.
 - **Presets** de configuration par modèle, bench, auto-détection GPU.
 - **Échantillonnage réglable par preset** : température, `top_p`, `top_k`,
   `min_p`, pénalités de présence et de répétition, dans l'éditeur de preset. Ces

@@ -497,6 +497,7 @@ func chatModelName() string {
 // tout ce que ce tour produirait ensuite (deltas, messages, persistance) est
 // abandonné au lieu de ressusciter des morceaux de l'ancienne conversation.
 func (c *Conversation) generate(ctx context.Context, caps Caps, temperature float64, epoch int) {
+	turnStart := time.Now()
 	defer func() {
 		c.mu.Lock()
 		stale := c.epoch != epoch
@@ -518,6 +519,17 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.compactLogLocked() // le tour est fini : coalesce ses tokens pour garder le journal petit
 		c.mu.Unlock()
 		c.persist()
+		// Notification Web Push : ce chemin (generate) ne sert QUE les tours
+		// utilisateur — les tâches de fond passent par RunAutonomous et ont leur
+		// propre notification — donc pas de doublon. Détaché : l'envoi HTTP vers
+		// le service de push ne doit pas retenir la fin du tour. Corps générique
+		// (pas d'extrait de réponse) : la notif transite par Apple/Google.
+		//
+		// ctx.Err() != nil = tour interrompu par un « stop » : pas de notification,
+		// l'utilisateur est là et a coupé volontairement.
+		if hasPushSubs() && ctx.Err() == nil {
+			go sendPushToAll("Loki", "Réponse prête · "+fmtDurFR(time.Since(turnStart)))
+		}
 	}()
 
 	// Snapshot de la vue modèle.

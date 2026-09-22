@@ -285,4 +285,15 @@ func recordTaskEnd(id string, start time.Time, report string, err error) {
 		cur.LastReport = report
 	}
 	_ = saveTask(cur)
+	// Notification Web Push : une tâche planifiée tourne SANS personne devant
+	// l'écran — c'est le cas où être prévenu compte le plus. Détaché (l'envoi
+	// HTTP ne doit pas retenir le planificateur) et silencieux sur une
+	// interruption manuelle : celui qui a cliqué « stop » est déjà là.
+	if hasPushSubs() && !errors.Is(err, context.Canceled) {
+		title, body := "Loki · tâche terminée", cur.Name
+		if err != nil {
+			title = "Loki · tâche en échec"
+		}
+		go sendPushToAll(title, body)
+	}
 }

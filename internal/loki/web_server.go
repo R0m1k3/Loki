@@ -19,7 +19,7 @@ import (
 )
 
 //go:generate go run ../../tools/assemble-ui ui
-//go:embed ui/index.html ui/marked.min.js ui/fonts/*.woff2
+//go:embed ui/index.html ui/marked.min.js ui/sw.js ui/manifest.webmanifest ui/fonts/*.woff2
 var uiFS embed.FS
 
 // cmdWeb starts the HTTP server on the given port (default 8090).
@@ -139,6 +139,23 @@ func newWebMux() *http.ServeMux {
 		b, _ := uiFS.ReadFile("ui/marked.min.js")
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(b)
+	})
+	// Service worker + manifeste des notifications Web Push (voir push.go / sw.js).
+	// PUBLICS (aucun secret) et servis en clair à la RACINE : un service worker
+	// doit venir de l'origine même, et son scope est celui de son URL. no-store
+	// sur le worker pour qu'une mise à jour de l'image soit toujours reprise.
+	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		b, _ := uiFS.ReadFile("ui/sw.js")
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "no-store, max-age=0")
+		w.Header().Set("Service-Worker-Allowed", "/")
+		w.Write(b)
+	})
+	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
+		b, _ := uiFS.ReadFile("ui/manifest.webmanifest")
+		w.Header().Set("Content-Type", "application/manifest+json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Write(b)
 	})
 	// Polices embarquées (Inter + JetBrains Mono, sous-ensemble latin). Servies
@@ -264,6 +281,9 @@ func newWebMux() *http.ServeMux {
 	api("/api/tasks/pause", handleTasksPause)
 	api("/api/tasks/run", handleTaskRun)
 	api("/api/tasks/stop", handleTaskStop)              // arrête la tâche en cours (script : via son registre)
+	api("/api/push/key", handlePushKey)                 // clé publique VAPID (pour s'abonner)
+	api("/api/push/subscribe", handlePushSubscribe)     // enregistre un abonnement du navigateur
+	api("/api/push/unsubscribe", handlePushUnsubscribe) // retire un abonnement
 	api("/api/reasoning-effort", handleReasoningEffort) // intensité réglable depuis la barre de saisie
 	api("/api/network", handleNetwork)                  // écoute LAN du moteur + pare-feu (Windows)
 	api("/api/prefs", handleWebPrefs)
