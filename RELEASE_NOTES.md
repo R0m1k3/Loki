@@ -1,50 +1,96 @@
-# Loki 0.12.0
+# Loki 0.13.0
 
-Le sélecteur de modèle devient un vrai sélecteur, la dictée vocale arrive, et
-les cartes de raisonnement suivent l'écriture au lieu d'envahir la page.
+Loki rattrape deux versions majeures d'AJEAN (0.14 → 0.15.4) et reprend deux
+idées d'OpenFox. L'IA peut piloter un navigateur, la mémoire se chiffre sur le
+disque, et le serveur sait te prévenir quand c'est prêt.
 
-## Le sélecteur de l'en-tête charge vraiment un modèle
+## L'IA pilote un navigateur
 
-Deux groupes : « Presets » et « Modèles (.gguf) » — tous les fichiers de
-`/models` et `/data/models`. Choisir un modèle le charge (seul `MODEL` change,
-contexte/NGL/échantillonnage conservés) et redémarre le moteur. Sans preset
-créé, le sélecteur n'offrait aucun choix.
+Un interrupteur dans *Réglages → Contrôle du navigateur* et l'IA ouvre des pages
+dans le Chromium déjà embarqué dans l'image. Elle en reçoit les éléments
+interactifs **numérotés** (`[12] bouton « Se connecter »`) et agit par numéro :
+`browser_open`, `browser_find`, `browser_click`, `browser_type`, `browser_key`,
+`browser_scroll`. **Aucune vision requise** — ça marche avec un petit modèle
+texte. Avec un projecteur `mmproj` chargé s'ajoutent `browser_screenshot`
+(capture quadrillée tous les 100 px) et `browser_click_xy`, pour ce que l'arbre
+d'accessibilité ne montre pas : canvas, bandeau cookies en iframe.
 
-## Dictée vocale
+Ce sont des actions réelles sur le web : l'interrupteur est distinct de l'accès
+internet et n'agit qu'en **mode agent**, au même niveau de confiance que `bash`.
+En CLI : `loki computer [on|off|status]`.
 
-Un bouton micro dans la carte de saisie : tu parles, le texte s'écrit. La
-transcription est 100 % locale — whisper.cpp compilé dans l'image, modèle
-multilingue téléchargé au premier usage (~190 Mo, dans `/data/whisper/`).
-Le navigateur exige HTTPS (ou localhost) pour donner accès au micro.
+## La mémoire se chiffre
 
-## Cartes raisonnement/outils : taille fixe, défilement qui suit
+*Réglages → Mémoire → chiffrer la mémoire sur le disque* : pages mémoire,
+discussions, blocs archivés au compactage et trackers passent en **AES-256-GCM**
+sous `/data`. La clé de données est enfermée dans un coffre par une clé dérivée
+en **Argon2id** ; ce qui l'ouvre, c'est la **clé de pilotage de cet appareil**
+(le serveur n'en garde qu'une empreinte — il ne peut pas ouvrir le coffre seul)
+ou une **clé de récupération** affichée une seule fois à l'activation.
 
-Hauteur bornée (280 px) avec défilement interne collé au texte pendant la
-génération — remonter lire le début est respecté. Les cartes d'outil suivent
-la ligne en cours d'écriture puis remontent en tête une fois l'appel terminé.
-Sur un raisonnement géant, seul le bas du bloc est re-rendu en direct (le
-texte complet est posé à la fin) : l'affichage ne se fige plus.
+La clé ne vit qu'en RAM : après un redémarrage à froid, la mémoire reste
+verrouillée jusqu'à ce qu'un navigateur se reconnecte. Verrouillé, Loki n'écrase
+jamais du chiffré par du clair — il refuse d'écrire. Un **snapshot** est pris
+avant chaque bascule, une migration interrompue reprend au démarrage, et rien
+n'est supprimé avant que son remplaçant ait été relu et vérifié.
 
-## Mesures
+**Sauvegarde chiffrée** : *exporter* télécharge un paquet scellé (mémoire,
+presets, réglages) que *importer* rejoue sur un autre serveur avec la seule clé —
+de quoi remonter le conteneur ailleurs. Le fichier reste chez toi : aucun envoi
+vers un service tiers.
 
-- La carte du temps total affiche la **vitesse moyenne de la conversation**
-  (« en cours — 12 s · moy 21.3 tok/s »), rejouée au rechargement.
-- Le **pourcentage de chargement** du modèle bouge aussi sur un redémarrage à
-  chaud (modèle déjà dans le cache disque : on suit la mémoire résidente, plus
-  seulement les octets lus).
+## Notifications, même app fermée
+
+Le serveur pousse une notification à la fin d'une réponse **et à la fin d'une
+tâche planifiée**, succès comme échec — c'est le cas qui compte, personne ne
+regarde. Interrupteur dans *Réglages → Mode agent*, à armer sur chaque appareil.
+Demande HTTPS (ou localhost) ; sur iPhone, ajoute d'abord Loki à l'écran
+d'accueil.
+
+## Tâches : des scripts qui tournent sans modèle
+
+Un nouveau dossier `/data/scripts`, **hors du workspace jetable** : supprimer une
+discussion n'y touche pas. Une tâche peut désormais être un **script seul** — le
+planificateur le lance sans charger le modèle ni consommer un jeton. Une
+sauvegarde, une synchro, un nettoyage n'ont rien à demander à un LLM.
+
+L'IA dispose aussi de `task_create`, `task_list`, `task_update` et `task_delete` :
+elle se pose ses propres rappels et veilles, cloisonnés par projet.
+
+## Mode code : des sous-agents
+
+L'outil `subagent` délègue une recherche (`explorer`), une relecture
+(`code-reviewer`) ou un découpage (`planner`) à un rôle qui travaille dans **son
+propre contexte** et ne rend que sa réponse. Sur un modèle local, c'est la
+fenêtre de contexte qu'on sauve : « trouve où est géré le cache » coûte dix
+lectures de fichiers, qui restaient sinon dans l'historique alors que seule la
+réponse comptait. Tous les rôles délégués sont en lecture seule.
+
+Le builder ne publie plus de lui-même : sans demande explicite, ni commit, ni
+push, ni redémarrage de service.
 
 ## Interface
 
-- Discussions triées par date de **création** (récentes en tête) : une
-  discussion garde sa place, écrire dans un vieux fil ne le fait plus remonter.
-- Bouton **Réglages** ancré en pied de barre latérale, au-dessus du moniteur
-  Performance.
+- **Anglais** (*Apparence → Langue*) : la coque — navigation, intitulés,
+  boutons — passe en anglais. Ce qui n'est pas encore traduit reste en français
+  plutôt que d'afficher une clé technique, et le fil de discussion n'est jamais
+  touché.
+- **Résultats d'outils** : le flux ne transporte plus qu'un aperçu ; « voir
+  plus » charge le reste à la demande et déplie vraiment le bloc. Le compteur
+  « ~N tok » dit enfin la taille réelle, pas celle de l'aperçu.
+- **Longues discussions** : à l'ouverture, seule la fin du fil est rejouée. Un
+  bandeau dit combien d'événements sont masqués et charge le début d'un clic.
+- **Images** : l'orientation EXIF est cuite dans les pixels (fini les photos de
+  téléphone couchées pour le modèle) et le grand côté ramené sous 1568 px.
 
-## Rappel 0.11.0
+## Corrections
 
-Réglages en modale à deux volets ; nom du modèle sur chaque réponse
-(journalisé, il survit au rechargement) ; jeton Hugging Face réglable dans
-l'interface ; tâches planifiées reprises de l'amont.
+- Un outil qui porte une image dans un message séparé (`see_image`,
+  `browser_screenshot`) renvoyait « [déjà fait] » **sans** l'image et le modèle
+  bouclait. Relancer la même commande `bash` est de nouveau permis.
+- **MCP** ne tronque plus sa réponse à 12000 caractères avant le modèle.
+- Le dossier mémoire n'est plus joignable qu'aux outils `mem_*` : un `cat
+  memory/…` contournait l'index `MEMORY.md`.
 
 ## Mise à jour
 
