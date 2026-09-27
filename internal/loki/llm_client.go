@@ -344,8 +344,10 @@ func normalizeSystemMessages(msgs []Message) []Message {
 }
 
 // isProjectSystem : message système propre au projet actif (description, index
-// mémoire, trackers), à sortir du bloc système commun (voir
-// normalizeSystemMessages).
+// mémoire, trackers) ou à la conversation (rappel des pages mémoire lues, posé
+// au compactage), à sortir du bloc système commun (voir
+// normalizeSystemMessages) : ce bloc doit rester identique partout pour rester
+// en cache.
 func isProjectSystem(m Message) bool {
 	s, ok := m.Content.(string)
 	if !ok || m.Role != "system" {
@@ -353,7 +355,8 @@ func isProjectSystem(m Message) bool {
 	}
 	return strings.HasPrefix(s, projectContextPrefix) ||
 		strings.HasPrefix(s, memIndexPrefix) ||
-		strings.HasPrefix(s, trackerIndexPrefix)
+		strings.HasPrefix(s, trackerIndexPrefix) ||
+		strings.HasPrefix(s, memReminderPrefix)
 }
 
 // prependToFirstUser place ctx en tête du premier message user de msgs (modifié

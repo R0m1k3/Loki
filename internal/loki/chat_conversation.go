@@ -358,6 +358,12 @@ func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase s
 		c.appendDelta(epoch, map[string]any{"compact_noop": true})
 		return msgs, false
 	}
+	// Les pages mémoire lues ont été résumées avec le torse : un rappel liste
+	// leurs noms pour que le modèle les relise au besoin (AJEAN 0.14.0). Agent
+	// seulement — sans lui, pas d'outil mem_read pour y donner suite.
+	if caps.Agent {
+		compacted = remindReadMemPages(compacted, msgs)
+	}
 	overhead := ctxUsed - estimateTokens(msgs)
 	if overhead < 0 {
 		overhead = 0
