@@ -376,9 +376,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <div id="mem-block" class="gated-group">
       <div class="subhead">Mémoire<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span id="mem-mode-desc" class="tip"></span></span></div>
       <div class="slist">
-        <label class="switchrow"><span>mode</span>
+        <label class="switchrow"><span>mode <small class="dim">(projet actif)</small></span>
           <select id="mem-mode" onchange="setMemMode()" class="sctl">
-            <option value="always">auto</option>
+            <option value="always">auto, injectée</option>
+            <option value="search">auto, recherche</option>
             <option value="ondemand">sur demande</option>
             <option value="off">désactivée</option>
           </select>

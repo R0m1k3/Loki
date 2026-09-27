@@ -549,16 +549,8 @@ func handleMemoryMode(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		// On normalise via memMode() en réinjectant la valeur : toute entrée
 		// inconnue retombe sur "always", donc on valide en passant par le parseur.
-		m := MemAlways
-		switch MemMode(strings.ToLower(strings.TrimSpace(req.Mode))) {
-		case MemOff:
-			m = MemOff
-		case MemOnDemand:
-			m = MemOnDemand
-		case MemAlways:
-			m = MemAlways
-		}
-		if err := setMemMode(m); err != nil {
+		// Réglage du PROJET ACTIF (AJEAN 0.13.12).
+		if err := setMemMode(normalizeMemMode(req.Mode)); err != nil {
 			sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}

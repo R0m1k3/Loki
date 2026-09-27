@@ -56,7 +56,7 @@ func baseSystemPrompt(caps Caps) string {
 			b.WriteString("\n\n" + rp)
 		}
 	}
-	if caps.Mem == MemAlways {
+	if memProactive(caps.Mem) {
 		b.WriteString(" You evolve with every conversation: you actively maintain a persistent memory so nothing useful is lost between sessions.")
 	}
 	// PAS de catalogue d'outils ici : leurs schémas, envoyés dans la même requête,
@@ -76,7 +76,15 @@ func baseSystemPrompt(caps Caps) string {
 	case MemAlways:
 		b.WriteString("\nManaging your memory is part of the job, not optional:\n")
 		b.WriteString("- Save anything worth keeping (a preference, fact, decision, how-to) with mem_add, or mem_edit to update a page — on your own, without being asked.\n")
-		b.WriteString("- Before any task or answer, call mem_search first, then mem_read the best page. Do this even when the request has new specifics (a name, a place, a value): your saved method still applies, only the parameter changes.\n")
+		// Mode INJECTÉ : l'index est en tête de contexte (mem_index.go), la
+		// recherche devient facultative — l'IA lit directement la bonne page.
+		b.WriteString("- The memory index (page list) is in your context: when a page looks relevant, mem_read it directly. mem_search is only for finding something by content.\n")
+	case MemSearchFirst:
+		// Mode RECHERCHE : rien d'injecté, prompt léger — mais l'IA DOIT chercher
+		// elle-même, sinon elle ignore ce que sa mémoire contient.
+		b.WriteString("\nManaging your memory is part of the job, not optional:\n")
+		b.WriteString("- Save anything worth keeping (a preference, fact, decision, how-to) with mem_add, or mem_edit to update a page — on your own, without being asked.\n")
+		b.WriteString("- Before any task or answer, call mem_search first, then mem_read the best page. Do this even when the request has new specifics (a name, a place, a value): your saved method still applies, only the parameter changes. Nothing is preloaded: a search is the only way to know what you already know.\n")
 	case MemOnDemand:
 		b.WriteString("\nMemory is ON-DEMAND: you have the mem_* tools but do NOT read or write memory on your own. Call mem_search/mem_read only when the user explicitly asks you to recall or look something up, and mem_add/mem_edit only when the user explicitly asks you to remember something. Otherwise leave memory untouched and answer directly.\n")
 	}
@@ -96,7 +104,7 @@ func baseSystemPrompt(caps Caps) string {
 		// disent pas. Une ligne, pas trois : le budget du préambule est compté
 		// (TestSystemPromptStaysLean).
 		b.WriteString("You can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n")
-		if caps.Mem == MemAlways {
+		if caps.Mem == MemSearchFirst {
 			b.WriteString("Before answering anything about yourself or this machine, call mem_search first — even trivial-seeming questions. A tool check never replaces it: memory may hold context the tool won't reveal.\n")
 		}
 	}

@@ -2584,9 +2584,10 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     <div id="mem-block" class="gated-group">
       <div class="subhead">Mémoire<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span id="mem-mode-desc" class="tip"></span></span></div>
       <div class="slist">
-        <label class="switchrow"><span>mode</span>
+        <label class="switchrow"><span>mode <small class="dim">(projet actif)</small></span>
           <select id="mem-mode" onchange="setMemMode()" class="sctl">
-            <option value="always">auto</option>
+            <option value="always">auto, injectée</option>
+            <option value="search">auto, recherche</option>
             <option value="ondemand">sur demande</option>
             <option value="off">désactivée</option>
           </select>
@@ -4542,9 +4543,10 @@ async function toggleCompact(){
   const on=document.getElementById('compact-toggle').checked;
   await jpost('/api/agent/compact',{on});
 }
-// Mode mémoire (3 états) — indépendant du mode agent.
+// Mode mémoire (4 états), réglé PAR PROJET — chaque projet garde le sien.
 const MEM_DESC={
-  always:'L\'IA cherche dans sa mémoire avant de répondre et sauve d\'elle-même ce qui mérite d\'être retenu.',
+  always:'L\'index des pages est placé en tête de conversation : l\'IA voit d\'emblée ce qu\'elle sait, lit directement la bonne page et sauve d\'elle-même ce qui mérite d\'être retenu. Réglage propre au projet actif.',
+  search:'Rien n\'est injecté : l\'IA cherche dans sa mémoire avant chaque tâche. Contexte plus léger, démarrage plus rapide. Réglage propre au projet actif.',
   ondemand:'Les outils mémoire existent mais l\'IA ne les utilise QUE si tu le demandes (« souviens-toi de… », « qu\'avais-tu retenu sur… »).',
   off:'Mémoire coupée : aucun accès en lecture ni écriture, l\'IA répond sans mémoire.'
 };

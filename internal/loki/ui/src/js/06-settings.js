@@ -310,9 +310,10 @@ async function toggleCompact(){
   const on=document.getElementById('compact-toggle').checked;
   await jpost('/api/agent/compact',{on});
 }
-// Mode mémoire (3 états) — indépendant du mode agent.
+// Mode mémoire (4 états), réglé PAR PROJET — chaque projet garde le sien.
 const MEM_DESC={
-  always:'L\'IA cherche dans sa mémoire avant de répondre et sauve d\'elle-même ce qui mérite d\'être retenu.',
+  always:'L\'index des pages est placé en tête de conversation : l\'IA voit d\'emblée ce qu\'elle sait, lit directement la bonne page et sauve d\'elle-même ce qui mérite d\'être retenu. Réglage propre au projet actif.',
+  search:'Rien n\'est injecté : l\'IA cherche dans sa mémoire avant chaque tâche. Contexte plus léger, démarrage plus rapide. Réglage propre au projet actif.',
   ondemand:'Les outils mémoire existent mais l\'IA ne les utilise QUE si tu le demandes (« souviens-toi de… », « qu\'avais-tu retenu sur… »).',
   off:'Mémoire coupée : aucun accès en lecture ni écriture, l\'IA répond sans mémoire.'
 };

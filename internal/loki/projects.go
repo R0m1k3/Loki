@@ -39,6 +39,9 @@ type Project struct {
 	// de conversation (projectContextMessage) pour qu'elle sache d'emblée sur quoi
 	// elle travaille, sans avoir à le lui réexpliquer à chaque nouvelle discussion.
 	Desc string `json:"desc,omitempty"`
+	// MemMode = mode mémoire PROPRE à ce projet (off/ondemand/always/search).
+	// Vide = pas encore réglé → repli sur l'ancien global MEM_MODE (voir memMode).
+	MemMode string `json:"mem_mode,omitempty"`
 }
 
 const (
@@ -186,6 +189,36 @@ func projectDesc(slug string) string {
 // setProjectDesc enregistre la description d'un projet, tronquée à une taille
 // raisonnable : c'est un contexte injecté à CHAQUE conversation, pas un cahier des
 // charges. Une chaîne vide efface la description.
+// projectMemMode renvoie le mode mémoire propre à un projet ("" si non réglé, ce
+// qui déclenche le repli global dans memMode).
+func projectMemMode(slug string) string {
+	for _, p := range listProjects() {
+		if p.Slug == slug {
+			return p.MemMode
+		}
+	}
+	return ""
+}
+
+// setProjectMemMode enregistre le mode mémoire d'un projet. Une valeur vide
+// efface le réglage propre (retour au repli global).
+func setProjectMemMode(slug, mode string) error {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	switch mode {
+	case "", "off", "ondemand", "always", "search":
+	default:
+		return fmt.Errorf("mode mémoire invalide: %s", mode)
+	}
+	list := listProjects()
+	for i := range list {
+		if list[i].Slug == slug {
+			list[i].MemMode = mode
+			return saveProjects(list)
+		}
+	}
+	return fmt.Errorf("projet introuvable")
+}
+
 func setProjectDesc(slug, desc string) error {
 	desc = strings.TrimSpace(desc)
 	const max = 2000
