@@ -1349,6 +1349,15 @@ type chatReq struct {
 	// chargement ; 0 = tout. nil = ancien client (app relais…), qui ne sait pas
 	// afficher le bouton « échanges précédents » : il reçoit toujours tout.
 	Tail *int `json:"tail"`
+	// ClientID = identifiant unique d'un ENVOI (/api/chat/send), stable d'un
+	// réessai à l'autre : le serveur ne met pas deux fois le même message en
+	// file (voir Conversation.recentCIDs).
+	ClientID string `json:"cid"`
+	// ConvID = id de la discussion AFFICHÉE par le client (reçu au dernier
+	// caught_up/reset du flux). Renvoyé à chaque (re)abonnement pour que le
+	// serveur détecte qu'un AUTRE appareil a changé de discussion entre-temps
+	// et ordonne un reset avant de rejouer — sinon deux fils fusionnaient.
+	ConvID string `json:"conv_id"`
 	// Files = chemins relatifs des fichiers déposés juste avant par
 	// /api/chat/upload ("uploads/rapport.pdf"). Ils sont annoncés au modèle en
 	// tête du message (voir attachNote) ; le contenu, lui, reste sur le disque et

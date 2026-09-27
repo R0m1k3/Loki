@@ -872,7 +872,12 @@ func toolCallLabel(name string, args map[string]any) string {
 	return label
 }
 
-func runChat(ctx context.Context, messages []Message, temperature float64, caps Caps, cb ChatCallback) ([]Message, error) {
+// injectQueued (optionnel, variadique pour ne pas toucher aux appels hors chat)
+// est consulté à CHAQUE frontière d'étape de la boucle d'outils : il renvoie les
+// messages utilisateur mis en file PENDANT la génération, pour que le modèle les
+// prenne en compte dans la SUITE de sa réponse (AJEAN 0.14.0) au lieu
+// d'obliger à arrêter puis relancer. Ajoutés à `messages` ET à `extra`.
+func runChat(ctx context.Context, messages []Message, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
 	var extra []Message
 	tools := EnabledTools(caps)
 	// Some backends (vanilla llama.cpp builds) don't populate `reasoning_content`
@@ -945,6 +950,20 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// qui tourne en rond n'avait rien en face de lui sauf le bouton stop.
 	toolRuns, budgetNudges, budget := 0, 0, agentBudget()
 	for iter := 0; ; iter++ {
+		// Ajout en cours de réponse : entre deux étapes (après un appel d'outil ou
+		// une relance), on injecte les messages mis en file par l'utilisateur. Pas
+		// à iter==0 : le message initial du tour est déjà dans `messages`. Ni après
+		// un stop : la boucle repasse ici une fois l'outil interrompu, et le
+		// message en file serait journalisé alors que l'utilisateur a repris la
+		// main (dropQueued l'abandonne à la fin du tour).
+		if iter > 0 && ctx.Err() == nil {
+			for _, inject := range injectQueued {
+				if q := inject(); len(q) > 0 {
+					messages = append(messages, q...)
+					extra = append(extra, q...)
+				}
+			}
+		}
 		// Rappel injecté EN FIN d'historique : le préfixe déjà en cache côté
 		// llama-server reste valide, seul le nouveau message est à traiter.
 		if msg := budgetNudge(toolRuns, budget, budgetNudges); msg != "" {

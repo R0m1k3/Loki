@@ -163,6 +163,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <!-- Pièces jointes en attente : remplie par addFiles(), vidée à l'envoi.
          Petites bulles POSÉES AU-DESSUS de la carte, dans la bande de dégradé
          qui la sépare du fil — la carte ne bouge donc pas d'un pixel. -->
+    <!-- Messages envoyés PENDANT une réponse (file d'attente, voir send()) : en
+         gris au-dessus de la carte jusqu'à ce que le serveur les prenne en compte
+         — injectés dans la réponse en cours, ou traités au tour suivant. -->
+    <div id="queue-list" aria-live="polite"></div>
     <div id="attach-list"></div>
     <div id="inputbar">
       <textarea id="input" rows="1" placeholder="Message Loki…" onkeydown="onKey(event)" oninput="autoGrow(this)" onpaste="onPaste(event)"></textarea>

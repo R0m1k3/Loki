@@ -68,6 +68,27 @@ type Conversation struct {
 	// à une génération fantôme dans la discussion ouverte.
 	runningTaskID   string
 	runningTaskName string
+
+	// File d'attente des messages envoyés PENDANT une génération (AJEAN
+	// 0.14.0). Ils sont injectés dans le tour en cours à la prochaine frontière
+	// d'étape (après un appel d'outil), ou — si le tour se termine avant —
+	// traités comme tours suivants, dans l'ordre. Protégée par mu.
+	queued []queuedMsg
+	// recentCIDs : identifiants d'envoi déjà acceptés. L'UI réessaie un envoi
+	// dont la réponse s'est perdue (tunnel) : avant la file, le 409 « déjà en
+	// cours » faisait office de dédoublonnage ; sans lui, le réessai mettrait
+	// le même message deux fois en file.
+	recentCIDs []string
+}
+
+// queuedMsg = un message mis en file pendant la génération. Caps et
+// température sont ceux choisis à l'envoi : un tour démarré depuis la file doit
+// s'exécuter avec ces réglages-là.
+type queuedMsg struct {
+	text  string
+	files []attachInfo
+	caps  Caps
+	temp  float64
 }
 
 var conv = func() *Conversation {
@@ -167,6 +188,7 @@ func (c *Conversation) loadFrom(b []byte) {
 	c.Stop()
 	c.mu.Lock()
 	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
+	c.queued = nil // file de l'ancienne discussion : elle ne suit pas la bascule
 	if len(b) > 0 {
 		_ = json.Unmarshal(b, c)
 		c.Messages = stripImageParts(c.Messages) // même guérison qu'au chargement
@@ -506,6 +528,131 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	return nil
 }
 
+// ErrDupSend : cet envoi (même cid) a déjà été accepté — réessai d'un client
+// qui n'a pas reçu la réponse. Ce n'est pas une erreur pour l'utilisateur.
+var ErrDupSend = fmt.Errorf("envoi déjà reçu")
+
+// seenCID enregistre cid et dit s'il avait déjà été vu. Appelant : mu tenu.
+func (c *Conversation) seenCIDLocked(cid string) bool {
+	if cid == "" {
+		return false
+	}
+	for _, v := range c.recentCIDs {
+		if v == cid {
+			return true
+		}
+	}
+	c.recentCIDs = append(c.recentCIDs, cid)
+	if len(c.recentCIDs) > 64 {
+		c.recentCIDs = c.recentCIDs[len(c.recentCIDs)-64:]
+	}
+	return false
+}
+
+// EnqueueOrStart démarre un tour tout de suite si le moteur est libre, sinon
+// MET EN FILE le message (AJEAN 0.14.0) — au lieu du 409 d'avant, qui obligeait
+// à arrêter la réponse pour ajouter une précision. Seul un tour de CHAT accepte
+// une file : une tâche planifiée qui occupe le modèle garde le refus
+// (busyReason), sa fin ne dépile rien. cid = identifiant de l'envoi (voir
+// recentCIDs) ; un doublon renvoie ErrDupSend.
+func (c *Conversation) EnqueueOrStart(cid, text string, files []attachInfo, caps Caps, temperature float64) (bool, error) {
+	c.mu.Lock()
+	if c.seenCIDLocked(cid) {
+		c.mu.Unlock()
+		return false, ErrDupSend
+	}
+	if c.Generating && c.runningTaskName == "" {
+		c.queued = append(c.queued, queuedMsg{text: text, files: files, caps: caps, temp: temperature})
+		c.mu.Unlock()
+		return true, nil
+	}
+	c.mu.Unlock()
+	err := c.StartTurn(text, files, caps, temperature)
+	if err != nil {
+		// Refusé (modèle pas prêt, tâche en cours) : le client pourra renvoyer
+		// ce même message, son cid ne doit pas rester marqué comme reçu.
+		c.mu.Lock()
+		for i, v := range c.recentCIDs {
+			if v == cid {
+				c.recentCIDs = append(c.recentCIDs[:i], c.recentCIDs[i+1:]...)
+				break
+			}
+		}
+		c.mu.Unlock()
+	}
+	return false, err
+}
+
+// drainQueued vide la file et renvoie les messages utilisateur à injecter dans
+// le tour EN COURS (vue modèle), en les journalisant pour qu'ils apparaissent
+// dans le fil sur tous les appareils. Appelé par runChat entre deux étapes.
+// epoch garde contre un reset survenu entre-temps.
+func (c *Conversation) drainQueued(epoch int) []Message {
+	c.mu.Lock()
+	if c.epoch != epoch || len(c.queued) == 0 {
+		c.mu.Unlock()
+		return nil
+	}
+	items := c.queued
+	c.queued = nil
+	c.mu.Unlock()
+
+	var out []Message
+	for _, q := range items {
+		delta := map[string]any{"user": q.text}
+		if m := chatModelName(); m != "" {
+			delta["model"] = m
+		}
+		if len(q.files) > 0 {
+			delta["files"] = q.files
+		}
+		c.appendDelta(epoch, delta)
+		prompt := q.text
+		if strings.TrimSpace(prompt) == "" {
+			prompt = "Prends-en connaissance."
+		}
+		out = append(out, Message{Role: "user", Content: userMessageContent(q.files, prompt)})
+	}
+	return out
+}
+
+// startQueuedIfAny démarre le prochain tour depuis la file, s'il en reste et
+// que le moteur est libre. Appelé à la toute fin d'un tour : les messages
+// envoyés après la dernière frontière d'étape sont ainsi traités sans que
+// l'utilisateur ait à les renvoyer. Chaque tour lancé ainsi rappelle
+// startQueuedIfAny à sa fin → la file se vide dans l'ordre. Renvoie true si un
+// tour a démarré.
+func (c *Conversation) startQueuedIfAny() bool {
+	c.mu.Lock()
+	if c.Generating || len(c.queued) == 0 {
+		c.mu.Unlock()
+		return false
+	}
+	q := c.queued[0]
+	c.queued = c.queued[1:]
+	epoch := c.epoch
+	c.mu.Unlock()
+	if err := c.StartTurn(q.text, q.files, q.caps, q.temp); err != nil {
+		// Modèle indisponible au moment de dépiler (rare) : on le dit dans le
+		// fil plutôt que de perdre le message en silence, et on tente le suivant.
+		c.appendDelta(epoch, map[string]any{"error": "message en attente non envoyé : " + err.Error()})
+		return c.startQueuedIfAny()
+	}
+	return true
+}
+
+// dropQueued abandonne la file (bouton stop : l'utilisateur reprend la main) et
+// le signale au client, qui retire ses messages « en attente ».
+func (c *Conversation) dropQueued(epoch int) {
+	c.mu.Lock()
+	n := len(c.queued)
+	c.queued = nil
+	c.mu.Unlock()
+	if n > 0 {
+		c.appendDelta(epoch, map[string]any{"queue_dropped": n})
+	}
+}
+
 // chatModelName renvoie le nom lisible du modèle configuré : fichier sans
 // dossier ni extension .gguf (même règle que modelLabel côté UI), "" si aucun.
 func chatModelName() string {
@@ -550,15 +697,24 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.compactLogLocked() // le tour est fini : coalesce ses tokens pour garder le journal petit
 		c.mu.Unlock()
 		c.persist()
-		// Notification Web Push : ce chemin (generate) ne sert QUE les tours
+		// File d'attente : interrompu par un stop, l'utilisateur reprend la main
+		// et les messages en file sont abandonnés. Sinon on démarre le prochain
+		// tour depuis la file — ceux qui n'ont pas pu être injectés en cours de
+		// route sont traités, dans l'ordre.
+		if ctx.Err() != nil {
+			c.dropQueued(epoch)
+			return
+		}
+		// Notification Web Push, seulement quand plus rien ne suit : un message
+		// en file qui démarre aussitôt n'est pas une « réponse prête », et sa
+		// propre fin notifiera. Ce chemin (generate) ne sert QUE les tours
 		// utilisateur — les tâches de fond passent par RunAutonomous et ont leur
 		// propre notification — donc pas de doublon. Détaché : l'envoi HTTP vers
 		// le service de push ne doit pas retenir la fin du tour. Corps générique
-		// (pas d'extrait de réponse) : la notif transite par Apple/Google.
-		//
-		// ctx.Err() != nil = tour interrompu par un « stop » : pas de notification,
-		// l'utilisateur est là et a coupé volontairement.
-		if hasPushSubs() && ctx.Err() == nil {
+		// (pas d'extrait de réponse) : la notif transite par Apple/Google. Pas
+		// de notification après un « stop » (retour ci-dessus) : l'utilisateur
+		// est là et a coupé volontairement.
+		if !c.startQueuedIfAny() && hasPushSubs() {
 			go sendPushToAll("Loki", "Réponse prête · "+fmtDurFR(time.Since(turnStart)))
 		}
 	}()
@@ -680,7 +836,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			c.appendDelta(epoch, map[string]any{"content": ev.Content})
 		}
 		return true // génération détachée : on ne s'interrompt jamais sur un abonné
-	})
+	}, func() []Message { return c.drainQueued(epoch) })
 
 	// Persiste la vue modèle : messages d'outils (assistant tool_calls + résultats)
 	// PUIS la réponse finale — même ordre que l'ancien client, pour que le modèle
@@ -821,6 +977,7 @@ func (c *Conversation) Reset() {
 	c.epoch++
 	c.Generating = false
 	c.cancel = nil
+	c.queued = nil // les messages en attente visaient le fil qu'on vient de vider
 	c.cond.Broadcast()
 	c.mu.Unlock()
 	c.persist()
@@ -1028,14 +1185,14 @@ func historyHead(log []LogEvent, cut, hidden int) []map[string]any {
 
 // Subscribe : abonnement sans pagination (rejeu complet).
 func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[string]any) bool) {
-	c.SubscribeTail(ctx, from, -1, emit)
+	c.SubscribeTail(ctx, from, -1, "", emit)
 }
 
 // SubscribeTail diffuse les événements au client via emit : d'abord un REPLAY coalescé
 // de Log[from:] (léger), puis un caught_up, puis le DIRECT événement par événement.
 // Bloque jusqu'à ce que ctx (la connexion HTTP) soit annulé — la génération, elle,
 // continue indépendamment. emit renvoie false si l'écriture échoue (client parti).
-func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, emit func(map[string]any) bool) {
+func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, convID string, emit func(map[string]any) bool) {
 	// Réveille les attentes de cond quand la connexion se ferme.
 	go func() {
 		<-ctx.Done()
@@ -1067,8 +1224,25 @@ func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, em
 	// la conversation ouverte apparaît tronquée, voire vide. En session normale, le
 	// client ne peut jamais avoir un from SUPÉRIEUR au dernier Seq du journal ; s'il
 	// l'est, son curseur vient d'une autre session → on repart du début.
+	//
+	// ⚠️ Même famille, cas plus sournois (AJEAN 0.14.0) : un AUTRE appareil a
+	// changé de discussion pendant que ce client était déconnecté, et son `from`
+	// est PLUS BAS que le dernier Seq de la nouvelle. Le rejeu greffait alors la
+	// fin de la nouvelle discussion sur le début de l'ancienne restée à l'écran —
+	// deux fils fusionnés jusqu'au prochain rafraîchissement. Le client renvoie
+	// l'id de la discussion qu'il affiche (convID) : s'il ne correspond plus, on
+	// lui ordonne d'abord de vider l'écran (reset), puis on rejoue tout.
+	curID := getStr(bkChat, ckActive)
+	staleConv := from > 0 && convID != "" && convID != curID
 	if n := len(snapshot); n > 0 && from > snapshot[n-1].Seq {
 		from = 0
+		staleConv = staleConv || convID != ""
+	}
+	if staleConv {
+		from = 0
+		if !emit(map[string]any{"reset": true, "id": curID}) {
+			return
+		}
 	}
 	// Chargement initial d'un client paginé : on ne rejoue que la fin du fil,
 	// précédée de {history_more: N}. Sur un long fil d'agent, tout rejouer
@@ -1096,7 +1270,7 @@ func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, em
 			last = s
 		}
 	}
-	if !emit(map[string]any{"caught_up": true}) {
+	if !emit(map[string]any{"caught_up": true, "id": curID}) {
 		return
 	}
 	// Taille du contexte connue MAINTENANT : le journal ne rejoue que les
@@ -1141,7 +1315,8 @@ func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, em
 				}
 			}
 			c.mu.Unlock()
-			if !emit(map[string]any{"reset": true}) {
+			// id : la discussion désormais affichée (lue hors verrou — base).
+			if !emit(map[string]any{"reset": true, "id": getStr(bkChat, ckActive)}) {
 				return
 			}
 			for _, ev := range head {

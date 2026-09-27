@@ -1210,6 +1210,19 @@ html[data-hide-stats="1"] #chat .msg .statline:not(.has-work){display:none}
 #attach-list::-webkit-scrollbar{display:none}
 #attach-list.show{display:flex}
 #composer:has(#attach-list.show){--fade:6px}
+/* File d'attente : messages envoyés pendant une réponse, pas encore pris en
+   compte. Même bande que les pièces jointes, en gris. */
+#queue-list{order:0;display:none;flex-direction:column;align-items:flex-end;gap:4px;margin:0 var(--col);padding:0 2px 8px}
+#queue-list.show{display:flex}
+#composer:has(#queue-list.show){--fade:6px}
+#queue-list .queued-msg{max-width:80%;padding:5px 12px;border-radius:12px;background:var(--panel);
+  border:1px dashed var(--border);color:var(--dim);font-size:12px;line-height:1.35;
+  white-space:pre-wrap;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  box-shadow:0 2px 10px rgba(0,0,0,.10)}
+#queue-list .queued-msg::before{content:"en attente · ";font-style:italic;opacity:.8}
+/* Pendant une réponse, envoyer reste possible dès qu'il y a du texte : le
+   message part en file (voir send()). Stop reste à côté. */
+html[data-busy="1"][data-hastext="1"] #send{display:inline-flex}
 /* Posées sur le fil (et non sur la carte) : il leur faut un fond opaque et un
    cadre, sinon le texte de la conversation transparaît derrière. */
 #attach-list .chip-file{flex:0 0 auto;background:var(--panel);border-color:var(--border);

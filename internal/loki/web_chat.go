@@ -88,7 +88,7 @@ func runChatStream(ctx context.Context, body chatReq, emit func(map[string]any) 
 	if body.Tail != nil {
 		tail = *body.Tail
 	}
-	conv.SubscribeTail(ctx, body.From, tail, emit)
+	conv.SubscribeTail(ctx, body.From, tail, body.ConvID, emit)
 }
 
 // handleChatSend ajoute un message et lance la génération en arrière-plan. Réponse
@@ -106,8 +106,17 @@ func handleChatSend(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "message vide"})
 		return
 	}
-	if err := conv.StartTurn(body.Message, files, capsFromBody(body), body.Temperature); err != nil {
-		// 409 = occupé (génération en cours) ; 503 = modèle pas prêt.
+	// Génération en cours : au lieu de refuser, on MET EN FILE (AJEAN 0.14.0).
+	// Le message est injecté dans la réponse en cours à la prochaine frontière
+	// d'étape, ou traité comme tour suivant. queued=true le signale au client.
+	queued, err := conv.EnqueueOrStart(body.ClientID, body.Message, files, capsFromBody(body), body.Temperature)
+	if err == ErrDupSend {
+		// Réessai d'un envoi déjà accepté (réponse perdue en route) : succès.
+		sendJSON(w, 200, map[string]any{"ok": true, "dup": true})
+		return
+	}
+	if err != nil {
+		// 409 = une tâche planifiée occupe le modèle ; 503 = modèle pas prêt.
 		code := 503
 		if err == ErrBusy {
 			code = 409
@@ -116,7 +125,7 @@ func handleChatSend(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, code, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true})
+	sendJSON(w, 200, map[string]any{"ok": true, "queued": queued})
 }
 
 // handleToolResult renvoie le résultat COMPLET d'un outil dont le flux n'a

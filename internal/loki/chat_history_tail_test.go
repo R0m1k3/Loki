@@ -56,7 +56,7 @@ func TestSubscribeTailPaginates(t *testing.T) {
 	collect := func(tail int) (more any, users int) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		c.SubscribeTail(ctx, 0, tail, func(m map[string]any) bool {
+		c.SubscribeTail(ctx, 0, tail, "", func(m map[string]any) bool {
 			if v, ok := m["history_more"]; ok {
 				more = v
 			}

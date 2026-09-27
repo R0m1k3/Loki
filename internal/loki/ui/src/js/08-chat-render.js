@@ -572,6 +572,9 @@ function onKey(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(
 function autoGrow(ta){
   ta = ta || document.getElementById('input');
   if(!ta) return;
+  // Du texte à envoyer ? Pendant une réponse, c'est ce qui fait réapparaître
+  // « envoyer » à côté de stop (message mis en file, voir send()).
+  if(ta.id==='input') document.documentElement.setAttribute('data-hastext', ta.value.trim() ? '1' : '0');
   ta.style.height='auto';
   const max=parseInt(getComputedStyle(ta).maxHeight,10)||200;
   ta.style.height=Math.min(ta.scrollHeight, max)+'px';

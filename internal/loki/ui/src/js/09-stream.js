@@ -11,6 +11,32 @@ let lastSeq=0, streamAbort=null;
 // caught_up).
 const HIST_TAIL=20;
 let HIST_FULL=false, HIST_RESTORE=null;
+// Discussion AFFICHÉE (id reçu au caught_up/reset). Renvoyée à chaque
+// (ré)abonnement : si un autre appareil a changé de discussion pendant une
+// coupure, le serveur ordonne un reset au lieu de greffer le nouveau fil sur
+// l'ancien (AJEAN 0.14.0).
+let CONV_ID='';
+// File d'attente (AJEAN 0.14.0) : messages envoyés PENDANT une réponse, montrés
+// en gris au-dessus de la carte jusqu'à ce que le flux les confirme (delta
+// `user` du même texte) — injectés en cours de réponse ou au tour suivant.
+function queueAdd(text){
+  const box=document.getElementById('queue-list'); if(!box) return null;
+  const el=document.createElement('div'); el.className='queued-msg'; el.textContent=text||'(pièce jointe)';
+  el.dataset.text=text;
+  box.appendChild(el); box.classList.add('show');
+  return el;
+}
+function queueSync(){ const box=document.getElementById('queue-list'); if(box) box.classList.toggle('show', !!box.children.length); }
+function queueTake(text){
+  const box=document.getElementById('queue-list'); if(!box) return;
+  const el=[...box.children].find(e=>e.dataset.text===text);
+  if(el) el.remove();
+  queueSync();
+}
+function queueClear(){ const box=document.getElementById('queue-list'); if(box) box.textContent=''; queueSync(); }
+// Identifiant d'envoi, stable d'un réessai à l'autre : le serveur ne met pas
+// deux fois le même message en file si la réponse s'est perdue en route.
+function newCID(){ try{ return crypto.randomUUID(); }catch(_){ return Date.now().toString(36)+Math.random().toString(36).slice(2); } }
 // Bulle « en attente » : affichée EN GRIS dès l'appui sur envoyer, avant tout
 // aller-retour réseau. Le message ne disparaît donc plus de l'écran entre la
 // frappe et la réponse du serveur. Elle s'éclaircit (classe retirée) quand
@@ -419,6 +445,7 @@ function handleDelta(d){
   // pendant le rejeu, où les `ts` sont vieux de plusieurs heures.
   if(!REPLAYING && typeof d.ts==='number' && d.ts>0) TS_SKEW = Date.now() - d.ts;
   if(d.caught_up){
+    if(typeof d.id==='string') CONV_ID=d.id;
     settleBlocks(); // rendre le dernier bloc rejoué à sa valeur exacte
     // Fin du replay initial : on saute en bas puis on révèle (une seule fois — pas
     // sur les reconnexions, pour ne pas te ramener en bas si tu lisais plus haut).
@@ -445,7 +472,8 @@ function handleDelta(d){
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
   if(d.history_more!==undefined){ showHistoryMore(d.history_more); return; }
-  if(d.reset!==undefined){ HIST_FULL=false; smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.queue_dropped!==undefined){ if(!REPLAYING){ queueClear(); toast('messages en attente abandonnés'); } return; }
+  if(d.reset!==undefined){ if(typeof d.id==='string') CONV_ID=d.id; queueClear(); HIST_FULL=false; smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
@@ -462,6 +490,7 @@ function handleDelta(d){
     // donc présent au rejeu comme en direct. Repris par tagModel sur chaque
     // bulle de réponse du tour.
     T.model = d.model || '';
+    if(!REPLAYING) queueTake(d.user); // message en file désormais pris en compte
     let el=PENDING;
     if(!confirmPending(d.user)) el=addMsg('user', d.user);
     // Pièces jointes du tour : rendues DANS la bulle. La bulle en attente en
@@ -573,7 +602,7 @@ async function connectStream(){
     while(document.hidden){ await new Promise(res=>setTimeout(res, 500)); }
     streamAbort=new AbortController();
     try{
-      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq,tail:HIST_FULL?0:HIST_TAIL}),signal:streamAbort.signal});
+      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq,tail:HIST_FULL?0:HIST_TAIL,conv_id:CONV_ID}),signal:streamAbort.signal});
       if(REPLAYING) setChatLoading('chargement de la conversation…');
       const reader=r.body.getReader(); const dec=new TextDecoder(); let buf='';
       while(true){
@@ -643,17 +672,23 @@ function loadFullHistory(){
 // erreur qu'après plusieurs échecs ET vérification que rien ne tourne — plus de
 // « network error » alarmiste alors que l'IA répond quand même.
 async function send(){
-  if(busy) return;
   // Garde-fou : le bouton est déjà désactivé, mais l'Entrée passe aussi par ici.
   if(STATUS_SEEN && !MODEL_READY){ toast('le modèle n\'est pas encore prêt'); return; }
   const ta=document.getElementById('input'); const text=ta.value.trim();
   // Un envoi sans texte est légitime s'il porte une pièce jointe (« tiens, regarde »).
   if(!text && !ATTACH.length) return;
   ta.value=''; autoGrow(ta);
-  // Le message s'affiche TOUT DE SUITE, en gris : il ne disparaît plus le temps
-  // de l'aller-retour. Il s'éclaircit quand le flux le confirme (confirmPending).
-  addPending(text);
-  const fail=(m)=>{ clearPending(); toast(m); ta.value=text; autoGrow(ta); };
+  // Réponse en cours : le message part EN FILE (AJEAN 0.14.0) — il sera pris en
+  // compte à la prochaine étape de la réponse, ou au tour suivant. Il s'affiche
+  // en attente au-dessus de la carte, pas dans le fil qui s'écrit encore.
+  const queuedAtSend = busy;
+  let qel=null;
+  // Sinon le message s'affiche TOUT DE SUITE dans le fil, en gris : il ne
+  // disparaît plus le temps de l'aller-retour. Il s'éclaircit quand le flux le
+  // confirme (confirmPending).
+  if(queuedAtSend) qel=queueAdd(text); else addPending(text);
+  const fail=(m)=>{ if(qel){ qel.remove(); queueSync(); } else clearPending(); toast(m); ta.value=text; autoGrow(ta); };
+  const cid=newCID();
   // C'est ici que les fichiers partent vers le serveur — pas avant. Les pastilles
   // ne sont retirées qu'une fois le message accepté : tant qu'il n'est pas parti,
   // on doit pouvoir en enlever une, et un échec doit rester visible.
@@ -661,13 +696,20 @@ async function send(){
   if(!text && !files.length){ fail('aucun fichier n\'a pu être déposé'); return; }
   // Les pastilles passent dans la bulle en attente : le message porte ses
   // fichiers dès l'envoi, sans attendre l'aller-retour.
-  if(PENDING) addMsgFiles(PENDING, attachSent());
+  if(PENDING && !queuedAtSend) addMsgFiles(PENDING, attachSent());
   for(let attempt=0; attempt<3; attempt++){
     try{
-      const r=await jfetch('/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,files:files,ctx_used:CTX_USED})});
-      if(r.status===409 || r.ok) clearAttach();
-      if(r.status===409) return;               // déjà en cours (notre envoi a abouti) → OK
-      if(r.ok) return;                          // la bulle + les tokens arrivent par le flux
+      const r=await jfetch('/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,files:files,ctx_used:CTX_USED,cid})});
+      if(r.ok) clearAttach();
+      // 409 = une tâche planifiée occupe le modèle : pas de file dans ce cas.
+      if(r.status===409){ let m='modèle occupé'; try{ m=(await r.json()).error||m; }catch(_){} fail(m); return; }
+      if(r.ok){
+        // Parti tout de suite alors qu'on le croyait en file (le tour venait de
+        // finir) : la pastille disparaît, la bulle arrive par le flux.
+        let j={}; try{ j=await r.json(); }catch(_){}
+        if(qel && j.queued===false){ qel.remove(); queueSync(); }
+        return;                                 // la bulle + les tokens arrivent par le flux
+      }
       if(r.status<500){ let m='erreur'; try{ m=(await r.json()).error||m; }catch(_){} fail(m); return; }
     }catch(e){ /* réseau : on retente */ }
     await new Promise(res=>setTimeout(res, 600));
