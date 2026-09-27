@@ -474,6 +474,9 @@ type ToolUsedEvent struct {
 	// Diff : lignes ajoutées/retirées quand l'outil a MODIFIÉ quelque chose
 	// (edit, mem_add, mem_edit). L'UI les affiche en vert (+) et rouge (-).
 	Diff []DiffLine
+	// Added / Removed : nombre RÉEL de lignes ajoutées / retirées. Diff est
+	// tronqué pour l'affichage, on ne peut donc pas recompter à partir de lui.
+	Added, Removed int
 	// Image : chemin (relatif au dossier de travail) d'une image PRODUITE par
 	// l'outil — aujourd'hui la capture de web_screenshot. L'UI l'affiche dans la
 	// bulle de l'outil. Sans ça, la capture n'apparaissait QUE si le modèle
@@ -1315,6 +1318,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// diff : rempli par les outils d'écriture (edit / mémoire) pour que
 				// l'UI montre les lignes ajoutées et retirées.
 				var diff []DiffLine
+				var diffAdd, diffDel int // vrais totaux (diff est tronqué pour l'UI)
 				// visionImg : partie image_url rendue par see_image, réinjectée après
 				// le résultat de l'outil (un message `tool` ne porte que du texte).
 				var visionImg map[string]any
@@ -1375,7 +1379,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						result = "[erreur] " + werr.Error()
 					} else {
 						result = fmt.Sprintf("[ok] page '%s' créée", label)
-						diff = addedDiff(content)
+						diff, diffAdd = addedDiff(content)
 					}
 				case "mem_edit":
 					oldText, _ := args["old"].(string)
@@ -1386,7 +1390,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						result = "[erreur] " + werr.Error()
 					} else {
 						result = fmt.Sprintf("[ok] page '%s' modifiée", label)
-						diff = lineDiff(oldText, newText)
+						diff, diffAdd, diffDel = lineDiff(oldText, newText)
 					}
 				case "write":
 					content, _ := args["content"].(string)
@@ -1399,7 +1403,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					} else {
 						result = fileWrite(label, content)
 						if !strings.HasPrefix(result, "[erreur]") {
-							diff = addedDiff(content)
+							diff, diffAdd = addedDiff(content)
 							trackerNoteWrite(resolveAgentPath(label))
 							result += lspDiagBlock(resolveAgentPath(label), caps)
 						}
@@ -1415,7 +1419,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						result = fileEdit(label, oldText, newText)
 						// Diff seulement si l'édition a réussi (sinon le fichier n'a pas bougé).
 						if !strings.HasPrefix(result, "[erreur]") {
-							diff = lineDiff(oldText, newText)
+							diff, diffAdd, diffDel = lineDiff(oldText, newText)
 							trackerNoteWrite(resolveAgentPath(label))
 							result += lspDiagBlock(resolveAgentPath(label), caps)
 						}
@@ -1520,7 +1524,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if tc.Function.Name == "web_screenshot" {
 					shot = capturedRelPath(result)
 				}
-				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Image: shot}, result, tc.ID)})
+				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot}, result, tc.ID)})
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)

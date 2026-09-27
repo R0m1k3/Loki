@@ -618,6 +618,8 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			// pour que le diff soit encore là après un rafraîchissement.
 			if len(ev.ToolUsed.Diff) > 0 {
 				tu["diff"] = ev.ToolUsed.Diff
+				tu["added"] = ev.ToolUsed.Added
+				tu["removed"] = ev.ToolUsed.Removed
 			}
 			if ev.ToolUsed.Image != "" {
 				tu["image"] = ev.ToolUsed.Image
