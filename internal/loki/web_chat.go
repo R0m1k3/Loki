@@ -119,6 +119,22 @@ func handleChatSend(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
+// handleToolResult renvoie le résultat COMPLET d'un outil dont le flux n'a
+// transporté qu'un aperçu (bouton « voir plus », voir tool_results.go).
+func handleToolResult(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.URL.Query().Get("id"))
+	if id == "" {
+		sendJSON(w, 400, map[string]any{"error": "id manquant"})
+		return
+	}
+	s, ok := loadToolResult(id)
+	if !ok {
+		sendJSON(w, 404, map[string]any{"error": "résultat non disponible"})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"result": s})
+}
+
 func handleChatStop(w http.ResponseWriter, r *http.Request) {
 	conv.Stop()
 	sendJSON(w, 200, map[string]any{"ok": true})

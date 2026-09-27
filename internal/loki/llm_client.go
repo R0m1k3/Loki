@@ -547,24 +547,46 @@ type ToolUsedEvent struct {
 	// pensait à recopier la ligne markdown rendue par l'outil : un petit modèle
 	// l'oublie, et l'utilisateur ne voyait jamais l'image qu'il avait demandée.
 	Image string
+	// ResultChars : taille RÉELLE du résultat (en runes), même quand Result n'en
+	// porte qu'un APERÇU. Sert au compteur « ~N tok » de la bulle.
+	ResultChars int
+	// ResultID : identifiant (voir saveToolResult) permettant à l'UI de CHARGER
+	// le résultat complet à la demande via /api/chat/tool-result — le flux ne
+	// transporte que l'aperçu. Vide = Result est déjà complet.
+	ResultID string
 }
 
-// shownDisplayMax borne ce qu'un résultat d'outil occupe dans le FLUX vers l'UI.
-// Aligné sur le plus haut plafond côté modèle (mcpMaxOutput = 12000 ; shell et
-// web = 8000) : le modèle et l'UI voient donc la même chose, et l'étiquette
-// « ~N tok » de la bulle dit la VRAIE taille du résultat.
-//
-// Avant, cette borne était à 4000 : toute page web un peu longue s'affichait
-// « ~1004 tok » — la valeur du plafond, pas celle de la page. Le compteur
-// mentait, et il mentait toujours avec le même chiffre.
-const shownDisplayMax = 12000
+// toolPreviewChars borne l'aperçu de résultat d'outil envoyé à l'UI (AJEAN
+// 0.15.1). Le flux — et son rejeu au rechargement — ne transporte plus que
+// ça ; le reste se charge au clic sur « voir plus » (tool_results.go).
+// Avant, chaque résultat partait en entier (jusqu'à 12 000 caractères), et un
+// long fil d'agent en rejouait des centaines à chaque ouverture.
+const toolPreviewChars = 1600
 
-// shownResult prépare un résultat d'outil pour l'affichage.
-func shownResult(s string) string {
-	if r := []rune(s); len(r) > shownDisplayMax {
-		return string(r[:shownDisplayMax]) + "\n…[tronqué]"
+// toolResultPreview renvoie (aperçu, taille réelle en runes, coupé?).
+func toolResultPreview(s string) (string, int, bool) {
+	r := []rune(s)
+	if len(r) <= toolPreviewChars {
+		return s, len(r), false
 	}
-	return s
+	return string(r[:toolPreviewChars]), len(r), true
+}
+
+// fillToolResult pose sur l'événement l'aperçu envoyé à l'UI, la taille réelle
+// et, si le résultat est coupé, l'id qui permet de charger le reste. Si
+// l'enregistrement échoue, on envoie le résultat entier (il reste borné par les
+// plafonds propres à chaque outil).
+func fillToolResult(ev *ToolUsedEvent, result string) *ToolUsedEvent {
+	prev, n, cut := toolResultPreview(result)
+	ev.ResultChars = n
+	ev.Result = result
+	if cut {
+		if id := saveToolResult(result); id != "" {
+			ev.Result = prev
+			ev.ResultID = id
+		}
+	}
+	return ev
 }
 
 // dedupableTool indique si un appel RIGOUREUSEMENT identique (même outil, mêmes
@@ -1386,7 +1408,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// tel quel au modèle, pour qu'il renvoie un appel complet.
 				if badArgs[tc.ID] {
 					result = "[erreur] arguments de l'appel illisibles (JSON invalide ou tronqué) : l'outil n'a PAS été exécuté. Renvoie l'appel avec des arguments JSON complets et valides."
-					cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: result, Done: true}})
+					cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true}, result)})
 					toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 					messages = append(messages, toolMsg)
 					extra = append(extra, toolMsg)
@@ -1396,7 +1418,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if prev, seen := doneCalls[callKey]; seen && dedupableTool(tc.Function.Name) {
 					repeatCount[callKey]++
 					result = repeatedCallResult(prev, repeatCount[callKey])
-					cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true}})
+					cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true}, result)})
 					toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 					messages = append(messages, toolMsg)
 					extra = append(extra, toolMsg)
@@ -1590,7 +1612,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				if tc.Function.Name == "web_screenshot" {
 					shot = capturedRelPath(result)
 				}
-				cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: shownResult(result), Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot}})
+				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot}, result)})
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)

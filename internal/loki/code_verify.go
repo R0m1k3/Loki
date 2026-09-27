@@ -160,6 +160,12 @@ func (c *Conversation) forwardStream(ev StreamEvent, epoch int) {
 		if ev.ToolUsed.Image != "" {
 			tu["image"] = ev.ToolUsed.Image
 		}
+		if ev.ToolUsed.ResultChars > 0 {
+			tu["result_chars"] = ev.ToolUsed.ResultChars
+		}
+		if ev.ToolUsed.ResultID != "" {
+			tu["result_id"] = ev.ToolUsed.ResultID
+		}
 		c.appendDelta(epoch, map[string]any{"tool_used": tu})
 	case ev.Ask != nil:
 		c.appendDelta(epoch, map[string]any{"ask": ev.Ask})

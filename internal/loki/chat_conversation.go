@@ -631,6 +631,13 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			if ev.ToolUsed.Image != "" {
 				tu["image"] = ev.ToolUsed.Image
 			}
+			// Aperçu seulement dans le flux : taille réelle + id pour « voir plus ».
+			if ev.ToolUsed.ResultChars > 0 {
+				tu["result_chars"] = ev.ToolUsed.ResultChars
+			}
+			if ev.ToolUsed.ResultID != "" {
+				tu["result_id"] = ev.ToolUsed.ResultID
+			}
 			c.appendDelta(epoch, map[string]any{"tool_used": tu})
 		case ev.NewHistory != nil:
 			// Compaction faite en cours de tour : elle remplace la base au lieu de

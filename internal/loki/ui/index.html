@@ -480,6 +480,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .diff-count .d{color:var(--del)}
 .msg.tool .tool-sub{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px}
 .msg.tool pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:3px;padding:8px 10px;overflow:auto;margin:0;max-height:280px}
+/* Résultat d'outil : « voir plus » + « copier » réunis dans une barre ancrée en
+   bas à droite. Le pre scrolle (max-height), donc la barre est portée par le
+   bloc-parent NON scrollant (.tool-block) : elle reste au coin. Déplié, le pre
+   lève son plafond pour montrer VRAIMENT plus (AJEAN 0.15.4). */
+.msg.tool .tool-block{position:relative}
+.msg.tool .tool-block .tool-actions{position:absolute;bottom:7px;right:7px;display:flex;gap:6px;align-items:center;z-index:1}
+.msg.tool .tool-actions .copybtn{position:static;bottom:auto;right:auto}
+.msg.tool .tool-actions .tool-more{margin:0;padding:3px 8px;font:inherit;font-size:11px;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:3px;opacity:.5;cursor:pointer;transition:opacity .15s,color .15s,border-color .15s}
+.msg.tool .tool-block:hover .tool-actions .tool-more,.msg.tool .tool-block:hover .tool-actions .copybtn{opacity:1}
+.msg.tool .tool-actions .tool-more:hover{border-color:var(--accent);color:var(--accent)}
+.msg.tool pre.expanded{max-height:none}
 .msg.tool pre code{background:transparent;padding:0;font-size:.82em;line-height:1.4;white-space:pre}
 .msg.tool .tool-caret{color:var(--accent);animation:toolblink 1s step-end infinite}
 .msg.tool .tool-wait{font-size:12px;color:var(--dim);margin-top:8px;animation:toolblink 1.2s ease-in-out infinite}
@@ -6667,7 +6678,8 @@ function renderToolMsg(el, tu){
   meta = meta || {lbl:'mémoire', head:'mémoire'};
   let lbl = meta.lbl;
   // Indication du volume de la réponse de l'outil (~tokens, estimation 1 tok ≈ 4 car).
-  if(tu.result){ lbl += '  ·  ~' + Math.max(1, Math.round(tu.result.length/4)) + ' tok'; }
+  // Taille RÉELLE (result_chars) : le flux ne porte plus qu'un aperçu.
+  if(tu.result){ const n = tu.result_chars || tu.result.length; lbl += '  ·  ~' + Math.max(1, Math.round(n/4)) + ' tok'; }
   setLabel(el, lbl);
   // Volume de l'écriture (final si le diff est là, provisoire pendant la frappe)
   // reporté sur l'étiquette, pour rester lisible bulle repliée.
@@ -6750,8 +6762,36 @@ function renderToolMsg(el, tu){
     const sub=document.createElement('div'); sub.className='tool-sub'; sub.textContent='réponse';
     body.appendChild(sub);
     const pre=document.createElement('pre');
-    const code=document.createElement('code'); code.textContent=tu.result;
-    pre.appendChild(code); body.appendChild(pre);
+    const code=document.createElement('code');
+    const preview=tu.result, rid=tu.result_id;
+    // result_id présent : le flux n'a envoyé qu'un aperçu (résultat coupé),
+    // « voir plus » CHARGE le reste à la demande (AJEAN 0.15.1 / 0.15.4).
+    if(rid){
+      code.textContent=preview+'…';
+      pre.appendChild(code);
+      const more=document.createElement('button');
+      more.className='tool-more'; more.type='button'; more.textContent='voir plus';
+      let full=null, open=false;
+      more.onclick=async(e)=>{ e.stopPropagation();
+        if(full===null){
+          // Un échec n'est PAS mémorisé : on prévient et on laisse réessayer.
+          more.disabled=true; const prevTxt=more.textContent; more.textContent='…';
+          let got=null;
+          try{ const r=await jfetch('/api/chat/tool-result?id='+encodeURIComponent(rid)); const j=await r.json(); if(r.ok && j && typeof j.result==='string') got=j.result; }
+          catch(_){}
+          more.disabled=false; more.textContent=prevTxt;
+          if(got===null){ toast('résultat complet indisponible'); return; }
+          full=got;
+        }
+        open=!open;
+        code.textContent = open ? full : preview+'…';
+        pre.classList.toggle('expanded', open);
+        more.textContent = open ? 'réduire' : 'voir plus';
+      };
+      body.appendChild(toolBlock(pre, more));
+    } else {
+      code.textContent=preview; pre.appendChild(code); body.appendChild(pre);
+    }
   } else if(!tu.done && !tu.typing){
     const wait=document.createElement('div'); wait.className='tool-wait'; wait.textContent='exécution en cours…';
     body.appendChild(wait);
@@ -6763,10 +6803,25 @@ function renderToolMsg(el, tu){
   const bw = el.querySelector('.bodywrap');
   if(bw){ bw.scrollTop = tu.done ? 0 : bw.scrollHeight; }
 }
+// Bloc d'un résultat d'outil : le pre scrolle (max-height), donc la barre
+// d'actions vit sur un bloc-parent NON scrollant, ancrée en bas à droite — elle
+// reste au coin même quand on scrolle dans le résultat. Elle réunit « voir
+// plus » (passé ici) et, ajouté ensuite par addCopyButtons, « copier ».
+function toolBlock(pre, more){
+  const block=document.createElement('div'); block.className='tool-block';
+  block.appendChild(pre);
+  const bar=document.createElement('div'); bar.className='tool-actions';
+  bar.appendChild(more);
+  block.appendChild(bar);
+  return block;
+}
 // Inject a "copier" button into every <pre> code block (idempotent).
 function addCopyButtons(root){
   root.querySelectorAll('pre').forEach(pre=>{
-    if(pre.querySelector('.copybtn')) return;
+    // Résultat d'outil : la barre d'actions est SŒUR du pre (pas dedans) ; on
+    // cherche donc le copier dans le bloc qui les réunit.
+    const scope = pre.closest('.tool-block') || pre;
+    if(scope.querySelector('.copybtn')) return;
     // Pas de bouton copier sur un diff : on copierait les préfixes + / - .
     if(pre.classList.contains('diff')) return;
     const btn=document.createElement('button');
@@ -6779,7 +6834,9 @@ function addCopyButtons(root){
       btn.textContent='copié ✓'; btn.classList.add('done');
       setTimeout(()=>{ btn.textContent='copier'; btn.classList.remove('done'); },1500);
     };
-    pre.appendChild(btn);
+    // Barre d'actions (résultat d'outil avec « voir plus ») : le copier s'y
+    // range à côté ; sinon il se colle en bas à droite du bloc.
+    (scope.querySelector('.tool-actions')||pre).appendChild(btn);
   });
 }
 // Vider la discussion POUR TOUS LES APPAREILS : le serveur vide le fil et

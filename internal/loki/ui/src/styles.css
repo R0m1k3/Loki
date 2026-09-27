@@ -445,6 +445,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .diff-count .d{color:var(--del)}
 .msg.tool .tool-sub{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px}
 .msg.tool pre{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:3px;padding:8px 10px;overflow:auto;margin:0;max-height:280px}
+/* Résultat d'outil : « voir plus » + « copier » réunis dans une barre ancrée en
+   bas à droite. Le pre scrolle (max-height), donc la barre est portée par le
+   bloc-parent NON scrollant (.tool-block) : elle reste au coin. Déplié, le pre
+   lève son plafond pour montrer VRAIMENT plus (AJEAN 0.15.4). */
+.msg.tool .tool-block{position:relative}
+.msg.tool .tool-block .tool-actions{position:absolute;bottom:7px;right:7px;display:flex;gap:6px;align-items:center;z-index:1}
+.msg.tool .tool-actions .copybtn{position:static;bottom:auto;right:auto}
+.msg.tool .tool-actions .tool-more{margin:0;padding:3px 8px;font:inherit;font-size:11px;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:3px;opacity:.5;cursor:pointer;transition:opacity .15s,color .15s,border-color .15s}
+.msg.tool .tool-block:hover .tool-actions .tool-more,.msg.tool .tool-block:hover .tool-actions .copybtn{opacity:1}
+.msg.tool .tool-actions .tool-more:hover{border-color:var(--accent);color:var(--accent)}
+.msg.tool pre.expanded{max-height:none}
 .msg.tool pre code{background:transparent;padding:0;font-size:.82em;line-height:1.4;white-space:pre}
 .msg.tool .tool-caret{color:var(--accent);animation:toolblink 1s step-end infinite}
 .msg.tool .tool-wait{font-size:12px;color:var(--dim);margin-top:8px;animation:toolblink 1.2s ease-in-out infinite}

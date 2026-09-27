@@ -318,6 +318,7 @@ func convDelete(id string) error {
 	// écrit — n'ont plus rien qui les référence : les garder occuperait le disque
 	// pour toujours, et plus aucun écran ne permettrait de les retrouver.
 	dropConvFiles(id)
+	deleteToolResultsFor(id) // ses résultats « voir plus » partent avec elle
 	if id != getStr(bkChat, ckActive) {
 		return nil
 	}

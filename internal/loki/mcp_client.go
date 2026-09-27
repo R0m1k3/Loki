@@ -48,9 +48,19 @@ const (
 	mcpConnectTimeoutCold = 3 * time.Minute
 	// mcpCallTimeout borne un appel d'outil MCP.
 	mcpCallTimeout = 120 * time.Second
-	// mcpMaxOutput cap la sortie renvoyée au modèle (cohérent avec toolMaxOutput).
-	mcpMaxOutput = 12000
 )
+
+// mcpOutputCap borne la sortie d'un outil MCP renvoyée au modèle. L'amont
+// (AJEAN 0.15.2) la transmet désormais EN ENTIER, comme une page mémoire : une
+// réponse MCP (un ticket, un document, une requête) coupée à 12 000 caractères
+// laissait le modèle travailler sur un début. On s'en rapproche sans renoncer
+// à tout garde-fou — sur 65k de contexte, une seule réponse géante noierait la
+// fenêtre et déclencherait un compactage en plein raisonnement : le plafond
+// suit la fenêtre, ~1 caractère par token de contexte, soit environ un quart
+// de celle-ci (≈4 caractères par token). Jamais sous l'ancien plafond.
+func mcpOutputCap() int {
+	return max(12000, ctxWindow())
+}
 
 // mcpSession est une connexion vivante à un serveur MCP.
 //
@@ -399,8 +409,8 @@ func mcpCallOnce(ref mcpToolRef, args map[string]any) (string, error) {
 		return "", err
 	}
 	out := flattenMCPContent(res)
-	if r := []rune(out); len(r) > mcpMaxOutput {
-		out = string(r[:mcpMaxOutput]) + "\n…[tronqué]"
+	if r, lim := []rune(out), mcpOutputCap(); len(r) > lim {
+		out = string(r[:lim]) + fmt.Sprintf("\n…[tronqué : %d caractères au total, %d gardés]", len(r), lim)
 	}
 	if res.IsError {
 		return "[l'outil a renvoyé une erreur]\n" + out, nil
