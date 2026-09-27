@@ -981,7 +981,10 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// Le prompt a peut-être dépassé la fenêtre de contexte : on tente une
 			// compaction en vol et on rejoue le tour (une seule fois) avant tout le
 			// reste. C'est le filet de secours à la Hermes.
-			if compactEnabled() && !compactedRetry {
+			// ⚠️ Seulement si l'erreur est VRAIMENT un débordement de contexte : avant,
+			// n'importe quel refus (appel d'outil mal formé, modèle en chargement,
+			// erreur de template…) résumait ~75 % de la conversation, même courte.
+			if compactEnabled() && !compactedRetry && contextOverflow(msg, messages) {
 				if c, changed := compactMessages(ctx, messages, caps); changed {
 					compactedRetry = true
 					// ⚠️ Journaliser AVANT d'installer le résultat : l'ancien ordre
@@ -1005,7 +1008,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// Nudge the model to answer in plain text from what it already
 				// gathered, so it doesn't immediately re-emit a tool call that
 				// llama.cpp would again fail to parse.
-				messages = steerSystem(messages, "N'appelle plus d'outil. Réponds maintenant directement en français à partir des informations déjà obtenues.")
+				messages = steerSystem(messages, "Do not call any more tools. Answer now, directly, in the user's language, using only the information already gathered.")
 				continue
 			}
 			// Dernier recours, APRÈS les filets sémantiques ci-dessus : un statut
@@ -1273,6 +1276,10 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			}
 			sort.Ints(idxs)
 			tcs := make([]ToolCall, 0, len(idxs))
+			// Appels dont les arguments sont du JSON CASSÉ (tronqué, mal formé) : on ne
+			// les exécute pas (voir plus bas). Des arguments vides restent valides :
+			// c'est la forme normale d'un outil sans paramètre.
+			badArgs := map[string]bool{}
 			for i, k := range idxs {
 				tc := *toolCalls[k]
 				if tc.ID == "" {
@@ -1287,6 +1294,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// en objet vide (l'appel a de toute façon déjà été exécuté). json.Valid("")
 				// étant faux, ça couvre aussi le cas vide d'origine.
 				if !json.Valid([]byte(tc.Function.Arguments)) {
+					if strings.TrimSpace(tc.Function.Arguments) != "" {
+						badArgs[tc.ID] = true
+					}
 					tc.Function.Arguments = "{}"
 				}
 				tcs = append(tcs, tc)
@@ -1326,6 +1336,17 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// rejoue pas. Les petits modèles réémettent volontiers deux fois la
 				// même écriture ; la rejouer produisait une fausse erreur (« old
 				// introuvable », puisque le remplacement est déjà fait).
+				// Arguments illisibles : l'exécuter avec des arguments vides donnait une
+				// erreur trompeuse (« fichier manquant », « commande vide »). On le dit
+				// tel quel au modèle, pour qu'il renvoie un appel complet.
+				if badArgs[tc.ID] {
+					result = "[erreur] arguments de l'appel illisibles (JSON invalide ou tronqué) : l'outil n'a PAS été exécuté. Renvoie l'appel avec des arguments JSON complets et valides."
+					cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: tc.Function.Name, Label: label, Result: result, Done: true}})
+					toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
+					messages = append(messages, toolMsg)
+					extra = append(extra, toolMsg)
+					continue
+				}
 				callKey := tc.Function.Name + "\x00" + tc.Function.Arguments
 				if prev, seen := doneCalls[callKey]; seen && dedupableTool(tc.Function.Name) {
 					repeatCount[callKey]++

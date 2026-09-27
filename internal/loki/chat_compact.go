@@ -649,3 +649,20 @@ Write the summary in the SAME language as the conversation.`
 	}
 	return c, nil
 }
+
+// contextOverflow : le refus du moteur (corps d'erreur msg) signale-t-il un
+// débordement de la fenêtre de contexte ? Reconnaît les libellés de llama.cpp
+// (« exceeds the available context size », exceed_context_size_error) et des API
+// OpenAI-compatibles (context_length_exceeded, « maximum context length »). À
+// défaut de libellé reconnu, on se fie à la taille estimée : une conversation
+// déjà à 90 % de la fenêtre a toutes les chances d'être la cause.
+func contextOverflow(msg string, msgs []Message) bool {
+	m := strings.ToLower(msg)
+	for _, k := range []string{"context size", "context_size", "context length", "context_length",
+		"context window", "n_ctx", "too many tokens", "prompt is too long", "exceeds the context"} {
+		if strings.Contains(m, k) {
+			return true
+		}
+	}
+	return estimateTokens(msgs) >= int(float64(ctxWindow())*0.9)
+}
