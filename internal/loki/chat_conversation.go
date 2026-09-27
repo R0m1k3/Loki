@@ -195,6 +195,9 @@ func reloadEncryptedStores() {
 // du premier message, date, nombre d'échanges). L'appelant NE doit PAS détenir mu.
 func (c *Conversation) persist() {
 	c.mu.Lock()
+	// Images en base64 → références (chat_images.go) avant d'écrire : une photo
+	// jointe pesait des Mo, réécrits en entier à CHAQUE fin de tour.
+	refImagesInMessages(c.Messages)
 	b, err := json.Marshal(c)
 	title := convSummary(c.Messages)
 	turns := 0
