@@ -5,7 +5,10 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 )
 
@@ -44,6 +47,10 @@ func requireWebAuth(next http.HandlerFunc) http.HandlerFunc {
 			// On ne sait pas si une clé protège cette API : on ferme.
 			sendJSON(w, http.StatusServiceUnavailable,
 				map[string]any{"error": "configuration illisible — réessaie dans un instant"})
+			return
+		}
+		if msg := crossSiteReject(r, key != ""); msg != "" {
+			sendJSON(w, http.StatusForbidden, map[string]any{"error": msg})
 			return
 		}
 		if key == "" {
@@ -165,4 +172,72 @@ func cmdSetWebKey(args []string) error {
 	fmt.Printf("       les clients doivent envoyer : %s\n", dim("Authorization: Bearer "+key))
 	fmt.Printf("       (relance 'loki web' si le serveur web tourne déjà — non requis, lu à chaud)\n")
 	return nil
+}
+
+// crossSiteReject refuse les requêtes qu'un SITE TIERS ouvert dans le navigateur
+// (de la machine ou du réseau local) ferait en douce vers l'API. Sans clé (le
+// défaut), l'API est ouverte : une page malveillante pouvait envoyer un POST
+// « simple » (text/plain, sans pré-vérification CORS) à <serveur>:8090 et
+// piloter Loki, jusqu'à faire exécuter des commandes à l'agent. Renvoie "" si
+// la requête est acceptable, sinon la raison du refus. Repris d'AJEAN 0.15.5.
+//
+//   - Sec-Fetch-Site: cross-site → refus (navigateurs récents, couvre aussi les
+//     GET déclenchés par une balise <img>/<form>).
+//   - Origin présent et différent de l'hôte appelé → refus (tous les navigateurs
+//     envoient Origin sur un POST cross-origin). Les clients hors navigateur
+//     (scripts, curl, apps) n'envoient pas d'Origin : non concernés.
+//   - Sans clé seulement : l'hôte appelé doit être local (IP, localhost, nom de
+//     la machine, nom sans point, .local/.lan…) ou listé dans
+//     LOKI_TRUSTED_HOSTS. Bloque le « DNS rebinding », où un domaine malveillant
+//     se fait résoudre en IP locale pour paraître même-origine. Avec une clé,
+//     inutile : le navigateur n'envoie jamais le Bearer tout seul. Le trafic du
+//     tunnel (authentifié par le relais) est lui aussi dispensé de ce contrôle.
+func crossSiteReject(r *http.Request, keyed bool) string {
+	if strings.EqualFold(r.Header.Get("Sec-Fetch-Site"), "cross-site") {
+		return "requête d'un site tiers refusée"
+	}
+	if o := r.Header.Get("Origin"); o != "" && o != "null" {
+		u, err := url.Parse(o)
+		if err != nil || !strings.EqualFold(u.Host, r.Host) {
+			return "origine non autorisée : " + o
+		}
+	} else if o == "null" {
+		return "origine non autorisée"
+	}
+	if !keyed && r.Header.Get(viaTunnelHeader) != "tunnel" && !localHostName(r.Host) {
+		return "hôte « " + r.Host + " » non autorisé sans clé de pilotage — définis-en une (loki set-web-key) ou ajoute ce nom à LOKI_TRUSTED_HOSTS"
+	}
+	return ""
+}
+
+// localHostName : l'hôte désigne-t-il la machine ou le réseau local (et non un
+// domaine public, seul utilisable pour un DNS rebinding) ?
+func localHostName(hostport string) bool {
+	h := hostport
+	if hh, _, err := net.SplitHostPort(hostport); err == nil {
+		h = hh
+	}
+	h = strings.ToLower(strings.Trim(h, "[]."))
+	if h == "" || net.ParseIP(h) != nil || !strings.Contains(h, ".") {
+		return true
+	}
+	for _, suf := range []string{".localhost", ".local", ".lan", ".home", ".internal", ".home.arpa", ".localdomain"} {
+		if strings.HasSuffix(h, suf) {
+			return true
+		}
+	}
+	if me, err := os.Hostname(); err == nil && me != "" {
+		me = strings.ToLower(me)
+		if h == me || strings.HasPrefix(h, me+".") {
+			return true
+		}
+	}
+	// Échappatoire du conteneur : derrière un reverse proxy (loki.mondomaine.fr),
+	// le nom public n'est ni local ni celui du conteneur.
+	for _, t := range strings.Split(os.Getenv("LOKI_TRUSTED_HOSTS"), ",") {
+		if t = strings.ToLower(strings.TrimSpace(t)); t != "" && h == t {
+			return true
+		}
+	}
+	return false
 }

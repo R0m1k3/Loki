@@ -124,6 +124,15 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint (repli : le jeton réglé dans l'UI prime) | — |
 | `LOKI_CHROME` | binaire du navigateur piloté (contrôle du navigateur) ; par défaut le Chromium de Playwright de l'image | — |
 | `LOKI_CU_HEADFUL` | `1` : ouvre une vraie fenêtre au lieu du mode headless (machine avec écran) | — |
+| `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** clé de pilotage (reverse proxy), séparés par des virgules | — |
+
+**Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
+hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse
+toute requête venue d'un autre site : une page web ouverte dans un navigateur
+du réseau ne peut plus piloter Loki en douce (ni par DNS rebinding). Derrière
+un reverse proxy (`loki.mondomaine.fr`), définir une clé
+(`docker exec -it loki loki set-web-key`) ou lister le nom dans
+`LOKI_TRUSTED_HOSTS`.
 
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `test`…).
