@@ -19,6 +19,12 @@ let CONVS = [], CONV_ACTIVE = '';
 // ligne doit déjà s'animer si un agent travaille (page rechargée en cours de
 // route, ou ouverte depuis un autre appareil).
 let CONV_BUSY = false;
+// Liste paginée (AJEAN 0.15.6) : avec des centaines de discussions, construire
+// toutes les lignes d'un coup figeait l'ouverture du panneau. On en dessine
+// CONV_PAGE, puis la suite quand le bas de la liste devient visible. La
+// recherche, elle, filtre toujours TOUTE la liste (CONVS est en mémoire).
+const CONV_PAGE = 40;
+let CONV_SHOWN = CONV_PAGE, CONV_LAST_Q = '', convMoreObs = null;
 
 async function loadConversations(){
   let r;
@@ -41,6 +47,7 @@ function renderConversations(){
   if(!cont) return;
   const q = (document.getElementById('conv-search')?.value || '').trim().toLowerCase();
   cont.textContent = '';
+  if(q !== CONV_LAST_Q){ CONV_LAST_Q = q; CONV_SHOWN = CONV_PAGE; }
   const list = q
     ? CONVS.filter(c => (c.title || 'Nouvelle discussion').toLowerCase().includes(q))
     : CONVS;
@@ -53,7 +60,10 @@ function renderConversations(){
     convSyncBusy();
     return;
   }
-  for(const c of list){
+  // La discussion active reste toujours visible, même loin dans la liste.
+  const ai = list.findIndex(c => c.id === CONV_ACTIVE);
+  const shown = Math.max(CONV_SHOWN, ai + 1);
+  for(const c of list.slice(0, shown)){
     const row = document.createElement('div');
     row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '');
     // L'identifiant est porté par la ligne : convSyncBusy retrouve ainsi CELLE
@@ -91,8 +101,26 @@ function renderConversations(){
     row.append(info, when, acts);
     cont.appendChild(row);
   }
+  if(list.length > shown) convMoreRow(cont, list.length - shown);
   syncTopbarTitle();
   convSyncBusy();
+}
+
+// Ligne « N de plus » en bas de la liste : un clic, ou son arrivée à l'écran
+// (IntersectionObserver), dessine la page suivante.
+function convMoreRow(cont, left){
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'conv-more';
+  more.textContent = 'afficher ' + Math.min(left, CONV_PAGE) + ' de plus (' + left + ' restantes)';
+  const next = () => { CONV_SHOWN += CONV_PAGE; renderConversations(); };
+  more.onclick = next;
+  cont.appendChild(more);
+  if(convMoreObs) convMoreObs.disconnect();
+  if(window.IntersectionObserver){
+    convMoreObs = new IntersectionObserver(es => { if(es.some(e => e.isIntersecting)){ convMoreObs.disconnect(); next(); } });
+    convMoreObs.observe(more);
+  }
 }
 
 // --- Discussion au travail : anneau qui tourne ------------------------------
