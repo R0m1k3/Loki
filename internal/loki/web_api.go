@@ -399,7 +399,8 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for _, p := range list {
 		item := map[string]any{"id": p.ID, "name": p.Name, "active": p.Active}
-		if content, err := ReadPreset(p.ID); err == nil {
+		content, _ := ReadPreset(p.ID)
+		if content != "" {
 			// Preset externe : ni quant, ni raisonnement local à annoncer — on
 			// l'étiquette et on donne le nom du modèle distant à afficher.
 			if cfg := parseEnv(content); isExternalConfig(cfg) {
@@ -417,7 +418,7 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 				item["reasoning"] = strings.ToLower(r)
 			}
 		}
-		if sb, ok := store[p.ID]; ok {
+		if sb, ok := store[p.ID]; ok && benchMatchesPreset(sb, parseEnv(content)) {
 			item["bench"] = map[string]any{
 				"prefill": sb.Result.PromptPerSecond,
 				"decode":  sb.Result.PredictedPerSec,

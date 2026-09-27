@@ -158,6 +158,24 @@ func loadLastBench() *savedBench {
 	return &sb
 }
 
+// benchMatchesPreset : le bench a-t-il été mesuré sur le modèle ACTUEL du
+// preset ? Les benchs sont rangés par id de preset : sans ce contrôle, un
+// preset dont le modèle a changé affichait les mesures d'un autre modèle.
+// Repris d'AJEAN 0.16.3.
+func benchMatchesPreset(sb savedBench, cfg map[string]string) bool {
+	m := strings.TrimSpace(cfg["MODEL"])
+	return m != "" && sb.Model == filepath.Base(m)
+}
+
+// deletePresetBench oublie le bench d'un preset supprimé.
+func deletePresetBench(id string) {
+	m := loadBenchStore()
+	if _, ok := m[id]; ok {
+		delete(m, id)
+		_ = putJSON(bkState, "bench_presets", m)
+	}
+}
+
 // loadBenchStore renvoie les benchmarks par preset (vide s'il n'y en a pas).
 func loadBenchStore() map[string]savedBench {
 	m := map[string]savedBench{}

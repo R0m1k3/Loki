@@ -432,6 +432,9 @@ func DeletePreset(id string) error {
 	// sans ce ménage, il resterait orphelin et ressusciterait sur un preset recréé
 	// sous le même id.
 	_ = putStr(bkState, sysPromptKeyPrefix+id, "")
+	// Même ménage pour son benchmark : un preset recréé sous cet id en
+	// hériterait, alors qu'il a été mesuré sur un autre modèle.
+	deletePresetBench(id)
 	return nil
 }
 
