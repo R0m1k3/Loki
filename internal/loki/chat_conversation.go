@@ -574,9 +574,17 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Contexte du projet actif (description, index mémoire, index des trackers),
 	// même traitement : injecté dans la vue envoyée, jamais persisté — voir
 	// projectSystemMessages.
-	final := append(projectSystemMessages(), msgs...)
-	if sp := readSysPrompt(); sp != "" {
-		final = append([]Message{{Role: "system", Content: sp}}, final...)
+	//
+	// Mode agent OFF = modèle BRUT (AJEAN 0.13.13) : ni l'un ni l'autre. Sans
+	// agent, on veut parler au modèle nu, comme à un llama-server direct. Le
+	// prompt du preset et l'index mémoire décrivent des outils que ce mode n'a
+	// pas : le modèle se mettait à écrire des <tool_call> en clair.
+	final := msgs
+	if caps.Agent {
+		final = append(projectSystemMessages(), msgs...)
+		if sp := readSysPrompt(); sp != "" {
+			final = append([]Message{{Role: "system", Content: sp}}, final...)
+		}
 	}
 
 	// newBase : vue modèle publiée par une compaction survenue PENDANT le tour.
