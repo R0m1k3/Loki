@@ -244,7 +244,10 @@ func InjectSkills(msgs []Message, caps Caps) []Message {
 		return msgs
 	}
 	prefix := strings.Join(parts, "\n\n")
-	if len(msgs) > 0 && msgs[0].Role == "system" {
+	// Un message PROJET en tête (pas de prompt de preset) ne doit pas absorber le
+	// préambule : il perdrait son préfixe, et normalizeSystemMessages ne saurait
+	// plus le sortir du bloc système commun (voir isProjectSystem).
+	if len(msgs) > 0 && msgs[0].Role == "system" && !isProjectSystem(msgs[0]) {
 		existing, _ := msgs[0].Content.(string)
 		merged := append([]Message{{Role: "system", Content: prefix + "\n\n" + existing}}, msgs[1:]...)
 		return merged
@@ -287,15 +290,29 @@ func steerSystem(msgs []Message, hint string) []Message {
 // n'importe où n'est pas gêné de le recevoir en tête — la normalisation est donc
 // sans risque pour tous, et sans effet sur une conversation déjà normale (payload
 // identique, garanti par test).
+//
+// Ce qui dépend du PROJET (description, index mémoire, trackers) ne va PAS dans
+// ce bloc mais en tête du premier message utilisateur (AJEAN 0.15.8). Sur un
+// modèle hybride (Qwen3.5+, couches récurrentes), llama.cpp ne sait reprendre un
+// prompt qu'à un point de sauvegarde, et il n'en pose qu'au DÉBUT des messages
+// utilisateur. Laissé dans le système, le contexte projet faisait diverger le
+// prompt au milieu du bloc : changer de projet recalculait tout. Au début du 1er
+// message user, la divergence tombe pile sur un point de sauvegarde, après le
+// système commun, qui reste en cache.
 func normalizeSystemMessages(msgs []Message) []Message {
-	var sys []string
+	var sys, proj []string
 	sawSystem := false
 	rest := make([]Message, 0, len(msgs))
 	for _, m := range msgs {
 		if m.Role == "system" {
 			if s, ok := m.Content.(string); ok {
 				sawSystem = true
-				if strings.TrimSpace(s) != "" {
+				if strings.TrimSpace(s) == "" {
+					continue
+				}
+				if isProjectSystem(m) {
+					proj = append(proj, s)
+				} else {
 					sys = append(sys, s)
 				}
 				continue
@@ -310,6 +327,12 @@ func normalizeSystemMessages(msgs []Message) []Message {
 	if !sawSystem {
 		return msgs
 	}
+	if len(proj) > 0 {
+		if !prependToFirstUser(rest, strings.Join(proj, "\n\n")) {
+			// Pas encore de message user (cas théorique) : on les garde en système.
+			sys = append(sys, proj...)
+		}
+	}
 	// Des systèmes existaient mais tous vides : on les a retirés (un système vide
 	// hors position 0 casserait tout autant), sans en réinsérer.
 	if len(sys) == 0 {
@@ -318,6 +341,44 @@ func normalizeSystemMessages(msgs []Message) []Message {
 	out := make([]Message, 0, len(rest)+1)
 	out = append(out, Message{Role: "system", Content: strings.Join(sys, "\n\n")})
 	return append(out, rest...)
+}
+
+// isProjectSystem : message système propre au projet actif (description, index
+// mémoire, trackers), à sortir du bloc système commun (voir
+// normalizeSystemMessages).
+func isProjectSystem(m Message) bool {
+	s, ok := m.Content.(string)
+	if !ok || m.Role != "system" {
+		return false
+	}
+	return strings.HasPrefix(s, projectContextPrefix) ||
+		strings.HasPrefix(s, memIndexPrefix) ||
+		strings.HasPrefix(s, trackerIndexPrefix)
+}
+
+// prependToFirstUser place ctx en tête du premier message user de msgs (modifié
+// en place : msgs est déjà une copie, mais ses Content ne sont PAS recopiés —
+// on remplace donc la valeur, jamais on ne mute une tranche partagée).
+// Renvoie false s'il n'y a aucun message user.
+func prependToFirstUser(msgs []Message, ctx string) bool {
+	block := "<project_context>\n" + ctx + "\n</project_context>\n\n"
+	for i, m := range msgs {
+		if m.Role != "user" {
+			continue
+		}
+		switch c := m.Content.(type) {
+		case string:
+			msgs[i].Content = block + c
+		case []any:
+			msgs[i].Content = append([]any{map[string]any{"type": "text", "text": block}}, c...)
+		case []map[string]any:
+			msgs[i].Content = append([]map[string]any{{"type": "text", "text": block}}, c...)
+		default:
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 // EnabledTools returns the tools to advertise on the next inference call.
