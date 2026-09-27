@@ -89,7 +89,9 @@ func cmdWeb(args []string) error {
 	// restent ouverts aussi longtemps que l'utilisateur regarde la page — et
 	// depuis mountOAI, il couperait aussi les complétions en streaming des
 	// clients tiers, en plein milieu d'une génération.
-	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	// gzipHandler : l'UI (~590 Ko) et les gros JSON partent compressés ; les flux
+	// SSE et les binaires passent tels quels (voir web_gzip.go).
+	srv := &http.Server{Handler: gzipHandler(mux), ReadHeaderTimeout: 10 * time.Second}
 	return srv.Serve(ln)
 }
 
