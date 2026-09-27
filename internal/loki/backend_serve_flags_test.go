@@ -1,8 +1,10 @@
 package loki
 
 import (
+	"net"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestHasAnyFlag(t *testing.T) {
@@ -89,5 +91,34 @@ func TestNGLArgs(t *testing.T) {
 				t.Fatalf("note = %q, en voulait-on une ? %v", note, c.wantNote)
 			}
 		})
+	}
+}
+
+func TestArgValueEtPortLibre(t *testing.T) {
+	if got := argValue([]string{"--port", "8080", "-c", "1", "--port", "9000"}, "--port"); got != "9000" {
+		t.Fatalf("la dernière occurrence doit gagner, got %q", got)
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+	if waitPortFree("0.0.0.0", port, 600*time.Millisecond) == nil {
+		t.Fatal("un port occupé doit être refusé")
+	}
+	ln.Close()
+	if err := waitPortFree("0.0.0.0", port, time.Second); err != nil {
+		t.Fatalf("un port libre doit passer : %v", err)
+	}
+}
+
+func TestSlowKV(t *testing.T) {
+	for _, c := range []struct {
+		k, v string
+		lent bool
+	}{{"", "", false}, {"q8_0", "q8_0", false}, {"q4_0", "q4_0", false}, {"q8_0", "q4_0", true}, {"q5_1", "q5_1", true}} {
+		if slowKV(c.k, c.v) != c.lent {
+			t.Errorf("%s/%s : lent attendu %v", c.k, c.v, c.lent)
+		}
 	}
 }

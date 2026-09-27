@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -370,10 +371,84 @@ func cmdServe(args []string) error {
 	// mmproj-F16.gguf) still resolve.
 	_ = os.Chdir(LokiHome())
 
+	// Port déjà pris (souvent un llama-server orphelin qu'un stop n'a pas pu
+	// tuer) : deux moteurs sur un même port se partagent les requêtes au hasard,
+	// VRAM saturée et réponses du mauvais modèle. On refuse en clair.
+	host, port := argValue(llmArgs, "--host"), argValue(llmArgs, "--port")
+	if err := waitPortFree(host, port, 5*time.Second); err != nil {
+		return err
+	}
+	warnSlowKV(ktv, vtv)
+
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
-		bin, filepath.Base(model), get("PORT", "8080"))
+		bin, filepath.Base(model), port)
 
 	// Hand off to the llama-server process. On Unix this replaces the current
 	// process (exec); on Windows it runs as a child and waits. See sys_platform_*.go.
 	return execServer(bin, llmArgs)
+}
+
+// argValue renvoie la valeur de la DERNIÈRE occurrence de flag (llama-server
+// retient la dernière : EXTRA_ARGS peut surcharger --port).
+func argValue(args []string, flag string) string {
+	v := ""
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag {
+			v = args[i+1]
+		}
+	}
+	return v
+}
+
+// waitPortFree vérifie que personne n'écoute déjà sur host:port. On tente une
+// connexion TCP (fiable même si l'occupant a bindé en SO_REUSEADDR, où un
+// Listen de test pourrait réussir). Un moteur qu'on vient d'arrêter peut tenir
+// le port quelques instants : on réessaie jusqu'à wait avant de conclure.
+// Repris d'AJEAN 0.15.9.
+func waitPortFree(host, port string, wait time.Duration) error {
+	if port == "" {
+		return nil
+	}
+	h := strings.Trim(host, "[]")
+	if h == "" || h == "0.0.0.0" || h == "::" {
+		h = "127.0.0.1"
+	}
+	addr := net.JoinHostPort(h, port)
+	deadline := time.Now().Add(wait)
+	for {
+		c, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
+		if err != nil {
+			return nil
+		}
+		c.Close()
+		if time.Now().After(deadline) {
+			return fmt.Errorf("le port %s est déjà utilisé (sans doute un ancien llama-server encore actif) : "+
+				"« loki stop », docker restart loki, ou change PORT", port)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// fastKV : combinaisons K/V que llama.cpp CUDA accélère en Flash-Attention
+// avec ses options de compilation par défaut (GGML_CUDA_FA_ALL_QUANTS=OFF) —
+// c'est le cas du moteur de l'image server-cuda comme de ceux tirés par OCI.
+// Les autres (q5_*, q4_1, combinaisons mixtes) marchent mais sont reconverties
+// en f16 à chaque pas : la génération ralentit nettement (AJEAN 0.15.9).
+var fastKV = map[string]bool{"f16|f16": true, "q8_0|q8_0": true, "q4_0|q4_0": true, "bf16|bf16": true}
+
+func slowKV(k, v string) bool {
+	if k == "" {
+		k = "f16"
+	}
+	if v == "" {
+		v = "f16"
+	}
+	return !fastKV[k+"|"+v]
+}
+
+func warnSlowKV(k, v string) {
+	if slowKV(k, v) {
+		fmt.Fprintf(os.Stderr, "[loki serve] avertissement : cache KV %s/%s non accéléré par llama.cpp CUDA "+
+			"(converti en f16 à chaque pas, lent). Préfère q8_0/q8_0, q4_0/q4_0 ou f16.\n", k, v)
+	}
 }
