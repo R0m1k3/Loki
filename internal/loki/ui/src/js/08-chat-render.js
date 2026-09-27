@@ -35,15 +35,32 @@ addEventListener('DOMContentLoaded', ()=>{
   if(c && window.ResizeObserver) new ResizeObserver(syncComposer).observe(c);
 });
 
+// iOS ANNULE un appui si la position de défilement change pendant qu'il a lieu.
+// Le fil se recalant en bas à chaque token pendant la génération, presque chaque
+// tap tombait dessus : plus rien ne répondait (pas même stop) jusqu'à la fin de
+// la réponse. On suspend donc le suivi le temps du contact, et on rattrape juste
+// après (TOUCH_GRACE). Repris d'AJEAN 0.15.7.
+let TOUCHING = false, _touchEnd = 0;
+const TOUCH_GRACE = 350;
+(function(){
+  const on = ()=>{ TOUCHING = true; };
+  const off = ()=>{ TOUCHING = false; _touchEnd = performance.now(); if(stickyBottom) setTimeout(()=>scrollMaybe(), TOUCH_GRACE + 20); };
+  document.addEventListener('touchstart', on, {passive:true, capture:true});
+  document.addEventListener('touchend', off, {passive:true, capture:true});
+  document.addEventListener('touchcancel', off, {passive:true, capture:true});
+})();
 function scrollMaybe(){
   // Pendant le replay initial on NE force AUCUN reflow : lire scrollHeight à chaque
   // événement rejoué = un layout synchrone forcé sur un DOM qui grossit → coût
   // quadratique (20-30 s de rendu au refresh sur un long fil). Le scroll est fait
   // une seule fois à la fin du replay, via jumpBottom() au signal {caught_up}.
   if(REPLAYING) return;
-  if(stickyBottom){
+  if(stickyBottom && !TOUCHING && performance.now() - _touchEnd >= TOUCH_GRACE){
     const c = chatEl();
-    c.scrollTop = c.scrollHeight;
+    const target = c.scrollHeight - c.clientHeight;
+    // N'écrire que si l'on n'y est pas déjà : sinon on relance pour rien la
+    // machinerie de défilement d'iOS, qui continue de voler les taps.
+    if(Math.abs(c.scrollTop - target) > 1) c.scrollTop = c.scrollHeight;
   }
   document.getElementById('scrollbtn').classList.toggle('show', !stickyBottom);
 }

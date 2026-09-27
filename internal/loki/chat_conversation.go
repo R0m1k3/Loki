@@ -967,11 +967,76 @@ func coalesceReplay(events []LogEvent, from int) []map[string]any {
 	return out
 }
 
-// Subscribe diffuse les événements au client via emit : d'abord un REPLAY coalescé
+// historyTailDefault : échanges rejoués à l'ouverture d'une session (reset) pour
+// un client qui gère la pagination de l'historique.
+const historyTailDefault = 20
+
+// historyCut calcule où couper le rejeu pour ne garder que les `tail` derniers
+// échanges (un échange commence à un événement `user`). Renvoie le Seq à partir
+// duquel rejouer (exclu) et le nombre d'échanges masqués ; (0, 0) = tout
+// rejouer. Repris d'AJEAN 0.15.7.
+func historyCut(log []LogEvent, tail int) (int, int) {
+	if tail <= 0 {
+		return 0, 0
+	}
+	seen := 0
+	for i := len(log) - 1; i >= 0; i-- {
+		if _, ok := log[i].Delta["user"]; !ok {
+			continue
+		}
+		seen++
+		if seen == tail {
+			hidden := 0
+			for _, ev := range log[:i] {
+				if _, ok := ev.Delta["user"]; ok {
+					hidden++
+				}
+			}
+			if hidden == 0 {
+				return 0, 0
+			}
+			return log[i].Seq - 1, hidden
+		}
+	}
+	return 0, 0
+}
+
+// historyHead : événements qui annoncent un historique tronqué. Les états que
+// les échanges masqués avaient posés et que le client garde (mode Chat/Code,
+// critères du mode Code) sont réémis tels qu'ils étaient à la coupe — sans eux,
+// une discussion en mode Code rouverte s'afficherait en mode Chat.
+func historyHead(log []LogEvent, cut, hidden int) []map[string]any {
+	out := []map[string]any{{"history_more": hidden}}
+	var mode, crit map[string]any
+	for _, ev := range log {
+		if ev.Seq > cut {
+			break
+		}
+		if _, ok := ev.Delta["mode"]; ok {
+			mode = ev.Delta
+		}
+		if _, ok := ev.Delta["criteria"]; ok {
+			crit = ev.Delta
+		}
+	}
+	for _, d := range []map[string]any{mode, crit} {
+		if d != nil {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// Subscribe : abonnement sans pagination (rejeu complet).
+func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[string]any) bool) {
+	c.SubscribeTail(ctx, from, -1, emit)
+}
+
+// SubscribeTail diffuse les événements au client via emit : d'abord un REPLAY coalescé
 // de Log[from:] (léger), puis un caught_up, puis le DIRECT événement par événement.
 // Bloque jusqu'à ce que ctx (la connexion HTTP) soit annulé — la génération, elle,
 // continue indépendamment. emit renvoie false si l'écriture échoue (client parti).
-func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[string]any) bool) {
+func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, emit func(map[string]any) bool) {
 	// Réveille les attentes de cond quand la connexion se ferme.
 	go func() {
 		<-ctx.Done()
@@ -1005,6 +1070,20 @@ func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[st
 	// l'est, son curseur vient d'une autre session → on repart du début.
 	if n := len(snapshot); n > 0 && from > snapshot[n-1].Seq {
 		from = 0
+	}
+	// Chargement initial d'un client paginé : on ne rejoue que la fin du fil,
+	// précédée de {history_more: N}. Sur un long fil d'agent, tout rejouer
+	// envoyait des Mo et bâtissait des milliers de bulles avant d'afficher quoi
+	// que ce soit.
+	if from == 0 && tail > 0 {
+		if cut, hidden := historyCut(snapshot, tail); hidden > 0 {
+			from = cut
+			for _, ev := range historyHead(snapshot, cut, hidden) {
+				if !emit(ev) {
+					return
+				}
+			}
+		}
 	}
 	last := from
 	for _, ev := range coalesceReplay(snapshot, from) {
@@ -1051,9 +1130,25 @@ func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[st
 		if c.epoch != epoch { // reset → on ordonne au client de nettoyer et on repart
 			epoch = c.epoch
 			last = 0
+			// Session ouverte (fil complet qui suit) chez un client paginé : on
+			// saute directement aux derniers échanges.
+			var head []map[string]any
+			if tail >= 0 {
+				if cut, hidden := historyCut(c.Log, historyTailDefault); hidden > 0 {
+					last = cut
+					// ctx_used vit dans le journal des échanges masqués : on le
+					// donne tel qu'il est maintenant, sinon la jauge resterait à 0.
+					head = append(historyHead(c.Log, cut, hidden), map[string]any{"ctx_used": c.CtxUsed})
+				}
+			}
 			c.mu.Unlock()
 			if !emit(map[string]any{"reset": true}) {
 				return
+			}
+			for _, ev := range head {
+				if !emit(ev) {
+					return
+				}
 			}
 			c.mu.Lock()
 			continue

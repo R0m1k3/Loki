@@ -4,6 +4,13 @@
 // suit le direct. Fermer l'onglet n'arrête plus la génération (détachée côté
 // serveur) ; se reconnecter rejoue tout le fil, détails compris.
 let lastSeq=0, streamAbort=null;
+// Historique paginé (AJEAN 0.15.7) : au chargement, le serveur ne rejoue que les
+// HIST_TAIL derniers échanges et annonce le reste ({history_more: N}). Le bouton
+// en haut du fil redemande alors un rejeu complet (HIST_FULL) en gardant la
+// position de lecture (HIST_RESTORE = distance au bas du fil, réappliquée au
+// caught_up).
+const HIST_TAIL=20;
+let HIST_FULL=false, HIST_RESTORE=null;
 // Bulle « en attente » : affichée EN GRIS dès l'appui sur envoyer, avant tout
 // aller-retour réseau. Le message ne disparaît donc plus de l'écran entre la
 // frappe et la réponse du serveur. Elle s'éclaircit (classe retirée) quand
@@ -416,7 +423,15 @@ function handleDelta(d){
     // Fin du replay initial : on saute en bas puis on révèle (une seule fois — pas
     // sur les reconnexions, pour ne pas te ramener en bas si tu lisais plus haut).
     setChatLoading(null);
-    if(REPLAYING){ REPLAYING=false; jumpBottom(); syncSendBtn(); const c=chatEl(); c.style.transition='opacity .15s'; c.style.opacity='1'; }
+    if(REPLAYING && HIST_RESTORE!==null){
+      // Historique complet demandé : on garde la position de lecture (distance au
+      // bas du fil) au lieu de sauter en bas, et on la recale une fois la mise en
+      // page stabilisée (le rejeu pose ses blocs de façon différée).
+      REPLAYING=false; syncSendBtn(); const c=chatEl(); c.style.transition='opacity .15s'; c.style.opacity='1';
+      const keep=HIST_RESTORE; HIST_RESTORE=null; stickyBottom=false;
+      const put=()=>{ c.scrollTop=Math.max(0, c.scrollHeight-keep); };
+      put(); requestAnimationFrame(()=>requestAnimationFrame(put)); setTimeout(put, 80); setTimeout(put, 250);
+    } else if(REPLAYING){ REPLAYING=false; jumpBottom(); syncSendBtn(); const c=chatEl(); c.style.transition='opacity .15s'; c.style.opacity='1'; }
     // Le chrono ne démarre pas pendant le rejeu (aucun tic n'aurait de sens sur
     // des tours déjà finis) : si le dernier tour rejoué est ENCORE en cours, il
     // faut le lancer maintenant, sinon la durée resterait figée à l'écran.
@@ -429,7 +444,8 @@ function handleDelta(d){
   // serveur) : on nettoie l'écran et on resynchronise la liste, car la bascule
   // a pu être déclenchée depuis un autre appareil. Les fichiers suivent : ils
   // appartiennent à la discussion, le panneau doit changer avec elle.
-  if(d.reset!==undefined){ smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
+  if(d.history_more!==undefined){ showHistoryMore(d.history_more); return; }
+  if(d.reset!==undefined){ HIST_FULL=false; smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
@@ -557,7 +573,7 @@ async function connectStream(){
     while(document.hidden){ await new Promise(res=>setTimeout(res, 500)); }
     streamAbort=new AbortController();
     try{
-      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq}),signal:streamAbort.signal});
+      const r=await jfetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:lastSeq,tail:HIST_FULL?0:HIST_TAIL}),signal:streamAbort.signal});
       if(REPLAYING) setChatLoading('chargement de la conversation…');
       const reader=r.body.getReader(); const dec=new TextDecoder(); let buf='';
       while(true){
@@ -582,7 +598,45 @@ async function connectStream(){
 }
 // Interrompt la génération en cours côté serveur (la goroutine détachée est
 // annulée). Le serveur émet alors turn_done → le bouton repasse en « send ».
-function stopGen(){ jfetch('/api/chat/stop',{method:'POST'}).catch(()=>{}); toast('stop'); }
+// _stopAt : anti-doublon, le bouton réagit à l'APPUI sur écran tactile (voir plus
+// bas) puis le clic qui suit éventuellement ne doit pas relancer.
+let _stopAt = 0;
+function stopGen(){
+  const now = Date.now(); if(now - _stopAt < 800) return; _stopAt = now;
+  jfetch('/api/chat/stop',{method:'POST'}).catch(()=>{}); toast('stop');
+}
+// Sur écran tactile, stop agit dès l'appui (pointerdown) : le « clic » complet
+// peut être annulé par iOS si le fil défile au même moment — or c'est justement
+// quand l'IA écrit qu'on veut l'arrêter vite. Repris d'AJEAN 0.15.7.
+document.addEventListener('DOMContentLoaded', ()=>{
+  const st=document.getElementById('stop'); if(!st) return;
+  st.addEventListener('pointerdown', (e)=>{ if(e.pointerType!=='mouse'){ e.preventDefault(); stopGen(); } });
+});
+// Bouton « échanges précédents » posé en tête du fil quand le serveur n'a rejoué
+// que la fin de la conversation.
+function showHistoryMore(n){
+  const chat=chatEl(); if(!chat || !n) return;
+  let box=chat.querySelector('.history-more');
+  if(!box){ box=document.createElement('div'); box.className='history-more'; chat.insertBefore(box, chat.firstChild); }
+  box.innerHTML='';
+  const b=document.createElement('button'); b.type='button';
+  b.textContent = n===1 ? 'afficher l\'échange précédent' : 'afficher les '+n+' échanges précédents';
+  b.onclick=loadFullHistory;
+  box.appendChild(b);
+}
+// Rejeu COMPLET de la conversation vive, en gardant ce qu'on lisait à l'écran :
+// on vide le fil, on coupe le flux, et la boucle connectStream se reconnecte
+// depuis le début sans pagination (tail=0).
+function loadFullHistory(){
+  const chat=chatEl(); if(!chat) return;
+  const box=chat.querySelector('.history-more'); if(box){ const b=box.querySelector('button'); if(b){ b.disabled=true; b.textContent='chargement…'; } }
+  HIST_RESTORE=chat.scrollHeight-chat.scrollTop;
+  HIST_FULL=true;
+  chat.innerHTML=''; newTurn();
+  smoothReset(); cancelRender();
+  lastSeq=0; REPLAYING=true;
+  if(streamAbort){ try{ streamAbort.abort(); }catch(e){} }
+}
 // Envoi RÉSILIENT : sur le tunnel E2E, un aller-retour peut échouer transitoirement
 // alors qu'il a en fait abouti (la génération démarre). On réessaie, et un 409
 // (« déjà en cours ») = succès (c'est notre envoi qui est passé). On ne montre une
