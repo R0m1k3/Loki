@@ -141,22 +141,34 @@ func hasAnyFlag(args []string, flags ...string) bool {
 	return false
 }
 
-// normalizeLoadFlags traduit les drapeaux de chargement dépréciés vers
-// --load-mode, sur les moteurs qui le connaissent :
+// normalizeLoadFlags choisit, au lancement, la forme des drapeaux de chargement
+// que CE binaire comprend. llama.cpp récent a remplacé --mlock / --no-mmap par
+// --load-mode (et refuse les anciens) ; un moteur ancien ou un fork ne connaît
+// que les anciens. L'éditeur écrit --load-mode, un preset d'avant peut porter
+// les anciens : on traduit dans le sens qu'il faut (repris d'AJEAN 0.16.0).
 //
-//	--mlock    → --load-mode mlock   (garder le modèle en RAM)
-//	--no-mmap  → --load-mode none    (tout charger, pas de mmap)
-//	--mmap     → --load-mode mmap
+// Vers --load-mode (moteur récent). Deux interrupteurs → une seule valeur, au
+// sens où llama.cpp l'entend (« mlock » = PAS de mmap + résident) :
 //
-// Les deux à la fois (--mlock --no-mmap) : mlock l'emporte, c'est l'intention la
-// plus forte (résident en RAM, jamais rendu au système). Un --load-mode déjà
-// écrit à la main dans EXTRA_ARGS gagne sur tout : on retire alors simplement
-// les vieux drapeaux. Sur un moteur ancien, rien n'est touché.
+//	--mlock seul          → mmap+mlock  (l'ancien sens de --mlock : mmap conservé)
+//	--no-mmap seul        → none
+//	--mlock + --no-mmap   → mlock
+//	--mmap                → mmap
+//
+// ⚠️ Jusqu'ici --mlock seul devenait « mlock », qui COUPE le mmap : le modèle
+// entier montait en RAM au lieu d'être mappé — un OOM assuré sur un modèle plus
+// gros que la mémoire. Un --load-mode déjà écrit gagne sur tout : on retire
+// alors simplement les vieux drapeaux.
+//
+// Vers les anciens drapeaux (moteur qui ne connaît pas --load-mode) :
+//
+//	none → --no-mmap · mlock → --mlock --no-mmap · mmap+mlock → --mlock
+//	auto, mmap, dio → rien (défaut de l'ancien moteur)
 func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
 	if !supportsLoadMode {
-		return args
+		return downgradeLoadMode(args)
 	}
-	explicit := hasAnyFlag(args, "--load-mode")
+	explicit := hasAnyFlag(args, "--load-mode", "-lm")
 	mlock, nommap, mmap := false, false, false
 	out := make([]string, 0, len(args)+2)
 	for _, a := range args {
@@ -176,12 +188,60 @@ func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
 	}
 	mode := "mmap"
 	switch {
-	case mlock:
+	case mlock && nommap:
 		mode = "mlock"
+	case mlock:
+		mode = "mmap+mlock"
 	case nommap:
 		mode = "none"
 	}
 	return append(out, "--load-mode", mode)
+}
+
+// downgradeLoadMode retraduit un --load-mode pour un moteur qui ne le connaît
+// pas : le lui passer tel quel le ferait sortir en erreur au démarrage.
+func downgradeLoadMode(args []string) []string {
+	mode, found := "", false
+	kept := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--load-mode" || a == "-lm" {
+			found = true
+			if i+1 < len(args) {
+				mode = strings.ToLower(args[i+1])
+				i++
+			}
+			continue
+		}
+		if v, ok := strings.CutPrefix(a, "--load-mode="); ok {
+			found, mode = true, strings.ToLower(v)
+			continue
+		}
+		kept = append(kept, a)
+	}
+	if !found {
+		return args
+	}
+	add := func(flag string) {
+		for _, a := range kept {
+			if a == flag {
+				return
+			}
+		}
+		kept = append(kept, flag)
+	}
+	switch mode {
+	case "none":
+		add("--no-mmap")
+	case "mlock":
+		add("--mlock")
+		add("--no-mmap")
+	case "mmap+mlock":
+		add("--mlock")
+	case "dio":
+		fmt.Fprintf(os.Stderr, "[loki serve] ce moteur ne connaît pas --load-mode dio (DirectIO) : chargement par défaut\n")
+	}
+	return kept
 }
 
 // cmdServe replaces the historic start.sh: read config.env, build the

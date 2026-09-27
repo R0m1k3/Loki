@@ -1232,7 +1232,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               <option value="">f16 (max qualité)</option>
               <option value="q8_0">q8_0 (léger)</option>
               <option value="q4_0">q4_0 (très léger)</option>
-              <option value="q5_1">q5_1</option>
+              <option value="q5_1">q5_1 (lent sur CUDA)</option>
               <option value="bf16">bf16</option>
             </select></span></span>
           </div>
@@ -1285,13 +1285,19 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-l">Flash attention<span class="pe-sub">plus rapide, moins de VRAM</span></span>
             <span class="pe-row-c"><label class="pe-switch"><input type="checkbox" id="s-flash" onchange="eaSetValued('--flash-attn', this.checked?'on':'')"><span class="pe-sl"></span></label></span>
           </div>
+          <!-- Chargement du modèle : --load-mode de llama.cpp (remplace --mlock et
+               --no-mmap). Pour un moteur ancien, loki serve retraduit au lancement
+               (normalizeLoadFlags). -->
           <div class="pe-row">
-            <span class="pe-row-l">Garder en RAM<span class="pe-sub">évite le swap (mlock)</span></span>
-            <span class="pe-row-c"><label class="pe-switch"><input type="checkbox" id="s-mlock" onchange="eaToggleFlag('--mlock', this.checked)"><span class="pe-sl"></span></label></span>
-          </div>
-          <div class="pe-row">
-            <span class="pe-row-l">Charger tout en mémoire<span class="pe-sub">désactive le mmap</span></span>
-            <span class="pe-row-c"><label class="pe-switch"><input type="checkbox" id="s-nommap" onchange="eaToggleFlag('--no-mmap', this.checked)"><span class="pe-sl"></span></label></span>
+            <span class="pe-row-l">Chargement<span class="pe-sub" id="s-loadmode-sub"></span></span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="s-loadmode" onchange="eaSetLoadMode(this.value)">
+              <option value="">auto</option>
+              <option value="mmap">mmap</option>
+              <option value="none">none</option>
+              <option value="mlock">mlock</option>
+              <option value="mmap+mlock">mmap+mlock</option>
+              <option value="dio">dio</option>
+            </select></span></span>
           </div>
         </div>
       </div>

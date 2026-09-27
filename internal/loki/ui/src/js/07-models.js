@@ -926,8 +926,47 @@ function populateSettings(){
     }
   }
   chk('s-flash', eaHasFlag('--flash-attn') && !/^off$/i.test(eaGetValued('--flash-attn')));
-  chk('s-mlock', eaHasFlag('--mlock'));
-  chk('s-nommap', eaHasFlag('--no-mmap'));
+  const lm = eaLoadMode();
+  set('s-loadmode', lm);
+  syncLoadModeSub(lm);
+}
+// Chargement du modèle. llama.cpp récent a REMPLACÉ --mlock / --no-mmap par
+// --load-mode (auto, none, mmap, mlock, mmap+mlock, dio). L'éditeur écrit la
+// forme moderne ; au lancement, loki serve la retraduit pour un moteur ancien
+// (normalizeLoadFlags côté Go), et inversement.
+function eaLoadMode(){
+  const lm = (eaGetValued('--load-mode') || eaGetValued('-lm')).toLowerCase();
+  if(lm) return lm === 'auto' ? '' : lm;
+  // Preset écrit avec les anciens drapeaux : même correspondance que le serveur.
+  const mlock = eaHasFlag('--mlock'), nommap = eaHasFlag('--no-mmap');
+  if(mlock && nommap) return 'mlock';
+  if(mlock) return 'mmap+mlock';
+  if(nommap) return 'none';
+  if(eaHasFlag('--mmap')) return 'mmap';
+  return '';
+}
+function eaSetLoadMode(mode){
+  const t = eaTokens().filter(x=>x!=='--mlock' && x!=='--no-mmap' && x!=='--mmap' && !x.startsWith('--load-mode='));
+  for(const f of ['--load-mode','-lm']){
+    const i = t.indexOf(f);
+    if(i>=0){ const hadVal = i+1<t.length && !t[i+1].startsWith('-'); t.splice(i, hadVal?2:1); }
+  }
+  if(mode) t.push('--load-mode', mode);
+  eaSetTokens(t);
+  syncLoadModeSub(mode);
+}
+// Sous-titre : ce que fait le mode choisi (les options ne portent que son nom).
+const LOAD_MODE_SUB = {
+  '': 'mmap, sauf si un périphérique ne le permet pas',
+  'mmap': 'fichier mappé, lu à la demande',
+  'none': 'tout charger, sans mmap',
+  'mlock': 'tout en RAM, verrouillé (sans mmap)',
+  'mmap+mlock': 'mappé et verrouillé en RAM',
+  'dio': 'lecture DirectIO si disponible',
+};
+function syncLoadModeSub(mode){
+  const el = document.getElementById('s-loadmode-sub');
+  if(el) el.textContent = LOAD_MODE_SUB[mode] ?? mode;
 }
 // --- Décodage spéculatif (--spec-type / --spec-draft-n-max) ----------------
 // Sélectionne le type courant. --spec-type accepte en réalité une LISTE séparée
