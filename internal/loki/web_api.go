@@ -80,6 +80,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"load_error": loadErr,  // modèle qui ne charge pas (incompat moteur…) — vide sinon
 		"load_pct":   loadPct,  // % estimé du chargement en cours (-1 = non mesurable)
 		"external":   external, // preset externe : le chat part vers une API distante
+		// id du preset actif : un autre appareil a pu basculer, l'UI se
+		// resynchronise sans reload (voir loadStatus). AJEAN 0.13.6.
+		"preset": activePresetID(),
 	})
 }
 

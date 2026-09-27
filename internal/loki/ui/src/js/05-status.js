@@ -1,5 +1,14 @@
+let LAST_PRESET=null; // id du preset actif vu au dernier poll (détecte une bascule faite ailleurs)
 async function loadStatus(){
   const s=await jget('/api/status');
+  // Preset actif changé alors qu'on n'a rien touché ici : un AUTRE appareil a
+  // basculé de preset/modèle. On rafraîchit la liste (et le libellé du preset)
+  // pour rester en phase sans recharger l'app. Premier poll (LAST_PRESET null) :
+  // on note seulement la valeur, loadPresets a déjà tourné au démarrage.
+  if(typeof s.preset!=='undefined'){
+    if(LAST_PRESET!==null && s.preset!==LAST_PRESET && typeof loadPresets==='function') loadPresets();
+    LAST_PRESET=s.preset;
+  }
   const el=document.getElementById('status-svc');
   // Trois états : service coupé (err) · service actif mais modèle pas encore
   // chargé (loading, llama-server renvoie 503) · modèle prêt (ok).
