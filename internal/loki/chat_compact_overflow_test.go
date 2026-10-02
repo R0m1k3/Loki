@@ -1,6 +1,9 @@
 package loki
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Le compactage de secours ne doit se déclencher que sur un vrai débordement de
 // contexte, pas sur n'importe quel refus du moteur.
@@ -24,5 +27,43 @@ func TestContextOverflow(t *testing.T) {
 		if contextOverflow(m, small) {
 			t.Errorf("faux débordement (déclencherait un compactage) : %s", m)
 		}
+	}
+}
+
+// Le dernier recours ramène sous la fenêtre même quand tout est dans un seul
+// tour (AJEAN 0.17.5).
+func TestShrinkToFit(t *testing.T) {
+	testHome(t)
+	big := strings.Repeat("x", 200000)
+	msgs := []Message{
+		{Role: "system", Content: "ctx"},
+		{Role: "user", Content: "vieux"},
+		{Role: "assistant", Content: "ok"},
+		{Role: "user", Content: "lis tout"},
+		{Role: "assistant", Content: "", ToolCalls: []ToolCall{{ID: "a"}}},
+		{Role: "tool", ToolCallID: "a", Content: big},
+		{Role: "tool", ToolCallID: "b", Content: big},
+	}
+	out, changed := shrinkToFit(msgs, 132291)
+	if !changed || out[0].Role != "system" {
+		t.Fatalf("pas réduit : %v", changed)
+	}
+	if est := estimateTokens(out); est > int(float64(ctxWindow())*0.6) {
+		t.Fatalf("encore trop gros : %d", est)
+	}
+	if overflowTokens(`{"message":"request (132291 tokens) exceeds"}`) != 132291 {
+		t.Fatal("taille réelle non lue")
+	}
+}
+
+// Un résultat d'outil géant est borné pour le modèle, avec une mention qui dit
+// au modèle de cibler plus précisément.
+func TestCapToolResult(t *testing.T) {
+	if got := capToolResult("court"); got != "court" {
+		t.Fatalf("résultat court modifié : %q", got)
+	}
+	got := capToolResult(strings.Repeat("é", toolResultMax+500))
+	if r := []rune(got); len(r) > toolResultMax+200 || !strings.Contains(got, "tronqué") {
+		t.Fatalf("résultat géant mal borné (%d runes)", len(r))
 	}
 }

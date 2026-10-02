@@ -68,26 +68,25 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 	if temperature == 0 {
 		temperature = 0.7
 	}
+	// La note de tâche (conscience du mode autonome + compte-rendu du passage
+	// précédent) va EN TÊTE DU MESSAGE UTILISATEUR, pas dans le système : le
+	// préfixe système + outils reste ainsi identique à celui du chat, et le cache
+	// de prompt de llama-server sert aux deux. Une note dans le système faisait
+	// tout recalculer à la tâche, PUIS au message suivant de l'utilisateur (12 s
+	// mesurées en amont pour un simple « salut », AJEAN 0.17.5).
+	if note := taskContextNote(taskName, lastReport); note != "" {
+		prompt = note + "\n\n" + prompt
+	}
 	msgs := []Message{{Role: "user", Content: prompt}}
 	// Même préambule que la vraie génération : consigne personnelle + préambule
 	// agent + briefing machine (via InjectSkills), pour que l'IA ait le même
-	// contexte et les mêmes outils qu'en chat. On préfixe le tout d'une note de
-	// contexte (conscience du mode autonome + mémoire du passage précédent),
-	// fusionnée dans UN SEUL message système en tête — comme l'exigent les
-	// gabarits stricts (normalizeSystemMessages le garantit de toute façon).
+	// contexte et les mêmes outils qu'en chat.
 	// Contexte du projet de la tâche : le projet est déjà forcé par l'appelant
 	// (setProjectOverride dans runTask), donc ces messages décrivent le bon
 	// chantier — la tâche voit la mémoire et les trackers qu'elle vise.
 	final := append(projectSystemMessages(), msgs...)
-	sys := readSysPrompt()
-	note := taskContextNote(taskName, lastReport)
-	switch {
-	case sys != "" && note != "":
-		final = append([]Message{{Role: "system", Content: sys + "\n\n" + note}}, final...)
-	case sys != "":
+	if sys := readSysPrompt(); sys != "" {
 		final = append([]Message{{Role: "system", Content: sys}}, final...)
-	case note != "":
-		final = append([]Message{{Role: "system", Content: note}}, final...)
 	}
 
 	var content strings.Builder

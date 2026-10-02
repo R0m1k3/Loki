@@ -914,6 +914,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// dépassement de la fenêtre de contexte après de gros résultats d'outils), on
 	// compacte l'historique en vol et on rejoue le tour — une seule fois.
 	compactedRetry := false
+	// Réductions forcées (shrinkToFit) quand le compactage n'a pas suffi.
+	shrinkRetries := 0
 	// Repli d'intensité de raisonnement (llm_effort.go) : une seule tentative par
 	// tour, comme les autres filets.
 	effortRetried := false
@@ -1087,6 +1089,19 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					// Même publication qu'en cours de tour : sans elle, la compaction de
 					// secours ne survit pas à la fin du tour et le prompt re-déborde au
 					// message suivant.
+					extra = nil
+					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					continue
+				}
+			}
+			// Compactage impuissant (ou déjà tenté et encore trop long) : réduction
+			// forcée plutôt que de laisser remonter un 400 qui bloque la
+			// conversation (AJEAN 0.17.5).
+			if compactEnabled() && shrinkRetries < 2 && contextOverflow(msg, messages) {
+				if c, changed := shrinkToFit(messages, overflowTokens(msg)); changed {
+					shrinkRetries++
+					logCompact("réduction", overflowTokens(msg), messages, c, changed)
+					messages = c
 					extra = nil
 					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
 					continue
@@ -1511,6 +1526,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			}
 			messages = append(messages, assistant)
 			extra = append(extra, assistant)
+			// Début des résultats de CETTE étape, que le moteur n'a pas encore
+			// comptés (voir le test de compactage en cours de tour, plus bas).
+			stepStart := len(messages)
 			// 2. Execute each tool locally and append a "tool" reply.
 			for _, tc := range tcs {
 				// Arrêt demandé : on n'enchaîne pas les outils restants. Sans ce
@@ -1750,7 +1768,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					shot = capturedRelPath(result)
 				}
 				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot}, result)})
-				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: result}
+				// Plafond pour le MODÈLE seulement : l'UI vient de recevoir le
+				// résultat complet (aperçu + « voir plus »).
+				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: capToolResult(result)}
 				messages = append(messages, toolMsg)
 				extra = append(extra, toolMsg)
 				// Capture d'écran + vision active : on fait SUIVRE l'image elle-même
@@ -1788,7 +1808,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// enchaînés), on partait à 60% et on finissait en dépassement — rattrapé au
 			// mieux par le filet réactif sur 500, une seule fois. On re-teste donc ici,
 			// avec le contexte RÉEL du dernier appel (usage.prompt_tokens + généré).
-			if used := stats.PromptTokensTotal + stats.GenTokens; compactWouldTrigger(messages, used) {
+			// + les résultats d'outils de CETTE étape : le moteur ne les a pas encore
+			// comptés. Sans eux, une étape qui lit plusieurs gros fichiers d'un coup
+			// passait de 60 % à plus de 130 % de la fenêtre sans jamais compacter.
+			// Serveur sans usage (base 0) : on laisse 0, compactWouldTrigger estime
+			// alors TOUT l'historique — étape comprise.
+			used := 0
+			if base := stats.PromptTokensTotal + stats.GenTokens; base > 0 {
+				used = base + estimateTokens(messages[stepStart:])
+			}
+			if compactWouldTrigger(messages, used) {
 				yes, no := true, false
 				cb(StreamEvent{Compacting: &yes})
 				c, changed := compactMessages(ctx, messages, caps)
