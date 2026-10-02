@@ -4325,7 +4325,7 @@ async function loadPresets(){
     const row=document.createElement('div');
     const pend = !x.active && pendingPreset===i+1;
     row.className='preset'+(x.active?' active':'')+(pend?' pending':'')+(moved?' sel-anim':'');
-    row.onclick=()=>switchTo(i+1, x.name);
+    row.onclick=()=>switchTo(i+1, x.name, x.id);
     const info=document.createElement('div'); info.className='preset-info';
     const nm=document.createElement('div'); nm.className='preset-name';
     // Puce de l'actif : un ÉLÉMENT rond en CSS, pas le caractère « ● ». Le glyphe
@@ -4931,14 +4931,15 @@ async function runBenchUI(){
     loadPresets();
   }
 }
-async function switchTo(n,name){
+async function switchTo(n,name,id){
   if(!await askConfirm('Basculer vers « '+name+' » et redémarrer le service ?', {title:'Changer de preset', okText:'Basculer'})) return;
   toast('switching…');
   // Retour visuel IMMÉDIAT : la ligne visée s'allume et clignote. Le serveur met
   // plusieurs secondes à redémarrer le service ; sans ça la liste ne bougeait pas
   // d'un pouce pendant tout ce temps et le clic semblait sans effet.
   pendingPreset = n; loadPresets();
-  const r=await jpost('/api/switch',{n:n});
+  // id d'abord : le numéro seul peut viser un autre preset si la liste a bougé.
+  const r=await jpost('/api/switch',id?{id:id}:{n:n});
   if(!r.ok){ pendingPreset = 0; toast('erreur'); loadPresets(); return; }
   toast('switched');
   // Le preset ACTIF, c'est celui dont l'empreinte est celle de la configuration : le serveur
@@ -7534,6 +7535,17 @@ function handleDelta(d){
     return; }
   if(d.reasoning_content){
     killTyping('reasoning');
+    // Raisonnement qui reprend APRÈS du texte de réponse (modèle qui repense en
+    // cours de réponse, reprise après coupure) : il allait dans l'ANCIENNE bulle,
+    // déjà repliée au-dessus de la réponse. On en ouvre une nouvelle sous la
+    // réponse : l'ordre affiché suit l'ordre reçu (AJEAN 0.17.4).
+    // Réponse encore vide (simple saut de ligne avant la réflexion) : on retire
+    // la bulle vide et le raisonnement continue dans la sienne.
+    if(T.contentEl){
+      if((T.fullContent||'').trim()){ settleBlocks(); T.reasonEl=null; }
+      else { smoothReset(); cancelRender(); T.contentEl.remove(); }
+      T.contentEl=null;
+    }
     if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; resetReasonStats(); T.turnCollapsibles.push(T.reasonEl); }
     // d.replace : le serveur renvoie le bloc ENTIER alors qu'on en affichait déjà
     // le début (voir decorateEvent/coalesceReplay côté serveur) → on repart de zéro
@@ -9592,7 +9604,7 @@ function onModelSwitch(sel){
   // La liste est repeinte par loadPresets() une fois la bascule faite (ou
   // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
   // pendant les quelques secondes du redémarrage.
-  switchTo(n, name);
+  switchTo(n, name, sel.options[sel.selectedIndex].dataset.id);
 }
 
 // Bascule directe vers un fichier de modèle (POST /api/models/use) : confirme,
@@ -9670,6 +9682,7 @@ function paintModelSwitch(){
     MS_PRESETS.forEach((p, i) => {
       const o = document.createElement('option');
       o.value = String(i + 1);
+      o.dataset.id = p.id || '';
       o.textContent = p.name;
       if(MS_ACTIVE && p.id === MS_ACTIVE.id) o.selected = true;
       g.appendChild(o);

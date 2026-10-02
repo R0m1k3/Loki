@@ -56,7 +56,7 @@ async function loadPresets(){
     const row=document.createElement('div');
     const pend = !x.active && pendingPreset===i+1;
     row.className='preset'+(x.active?' active':'')+(pend?' pending':'')+(moved?' sel-anim':'');
-    row.onclick=()=>switchTo(i+1, x.name);
+    row.onclick=()=>switchTo(i+1, x.name, x.id);
     const info=document.createElement('div'); info.className='preset-info';
     const nm=document.createElement('div'); nm.className='preset-name';
     // Puce de l'actif : un ÉLÉMENT rond en CSS, pas le caractère « ● ». Le glyphe

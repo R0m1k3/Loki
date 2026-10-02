@@ -560,6 +560,17 @@ function handleDelta(d){
     return; }
   if(d.reasoning_content){
     killTyping('reasoning');
+    // Raisonnement qui reprend APRÈS du texte de réponse (modèle qui repense en
+    // cours de réponse, reprise après coupure) : il allait dans l'ANCIENNE bulle,
+    // déjà repliée au-dessus de la réponse. On en ouvre une nouvelle sous la
+    // réponse : l'ordre affiché suit l'ordre reçu (AJEAN 0.17.4).
+    // Réponse encore vide (simple saut de ligne avant la réflexion) : on retire
+    // la bulle vide et le raisonnement continue dans la sienne.
+    if(T.contentEl){
+      if((T.fullContent||'').trim()){ settleBlocks(); T.reasonEl=null; }
+      else { smoothReset(); cancelRender(); T.contentEl.remove(); }
+      T.contentEl=null;
+    }
     if(!T.reasonEl){ collapseAll(T.turnCollapsibles); T.reasonEl=addMsg('reasoning',''); if(REPLAYING||viewOn('fold-tools')) collapseInstant(T.reasonEl); T.fullReason=''; resetReasonStats(); T.turnCollapsibles.push(T.reasonEl); }
     // d.replace : le serveur renvoie le bloc ENTIER alors qu'on en affichait déjà
     // le début (voir decorateEvent/coalesceReplay côté serveur) → on repart de zéro

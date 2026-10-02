@@ -65,7 +65,7 @@ function onModelSwitch(sel){
   // La liste est repeinte par loadPresets() une fois la bascule faite (ou
   // annulée) : on ne touche pas à la sélection ici, sinon l'affichage mentirait
   // pendant les quelques secondes du redémarrage.
-  switchTo(n, name);
+  switchTo(n, name, sel.options[sel.selectedIndex].dataset.id);
 }
 
 // Bascule directe vers un fichier de modèle (POST /api/models/use) : confirme,
@@ -143,6 +143,7 @@ function paintModelSwitch(){
     MS_PRESETS.forEach((p, i) => {
       const o = document.createElement('option');
       o.value = String(i + 1);
+      o.dataset.id = p.id || '';
       o.textContent = p.name;
       if(MS_ACTIVE && p.id === MS_ACTIVE.id) o.selected = true;
       g.appendChild(o);

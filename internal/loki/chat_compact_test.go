@@ -177,3 +177,30 @@ func TestEstimateTokensGrows(t *testing.T) {
 		t.Fatalf("estimateTokens ne croît pas avec la taille: small=%d big=%d", small, big)
 	}
 }
+
+// Repli sans résumé (moteur absent) : la demande en cours est déjà dans le
+// torse dégraissé, elle ne doit pas être réinjectée une seconde fois — elle
+// apparaissait APRÈS ses propres résultats d'outils (AJEAN 0.17.4).
+func TestCompactSansResumeNeDoublePasLaDemande(t *testing.T) {
+	testHome(t)
+	page := func(n int) Message {
+		return tm("contenu de page web très long " + string(rune('a'+n)) + strings.Repeat("x", 400))
+	}
+	msgs := []Message{
+		um("première question de la conversation"), am("ok"),
+		um("cherche les horaires du train pour Lyon"),
+	}
+	for i := 0; i < 10; i++ {
+		msgs = append(msgs, atc("web_read"), page(i))
+	}
+	out, _ := compactMessages(t.Context(), msgs, Caps{})
+	n := 0
+	for _, m := range out {
+		if m.Role == "user" && strings.Contains(msgText(m), "horaires du train") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("demande en cours présente %d fois après compactage, attendu 1", n)
+	}
+}

@@ -3,6 +3,7 @@ package loki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -568,6 +569,21 @@ func (c *Conversation) EnqueueOrStart(cid, text string, files []attachInfo, caps
 	}
 	c.mu.Unlock()
 	err := c.StartTurn(text, files, caps, temperature)
+	if errors.Is(err, ErrBusy) {
+		// Un autre tour a démarré entre le test ci-dessus et StartTurn (deux
+		// appareils qui envoient en même temps) : en file plutôt qu'un refus
+		// (AJEAN 0.17.4). Une tâche planifiée garde le refus : sa fin ne dépile rien.
+		c.mu.Lock()
+		if c.Generating && c.runningTaskName == "" {
+			c.queued = append(c.queued, queuedMsg{text: text, files: files, caps: caps, temp: temperature})
+			c.mu.Unlock()
+			// Ce tour a pu finir entre-temps : sans relance, le message attendrait
+			// le prochain envoi.
+			c.startQueuedIfAny()
+			return true, nil
+		}
+		c.mu.Unlock()
+	}
 	if err != nil {
 		// Refusé (modèle pas prêt, tâche en cours) : le client pourra renvoyer
 		// ce même message, son cid ne doit pas rester marqué comme reçu.
@@ -774,6 +790,11 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		case ev.Err != nil:
 			c.appendDelta(epoch, map[string]any{"error": ev.Err.Error()})
 		case ev.ToolUsed != nil:
+			// Le texte écrit AVANT cet appel d'outil est déjà rangé dans le message
+			// assistant porteur des tool_calls (extra). Le garder aussi dans la
+			// réponse finale le doublait dans l'historique vu par le modèle — du
+			// contexte gaspillé à chaque tour d'outil (AJEAN 0.17.4).
+			content.Reset()
 			tu := map[string]any{
 				"name": ev.ToolUsed.Name, "label": ev.ToolUsed.Label,
 				"result": ev.ToolUsed.Result, "done": ev.ToolUsed.Done, "typing": ev.ToolUsed.Typing,
