@@ -7658,6 +7658,9 @@ function loadFullHistory(){
 // (« déjà en cours ») = succès (c'est notre envoi qui est passé). On ne montre une
 // erreur qu'après plusieurs échecs ET vérification que rien ne tourne — plus de
 // « network error » alarmiste alors que l'IA répond quand même.
+// Fuseau du navigateur, envoyé avec chaque message : le conteneur tourne en UTC,
+// et « rappelle-moi à 17h » doit tomber à 17h ici (voir rememberUserTZ).
+const USER_TZ=(()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(_){ return ''; } })();
 async function send(){
   // Garde-fou : le bouton est déjà désactivé, mais l'Entrée passe aussi par ici.
   if(STATUS_SEEN && !MODEL_READY){ toast('le modèle n\'est pas encore prêt'); return; }
@@ -7686,7 +7689,7 @@ async function send(){
   if(PENDING && !queuedAtSend) addMsgFiles(PENDING, attachSent());
   for(let attempt=0; attempt<3; attempt++){
     try{
-      const r=await jfetch('/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,files:files,ctx_used:CTX_USED,cid})});
+      const r=await jfetch('/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,files:files,ctx_used:CTX_USED,cid,tz:USER_TZ})});
       if(r.ok) clearAttach();
       // 409 = une tâche planifiée occupe le modèle : pas de file dans ce cas.
       if(r.status===409){ let m='modèle occupé'; try{ m=(await r.json()).error||m; }catch(_){} fail(m); return; }

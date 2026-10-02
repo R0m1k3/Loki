@@ -106,6 +106,7 @@ func handleChatSend(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "message vide"})
 		return
 	}
+	rememberUserTZ(body.TZ)
 	// Génération en cours : au lieu de refuser, on MET EN FILE (AJEAN 0.14.0).
 	// Le message est injecté dans la réponse en cours à la prochaine frontière
 	// d'étape, ou traité comme tour suivant. queued=true le signale au client.

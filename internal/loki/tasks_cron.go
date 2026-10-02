@@ -45,10 +45,21 @@ func loc(tz string) *time.Location {
 //   - "@every 30m" / "@every 2h" : intervalle glissant depuis `from`.
 //   - "@every 1d@23:00" : tous les N jours, ancré à une heure de la journée.
 //   - expression cron 5 champs.
+//   - "@once 2026-10-01 16:54" : une seule fois, à cette date et heure murale.
 func nextAfter(schedule, tz string, from time.Time) (time.Time, error) {
 	s := strings.TrimSpace(schedule)
 	if s == "" {
 		return time.Time{}, fmt.Errorf("fréquence vide")
+	}
+	if rest, ok := cutPrefix(s, "@once"); ok {
+		at, err := time.ParseInLocation("2006-01-02 15:04", strings.TrimSpace(rest), loc(tz))
+		if err != nil {
+			return time.Time{}, fmt.Errorf("date invalide (attendu « @once AAAA-MM-JJ HH:MM »)")
+		}
+		if !at.After(from) {
+			return time.Time{}, fmt.Errorf("%s est déjà passé (il est %s)", at.Format("2006-01-02 15:04"), from.In(loc(tz)).Format("2006-01-02 15:04"))
+		}
+		return at, nil
 	}
 	if rest, ok := cutPrefix(s, "@every"); ok {
 		return nextEvery(strings.TrimSpace(rest), tz, from)
@@ -248,4 +259,10 @@ func cutPrefix(s, prefix string) (string, bool) {
 		return s[len(prefix):], true
 	}
 	return "", false
+}
+
+// isOnce : tâche à exécution unique (« @once … »), désactivée après son passage.
+func isOnce(schedule string) bool {
+	_, ok := cutPrefix(strings.TrimSpace(schedule), "@once")
+	return ok
 }

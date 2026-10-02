@@ -54,10 +54,12 @@ func taskCreateTool() Tool {
 					"script": map[string]any{"type": "string", "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved"},
 					// Le format du schedule est le seul point que le modèle ne peut pas
 					// deviner : il vit ici, dans le paramètre, pas dans la phrase de l'outil.
-					"schedule": map[string]any{"type": "string", "description": "\"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\""},
-					"enabled":  map[string]any{"type": "boolean", "description": "Start active (default true)"},
+					"schedule":   map[string]any{"type": "string", "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)"},
+					"in_minutes": map[string]any{"type": "integer", "description": "One-time task, N minutes from now"},
+					"at":         map[string]any{"type": "string", "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\""},
+					"enabled":    map[string]any{"type": "boolean", "description": "Start active (default true)"},
 				},
-				"required": []string{"name", "schedule"},
+				"required": []string{"name"},
 			},
 		},
 	}
@@ -101,11 +103,30 @@ func taskDeleteTool() Tool {
 	}
 }
 
-// defaultTaskTZ : le modèle n'a pas le fuseau du navigateur. On reprend celui
-// d'une tâche existante (posé par l'UI depuis le navigateur) pour que « tous les
-// jours à 9h » tombe à la bonne heure ; à défaut, fuseau vide = heure locale du
-// serveur (souvent UTC), ce que la description du planificateur assume déjà.
+// stUserTZKey : fuseau IANA du navigateur de l'utilisateur, envoyé avec chaque
+// message (voir rememberUserTZ).
+const stUserTZKey = "user_tz"
+
+// rememberUserTZ retient le fuseau du navigateur (« Europe/Paris ») s'il est
+// valide et a changé. Le conteneur tourne en UTC : sans ça, « rappelle-moi à
+// 17h » tombait deux heures à côté (AJEAN 0.17.5).
+func rememberUserTZ(tz string) {
+	tz = strings.TrimSpace(tz)
+	if tz == "" || tz == getStr(bkState, stUserTZKey) {
+		return
+	}
+	if _, err := time.LoadLocation(tz); err == nil {
+		_ = putStr(bkState, stUserTZKey, tz)
+	}
+}
+
+// defaultTaskTZ : le fuseau de l'utilisateur pour ce que le modèle planifie.
+// Celui du navigateur s'il est connu, sinon celui d'une tâche existante (posé
+// par l'UI), sinon vide = heure locale du serveur (souvent UTC).
 func defaultTaskTZ() string {
+	if tz := getStr(bkState, stUserTZKey); tz != "" {
+		return tz
+	}
 	for _, t := range listTasks() {
 		if strings.TrimSpace(t.TZ) != "" {
 			return t.TZ
@@ -189,8 +210,30 @@ func toolTaskCreate(args map[string]any) string {
 	prompt := strings.TrimSpace(taskStrArg(args["prompt"]))
 	script := strings.TrimSpace(taskStrArg(args["script"]))
 	schedule := strings.TrimSpace(taskStrArg(args["schedule"]))
+	tz := defaultTaskTZ()
+	// Tâche unique : « dans N minutes » ou « à HH:MM », calculés ICI dans le
+	// fuseau de l'utilisateur (AJEAN 0.17.5). Le modèle n'a plus à jongler avec
+	// les fuseaux ni le cron pour un simple rappel.
+	if schedule == "" {
+		now := time.Now().In(loc(tz))
+		if v, ok := args["in_minutes"].(float64); ok && v >= 1 {
+			schedule = "@once " + now.Add(time.Duration(v)*time.Minute).Format("2006-01-02 15:04")
+		} else if at := strings.TrimSpace(taskStrArg(args["at"])); at != "" {
+			if t, err := time.ParseInLocation("2006-01-02 15:04", at, loc(tz)); err == nil {
+				schedule = "@once " + t.Format("2006-01-02 15:04")
+			} else if hh, mm, err := parseHHMM(at); err == nil {
+				t := time.Date(now.Year(), now.Month(), now.Day(), hh, mm, 0, 0, loc(tz))
+				if !t.After(now) {
+					t = t.AddDate(0, 0, 1)
+				}
+				schedule = "@once " + t.Format("2006-01-02 15:04")
+			} else {
+				return "[erreur] 'at' invalide : « HH:MM » ou « AAAA-MM-JJ HH:MM »"
+			}
+		}
+	}
 	if name == "" || schedule == "" {
-		return "[erreur] name et schedule sont obligatoires"
+		return "[erreur] name obligatoire, et schedule (tâche répétée) ou in_minutes / at (tâche unique)"
 	}
 	kind := ""
 	if script != "" {
@@ -202,7 +245,6 @@ func toolTaskCreate(args map[string]any) string {
 	} else if prompt == "" {
 		return "[erreur] fournis soit 'prompt' (tâche IA) soit 'script' (tâche script)"
 	}
-	tz := defaultTaskTZ()
 	if err := validateSchedule(schedule, tz); err != nil {
 		return "[erreur] fréquence invalide : " + err.Error()
 	}
@@ -223,7 +265,7 @@ func toolTaskCreate(args map[string]any) string {
 	}
 	when := ""
 	if t.NextRun > 0 && enabled {
-		when = ", prochaine exécution " + time.UnixMilli(t.NextRun).In(loc(tz)).Format("2006-01-02 15:04")
+		when = ", prochaine exécution " + time.UnixMilli(t.NextRun).In(loc(tz)).Format("2006-01-02 15:04") + " (" + tzLabel(tz) + ")"
 	}
 	return fmt.Sprintf("[ok] tâche '%s' créée (id %s)%s", name, t.ID, when)
 }
@@ -278,4 +320,12 @@ func toolTaskDelete(args map[string]any) string {
 		return "[erreur] " + err.Error()
 	}
 	return fmt.Sprintf("[ok] tâche '%s' (id %s) supprimée", t.Name, id)
+}
+
+// tzLabel : nom du fuseau à montrer au modèle.
+func tzLabel(tz string) string {
+	if tz == "" {
+		return "heure du serveur"
+	}
+	return tz
 }

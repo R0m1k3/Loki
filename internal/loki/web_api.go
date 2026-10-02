@@ -1353,6 +1353,9 @@ func handleBenchLast(w http.ResponseWriter, r *http.Request) {
 // le décodeur JSON ignore les champs qu'il ne connaît pas.
 type chatReq struct {
 	Temperature float64 `json:"temperature"`
+	// TZ = fuseau IANA du navigateur (« Europe/Paris »), retenu pour dater ce
+	// que le modèle planifie. Voir rememberUserTZ.
+	TZ string `json:"tz"`
 	// Surcharges par requête, portées par les agents ajean.link qui ont leurs
 	// propres interrupteurs. nil = on prend la configuration de la machine.
 	// ⚠️ Elles ne peuvent que RESTREINDRE, jamais rallumer (voir capsFromBody).

@@ -266,6 +266,9 @@ func recordTaskEnd(id string, start time.Time, report string, err error) {
 	cur.LastDurMs = now.Sub(start).Milliseconds()
 	cur.LastRun = now.UnixMilli()
 	cur.NextRun = computeNextRun(cur.Schedule, cur.TZ, now)
+	if isOnce(cur.Schedule) {
+		cur.Enabled, cur.NextRun = false, 0 // passée une fois : terminée
+	}
 	if errors.Is(err, context.Canceled) {
 		// Arrêt volontaire (bouton stop) : ce n'est pas un échec. On garde la trace
 		// « interrompue » sans allumer l'indicateur rouge d'erreur.
