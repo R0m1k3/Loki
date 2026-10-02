@@ -785,6 +785,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// l'usage est arrivé ; sinon on retombe sur l'estimation (celle qui pilote
 	// déjà la compaction), approximative mais jamais absente.
 	sawUsage := false
+	// asked : le tour s'est terminé sur une question à l'utilisateur (outil ask) —
+	// pas de vérification du mode Code avant sa réponse.
+	asked := false
 	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
 		switch {
 		case ev.Err != nil:
@@ -851,6 +854,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			c.appendDelta(epoch, map[string]any{"stats": ev.Stats})
 		case ev.Ask != nil:
 			// Question structurée (outil ask) : carte à boutons dans l'UI.
+			asked = true
 			c.appendDelta(epoch, map[string]any{"ask": ev.Ask})
 		case ev.DropReasoning:
 			c.appendDelta(epoch, map[string]any{"drop_reasoning": true})
@@ -900,7 +904,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// corrections, re-vérification — AVANT de rendre la main. Voir
 	// code_verify.go. No-op hors mode code ou sans critères.
 	if !stale && ctx.Err() == nil {
-		c.codeVerifyLoop(ctx, caps, temperature, epoch)
+		c.codeVerifyLoop(ctx, caps, temperature, epoch, asked)
 		c.mu.Lock()
 		msgs = append([]Message(nil), c.Messages...)
 		ctxUsed = c.CtxUsed

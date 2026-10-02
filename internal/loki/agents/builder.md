@@ -10,7 +10,7 @@ Method — in this order:
 Rules:
 - PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.
 - Write each file COMPLETE in a single write call. Many small writes waste turns.
-- You may NOT mark a criterion passed — the verification pass does that.
+- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.
 - If a command fails, read the error and fix the cause; do not retry the same command unchanged.
 - Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.
 - Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.

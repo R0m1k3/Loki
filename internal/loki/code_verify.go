@@ -25,10 +25,19 @@ import (
 // en 2 corrections tourne en rond, l'utilisateur doit reprendre la main.
 const codeMaxFixTurns = 2
 
+// codeMaxContinue : relances du builder qui a rendu la main avec des critères
+// encore ouverts (« ensuite je vais… ») avant de vérifier quand même. Reprise
+// du buildAgentNudge d'OpenFox : une passe de vérification sur un travail
+// inachevé, c'est un prefill complet, le cache KV du fil évincé, et des
+// « failed » qui ne disent que « pas encore fait ».
+const codeMaxContinue = 2
+
 // codeVerifyLoop est appelé par generate() à la FIN d'un tour de build en mode
-// code. Il ne fait rien s'il n'y a pas de contrat (aucun critère).
-func (c *Conversation) codeVerifyLoop(ctx context.Context, caps Caps, temperature float64, epoch int) {
-	if !caps.Code || caps.Role == "verifier" || ctx.Err() != nil {
+// code. Il ne fait rien s'il n'y a pas de contrat (aucun critère), ni si le
+// tour s'est terminé sur une question à l'utilisateur (asked) : sa réponse
+// passe avant toute vérification.
+func (c *Conversation) codeVerifyLoop(ctx context.Context, caps Caps, temperature float64, epoch int, asked bool) {
+	if !caps.Code || caps.Role == "verifier" || ctx.Err() != nil || asked {
 		return
 	}
 	convID := convEnsureActive()
@@ -39,6 +48,24 @@ func (c *Conversation) codeVerifyLoop(ctx context.Context, caps Caps, temperatur
 	// En phase de PLAN, on ne vérifie pas : rien n'a été construit.
 	if caps.Role == "planner" {
 		return
+	}
+	// Le builder vérifie lui-même puis marque « completed » ce qu'il estime
+	// fait. Tant qu'il reste des critères ouverts, on le relance plutôt que de
+	// vérifier un travail inachevé.
+	for n := 0; n < codeMaxContinue; n++ {
+		open := critOpen(list)
+		if len(open) == 0 {
+			break
+		}
+		msg := "Not done yet — these acceptance criteria are still open:\n" + critRender(open) +
+			"\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask."
+		if c.runBuilderTurn(ctx, caps, temperature, epoch, msg) || ctx.Err() != nil {
+			return // question posée à l'utilisateur, ou arrêt
+		}
+		list = critList(convID)
+		if critAllPassed(list) {
+			return
+		}
 	}
 	for fix := 0; ; fix++ {
 		if ctx.Err() != nil {
@@ -59,7 +86,9 @@ func (c *Conversation) codeVerifyLoop(ctx context.Context, caps Caps, temperatur
 				fmt.Sprint(codeMaxFixTurns) + " corrections — voir le panneau des critères)_"})
 			return
 		}
-		c.runFixTurn(ctx, caps, temperature, epoch, list)
+		if c.runFixTurn(ctx, caps, temperature, epoch, list) {
+			return // le builder attend une réponse de l'utilisateur
+		}
 	}
 }
 
@@ -91,24 +120,33 @@ func (c *Conversation) runVerifyPass(ctx context.Context, caps Caps, temperature
 }
 
 // runFixTurn relance le BUILDER sur l'historique normal avec la liste des
-// critères en échec. Sa trace est persistée comme un tour ordinaire.
-func (c *Conversation) runFixTurn(ctx context.Context, caps Caps, temperature float64, epoch int, list []Criterion) {
+// critères en échec. Sa trace est persistée comme un tour ordinaire. Renvoie
+// true si le builder a posé une question à l'utilisateur (ask).
+func (c *Conversation) runFixTurn(ctx context.Context, caps Caps, temperature float64, epoch int, list []Criterion) bool {
 	var failed []Criterion
 	for _, cr := range list {
 		if cr.Status != "passed" {
 			failed = append(failed, cr)
 		}
 	}
+	return c.runBuilderTurn(ctx, caps, temperature, epoch, "Verification failed on these criteria:\n"+critRender(failed)+
+		"\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.")
+}
+
+// runBuilderTurn relance le BUILDER sur l'historique normal avec une consigne
+// (correction après vérification, ou relance sur des critères ouverts). Sa
+// trace est persistée comme un tour ordinaire. Renvoie true si le builder a
+// posé une question à l'utilisateur (ask) : la boucle doit alors s'arrêter.
+func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperature float64, epoch int, instruction string) (asked bool) {
 	c.appendDelta(epoch, map[string]any{"role": "builder"})
 	defer c.appendDelta(epoch, map[string]any{"role": ""})
 
-	fixMsg := Message{Role: "user", Content: "Verification failed on these criteria:\n" + critRender(failed) +
-		"\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed."}
+	fixMsg := Message{Role: "user", Content: instruction}
 
 	c.mu.Lock()
 	if c.epoch != epoch {
 		c.mu.Unlock()
-		return
+		return false
 	}
 	c.Messages = append(c.Messages, fixMsg)
 	msgs := append([]Message(nil), c.Messages...)
@@ -123,6 +161,12 @@ func (c *Conversation) runFixTurn(ctx context.Context, caps Caps, temperature fl
 		if ev.Content != "" {
 			content.WriteString(ev.Content)
 		}
+		if ev.ToolUsed != nil {
+			content.Reset() // déjà dans le message tool_calls (voir generate)
+		}
+		if ev.Ask != nil {
+			asked = true
+		}
 		c.forwardStream(ev, epoch)
 		return true
 	})
@@ -135,6 +179,7 @@ func (c *Conversation) runFixTurn(ctx context.Context, caps Caps, temperature fl
 	}
 	c.mu.Unlock()
 	c.persist()
+	return asked
 }
 
 // forwardStream relaie les événements d'un runChat secondaire (vérification,

@@ -2108,6 +2108,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #criteria-list li.crit-passed{color:var(--accent)}
 #criteria-list li.crit-failed{color:var(--err,#b3564d)}
 #criteria-list li.crit-pending{color:var(--dim)}
+#criteria-list li.crit-completed{color:var(--text)}
 
 .rolebadge{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-size:9px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
 

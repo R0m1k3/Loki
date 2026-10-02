@@ -13,6 +13,7 @@ package loki
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,7 +21,7 @@ import (
 type Criterion struct {
 	ID     int    `json:"id"`
 	Text   string `json:"text"`
-	Status string `json:"status"` // pending | passed | failed
+	Status string `json:"status"` // pending | completed (le builder dit « fait ») | passed | failed
 	Note   string `json:"note,omitempty"`
 }
 
@@ -74,6 +75,18 @@ func critPending(list []Criterion) int {
 	return n
 }
 
+// critOpen : les critères que le builder n'a pas encore déclarés faits —
+// pending, ou failed et pas encore repris (la reprise les remet à completed).
+func critOpen(list []Criterion) []Criterion {
+	var out []Criterion
+	for _, c := range list {
+		if c.Status == "pending" || c.Status == "failed" || c.Status == "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // critRender : la liste formatée pour un prompt (builder ou verifier).
 func critRender(list []Criterion) string {
 	var b strings.Builder
@@ -84,6 +97,8 @@ func critRender(list []Criterion) string {
 			mark = "[✓]"
 		case "failed":
 			mark = "[✗]"
+		case "completed":
+			mark = "[~]" // fait selon le builder, pas encore vérifié
 		}
 		fmt.Fprintf(&b, "%s #%d %s", mark, c.ID, c.Text)
 		if c.Note != "" {
@@ -100,15 +115,15 @@ func criteriaTool() Tool {
 		Function: ToolFunction{
 			Name: "criteria",
 			Description: "Manage the acceptance criteria of the current task (the contract that defines DONE). " +
-				"action=add posits new criteria (texts[]), action=set updates one (id + status passed|failed|pending, optional note), " +
-				"action=list shows them, action=clear removes them all. Set criteria BEFORE building; only the verification pass may mark passed.",
+				"action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), " +
+				"action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"action": map[string]any{"type": "string", "enum": []string{"add", "set", "list", "clear"}},
 					"texts":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "add: one entry per criterion, short and testable"},
 					"id":     map[string]any{"type": "integer", "description": "set: criterion id"},
-					"status": map[string]any{"type": "string", "enum": []string{"pending", "passed", "failed"}},
+					"status": map[string]any{"type": "string", "enum": []string{"pending", "completed", "passed", "failed"}},
 					"note":   map[string]any{"type": "string", "description": "set: why it failed / how it was verified"},
 				},
 				"required": []string{"action"},
@@ -158,8 +173,15 @@ func toolCriteria(args map[string]any, allowPass bool) string {
 		critNotify(list)
 		return fmt.Sprintf("[ok] %d critère(s) ajouté(s)\n%s", added, critRender(list))
 	case "set":
-		idf, _ := args["id"].(float64)
-		id := int(idf)
+		// id numérique ou chaîne (« "2" », « "#2" ») : les petits modèles
+		// écrivent volontiers l'id entre guillemets, qui tombait sinon à #0.
+		id := 0
+		switch v := args["id"].(type) {
+		case float64:
+			id = int(v)
+		case string:
+			id, _ = strconv.Atoi(strings.TrimPrefix(strings.TrimSpace(v), "#"))
+		}
 		status, _ := args["status"].(string)
 		note, _ := args["note"].(string)
 		if status == "passed" && !allowPass {

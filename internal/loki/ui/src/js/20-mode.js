@@ -110,7 +110,7 @@ function renderCriteria(list){
   for(const c of list){
     const li = document.createElement('li');
     li.className = 'crit-'+(c.status||'pending');
-    const mark = c.status==='passed' ? '✓' : (c.status==='failed' ? '✗' : '○');
+    const mark = c.status==='passed' ? '✓' : (c.status==='failed' ? '✗' : (c.status==='completed' ? '◐' : '○'));
     li.textContent = mark+' '+c.text + (c.note ? ' — '+c.note : '');
     ul.appendChild(li);
   }
