@@ -769,6 +769,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	final := msgs
 	if caps.Agent {
 		final = append(projectSystemMessages(), msgs...)
+		if m, ok := codeInstructionsMessage(caps); ok {
+			final = append([]Message{m}, final...)
+		}
 		if sp := readSysPrompt(); sp != "" {
 			final = append([]Message{{Role: "system", Content: sp}}, final...)
 		}

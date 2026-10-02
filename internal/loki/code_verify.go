@@ -152,9 +152,15 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	msgs := append([]Message(nil), c.Messages...)
 	c.mu.Unlock()
 
-	final := msgs
+	// Même contexte que le tour de build : projet (description, index mémoire,
+	// trackers) et consignes du dépôt. Sans eux, la reprise changeait le début
+	// du premier message utilisateur — tout le cache de prompt à refaire.
+	final := append(projectSystemMessages(), msgs...)
+	if m, ok := codeInstructionsMessage(caps); ok {
+		final = append([]Message{m}, final...)
+	}
 	if sp := readSysPrompt(); sp != "" {
-		final = append([]Message{{Role: "system", Content: sp}}, msgs...)
+		final = append([]Message{{Role: "system", Content: sp}}, final...)
 	}
 	var content strings.Builder
 	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {

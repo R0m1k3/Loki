@@ -359,7 +359,8 @@ func isProjectSystem(m Message) bool {
 	return strings.HasPrefix(s, projectContextPrefix) ||
 		strings.HasPrefix(s, memIndexPrefix) ||
 		strings.HasPrefix(s, trackerIndexPrefix) ||
-		strings.HasPrefix(s, memReminderPrefix)
+		strings.HasPrefix(s, memReminderPrefix) ||
+		strings.HasPrefix(s, codeInstructionsPrefix)
 }
 
 // prependToFirstUser place ctx en tête du premier message user de msgs (modifié
