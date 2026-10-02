@@ -27,10 +27,15 @@ La licence d'origine est conservée à l'identique dans [`LICENSE`](LICENSE).
   patterns, table languages.json) est reprise
   d'**[OpenFox](https://github.com/co-l/openfox)** (MIT) et réécrite en Go
   pour ce fork ; les prompts de rôles sont des réécritures originales. S'y
-  ajoutent depuis deux idées reprises d'OpenFox et réimplémentées ici : les
-  **sous-agents** (`code_subagent.go` — un rôle délégué qui travaille dans son
-  propre contexte) et le **fenêtrage du fil** au chargement d'une longue
-  discussion.
+  ajoutent depuis d'autres idées reprises d'OpenFox et réimplémentées ici :
+  les **sous-agents** (`code_subagent.go` — un rôle délégué qui travaille dans
+  son propre contexte), la **vérification déclenchée quand le builder a
+  fini** (statut `completed`, relance sur critères ouverts), le **pré-vol**
+  qui refuse une écriture dès son chemin (`tool_schema_order.go`), la
+  **réparation des noms d'outils hallucinés** (`code_alias.go`), les
+  **consignes du dépôt** AGENTS.md / CLAUDE.md (`code_instructions.go`),
+  l'**hygiène du terminal** (`chat_shell_hygiene.go`) et un **compactage**
+  qui garde l'état du mode Code.
 
 ## Reprises depuis l'amont après le fork
 

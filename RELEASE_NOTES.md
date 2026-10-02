@@ -1,96 +1,90 @@
-# Loki 0.13.0
+# Loki 0.14.0
 
-Loki rattrape deux versions majeures d'AJEAN (0.14 → 0.15.4) et reprend deux
-idées d'OpenFox. L'IA peut piloter un navigateur, la mémoire se chiffre sur le
-disque, et le serveur sait te prévenir quand c'est prêt.
+Loki rattrape AJEAN jusqu'à la 0.17.6 et reprend une série d'idées d'OpenFox
+pour le mode Code. Le gros du travail est invisible : des discussions qui ne se
+bloquent plus sur un contexte plein, des réponses qui survivent à une coupure
+réseau, un agent de code qui gaspille moins de tours.
 
-## L'IA pilote un navigateur
+## Le contexte ne bloque plus la discussion
 
-Un interrupteur dans *Réglages → Contrôle du navigateur* et l'IA ouvre des pages
-dans le Chromium déjà embarqué dans l'image. Elle en reçoit les éléments
-interactifs **numérotés** (`[12] bouton « Se connecter »`) et agit par numéro :
-`browser_open`, `browser_find`, `browser_click`, `browser_type`, `browser_key`,
-`browser_scroll`. **Aucune vision requise** — ça marche avec un petit modèle
-texte. Avec un projecteur `mmproj` chargé s'ajoutent `browser_screenshot`
-(capture quadrillée tous les 100 px) et `browser_click_xy`, pour ce que l'arbre
-d'accessibilité ne montre pas : canvas, bandeau cookies en iframe.
+Sur une fenêtre de 65k, un tour qui lisait plusieurs gros fichiers d'un coup
+passait de 60 % à plus de 130 % sans jamais compacter, et le moteur répondait
+par un 400 qui figeait la discussion.
 
-Ce sont des actions réelles sur le web : l'interrupteur est distinct de l'accès
-internet et n'agit qu'en **mode agent**, au même niveau de confiance que `bash`.
-En CLI : `loki computer [on|off|status]`.
+- Le compactage en cours de tour compte aussi les résultats d'outils que le
+  moteur n'a pas encore vus.
+- Tout résultat d'outil est borné à 30 000 caractères **pour le modèle** ;
+  l'interface garde le résultat complet (« voir plus »).
+- En dernier recours, les gros résultats sont tronqués puis les plus vieux
+  échanges retirés, au lieu de laisser remonter l'erreur.
+- Le compactage ne fait plus répondre deux fois à une vieille question, et le
+  texte écrit avant un appel d'outil n'est plus rangé en double.
 
-## La mémoire se chiffre
+## Presets : API compatible OpenAI
 
-*Réglages → Mémoire → chiffrer la mémoire sur le disque* : pages mémoire,
-discussions, blocs archivés au compactage et trackers passent en **AES-256-GCM**
-sous `/data`. La clé de données est enfermée dans un coffre par une clé dérivée
-en **Argon2id** ; ce qui l'ouvre, c'est la **clé de pilotage de cet appareil**
-(le serveur n'en garde qu'une empreinte — il ne peut pas ouvrir le coffre seul)
-ou une **clé de récupération** affichée une seule fois à l'activation.
+Les presets d'API externe gagnent ce qui leur manquait :
 
-La clé ne vit qu'en RAM : après un redémarrage à froid, la mémoire reste
-verrouillée jusqu'à ce qu'un navigateur se reconnecte. Verrouillé, Loki n'écrase
-jamais du chiffré par du clair — il refuse d'écrire. Un **snapshot** est pris
-avant chaque bascule, une migration interrompue reprend au démarrage, et rien
-n'est supprimé avant que son remplaçant ait été relu et vérifié.
+- une case **« le modèle accepte les images »** pour un modèle distant
+  multimodal ;
+- plus de `chat_template_kwargs` (propre à llama.cpp) envoyé à l'API : une API
+  stricte répondait 400 et **chaque compactage échouait** ;
+- **reprise automatique** quand le flux se coupe en pleine réponse (Wi-Fi, VPN,
+  proxy) : jusqu'à 5 fois, le modèle reprend là où il s'était arrêté ;
+- un 401, 429 ou 502 n'est plus pris pour un appel d'outil mal formé ;
+- le débit est mesuré même quand l'API ne le donne pas ; le benchmark refuse de
+  mesurer un moteur local qui n'est pas celui du preset ; le badge des réponses
+  porte le nom du modèle distant.
 
-**Sauvegarde chiffrée** : *exporter* télécharge un paquet scellé (mémoire,
-presets, réglages) que *importer* rejoue sur un autre serveur avec la seule clé —
-de quoi remonter le conteneur ailleurs. Le fichier reste chez toi : aucun envoi
-vers un service tiers.
+## Mode Code
 
-## Notifications, même app fermée
+- **La vérification attend que le builder ait fini.** Il marque chaque critère
+  `completed` une fois fait ; tant qu'il en reste d'ouverts, il est relancé au
+  lieu de payer une passe de vérification sur un travail inachevé. Plus aucune
+  vérification ne part quand il vient de poser une question.
+- **Écriture refusée dès son chemin** : un `write` sur un fichier jamais lu
+  était refusé après tout le fichier généré. Le chemin passe maintenant en
+  premier et le refus coupe la génération aussitôt.
+- **Appel d'outil écrit en texte** (`<tool_call>`, format XML de Qwen3-Coder) :
+  repéré pendant le flux, coupé, et la relance cite l'extrait fautif.
+- `read_file`, `str_replace`, `old_string`… appris d'autres agents sont
+  traduits vers les vrais outils.
+- Les consignes du dépôt (**AGENTS.md**, CLAUDE.md) font partie du contexte.
+- Terminal : `cmd | tail -N` rend le **vrai** code de sortie, la sortie déjà
+  produite est gardée au délai dépassé, les couleurs ANSI sont retirées.
+- `git_status` / `git_diff` trouvent le dépôt cloné dans un sous-dossier.
+- Le compactage garde les fichiers touchés, les erreurs résolues et l'état des
+  critères.
 
-Le serveur pousse une notification à la fin d'une réponse **et à la fin d'une
-tâche planifiée**, succès comme échec — c'est le cas qui compte, personne ne
-regarde. Interrupteur dans *Réglages → Mode agent*, à armer sur chaque appareil.
-Demande HTTPS (ou localhost) ; sur iPhone, ajoute d'abord Loki à l'écran
-d'accueil.
+## Tâches et chat
 
-## Tâches : des scripts qui tournent sans modèle
+- **« Rappelle-moi dans 20 minutes »** : `task_create` accepte `in_minutes` ou
+  `at`, à l'heure du navigateur (le conteneur tourne en UTC).
+- **Écrire pendant que l'IA répond** : le message part en file et le modèle en
+  tient compte dans la suite de sa réponse ; deux appareils qui envoient en
+  même temps ne se refusent plus.
+- Longues discussions : au chargement, les 20 derniers échanges, le début d'un
+  clic ; la liste des discussions se dessine par pages et montre la nouvelle
+  dès le premier message.
+- Mémoire : un mode par projet, et un quatrième, « recherche ».
+- Appels d'outils parallèles séparés selon leur index ; bascule de preset par
+  identifiant ; un raisonnement qui reprend après la réponse a sa propre bulle.
 
-Un nouveau dossier `/data/scripts`, **hors du workspace jetable** : supprimer une
-discussion n'y touche pas. Une tâche peut désormais être un **script seul** — le
-planificateur le lance sans charger le modèle ni consommer un jeton. Une
-sauvegarde, une synchro, un nettoyage n'ont rien à demander à un LLM.
+## Sécurité et données
 
-L'IA dispose aussi de `task_create`, `task_list`, `task_update` et `task_delete` :
-elle se pose ses propres rappels et veilles, cloisonnés par projet.
+- **Un site tiers ne peut plus piloter Loki** depuis le navigateur (Origin /
+  Sec-Fetch-Site, DNS rebinding). ⚠️ Derrière un reverse proxy par nom de
+  domaine, définis une clé de pilotage ou `LOKI_TRUSTED_HOSTS` **avant** la mise
+  à jour, et vérifie que le proxy transmet l'en-tête `Host` d'origine.
+- **Chiffrement de la mémoire** : l'activer rendait illisibles la discussion
+  active et le mode Code. Corrigé ; une base déjà touchée est réparée au
+  déverrouillage. Les résultats d'outils (« voir plus ») et les images du fil
+  sont désormais chiffrés eux aussi, et les images effacées après 24 h.
 
-## Mode code : des sous-agents
+## Moteur
 
-L'outil `subagent` délègue une recherche (`explorer`), une relecture
-(`code-reviewer`) ou un découpage (`planner`) à un rôle qui travaille dans **son
-propre contexte** et ne rend que sa réponse. Sur un modèle local, c'est la
-fenêtre de contexte qu'on sauve : « trouve où est géré le cache » coûte dix
-lectures de fichiers, qui restaient sinon dans l'historique alors que seule la
-réponse comptait. Tous les rôles délégués sont en lecture seule.
-
-Le builder ne publie plus de lui-même : sans demande explicite, ni commit, ni
-push, ni redémarrage de service.
-
-## Interface
-
-- **Anglais** (*Apparence → Langue*) : la coque — navigation, intitulés,
-  boutons — passe en anglais. Ce qui n'est pas encore traduit reste en français
-  plutôt que d'afficher une clé technique, et le fil de discussion n'est jamais
-  touché.
-- **Résultats d'outils** : le flux ne transporte plus qu'un aperçu ; « voir
-  plus » charge le reste à la demande et déplie vraiment le bloc. Le compteur
-  « ~N tok » dit enfin la taille réelle, pas celle de l'aperçu.
-- **Longues discussions** : à l'ouverture, seule la fin du fil est rejouée. Un
-  bandeau dit combien d'événements sont masqués et charge le début d'un clic.
-- **Images** : l'orientation EXIF est cuite dans les pixels (fini les photos de
-  téléphone couchées pour le modèle) et le grand côté ramené sous 1568 px.
-
-## Corrections
-
-- Un outil qui porte une image dans un message séparé (`see_image`,
-  `browser_screenshot`) renvoyait « [déjà fait] » **sans** l'image et le modèle
-  bouclait. Relancer la même commande `bash` est de nouveau permis.
-- **MCP** ne tronque plus sa réponse à 12000 caractères avant le modèle.
-- Le dossier mémoire n'est plus joignable qu'aux outils `mem_*` : un `cat
-  memory/…` contournait l'index `MEMORY.md`.
+- `--mlock` seul ne coupe plus le mmap (OOM au chargement).
+- Port déjà occupé refusé avec un message clair ; cache KV lent signalé.
+- Réponses web compressées en gzip.
 
 ## Mise à jour
 
