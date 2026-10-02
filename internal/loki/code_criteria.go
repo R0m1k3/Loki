@@ -30,7 +30,7 @@ func critKey(convID string) string { return "crit:" + convID }
 
 func critList(convID string) []Criterion {
 	var list []Criterion
-	if b := getBytes(bkChat, critKey(convID)); len(b) > 0 {
+	if b, ok := getStoreBytes(bkChat, critKey(convID)); ok && len(b) > 0 {
 		_ = json.Unmarshal(b, &list)
 	}
 	return list
@@ -45,7 +45,7 @@ func critSave(convID string, list []Criterion) {
 	if err != nil {
 		return
 	}
-	_ = putBytes(bkChat, critKey(convID), b)
+	_ = putStoreBytes(bkChat, critKey(convID), b)
 }
 
 func critDrop(convID string) { _ = putBytes(bkChat, critKey(convID), nil) }

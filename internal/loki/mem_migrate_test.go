@@ -219,3 +219,45 @@ func TestSnapshotRestore(t *testing.T) {
 		}
 	}
 }
+
+// Activer le chiffrement ne doit pas rendre illisibles les clés-pointeurs du
+// bucket des discussions (discussion active, mode Code) ni les critères. Une
+// version précédente les chiffrait : la discussion active devenait
+// introuvable. Celles déjà chiffrées sont réparées au déverrouillage.
+func TestChiffrementGardeLesPointeursLisibles(t *testing.T) {
+	testHome(t)
+	clearMemDEK()
+	id := convEnsureActive()
+	if err := setConvMode(id, "code"); err != nil {
+		t.Fatal(err)
+	}
+	toolCriteria(map[string]any{"action": "add", "texts": []any{"le build compile"}}, false)
+	if _, err := EnableMemEncryption("motdepasse-fort"); err != nil {
+		t.Fatalf("EnableMemEncryption: %v", err)
+	}
+	if got := getStr(bkChat, ckActive); got != id {
+		t.Fatalf("discussion active illisible après chiffrement : %q", got)
+	}
+	if !convCodeMode() {
+		t.Fatal("mode Code perdu après chiffrement")
+	}
+	if l := critList(id); len(l) != 1 {
+		t.Fatalf("critères perdus après chiffrement : %+v", l)
+	}
+	if !looksEncrypted(getBytes(bkChat, critKey(id))) {
+		t.Fatal("critères en clair alors que les discussions sont chiffrées")
+	}
+	if !bucketFullyEncrypted(bkChat) {
+		t.Fatal("les clés-pointeurs en clair font croire à un chiffrement incomplet")
+	}
+	// Base d'une version précédente : le pointeur a été chiffré.
+	enc, err := encodeMemContent([]byte(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = putBytes(bkChat, ckActive, enc)
+	healPlainStoreKeys()
+	if got := getStr(bkChat, ckActive); got != id {
+		t.Fatalf("pointeur chiffré non réparé : %q", got)
+	}
+}

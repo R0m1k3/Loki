@@ -12,6 +12,7 @@ package loki
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 // errStoreLocked : écriture chiffrée demandée alors que la DEK n'est pas en RAM.
@@ -90,12 +91,46 @@ func getStoreJSON(bucket, key string, dst any) bool {
 	return json.Unmarshal(b, dst) == nil
 }
 
+// plainStoreKey : clés d'un bucket chiffré qui restent EN CLAIR, parce que le
+// code les lit et les écrit avec getStr/putStr — des pointeurs et drapeaux, pas
+// des données : la discussion active (son id), le mode Chat|Code d'une
+// discussion, la puce « passer en mode Code » déjà montrée. Chiffrées par
+// reencryptBucket, elles revenaient à la lecture comme du charabia : la
+// discussion active devenait introuvable, le mode Code et ses critères
+// disparaissaient dès l'activation du chiffrement.
+func plainStoreKey(bucket, key string) bool {
+	if bucket != bkChat {
+		return false
+	}
+	return key == ckActive || strings.HasPrefix(key, "mode:") || strings.HasPrefix(key, "hinted:")
+}
+
+// healPlainStoreKeys remet en clair les clés-pointeurs qu'une version
+// précédente avait chiffrées (voir plainStoreKey). À appeler dès que la DEK est
+// en RAM, AVANT de recharger la discussion active. Sans DEK, ne fait rien.
+func healPlainStoreKeys() {
+	if !memUnlocked() {
+		return
+	}
+	for _, bucket := range encryptedBuckets {
+		for k, v := range allKV(bucket) {
+			raw := []byte(v)
+			if !plainStoreKey(bucket, k) || !looksEncrypted(raw) {
+				continue
+			}
+			if plain, err := decodeMemContent(raw); err == nil {
+				_ = putBytes(bucket, k, plain)
+			}
+		}
+	}
+}
+
 // reencryptBucket (re)chiffre toutes les valeurs d'un bucket encore en clair,
 // avec vérification par relecture. Sûr à rejouer. Exige la DEK en RAM.
 func reencryptBucket(bucket string) error {
 	for k, v := range allKV(bucket) {
 		raw := []byte(v)
-		if looksEncrypted(raw) {
+		if looksEncrypted(raw) || plainStoreKey(bucket, k) {
 			continue
 		}
 		if err := putStoreBytes(bucket, k, raw); err != nil {
@@ -113,7 +148,10 @@ func reencryptBucket(bucket string) error {
 // portent le magic). Lisible sans la DEK. Utilisé pour savoir si le chiffrement
 // est réellement complet.
 func bucketFullyEncrypted(bucket string) bool {
-	for _, v := range allKV(bucket) {
+	for k, v := range allKV(bucket) {
+		if plainStoreKey(bucket, k) {
+			continue
+		}
 		if v != "" && !looksEncrypted([]byte(v)) {
 			return false
 		}
@@ -136,6 +174,7 @@ var encryptedBuckets = []string{bkChat, bkRecall, bkTracker, bkToolRes}
 
 // reencryptChatStores (re)chiffre les buckets de conversation. Exige la DEK.
 func reencryptChatStores() error {
+	healPlainStoreKeys()
 	for _, b := range encryptedBuckets {
 		if err := reencryptBucket(b); err != nil {
 			return err

@@ -757,7 +757,10 @@ func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setMemDEK(dek)
-	resumeMemMigration()    // si une migration attendait le déverrouillage
+	resumeMemMigration() // si une migration attendait le déverrouillage
+	// AVANT le rechargement : la discussion active est désignée par une clé
+	// qu'une version précédente chiffrait par erreur (voir plainStoreKey).
+	healPlainStoreKeys()
 	reloadEncryptedStores() // recharge la discussion chiffrée en RAM
 	// Migration douce : chiffre ce qui serait resté en clair (discussions,
 	// blocs archivés, trackers). Idempotent — n'encode que ce qui ne l'est pas.
