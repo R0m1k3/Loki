@@ -936,9 +936,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// par rendre la main plutôt que faire attendre.
 	const maxNudges = 2
 	nudgeCount := 0
-	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : une seule
-	// relance par tour, comme le nudge.
-	patternRetried := false
+	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : relances
+	// consécutives bornées, compteur remis à zéro après chaque outil exécuté.
+	patternRetries := 0
 	// Reprises RÉSEAU consécutives (llm_retry_net.go). Remis à zéro dès qu'une
 	// réponse arrive : une boucle d'outils longue retrouve son budget à chaque
 	// itération réussie, un moteur durablement mort finit par rendre la main.
@@ -1192,6 +1192,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		sc := bufio.NewScanner(resp.Body)
 		sc.Buffer(make([]byte, 0, 64*1024), 8<<20)
 		aborted := false
+		// patternHit : flux coupé sur un appel d'outil écrit en texte (voir plus bas).
+		patternHit := false
 		for sc.Scan() {
 			line := strings.TrimSpace(sc.Text())
 			if !strings.HasPrefix(line, "data:") {
@@ -1352,6 +1354,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						aborted = true
 						break
 					}
+					// Appel d'outil écrit en texte, repéré PENDANT le flux (OpenFox) :
+					// on coupe tout de suite au lieu de laisser le modèle dérouler un
+					// faux appel — parfois un fichier entier — qui ne sera jamais
+					// exécuté. La relance corrective part juste après (voir fin de
+					// boucle). Testé seulement quand le morceau peut ouvrir un motif.
+					if len(tools) > 0 && !disableTools && patternRetries < maxPatternRetries &&
+						strings.ContainsAny(ch.Delta.Content, "<`{[_.") && textualToolCall(assistantContent.String()) {
+						patternHit = true
+						break
+					}
 				} else {
 					// The prompt opened a <think> block. Stream `content` LIVE as
 					// the answer, holding back only a short tail that could be the
@@ -1438,8 +1450,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			return extra, nil
 		}
 		// Coupure APRÈS le dernier chunk (finish_reason reçu) : la réponse est
-		// complète, seule la fermeture a raté. On la garde telle quelle.
-		if scanErr != nil && finishReason != "" {
+		// complète, seule la fermeture a raté. On la garde telle quelle. Flux
+		// coupé par NOUS sur un appel écrit en texte : pas une panne non plus.
+		if scanErr != nil && (finishReason != "" || patternHit) {
 			scanErr = nil
 		}
 		// Flux coupé vers une API DISTANTE (Wi-Fi, VPN, proxy qui décroche) : on
@@ -1529,6 +1542,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// Début des résultats de CETTE étape, que le moteur n'a pas encore
 			// comptés (voir le test de compactage en cours de tour, plus bas).
 			stepStart := len(messages)
+			// Appel émis par le protocole : le budget de relances « appel écrit
+			// en texte » repart à neuf.
+			patternRetries = 0
 			// 2. Execute each tool locally and append a "tool" reply.
 			for _, tc := range tcs {
 				// Arrêt demandé : on n'enchaîne pas les outils restants. Sans ce
@@ -1839,10 +1855,11 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// (code_retry.go). Le texte fautif reste affiché — le remplacer serait
 		// mentir sur ce qui s'est passé — mais l'historique du modèle garde la
 		// trace ET la correction, donc la vraie réponse suit immédiatement.
-		if !patternRetried && len(tools) > 0 && !disableTools && textualToolCall(assistantContent.String()) {
-			patternRetried = true
+		if snippet := textualToolCallSnippet(assistantContent.String()); snippet != "" &&
+			patternRetries < maxPatternRetries && len(tools) > 0 && !disableTools {
+			patternRetries++
 			bad := Message{Role: "assistant", Content: assistantContent.String()}
-			fix := Message{Role: "user", Content: retryCorrective}
+			fix := Message{Role: "user", Content: retryCorrective(snippet)}
 			messages = append(messages, bad, fix)
 			extra = append(extra, bad, fix)
 			continue

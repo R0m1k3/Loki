@@ -14,7 +14,9 @@ package loki
 import (
 	"encoding/json"
 	"regexp"
+	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // defaultRetryPatterns : motifs d'appels d'outils textuels. Volontairement
@@ -29,6 +31,10 @@ var defaultRetryPatterns = []string{
 	`\bfunctions\.\w+\s*\(`,
 	`^\s*\{"name":\s*"(bash|read|grep|glob|edit|write|mem_\w+|web_\w+|git_\w+|criteria|ask)"`,
 	`\[TOOL_REQUEST\]`,
+	// Format XML de Qwen3-Coder, quand le gabarit du moteur ne l'a pas converti
+	// en tool_calls (OpenFox 2.0.15x) : <function=bash><parameter=command>…
+	`<function=\w+>`,
+	`<parameter=\w+>`,
 }
 
 // Compilés à la première utilisation, pas à l'init du package : la surcharge
@@ -67,18 +73,40 @@ func compileRetryPatterns() []*regexp.Regexp {
 // textualToolCall dit si le texte final du tour contient un appel d'outil
 // écrit en toutes lettres au lieu d'être émis par le protocole.
 func textualToolCall(content string) bool {
-	if content == "" {
-		return false
-	}
-	for _, re := range retryPatterns() {
-		if re.MatchString(content) {
-			return true
-		}
-	}
-	return false
+	return textualToolCallSnippet(content) != ""
 }
 
-// retryCorrective : le message réinjecté pour relancer le tour.
-const retryCorrective = "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed. " +
-	"Tool calls must go through the tool-call protocol, never in the answer text. " +
-	"Redo it now: emit the real tool call, or answer directly without pretending to call a tool."
+// textualToolCallSnippet renvoie l'extrait fautif (le motif reconnu et un peu
+// de ce qui le suit), "" si aucun. Cité dans la consigne corrective : le
+// modèle voit CE qu'il a mal écrit au lieu d'une remontrance abstraite.
+func textualToolCallSnippet(content string) string {
+	if content == "" {
+		return ""
+	}
+	for _, re := range retryPatterns() {
+		if loc := re.FindStringIndex(content); loc != nil {
+			end := loc[1] + 80
+			if end > len(content) {
+				end = len(content)
+			}
+			for end < len(content) && !utf8.RuneStart(content[end]) {
+				end++
+			}
+			return strings.TrimSpace(content[loc[0]:end])
+		}
+	}
+	return ""
+}
+
+// maxPatternRetries : relances « appel écrit en texte » consécutives. Le
+// compteur repart à zéro après chaque appel d'outil réussi (OpenFox) : un long
+// tour d'agent peut rater la syntaxe plusieurs fois, mais pas en boucle.
+const maxPatternRetries = 3
+
+// retryCorrective : le message réinjecté pour relancer le tour, avec l'extrait
+// fautif.
+func retryCorrective(snippet string) string {
+	return "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed:\n" + snippet +
+		"\nTool calls must go through the tool-call protocol, never in the answer text. " +
+		"Redo it now: emit the real tool call, or answer directly without pretending to call a tool."
+}
