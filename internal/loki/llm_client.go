@@ -99,9 +99,9 @@ func memAddTool() Tool {
 			Description: "Create a memory page. One topic per page, kebab-case name, first line = title (#). Refuses to overwrite an existing page (use mem_edit).",
 			Parameters: map[string]any{
 				"type": "object",
-				"properties": map[string]any{
-					"file":    map[string]any{"type": "string", "description": "Page name"},
-					"content": map[string]any{"type": "string", "description": "Markdown, first line = title #"},
+				"properties": orderedProps{
+					{"file", map[string]any{"type": "string", "description": "Page name"}},
+					{"content", map[string]any{"type": "string", "description": "Markdown, first line = title #"}},
 				},
 				"required": []string{"file", "content"},
 			},
@@ -117,10 +117,10 @@ func memEditTool() Tool {
 			Description: "Patch a memory page: old → new, old unique in the page. To append, put the current end of the page in old and the extended version in new.",
 			Parameters: map[string]any{
 				"type": "object",
-				"properties": map[string]any{
-					"file": map[string]any{"type": "string", "description": "Page name"},
-					"old":  map[string]any{"type": "string", "description": "Exact text to replace (unique)"},
-					"new":  map[string]any{"type": "string", "description": "Replacement"},
+				"properties": orderedProps{
+					{"file", map[string]any{"type": "string", "description": "Page name"}},
+					{"old", map[string]any{"type": "string", "description": "Exact text to replace (unique)"}},
+					{"new", map[string]any{"type": "string", "description": "Replacement"}},
 				},
 				"required": []string{"file", "old", "new"},
 			},
@@ -136,10 +136,11 @@ func editTool() Tool {
 			Description: "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
 			Parameters: map[string]any{
 				"type": "object",
-				"properties": map[string]any{
-					"file": map[string]any{"type": "string", "description": "Path"},
-					"old":  map[string]any{"type": "string", "description": "Exact text to replace (unique)"},
-					"new":  map[string]any{"type": "string", "description": "Replacement"},
+				// Ordre voulu : le chemin d'abord (voir orderedProps).
+				"properties": orderedProps{
+					{"file", map[string]any{"type": "string", "description": "Path"}},
+					{"old", map[string]any{"type": "string", "description": "Exact text to replace (unique)"}},
+					{"new", map[string]any{"type": "string", "description": "Replacement"}},
 				},
 				"required": []string{"file", "old", "new"},
 			},
@@ -155,9 +156,10 @@ func writeTool() Tool {
 			Description: "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
 			Parameters: map[string]any{
 				"type": "object",
-				"properties": map[string]any{
-					"file":    map[string]any{"type": "string", "description": "Path"},
-					"content": map[string]any{"type": "string", "description": "Full content"},
+				// Ordre voulu : le chemin d'abord (voir orderedProps).
+				"properties": orderedProps{
+					{"file", map[string]any{"type": "string", "description": "Path"}},
+					{"content", map[string]any{"type": "string", "description": "Full content"}},
 				},
 				"required": []string{"file", "content"},
 			},
@@ -663,22 +665,30 @@ func writeBodyKey(tool string) string {
 // streaming tool-call arguments JSON, so the UI can show the command being
 // typed live. Best-effort: it tolerates a truncated tail and basic escapes.
 func previewArg(args, key string) string {
+	v, _ := previewArgDone(args, key)
+	return v
+}
+
+// previewArgDone : comme previewArg, et dit si la valeur est COMPLÈTE (guillemet
+// fermant reçu) — de quoi agir sur un argument avant la fin du flux.
+func previewArgDone(args, key string) (string, bool) {
 	i := strings.Index(args, "\""+key+"\"")
 	if i < 0 {
-		return ""
+		return "", false
 	}
 	rest := args[i+len(key)+2:]
 	if j := strings.Index(rest, ":"); j >= 0 {
 		rest = rest[j+1:]
 	} else {
-		return ""
+		return "", false
 	}
 	q := strings.Index(rest, "\"")
 	if q < 0 {
-		return ""
+		return "", false
 	}
 	rest = rest[q+1:]
 	var b strings.Builder
+	closed := false
 	for x := 0; x < len(rest); x++ {
 		c := rest[x]
 		if c == '\\' && x+1 < len(rest) {
@@ -699,11 +709,12 @@ func previewArg(args, key string) string {
 			continue
 		}
 		if c == '"' {
+			closed = true
 			break
 		}
 		b.WriteByte(c)
 	}
-	return b.String()
+	return b.String(), closed
 }
 
 // StatsEvent carries llama.cpp's per-completion timing (final chunk).
@@ -1201,6 +1212,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		aborted := false
 		// patternHit : flux coupé sur un appel d'outil écrit en texte (voir plus bas).
 		patternHit := false
+		// preflight : write/edit refusé dès son chemin (voir plus bas) ; non-nil
+		// mais vide = chemin déjà vérifié, rien à signaler.
+		var preflight *preflightRefusal
 		for sc.Scan() {
 			line := strings.TrimSpace(sc.Text())
 			if !strings.HasPrefix(line, "data:") {
@@ -1342,6 +1356,20 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 							break
 						}
 					}
+					// Pré-vol (OpenFox 2.0.154) : dès que le chemin d'un write/edit est
+					// complet, on vérifie les gardes du mode Code (fichier lu avant
+					// d'être modifié, chemin permis). Refusé : on coupe la génération
+					// MAINTENANT au lieu de laisser le modèle écrire tout un fichier
+					// qui serait de toute façon rejeté.
+					if caps.Code && preflight == nil && (cur.Function.Name == "write" || cur.Function.Name == "edit") {
+						if file, done := previewArgDone(cur.Function.Arguments, "file"); done && strings.TrimSpace(file) != "" {
+							if msg := codeWriteGuard(caps, file, cur.Function.Name == "write"); msg != "" {
+								preflight = &preflightRefusal{name: cur.Function.Name, id: cur.ID, file: file, msg: msg}
+								break
+							}
+							preflight = &preflightRefusal{} // vérifié : plus besoin de regarder
+						}
+					}
 				}
 				continue
 			}
@@ -1459,7 +1487,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Coupure APRÈS le dernier chunk (finish_reason reçu) : la réponse est
 		// complète, seule la fermeture a raté. On la garde telle quelle. Flux
 		// coupé par NOUS sur un appel écrit en texte : pas une panne non plus.
-		if scanErr != nil && (finishReason != "" || patternHit) {
+		if scanErr != nil && (finishReason != "" || patternHit || (preflight != nil && preflight.msg != "")) {
 			scanErr = nil
 		}
 		// Flux coupé vers une API DISTANTE (Wi-Fi, VPN, proxy qui décroche) : on
@@ -1503,6 +1531,29 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Complétion lue en entier : le budget de reprises vaut par coupure
 		// rapprochée, pas pour tout un long tour d'agent.
 		streamRetries = 0
+
+		// Écriture refusée en plein flux (pré-vol) : l'appel, réduit à son chemin,
+		// entre dans l'historique avec le refus pour résultat — le modèle voit
+		// pourquoi, et la boucle repart pour qu'il lise le fichier d'abord.
+		if preflight != nil && preflight.msg != "" {
+			id := preflight.id
+			if id == "" {
+				id = fmt.Sprintf("call_%d_0", iter)
+			}
+			fileArg, _ := json.Marshal(map[string]string{"file": preflight.file})
+			tc := ToolCall{ID: id, Type: "function", Function: ToolCallFunc{Name: preflight.name, Arguments: string(fileArg)}}
+			assistant := Message{Role: "assistant", ToolCalls: []ToolCall{tc}}
+			if s := assistantContent.String(); s != "" {
+				assistant.Content = s
+			}
+			result := preflight.msg + " (écriture interrompue avant la fin : rien n'a été modifié)"
+			cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: preflight.name, Label: preflight.file, Done: true, Result: result}})
+			toolMsg := Message{Role: "tool", ToolCallID: id, Content: result}
+			messages = append(messages, assistant, toolMsg)
+			extra = append(extra, assistant, toolMsg)
+			toolRuns++
+			continue
+		}
 
 		// Treat any accumulated tool calls as a tool turn even if the backend set
 		// finish_reason to "stop" instead of "tool_calls" (some llama.cpp builds
