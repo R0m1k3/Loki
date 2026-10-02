@@ -7412,6 +7412,15 @@ function feedBlock(el, full){ if(REPLAYING) scheduleRender(el, full); else smoot
 // bulle d'outil) doit voir le texte complet.
 function settleBlocks(){ smoothSnap(); flushRender(); }
 
+// Rafraîchissement groupé de la liste des discussions (plusieurs événements
+// rapprochés = un seul appel).
+let histRefreshTimer=null;
+function histRefreshSoon(){
+  if(typeof loadConversations!=='function') return;
+  clearTimeout(histRefreshTimer);
+  histRefreshTimer=setTimeout(()=>{ histRefreshTimer=null; loadConversations(); }, 400);
+}
+
 // Traite UN événement du flux — même sémantique que l'ancien switch inline, mais
 // piloté par le serveur et rejouable à l'identique.
 function handleDelta(d){
@@ -7467,6 +7476,9 @@ function handleDelta(d){
     // bulle de réponse du tour.
     T.model = d.model || '';
     if(!REPLAYING) queueTake(d.user); // message en file désormais pris en compte
+    // Le serveur a déjà enregistré la discussion (StartTurn persiste) : la liste
+    // la montre dès le premier message, sans attendre la fin de la réponse.
+    if(!REPLAYING) histRefreshSoon();
     let el=PENDING;
     if(!confirmPending(d.user)) el=addMsg('user', d.user);
     // Pièces jointes du tour : rendues DANS la bulle. La bulle en attente en
