@@ -237,7 +237,8 @@ function renderStats(el, s){
   if(!el||!s) return;
   const parts=[];
   const pt=s.prompt_tokens||s.prompt_tokens_total;
-  if(pt) parts.push('prefill '+pt+' tok · '+(s.prompt_per_second||0).toFixed(0)+' tok/s');
+  // Débit de lecture inconnu (API tierce sans timings) : on n'affiche que la taille.
+  if(pt) parts.push('prefill '+pt+' tok'+(s.prompt_per_second ? ' · '+s.prompt_per_second.toFixed(0)+' tok/s' : ''));
   if(s.gen_tokens) parts.push('decode '+s.gen_tokens+' tok · '+(s.gen_per_second||0).toFixed(1)+' tok/s');
   if(!parts.length) return;
   // Réponse de l'assistant : ligne de mesures dédiée sous le texte (son étiquette

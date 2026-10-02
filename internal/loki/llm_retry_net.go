@@ -43,6 +43,11 @@ const (
 	llmNetMaxWait = 5 * time.Second
 )
 
+// wsaECONNREFUSED : la connexion refusée telle que Windows la rend (WSA 10061).
+// syscall.ECONNREFUSED n'y est qu'une valeur inventée par Go, jamais renvoyée
+// par le système ; ailleurs, 10061 n'est le numéro d'aucune erreur.
+const wsaECONNREFUSED = syscall.Errno(10061)
+
 // llmRetryableErr : cette erreur de transport vaut-elle une nouvelle tentative ?
 //
 // Un ctx déjà fini n'en vaut JAMAIS une : c'est le /stop de l'utilisateur ou la
@@ -57,7 +62,7 @@ func llmRetryableErr(ctx context.Context, err error) bool {
 		return false
 	}
 	switch {
-	case errors.Is(err, syscall.ECONNREFUSED): // moteur en cours de démarrage
+	case errors.Is(err, syscall.ECONNREFUSED), errors.Is(err, wsaECONNREFUSED): // moteur en cours de démarrage
 		return true
 	case errors.Is(err, syscall.ECONNRESET), errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
 		return true
@@ -121,4 +126,10 @@ func llmNetBackoff(ctx context.Context, n int) error {
 // c'est là qu'on cherche quand « ça a mis huit secondes ».
 func logLLMRetry(attempt int, cause string) {
 	fmt.Fprintf(os.Stderr, "[llm] %s — nouvelle tentative %d/%d\n", cause, attempt, llmNetRetries)
+}
+
+// logStreamRetry trace la reprise d'un flux coupé EN COURS de réponse (API
+// externe) : budget distinct de celui d'avant le flux, voir runChat.
+func logStreamRetry(attempt, max int, cause error) {
+	fmt.Fprintf(os.Stderr, "[llm] flux coupé en cours de réponse (%v) — reprise %d/%d\n", cause, attempt, max)
 }
