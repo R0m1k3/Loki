@@ -30,6 +30,9 @@ import (
 // permettrait au builder de se décerner son propre satisfecit.
 var subagentRoles = []string{"explorer", "code-reviewer", "planner"}
 
+// subagentTemperature : voir toolSubagent.
+const subagentTemperature = 0.6
+
 func isSubagentRole(r string) bool {
 	for _, x := range subagentRoles {
 		if x == r {
@@ -102,7 +105,14 @@ func toolSubagent(ctx context.Context, args map[string]any, parent Caps) string 
 	var out strings.Builder
 	// Trace jetable : aucun forwardStream, rien de persisté. L'utilisateur voit
 	// la bulle de l'outil `subagent` et son rapport, pas les dix lectures.
-	if _, err := runChat(ctx, msgs, 0, caps, func(ev StreamEvent) bool {
+	// Température 0.6 et non 0 : en glouton, Qwen avec réflexion tourne vite en
+	// boucle (OpenFox l'a relevé). Le TEMP du preset, s'il est posé, l'emporte.
+	// Seul le texte écrit APRÈS le dernier outil revient au builder : la
+	// narration entre deux lectures n'est pas le rapport.
+	if _, err := runChat(ctx, msgs, subagentTemperature, caps, func(ev StreamEvent) bool {
+		if ev.ToolUsed != nil {
+			out.Reset()
+		}
 		if ev.Content != "" {
 			out.WriteString(ev.Content)
 		}

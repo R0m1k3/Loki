@@ -959,6 +959,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// demande de conclure — de la pression, pas une barrière. Sans ça, un modèle
 	// qui tourne en rond n'avait rien en face de lui sauf le bouton stop.
 	toolRuns, budgetNudges, budget := 0, 0, agentBudget()
+	// Mode Code : lire, éditer, compiler, relancer les tests — un vrai tour de
+	// build dépasse vite 24 appels sans tourner en rond, et le troisième rappel
+	// (« n'appelle plus d'outil ») coupait le travail au milieu. Palier triplé.
+	if caps.Code {
+		budget *= codeBudgetFactor
+	}
 	for iter := 0; ; iter++ {
 		// Ajout en cours de réponse : entre deux étapes (après un appel d'outil ou
 		// une relance), on injecte les messages mis en file par l'utilisateur. Pas
@@ -1705,7 +1711,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				case "bash_tail":
 					result = toolBashTail(args)
 				case "git_status":
-					result = toolGitStatus(ctx)
+					result = toolGitStatus(ctx, args)
 				case "git_diff":
 					result = toolGitDiff(ctx, args)
 				case "git_clone":

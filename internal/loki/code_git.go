@@ -26,7 +26,9 @@ func gitStatusTool() Tool {
 			Description: "git status of the working folder (branch + changed files, porcelain format).",
 			Parameters: map[string]any{
 				"type":       "object",
-				"properties": map[string]any{},
+				"properties": map[string]any{
+					"dir": map[string]any{"type": "string", "description": "Repository subfolder (default: auto-detected)"},
+				},
 			},
 		},
 	}
@@ -42,6 +44,7 @@ func gitDiffTool() Tool {
 				"type": "object",
 				"properties": map[string]any{
 					"file": map[string]any{"type": "string", "description": "Limit the diff to this path"},
+					"dir":  map[string]any{"type": "string", "description": "Repository subfolder (default: auto-detected)"},
 				},
 			},
 		},
@@ -66,15 +69,56 @@ func gitCloneTool() Tool {
 	}
 }
 
+// gitRepoDir : où lancer git_status / git_diff. La discussion n'est souvent PAS
+// un dépôt : git_clone range le dépôt dans un sous-dossier, et git, lancé à la
+// racine, échouait (« not a git repository ») — alors que le vérificateur a
+// pour consigne de commencer par git_diff. Ordre : le sous-dossier demandé
+// (dir), la racine si c'est un dépôt, sinon l'unique sous-dossier qui en est
+// un. Plusieurs candidats : on demande de choisir.
+func gitRepoDir(dir string) (string, error) {
+	base := agentCwd()
+	if dir = strings.TrimSpace(dir); dir != "" {
+		if strings.Contains(dir, "..") || filepath.IsAbs(dir) {
+			return "", fmt.Errorf("dossier invalide : %s", dir)
+		}
+		return filepath.Join(base, dir), nil
+	}
+	if _, err := os.Stat(filepath.Join(base, ".git")); err == nil {
+		return base, nil
+	}
+	entries, _ := os.ReadDir(base)
+	var repos []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(base, e.Name(), ".git")); err == nil {
+			repos = append(repos, e.Name())
+		}
+	}
+	switch len(repos) {
+	case 0:
+		return base, nil // git dira lui-même « not a git repository »
+	case 1:
+		return filepath.Join(base, repos[0]), nil
+	}
+	return "", fmt.Errorf("plusieurs dépôts ici (%s) : précise dir", strings.Join(repos, ", "))
+}
+
 // runGit exécute git dans le dossier de la discussion, sortie bornée.
 func runGit(ctx context.Context, timeout time.Duration, args ...string) string {
+	return runGitIn(ctx, agentCwd(), timeout, args...)
+}
+
+// runGitIn exécute git dans dir, sortie bornée.
+func runGitIn(ctx context.Context, dir string, timeout time.Duration, args ...string) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		return "[erreur] git n'est pas installé sur cette machine"
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "git", args...)
-	cmd.Dir = agentCwd()
+	cmd.Dir = dir
 	// Jamais d'invite interactive (mot de passe, hôte inconnu) : un process
 	// serveur n'a personne pour y répondre, il faut échouer vite et le dire.
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -oBatchMode=yes")
@@ -95,24 +139,32 @@ func runGit(ctx context.Context, timeout time.Duration, args ...string) string {
 	return s
 }
 
-func toolGitStatus(ctx context.Context) string {
-	return runGit(ctx, 20*time.Second, "status", "--porcelain=v1", "--branch")
+func toolGitStatus(ctx context.Context, args map[string]any) string {
+	dir, err := gitRepoDir(str(args["dir"]))
+	if err != nil {
+		return "[erreur] " + err.Error()
+	}
+	return runGitIn(ctx, dir, 20*time.Second, "status", "--porcelain=v1", "--branch")
 }
 
 func toolGitDiff(ctx context.Context, args map[string]any) string {
+	dir, err := gitRepoDir(str(args["dir"]))
+	if err != nil {
+		return "[erreur] " + err.Error()
+	}
 	// Un seul appel qui montre TOUT ce qui a changé : index + arbre de travail.
 	// HEAD peut ne pas exister (dépôt tout neuf) : on retombe sur le diff simple.
 	gitArgs := []string{"diff", "HEAD"}
 	if file, _ := args["file"].(string); strings.TrimSpace(file) != "" {
 		gitArgs = append(gitArgs, "--", file)
 	}
-	out := runGit(ctx, 30*time.Second, gitArgs...)
+	out := runGitIn(ctx, dir, 30*time.Second, gitArgs...)
 	if strings.HasPrefix(out, "[erreur]") && strings.Contains(out, "HEAD") {
 		fallback := []string{"diff"}
 		if file, _ := args["file"].(string); strings.TrimSpace(file) != "" {
 			fallback = append(fallback, "--", file)
 		}
-		out = runGit(ctx, 30*time.Second, fallback...)
+		out = runGitIn(ctx, dir, 30*time.Second, fallback...)
 	}
 	return out
 }

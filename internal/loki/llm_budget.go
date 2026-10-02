@@ -89,3 +89,6 @@ func logBudget(calls, budget, sent int) {
 	fmt.Fprintf(os.Stderr, "[agent] %d appels d'outils sur ce tour (palier=%d) — rappel n°%d envoyé au modèle\n",
 		calls, budget, sent)
 }
+
+// codeBudgetFactor : multiplicateur du palier en mode Code (voir runChat).
+const codeBudgetFactor = 3

@@ -157,3 +157,28 @@ func TestEditCRLFMultiligne(t *testing.T) {
 		t.Fatalf("résultat inattendu : %q", b)
 	}
 }
+
+// git_status / git_diff trouvent le dépôt cloné dans un sous-dossier de la
+// discussion, et demandent de choisir quand il y en a plusieurs.
+func TestGitRepoDirDetecteLeClone(t *testing.T) {
+	ws := withWorkspace(t)
+	if d, err := gitRepoDir(""); err != nil || d != agentCwd() {
+		t.Fatalf("sans dépôt : %q, %v", d, err)
+	}
+	if err := os.MkdirAll(filepath.Join(agentCwd(), "projet", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := gitRepoDir(""); err != nil || filepath.Base(d) != "projet" {
+		t.Fatalf("un clone : %q, %v (ws %s)", d, err, ws)
+	}
+	_ = os.MkdirAll(filepath.Join(agentCwd(), "autre", ".git"), 0o755)
+	if _, err := gitRepoDir(""); err == nil {
+		t.Fatal("deux dépôts : il fallait demander dir")
+	}
+	if d, err := gitRepoDir("autre"); err != nil || filepath.Base(d) != "autre" {
+		t.Fatalf("dir explicite : %q, %v", d, err)
+	}
+	if _, err := gitRepoDir("../dehors"); err == nil {
+		t.Fatal("dir hors de la discussion accepté")
+	}
+}
