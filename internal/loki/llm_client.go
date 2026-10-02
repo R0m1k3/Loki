@@ -1530,6 +1530,11 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						badArgs[tc.ID] = true
 					}
 					tc.Function.Arguments = "{}"
+				} else {
+					// Nom ou argument appris d'un autre agent (read_file, old_string…) :
+					// traduit vers l'outil réel, AVANT de ranger l'appel dans
+					// l'historique — le modèle y relit l'appel tel qu'exécuté.
+					repairToolCall(&tc, tools)
 				}
 				tcs = append(tcs, tc)
 			}
