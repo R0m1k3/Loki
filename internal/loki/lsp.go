@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -145,10 +146,35 @@ func lspDiagnosticsFor(absPath string) string {
 	if len(diags) == 0 {
 		return ""
 	}
+	// Erreurs d'abord, puis avertissements, puis le reste (OpenFox) : au-delà
+	// de lspMaxDiags on tronque, et des indices de style passaient devant
+	// l'erreur de compilation qui comptait. Le compte annonce le total.
+	rank := func(s int) int {
+		if s <= 0 {
+			return 1 // sévérité absente : traitée comme une erreur
+		}
+		return s
+	}
+	sort.SliceStable(diags, func(i, j int) bool { return rank(diags[i].Severity) < rank(diags[j].Severity) })
+	nErr, nWarn := 0, 0
+	for _, d := range diags {
+		switch rank(d.Severity) {
+		case 1:
+			nErr++
+		case 2:
+			nWarn++
+		}
+	}
+	total := len(diags)
 	if len(diags) > lspMaxDiags {
 		diags = diags[:lspMaxDiags]
 	}
 	var b strings.Builder
+	fmt.Fprintf(&b, "%d erreur(s), %d avertissement(s)", nErr, nWarn)
+	if total > len(diags) {
+		fmt.Fprintf(&b, " — %d premiers sur %d", len(diags), total)
+	}
+	b.WriteString("\n")
 	for _, d := range diags {
 		sev := "info"
 		switch d.Severity {

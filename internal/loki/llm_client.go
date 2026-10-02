@@ -1728,6 +1728,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 						result = refusedCommandResult(reason)
 						break
 					}
+					// Mode Code : « cmd & » laisse un process orphelin, sans sortie
+					// lisible ni moyen de l'arrêter — bash_bg est fait pour ça.
+					if caps.Code && trailingBackground(label) {
+						result = "[refusé] commande terminée par « & » : lance-la avec bash_bg (sortie consultable avec bash_tail), pas en arrière-plan dans bash."
+						break
+					}
 					if tgt := agentTargetSlug(); tgt != "" {
 						// Cible = un poste distant : la commande s'exécute LÀ-BAS via le
 						// canal du poste (fail-closed : nodeCall renvoie une erreur si le

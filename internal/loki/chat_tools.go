@@ -224,6 +224,10 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	if timeoutSec > toolMaxTimeout {
 		timeoutSec = toolMaxTimeout
 	}
+	// « … | tail -N » final : retiré, on garde nous-mêmes les N dernières lignes
+	// (chat_shell_hygiene.go) — sinon le code de sortie est celui de tail.
+	command, keepLines := splitTailPipe(command)
+	start := time.Now()
 	ctx, cancel := context.WithTimeout(parent, time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 	cmd := newShellCmd(ctx, command)
@@ -254,9 +258,27 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	// issue connue était de redémarrer loki-ui.
 	cmd.WaitDelay = 2 * time.Second
 	err := cmd.Run()
+	// Sortie nettoyée (couleurs ANSI retirées), réduite à la fin si la commande
+	// demandait un tail.
+	clean := func(s string) string { return tailOutput(stripANSI(s)) }
+	out := stdout.String()
+	if keepLines > 0 {
+		out = tailLines(out, keepLines)
+	}
+	out = clean(out)
+	errOut := clean(stderr.String())
 	switch {
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return fmt.Sprintf("[timeout après %ds]", timeoutSec)
+		// La sortie déjà produite reste utile (où le build en était, quel test
+		// bloquait) : on la rend au lieu d'un « timeout » sec (OpenFox).
+		msg := fmt.Sprintf("[timeout après %ds — commande arrêtée ; pour un serveur ou une tâche longue, utilise bash_bg]", timeoutSec)
+		if out != "" {
+			msg += "\n\nstdout (partiel):\n" + out
+		}
+		if errOut != "" {
+			msg += "\n\nstderr (partiel):\n" + errOut
+		}
+		return msg
 	case errors.Is(parent.Err(), context.Canceled):
 		return "[commande interrompue]"
 	}
@@ -268,9 +290,8 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 			return fmt.Sprintf("[erreur: %v]", err)
 		}
 	}
-	out := tailOutput(stdout.String())
-	errOut := tailOutput(stderr.String())
-	parts := []string{fmt.Sprintf("exit: %d", exit)}
+	// « exit: N » en tête : tasks_script.go s'y fie. La durée suit.
+	parts := []string{fmt.Sprintf("exit: %d · %s", exit, time.Since(start).Round(100*time.Millisecond))}
 	if out != "" {
 		parts = append(parts, "stdout:\n"+out)
 	}
