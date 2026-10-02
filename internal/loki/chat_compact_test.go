@@ -1,6 +1,10 @@
 package loki
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -202,5 +206,49 @@ func TestCompactSansResumeNeDoublePasLaDemande(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("demande en cours présente %d fois après compactage, attendu 1", n)
+	}
+}
+
+// Mode Code : le résumé demande les fichiers touchés et les erreurs, et l'état
+// des critères est rendu au builder après compactage.
+func TestCompactageModeCodeGardeLEtat(t *testing.T) {
+	withWorkspace(t)
+	toolCriteria(map[string]any{"action": "add", "texts": []any{"les tests passent"}}, false)
+	var sys string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []Message `json:"messages"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sys = msgText(body.Messages[0])
+		sendJSON(w, 200, map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": "- main.go modifié : la fonction parse corrigée, go build et go test passent"}}}})
+	}))
+	t.Cleanup(srv.Close)
+	u, _ := url.Parse(srv.URL)
+	if err := SetConfigKey("PORT", u.Port()); err != nil {
+		t.Fatal(err)
+	}
+	page := func(n int) Message {
+		return tm("sortie de commande " + string(rune('a'+n)) + strings.Repeat("x", 400))
+	}
+	msgs := []Message{um("corrige le build"), am("ok"), um("continue")}
+	for i := 0; i < 10; i++ {
+		msgs = append(msgs, atc("bash"), page(i))
+	}
+	out, changed := compactMessages(t.Context(), msgs, Caps{Agent: true, Code: true})
+	if !changed {
+		t.Fatal("pas compacté")
+	}
+	if !strings.Contains(sys, "CODING session") {
+		t.Fatal("consigne de résumé du mode Code absente")
+	}
+	found := false
+	for _, m := range out {
+		if strings.Contains(msgText(m), "Acceptance criteria (current state)") && strings.Contains(msgText(m), "les tests passent") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("critères non rendus après compactage")
 	}
 }

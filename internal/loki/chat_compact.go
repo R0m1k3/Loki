@@ -380,7 +380,7 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 			}
 		}
 	}
-	summary, err := summarizeTranscript(ctx, renderTranscript(forSummary))
+	summary, err := summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
 	var mid []Message
 	if err != nil || summaryLooksEmpty(summary) {
 		// Résumé raté (erreur, vide, ou juste une référence recall) → on garde le
@@ -393,8 +393,18 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 		// system soit uniquement en tête — cf. mémoire qwen36-chat-template-fix).
 		// Le message porte aussi la CONSCIENCE de la compaction et l'index des ids
 		// rappelables (voir compactSummaryUserMsg).
+		sumMsg := compactSummaryUserMsg(summary, index)
+		// Mode Code : les critères ne vivent pas dans le fil (seuls les appels à
+		// l'outil criteria y passent, et ils viennent d'être résumés). On rend
+		// leur état au builder ici, dans un message de toute façon neuf — pas de
+		// cache invalidé en plus (repris d'OpenFox).
+		if caps.Code {
+			if list := critList(convEnsureActive()); len(list) > 0 {
+				sumMsg += "\n\nAcceptance criteria (current state):\n" + critRender(list)
+			}
+		}
 		mid = []Message{
-			{Role: "user", Content: compactSummaryUserMsg(summary, index)},
+			{Role: "user", Content: sumMsg},
 			{Role: "assistant", Content: "Understood. I'll resume from exactly where I left off, using the findings above, and call recall(id) if I need the full content of an archived block, without redoing work that is already done."},
 		}
 	}
@@ -587,6 +597,20 @@ type summarizeResp struct {
 // Un seul appel NON streamé, sans outils — comme Hermes, on réutilise le modèle
 // principal déjà chargé (aucune dépendance, cohérent avec la fenêtre de contexte).
 func summarizeTranscript(ctx context.Context, transcript string) (string, error) {
+	return summarizeTranscriptFor(ctx, transcript, false)
+}
+
+// codeSummaryRules : ce qu'un résumé de mode Code doit garder en plus — sans
+// quoi le builder réécrit des fichiers déjà faits et retombe dans des erreurs
+// déjà résolues (repris du COMPACTION_PROMPT d'OpenFox).
+const codeSummaryRules = `
+This is a CODING session. Also keep:
+- Every file created or modified (path) and what changed in it
+- Errors hit (build, tests, tools) and how each was resolved — or that it is still open
+- The commands that build and test the project`
+
+// summarizeTranscriptFor : code = résumé d'une session du mode Code.
+func summarizeTranscriptFor(ctx context.Context, transcript string, code bool) (string, error) {
 	sys := `You are a context compactor. You are given the transcript of the older turns of a conversation between a user and an AI assistant (with its tools). The PURPOSE of your summary is to let the conversation continue in a fresh, smaller context WITHOUT losing any information that is useful or important to understand what came before and keep working — preserve everything that matters, drop only what is redundant.
 
 The assistant is MID-TASK: it will read your summary and must resume exactly where it left off, WITHOUT redoing work it has already done. Its own internal reasoning is NOT part of the transcript and is lost — your summary is the only memory it keeps.
@@ -599,6 +623,9 @@ Summarize densely and faithfully, keeping ONLY the essentials:
 - STATE OF PROGRESS: what is already answered, what is still missing, and the next concrete step
 Strict rules: no preamble or conclusion, no verbatim or long quotes, no throwaway detail. Use short bullet points. Be as concise as you can WHILE keeping every fact, decision and still-open task: a detail you drop here is lost for good, so when in doubt keep it. This is a dense compression summary, not a report. Always write ACTUAL prose sentences/bullets — never answer with just an id or a reference.
 Write the summary in the SAME language as the conversation.`
+	if code {
+		sys += codeSummaryRules
+	}
 
 	// Le résumé part au MÊME endroit que le chat : sur un preset externe, il
 	// s'appuie sur l'API distante (backend_external.go). Le laisser taper le

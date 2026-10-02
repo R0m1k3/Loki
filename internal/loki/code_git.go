@@ -25,7 +25,7 @@ func gitStatusTool() Tool {
 			Name:        "git_status",
 			Description: "git status of the working folder (branch + changed files, porcelain format).",
 			Parameters: map[string]any{
-				"type":       "object",
+				"type": "object",
 				"properties": map[string]any{
 					"dir": map[string]any{"type": "string", "description": "Repository subfolder (default: auto-detected)"},
 				},
