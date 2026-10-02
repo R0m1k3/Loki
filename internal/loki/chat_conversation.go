@@ -153,6 +153,7 @@ func LoadConversation() {
 	// Guérit les conversations d'avant le passage des captures en éphémère : un
 	// base64 d'image persisté était rejoué à chaque tour et dépassait le contexte.
 	conv.Messages = stripImageParts(conv.Messages)
+	go pruneChatImages()
 	// Une génération n'a pas pu survivre à l'arrêt du process : on repart propre.
 	conv.Generating = false
 	conv.cancel = nil
@@ -170,6 +171,7 @@ func (c *Conversation) loadFrom(b []byte) {
 		_ = json.Unmarshal(b, c)
 		c.Messages = stripImageParts(c.Messages) // même guérison qu'au chargement
 	}
+	go pruneChatImages() // plus rien ne référence les images de l'ancien fil
 	c.Generating = false
 	c.cancel = nil
 	c.epoch++

@@ -10,7 +10,8 @@ import (
 )
 
 // tool_results.go — résultats COMPLETS des outils, pour le bouton « voir plus ».
-// Repris d'AJEAN 0.15.5 / 0.15.7, sans le chiffrement (Loki n'en a pas).
+// Repris d'AJEAN 0.15.5 / 0.15.7. Chiffré comme les discussions quand le
+// chiffrement mémoire est actif (bkToolRes figure dans encryptedBuckets).
 //
 // Le flux n'envoie à l'UI qu'un aperçu (toolPreviewChars) ; le reste se charge
 // au clic. Il ne peut pas être cherché dans conv.Messages : pendant un tour
@@ -46,7 +47,9 @@ func toolResID(sid string) string {
 // entier dans le flux).
 func saveToolResult(result string) string {
 	id := toolResID(getStr(bkChat, ckActive))
-	if id == "" || putBytes(bkToolRes, id, []byte(result)) != nil {
+	// Chiffrement actif mais mémoire verrouillée : putStoreBytes refuse d'écrire
+	// en clair, et l'appelant envoie alors le résultat entier dans le flux.
+	if id == "" || putStoreBytes(bkToolRes, id, []byte(result)) != nil {
 		return ""
 	}
 	if toolResWrites.Add(1)%toolResPruneGap == 0 {
@@ -60,7 +63,7 @@ func loadToolResult(id string) (string, bool) {
 	if strings.ContainsAny(id, "/\\") {
 		return "", false
 	}
-	b, err := getBytesErr(bkToolRes, id)
+	b, err := getStoreBytesErr(bkToolRes, id)
 	if err != nil || b == nil {
 		return "", false
 	}
@@ -90,6 +93,11 @@ func deleteToolResultsFor(sid string) {
 
 // pruneToolResults supprime les résultats de discussions qui n'existent plus.
 func pruneToolResults() {
+	// Mémoire verrouillée : l'index des discussions est illisible et reviendrait
+	// vide — tout passerait pour orphelin. On attend le déverrouillage.
+	if memEncActive() && !memUnlocked() {
+		return
+	}
 	alive := map[string]bool{getStr(bkChat, ckActive): true}
 	for _, m := range convIndex() {
 		alive[m.ID] = true

@@ -125,13 +125,14 @@ func bucketFullyEncrypted(bucket string) bool {
 // chiffrement est actif. Ici : les discussions (bkChat porte l'index, la
 // discussion active et le journal de chacune), les blocs archivés au compactage
 // (bkRecall — du verbatim de conversation, donc aussi sensible que le fil) et
-// les trackers (bkTracker, 3ᵉ type de mémoire).
+// les trackers (bkTracker, 3ᵉ type de mémoire), et les résultats complets des
+// outils gardés pour « voir plus » (bkToolRes — des extraits du fil).
 //
 // Les autres buckets (config, prefs, state, tasks) restent EN CLAIR : ils
 // portent des réglages, pas des données personnelles — et surtout le coffre
 // lui-même vit dans bkState. Le chiffrer avec la DEK qu'il protège ferait une
 // boucle : plus moyen de déverrouiller quoi que ce soit.
-var encryptedBuckets = []string{bkChat, bkRecall, bkTracker}
+var encryptedBuckets = []string{bkChat, bkRecall, bkTracker, bkToolRes}
 
 // reencryptChatStores (re)chiffre les buckets de conversation. Exige la DEK.
 func reencryptChatStores() error {

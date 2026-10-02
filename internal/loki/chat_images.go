@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // chat_images.go — images d'une conversation stockées PAR RÉFÉRENCE.
@@ -43,8 +44,14 @@ func storeChatImage(b []byte, mime string) (string, error) {
 	}
 	p := filepath.Join(dir, name)
 	if _, err := os.Stat(p); err != nil {
+		// Chiffrée comme le fil quand la mémoire l'est (même enveloppe que les
+		// pages). Verrouillée : refus, l'image reste en base64 dans le message.
+		enc, err := encodeMemContent(b)
+		if err != nil {
+			return "", err
+		}
 		tmp := p + ".tmp"
-		if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		if err := os.WriteFile(tmp, enc, 0o600); err != nil {
 			return "", err
 		}
 		if err := os.Rename(tmp, p); err != nil {
@@ -76,7 +83,11 @@ func chatImageDataURL(ref string) (string, bool) {
 		return u, true
 	}
 	imgCacheMu.Unlock()
-	b, err := os.ReadFile(filepath.Join(chatImgDir(), name))
+	raw, err := os.ReadFile(filepath.Join(chatImgDir(), name))
+	if err != nil {
+		return "", false
+	}
+	b, err := decodeMemContent(raw)
 	if err != nil {
 		return "", false
 	}
@@ -101,6 +112,31 @@ func chatImageDataURL(ref string) (string, bool) {
 	}
 	imgCacheMu.Unlock()
 	return u, true
+}
+
+// chatImgKeep : âge minimal d'une image avant qu'on puisse l'effacer.
+const chatImgKeep = 24 * time.Hour
+
+// pruneChatImages efface les images de plus de chatImgKeep. Appelée au
+// démarrage et à chaque bascule de discussion, c'est-à-dire quand le fil
+// vivant vient d'être rechargé — et stripImageParts retire les images d'un fil
+// rechargé : plus rien ne référence alors les fichiers. Le délai couvre un
+// fil resté ouvert longtemps sans bascule.
+func pruneChatImages() {
+	dir := chatImgDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-chatImgKeep)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if info, err := e.Info(); err == nil && info.ModTime().Before(cutoff) {
+			_ = os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
 }
 
 // contentParts renvoie les parties d'un contenu multimodal, sous l'une ou l'autre

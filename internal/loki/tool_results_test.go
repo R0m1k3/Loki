@@ -40,3 +40,33 @@ func TestTailOutputAnnouncesCut(t *testing.T) {
 		t.Fatalf("mention de coupe absente : %q", out[:60])
 	}
 }
+
+// Mémoire chiffrée : le résultat complet est chiffré en base et relu intact ;
+// verrouillée, rien n'est écrit (le flux portera le résultat entier) et le
+// nettoyage des orphelins ne tourne pas (l'index illisible ferait tout effacer).
+func TestToolResultsChiffres(t *testing.T) {
+	testHome(t)
+	clearMemDEK()
+	if _, err := EnableMemEncryption("motdepasse-fort"); err != nil {
+		t.Fatalf("EnableMemEncryption: %v", err)
+	}
+	full := strings.Repeat("ligne de sortie\n", 500)
+	id := saveToolResult(full)
+	if id == "" {
+		t.Fatal("résultat non enregistré")
+	}
+	if !looksEncrypted(getBytes(bkToolRes, id)) {
+		t.Fatal("résultat en clair alors que la mémoire est chiffrée")
+	}
+	if got, ok := loadToolResult(id); !ok || got != full {
+		t.Fatal("résultat chiffré non restitué à l'identique")
+	}
+	clearMemDEK()
+	if saveToolResult("autre") != "" {
+		t.Fatal("mémoire verrouillée : rien n'aurait dû être écrit")
+	}
+	pruneToolResults()
+	if getBytes(bkToolRes, id) == nil {
+		t.Fatal("le nettoyage a effacé un résultat pendant que la mémoire était verrouillée")
+	}
+}
