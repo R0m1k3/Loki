@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -46,7 +47,7 @@ func TestEndpointSuitLePresetActif(t *testing.T) {
 	}
 
 	if err := WriteConfig(parseEnv(externalPresetContent(
-		"https://api.groq.com/openai/v1", "llama-3.3-70b", "sk-secret", "65536"))); err != nil {
+		"https://api.groq.com/openai/v1", "llama-3.3-70b", "sk-secret", "65536", false))); err != nil {
 		t.Fatal(err)
 	}
 	ep = resolveChatEndpoint()
@@ -71,7 +72,7 @@ func TestEndpointSuitLePresetActif(t *testing.T) {
 func TestLaCleLocaleNePartJamaisChezUnTiers(t *testing.T) {
 	testHome(t)
 	if err := WriteConfig(parseEnv(externalPresetContent(
-		"https://api.openai.com/v1", "gpt-4o-mini", "", ""))); err != nil {
+		"https://api.openai.com/v1", "gpt-4o-mini", "", "", false))); err != nil {
 		t.Fatal(err)
 	}
 	// Une clé d'API locale existe et n'a rien à faire dans la requête sortante.
@@ -142,7 +143,7 @@ func TestRouteDeTestRemonteLErreurDeLAPI(t *testing.T) {
 // d'effacement.
 func TestEditionSansToucherALaCleLaConserve(t *testing.T) {
 	testHome(t)
-	id, err := SavePreset("", "Groq", externalPresetContent("https://api.groq.com/openai/v1", "llama", "sk-gardee", ""))
+	id, err := SavePreset("", "Groq", externalPresetContent("https://api.groq.com/openai/v1", "llama", "sk-gardee", "", false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +180,7 @@ func TestEditionSansToucherALaCleLaConserve(t *testing.T) {
 // Un preset externe demande explicitement d'écraser la clé par une vide.
 func TestEffacementExpliciteDeLaCle(t *testing.T) {
 	testHome(t)
-	id, err := SavePreset("", "Local distant", externalPresetContent("http://192.168.1.20:8080", "qwen", "sk-a-jeter", ""))
+	id, err := SavePreset("", "Local distant", externalPresetContent("http://192.168.1.20:8080", "qwen", "sk-a-jeter", "", false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,5 +193,53 @@ func TestEffacementExpliciteDeLaCle(t *testing.T) {
 	content, _ := ReadPreset(id)
 	if k := parseEnv(content)[extKeyToken]; k != "" {
 		t.Fatalf("clé = %q, attendu effacée (keyTouched avec champ vide)", k)
+	}
+}
+
+// Le résumé de compactage n'envoie pas chat_template_kwargs (propre à
+// llama.cpp) à une API distante : une API stricte répond 400 et la compaction
+// échouait à chaque fois.
+func TestCompactageExterneSansKwargsLlamaCpp(t *testing.T) {
+	testHome(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if _, ok := body["chat_template_kwargs"]; ok {
+			w.WriteHeader(400)
+			_, _ = w.Write([]byte(`{"error":{"message":"Unrecognized request argument supplied: chat_template_kwargs"}}`))
+			return
+		}
+		sendJSON(w, 200, map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": "- résumé"}}}})
+	}))
+	t.Cleanup(srv.Close)
+	if err := WriteConfig(parseEnv(externalPresetContent(srv.URL, "gpt-4o-mini", "", "", false))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := summarizeTranscript(context.Background(), "user: bonjour\nassistant: salut"); err != nil {
+		t.Fatalf("compactage refusé par l'API distante : %v", err)
+	}
+}
+
+// Vision et benchmark d'un preset externe : la case du preset décide, et le
+// bench (qui mesure le moteur local) refuse de tourner.
+func TestPresetExterneVisionEtBench(t *testing.T) {
+	testHome(t)
+	if err := WriteConfig(parseEnv(externalPresetContent("https://api.openai.com/v1", "gpt-4o", "", "", true))); err != nil {
+		t.Fatal(err)
+	}
+	if !visionEnabled() || !engineSeesImages() {
+		t.Error("preset externe déclaré multimodal : la vision devrait être active")
+	}
+	if _, err := runBench(10, 10); err == nil {
+		t.Error("benchmark lancé sur un preset externe")
+	}
+	if got := chatModelName(); got != "gpt-4o" {
+		t.Errorf("badge de modèle = %q, attendu le modèle distant", got)
+	}
+	if err := WriteConfig(parseEnv(externalPresetContent("https://api.openai.com/v1", "gpt-4o", "", "", false))); err != nil {
+		t.Fatal(err)
+	}
+	if visionEnabled() {
+		t.Error("preset externe texte seul : la vision devrait être coupée")
 	}
 }

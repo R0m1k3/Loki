@@ -177,6 +177,9 @@ func imageMime(name string) string {
 // seule où envoyer une image AU MODÈLE a un sens. Sans projecteur, llama-server
 // rejetterait un contenu image ; on s'en tient alors au dépôt-fichier.
 func visionEnabled() bool {
+	if externalActive() {
+		return externalVisionActive() // modèle distant déclaré multimodal
+	}
 	return strings.TrimSpace(ReadConfig()["MMPROJ"]) != ""
 }
 

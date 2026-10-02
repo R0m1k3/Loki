@@ -24,10 +24,11 @@ import (
 )
 
 const (
-	extKeyFlag  = "EXTERNAL"       // marqueur : "1" = preset externe
-	extKeyURL   = "EXTERNAL_URL"   // base ou URL complète des complétions
-	extKeyModel = "EXTERNAL_MODEL" // nom du modèle envoyé dans le payload
-	extKeyToken = "EXTERNAL_KEY"   // clé API (Bearer), peut être vide
+	extKeyFlag   = "EXTERNAL"        // marqueur : "1" = preset externe
+	extKeyURL    = "EXTERNAL_URL"    // base ou URL complète des complétions
+	extKeyModel  = "EXTERNAL_MODEL"  // nom du modèle envoyé dans le payload
+	extKeyToken  = "EXTERNAL_KEY"    // clé API (Bearer), peut être vide
+	extKeyVision = "EXTERNAL_VISION" // "1" = le modèle distant accepte les images
 )
 
 // chatEndpoint : où partent les appels /v1/chat/completions de ce tour.
@@ -45,6 +46,14 @@ func isExternalConfig(cfg map[string]string) bool {
 
 // externalActive : le preset actif est-il un endpoint externe ?
 func externalActive() bool { return isExternalConfig(ReadConfig()) }
+
+// externalVisionActive : le preset actif est externe ET déclaré multimodal. Pas
+// de MMPROJ ni de sonde /props à consulter côté distant : seule la case du
+// preset dit si le modèle accepte les images.
+func externalVisionActive() bool {
+	cfg := ReadConfig()
+	return isExternalConfig(cfg) && strings.TrimSpace(cfg[extKeyVision]) == "1"
+}
 
 // completionsURL normalise l'URL saisie en une URL de complétions complète.
 // Accepte les trois formes qu'on colle en pratique :
@@ -102,8 +111,9 @@ func (e chatEndpoint) auth(set func(k, v string)) {
 // externalPresetContent construit le corps .env d'un preset externe (hors ligne
 // « # NAME= », ajoutée par SavePreset). Une clé vide n'est pas écrite. `ctx` va
 // dans la clé CTX standard — elle pilote la jauge de contexte et le seuil de
-// compaction, exactement comme pour un preset local.
-func externalPresetContent(url, model, key, ctx string) string {
+// compaction, exactement comme pour un preset local. vision = le modèle distant
+// accepte les images (EXTERNAL_VISION=1).
+func externalPresetContent(url, model, key, ctx string, vision bool) string {
 	m := map[string]string{
 		extKeyFlag:  "1",
 		extKeyURL:   strings.TrimSpace(url),
@@ -111,6 +121,9 @@ func externalPresetContent(url, model, key, ctx string) string {
 	}
 	if k := strings.TrimSpace(key); k != "" {
 		m[extKeyToken] = k
+	}
+	if vision {
+		m[extKeyVision] = "1"
 	}
 	if c := strings.TrimSpace(ctx); c != "" {
 		m["CTX"] = c

@@ -994,7 +994,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		if reasoningEffort != "" {
 			payload["reasoning_effort"] = reasoningEffort
 		}
-		if reasoningKwargs != nil {
+		// chat_template_kwargs est propre à llama.cpp (--jinja) : une API
+		// distante stricte (OpenAI) refuse un argument inconnu (400).
+		if reasoningKwargs != nil && !ep.External {
 			payload["chat_template_kwargs"] = reasoningKwargs
 		}
 		if len(tools) > 0 && !disableTools {

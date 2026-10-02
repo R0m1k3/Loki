@@ -2502,6 +2502,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <span class="pe-row-l">Contexte<span class="pe-sub">pilote la jauge et le seuil de compactage</span></span>
             <span class="pe-row-c"><input id="ext-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768"><span class="pe-unit">tok</span></span>
           </div>
+          <div class="pe-row plain">
+            <label class="switchrow" style="margin:0"><span class="switch"><input type="checkbox" id="ext-vision"><span class="slider"></span></span> le modèle accepte les images<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">coche si le modèle distant est <b>multimodal</b> (vision) : les images jointes lui sont alors envoyées. À laisser décoché pour un modèle texte seul.</span></span></label>
+          </div>
           <div class="pe-row stack">
             <button id="ext-test" class="pe-link" onclick="testExternal()">Tester la connexion</button>
             <div id="ext-test-out" class="pe-note"></div>
@@ -8106,6 +8109,7 @@ async function openExternal(id){
   document.getElementById('ext-test-out').textContent = '';
   document.getElementById('ext-key-sub').textContent = 'vide = aucune authentification';
   set('ext-name',''); set('ext-url',''); set('ext-model',''); set('ext-key',''); set('ext-ctx','');
+  document.getElementById('ext-vision').checked = false;
   showModal('ext-modal');
   if(!id) return;
   let d = {};
@@ -8113,6 +8117,7 @@ async function openExternal(id){
   if(extEditing !== id) return;           // une autre ouverture a pris la main
   set('ext-name', d.name || ''); set('ext-url', d.url || '');
   set('ext-model', d.model || ''); set('ext-ctx', d.ctx || '');
+  document.getElementById('ext-vision').checked = !!d.vision;
   if(d.hasKey){
     document.getElementById('ext-key-sub').textContent =
       'une clé est enregistrée — laisse vide pour la conserver';
@@ -8129,6 +8134,7 @@ function extPayload(){
     key: document.getElementById('ext-key').value || '',
     ctx: (document.getElementById('ext-ctx').value || '').trim(),
     keyTouched: extKeyTouched,
+    vision: document.getElementById('ext-vision').checked,
   };
 }
 
@@ -8158,9 +8164,11 @@ async function saveExternal(){
   if(!p.model){ toast('modèle requis'); return; }
   const r = await jpost('/api/preset/external/save', p);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
-  toast('enregistré');
+  // Preset en service : le serveur l'a appliqué aussitôt (applied).
+  toast(r.applied ? 'enregistré et appliqué' : 'enregistré');
   closeExternal();
   loadPresets();
+  if(r.applied && typeof loadStatus === 'function') loadStatus();
 }
 
 // Même route de suppression que n'importe quel preset — et même refus si c'est

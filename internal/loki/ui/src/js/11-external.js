@@ -27,6 +27,7 @@ async function openExternal(id){
   document.getElementById('ext-test-out').textContent = '';
   document.getElementById('ext-key-sub').textContent = 'vide = aucune authentification';
   set('ext-name',''); set('ext-url',''); set('ext-model',''); set('ext-key',''); set('ext-ctx','');
+  document.getElementById('ext-vision').checked = false;
   showModal('ext-modal');
   if(!id) return;
   let d = {};
@@ -34,6 +35,7 @@ async function openExternal(id){
   if(extEditing !== id) return;           // une autre ouverture a pris la main
   set('ext-name', d.name || ''); set('ext-url', d.url || '');
   set('ext-model', d.model || ''); set('ext-ctx', d.ctx || '');
+  document.getElementById('ext-vision').checked = !!d.vision;
   if(d.hasKey){
     document.getElementById('ext-key-sub').textContent =
       'une clé est enregistrée — laisse vide pour la conserver';
@@ -50,6 +52,7 @@ function extPayload(){
     key: document.getElementById('ext-key').value || '',
     ctx: (document.getElementById('ext-ctx').value || '').trim(),
     keyTouched: extKeyTouched,
+    vision: document.getElementById('ext-vision').checked,
   };
 }
 
@@ -79,9 +82,11 @@ async function saveExternal(){
   if(!p.model){ toast('modèle requis'); return; }
   const r = await jpost('/api/preset/external/save', p);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
-  toast('enregistré');
+  // Preset en service : le serveur l'a appliqué aussitôt (applied).
+  toast(r.applied ? 'enregistré et appliqué' : 'enregistré');
   closeExternal();
   loadPresets();
+  if(r.applied && typeof loadStatus === 'function') loadStatus();
 }
 
 // Même route de suppression que n'importe quel preset — et même refus si c'est

@@ -117,6 +117,11 @@ var (
 )
 
 func engineSeesImages() bool {
+	// Preset externe : aucun /props à sonder, on s'en tient à la déclaration
+	// du preset (case « le modèle accepte les images »).
+	if externalActive() {
+		return externalVisionActive()
+	}
 	visionProbeMu.Lock()
 	defer visionProbeMu.Unlock()
 	if time.Since(visionProbeAt) < 10*time.Second {

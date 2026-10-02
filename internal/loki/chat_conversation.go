@@ -656,7 +656,11 @@ func (c *Conversation) dropQueued(epoch int) {
 // chatModelName renvoie le nom lisible du modèle configuré : fichier sans
 // dossier ni extension .gguf (même règle que modelLabel côté UI), "" si aucun.
 func chatModelName() string {
-	m := strings.TrimSpace(ReadConfig()["MODEL"])
+	cfg := ReadConfig()
+	if isExternalConfig(cfg) {
+		return strings.TrimSpace(cfg[extKeyModel]) // modèle distant, tel quel
+	}
+	m := strings.TrimSpace(cfg["MODEL"])
 	if m == "" {
 		return ""
 	}

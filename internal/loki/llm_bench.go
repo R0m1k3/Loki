@@ -44,6 +44,12 @@ Le cuisinier ferme les yeux pour goûter la sauce. Trop salée. Il ajoute une po
 // inflating decode numbers — what you measure here is close to what you'll
 // see in real chat at the same context length.
 func runBench(nPrompt, nPredict int) (*benchResult, error) {
+	// Un bench mesure le moteur LOCAL : sur un preset externe, healthCheck dit
+	// « prêt » sans moteur, et la mesure taperait un port arrêté ou un moteur
+	// resté en vie — attribuée à tort à ce preset.
+	if externalActive() {
+		return nil, fmt.Errorf("benchmark indisponible : le preset actif est une API externe")
+	}
 	port := LLMPort()
 	if !healthCheck() {
 		return nil, fmt.Errorf("serveur injoignable sur :%d", port)

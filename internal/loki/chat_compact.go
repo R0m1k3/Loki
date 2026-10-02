@@ -605,6 +605,11 @@ Write the summary in the SAME language as the conversation.`
 		// passe ces kwargs au gabarit Jinja (--jinja).
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
 	}
+	if ep.External {
+		// Propre à llama.cpp : une API distante stricte (OpenAI) refuse un
+		// argument inconnu par un 400, et la compaction échouait à chaque fois.
+		delete(payload, "chat_template_kwargs")
+	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 	if err != nil {

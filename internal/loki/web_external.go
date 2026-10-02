@@ -49,6 +49,7 @@ func handlePresetExternal(w http.ResponseWriter, r *http.Request) {
 		"model":  strings.TrimSpace(cfg[extKeyModel]),
 		"ctx":    strings.TrimSpace(cfg["CTX"]),
 		"hasKey": strings.TrimSpace(cfg[extKeyToken]) != "",
+		"vision": strings.TrimSpace(cfg[extKeyVision]) == "1",
 	})
 }
 
@@ -63,6 +64,7 @@ type externalSaveReq struct {
 	Key        string `json:"key"`
 	Ctx        string `json:"ctx"`        // taille de contexte (clé CTX), optionnelle
 	KeyTouched bool   `json:"keyTouched"` // l'utilisateur a modifié le champ clé
+	Vision     bool   `json:"vision"`     // le modèle distant accepte les images
 }
 
 func handlePresetExternalSave(w http.ResponseWriter, r *http.Request) {
@@ -94,13 +96,15 @@ func handlePresetExternalSave(w http.ResponseWriter, r *http.Request) {
 			key = strings.TrimSpace(parseEnv(content)[extKeyToken])
 		}
 	}
-	content := externalPresetContent(req.URL, req.Model, key, req.Ctx)
-	newID, err := SavePreset(req.ID, req.Name, content)
+	content := externalPresetContent(req.URL, req.Model, key, req.Ctx, req.Vision)
+	// Éditer le preset EN SERVICE l'applique tout de suite : sans ça, une URL ou
+	// une clé corrigée ne servait qu'après une bascule aller-retour.
+	newID, applied, err := SavePresetApplying(req.ID, req.Name, content)
 	if err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true, "id": newID, "name": req.Name})
+	sendJSON(w, 200, map[string]any{"ok": true, "id": newID, "name": req.Name, "applied": applied})
 }
 
 // handlePresetExternalTest tente un appel de complétion minimal vers l'endpoint

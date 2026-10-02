@@ -280,6 +280,9 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-l">Contexte<span class="pe-sub">pilote la jauge et le seuil de compactage</span></span>
             <span class="pe-row-c"><input id="ext-ctx" class="pe-val" type="number" min="0" step="1024" placeholder="32768"><span class="pe-unit">tok</span></span>
           </div>
+          <div class="pe-row plain">
+            <label class="switchrow" style="margin:0"><span class="switch"><input type="checkbox" id="ext-vision"><span class="slider"></span></span> le modèle accepte les images<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">coche si le modèle distant est <b>multimodal</b> (vision) : les images jointes lui sont alors envoyées. À laisser décoché pour un modèle texte seul.</span></span></label>
+          </div>
           <div class="pe-row stack">
             <button id="ext-test" class="pe-link" onclick="testExternal()">Tester la connexion</button>
             <div id="ext-test-out" class="pe-note"></div>
