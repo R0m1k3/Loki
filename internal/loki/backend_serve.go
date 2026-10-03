@@ -340,6 +340,7 @@ func cmdServe(args []string) error {
 	// Deux GPU ou plus : de quoi décider des files de lancement CUDA (voir
 	// launchQueuesEnv). Après la sélection GPU, qui fait partie de la réponse.
 	probeServeGPUs(cfg, extra, &si)
+	probeExpertEnv(&si)
 
 	llmArgs, env, notes := buildServeArgs(cfg, extra, bin, si)
 	applyServeEnv(env)
@@ -381,7 +382,8 @@ type serveSysInfo struct {
 
 	LaunchQueues string            // CUDA_SCALE_LAUNCH_QUEUES déjà dans l'environnement : choix de l'utilisateur, intouché
 	GPUs         int               // GPU visibles (CUDA_VISIBLE_DEVICES, sinon nvidia-smi) ; 0 = inconnu ou non sondé
-	ArgEnv       map[string]string // LLAMA_ARG_* de l'environnement qui décident du pipeline (voir serveArgEnv)
+	ArgEnv       map[string]string // LLAMA_ARG_* de l'environnement qui décident du pipeline et de --fit (serveArgEnv, fitArgEnv)
+	UserEnv      map[string]string // GGML_* des réglages d'expert déjà posés (voir expertEnvKeys) : intouchés
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -450,6 +452,17 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		env["CUDA_SCALE_LAUNCH_QUEUES"] = q
 	}
 	notes = append(notes, qNotes...)
+	// Réglages d'expert passés par variable (voir backend_serve_expert.go) :
+	// absents du preset, ils ne posent rien.
+	g, gNotes := graphOptEnv(cfg, extra, si)
+	if g != "" {
+		env["GGML_CUDA_GRAPH_OPT"] = g
+	}
+	o, oNotes := opOffloadMinBatchEnv(cfg, si)
+	if o != "" {
+		env["GGML_OP_OFFLOAD_MIN_BATCH"] = o
+	}
+	notes = append(append(notes, gNotes...), oNotes...)
 
 	// Threads : vide ou 0 = AUCUN drapeau, pour que llama.cpp prenne ses cœurs
 	// physiques au lieu de tous les threads logiques (voir threadArgs).
@@ -504,6 +517,11 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		}
 		args = append(args, ngl...)
 	}
+	// Marge VRAM par carte du placement automatique (FIT_TARGET, voir
+	// fitTargetArgs) : seulement si --fit tournera vraiment.
+	fitt, fitNotes := fitTargetArgs(cfg, extra, si)
+	args = append(args, fitt...)
+	notes = append(notes, fitNotes...)
 	if ktv != "" {
 		args = append(args, "-ctk", ktv)
 	}

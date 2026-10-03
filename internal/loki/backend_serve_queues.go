@@ -114,19 +114,8 @@ func servedGPUCount(extra []string, si serveSysInfo) int {
 // drapeaux, chaque occurrence ajoute les siennes. Un --n-cpu-moe 0 n'annule
 // donc pas un LLAMA_ARG_N_CPU_MOE=30.
 func pipelineBlocker(cfg map[string]string, extra []string, argEnv map[string]string) string {
-	if hasAnyFlag(extra, "-ot", "--override-tensor", "--cpu-moe", "-cmoe") ||
-		argEnv["LLAMA_ARG_OVERRIDE_TENSOR"] != "" || envTruthy(argEnv["LLAMA_ARG_CPU_MOE"]) {
-		return "surcharge de tenseurs"
-	}
-	for _, n := range []struct{ env, short, long string }{
-		{"LLAMA_ARG_N_CPU_MOE", "-ncmoe", "--n-cpu-moe"},
-		{"LLAMA_ARG_N_CPU_FFN", "-ncffn", "--n-cpu-ffn"},
-	} {
-		for _, v := range append(flagValues(extra, n.short, n.long), argEnv[n.env]) {
-			if v = strings.TrimSpace(v); v != "" && v != "0" {
-				return "couches " + n.long + " sur CPU"
-			}
-		}
+	if r := tensorOverride(extra, argEnv); r != "" {
+		return r
 	}
 	if !kvOffloaded(extra, argEnv) {
 		return "cache KV sur CPU"
@@ -151,6 +140,28 @@ func pipelineBlocker(cfg map[string]string, extra []string, argEnv map[string]st
 	}
 	if ngl = strings.ToLower(strings.TrimSpace(ngl)); ngl != "" && ngl != "auto" && ngl != "all" && ngl != "999" {
 		return "couches GPU limitées à " + ngl
+	}
+	return ""
+}
+
+// tensorOverride dit si des tenseurs sont placés à la main (-ot et ses formes
+// déguisées --cpu-moe, --n-cpu-moe, --n-cpu-ffn), en drapeau ou en variable.
+// Vide = aucun. Le pipeline entre cartes s'y arrête, et --fit aussi
+// (« tensor_buft_overrides already set by user, abort »).
+func tensorOverride(extra []string, argEnv map[string]string) string {
+	if hasAnyFlag(extra, "-ot", "--override-tensor", "--cpu-moe", "-cmoe") ||
+		argEnv["LLAMA_ARG_OVERRIDE_TENSOR"] != "" || envTruthy(argEnv["LLAMA_ARG_CPU_MOE"]) {
+		return "surcharge de tenseurs"
+	}
+	for _, n := range []struct{ env, short, long string }{
+		{"LLAMA_ARG_N_CPU_MOE", "-ncmoe", "--n-cpu-moe"},
+		{"LLAMA_ARG_N_CPU_FFN", "-ncffn", "--n-cpu-ffn"},
+	} {
+		for _, v := range append(flagValues(extra, n.short, n.long), argEnv[n.env]) {
+			if v = strings.TrimSpace(v); v != "" && v != "0" {
+				return "couches " + n.long + " sur CPU"
+			}
+		}
 	}
 	return ""
 }

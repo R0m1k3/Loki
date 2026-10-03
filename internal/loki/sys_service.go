@@ -72,6 +72,12 @@ var configTemplate = []struct{ key, help string }{
 	{"UBATCH", "micro-batch (défaut 512)"},
 	{"THREADS", "threads CPU ; vide ou 0 = auto (cœurs physiques ; cœurs P seulement sur Intel hybride Linux)"},
 	{"THREADS_BATCH", "threads CPU du prefill et de la vérification spéculative (MTP) ; vide ou 0 = comme THREADS"},
+	{"FIT_TARGET", "Mio laissés libres par carte par le placement auto (--fit-target), ex. 1024,3072 dans l'ordre des cartes ; " +
+		"vide = 1024, minimum 1024 ; sans effet si NGL chiffré, --tensor-split, -ot ou --n-cpu-moe"},
+	{"OP_OFFLOAD_MIN_BATCH", "experts MoE sur CPU : taille de lot à partir de laquelle ils sont recopiés vers le GPU ; " +
+		"vide = défaut du moteur (32) ; plus haut = lots courts sur CPU, à mesurer"},
+	{"CUDA_GRAPH_OPT", "on = GGML_CUDA_GRAPH_OPT=1, branches Q/K/V en parallèle au décodage (expérimental, " +
+		"sortie identique, gain de 0 à quelques %) ; off puis redémarrage s'il plante"},
 	{"KV_TYPE", "quantization du cache KV (q8_0, q4_0…) ; KV_TYPE_K / KV_TYPE_V pour les séparer"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
