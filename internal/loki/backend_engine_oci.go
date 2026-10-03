@@ -26,6 +26,7 @@ package loki
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -281,11 +282,19 @@ func parseEngineBuild(out string) (build int, commit string) {
 // engineBuildOf interroge un llama-server pour son numéro de build. Renvoie
 // (0, "") si le binaire ne répond pas — un moteur cassé ne doit pas empêcher
 // d'en installer un autre.
+//
+// Borné dans le temps comme binHelp : « loki serve » le lance avant le moteur
+// (points de reprise d'un hybride, voir ckptArgs), et un binaire qui reste
+// coincé à l'initialisation de ses backends ne doit pas bloquer le lancement —
+// passé le délai, build inconnu, donc ni avis ni drapeau.
 func engineBuildOf(bin string) (int, string) {
 	if bin == "" || !isFile(bin) {
 		return 0, ""
 	}
-	cmd := hideCmd(exec.Command(bin, "--version"))
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := hideCmd(exec.CommandContext(ctx, bin, "--version"))
+	cmd.WaitDelay = 2 * time.Second // un descendant qui garde la sortie ouverte ne retient pas Wait
 	cmd.Env = libraryPathEnv(filepath.Dir(bin))
 	out, _ := cmd.CombinedOutput() // --version sort parfois en code non nul
 	return parseEngineBuild(string(out))

@@ -76,6 +76,12 @@ func TestCkptArgs(t *testing.T) {
 			si: func(s *serveSysInfo) { s.RAMMiB = 0 }},
 		{name: "RAM libre trop juste pour 32 points", notes: 1,
 			si: func(s *serveSysInfo) { s.RAMAvailMiB = 8000 }},
+		// Une liste par slot : 2 × 32 × ~150 Mio tient dans le quart de 50 Go, 4 × non.
+		{name: "PARALLEL=2 : deux listes, encore dans le quart de la RAM libre", cfg: map[string]string{"PARALLEL": "2"},
+			want: cms, notes: 1},
+		{name: "PARALLEL=4 : quatre listes, trop pour la RAM libre", cfg: map[string]string{"PARALLEL": "4"}, notes: 1},
+		{name: "--parallel 4 d'EXTRA_ARGS l'emporte sur PARALLEL", cfg: map[string]string{"PARALLEL": "1"},
+			extra: []string{"--parallel", "4"}, notes: 1},
 		{name: "CTX_CHECKPOINTS=16 passé", cfg: map[string]string{"CTX_CHECKPOINTS": "16"},
 			want: []string{"--ctx-checkpoints", "16", "--checkpoint-min-step", "2048"}, notes: 1},
 		{name: "CTX_CHECKPOINTS illisible", cfg: map[string]string{"CTX_CHECKPOINTS": "beaucoup"}, want: cms, notes: 2},
@@ -216,5 +222,26 @@ func TestEngineKeepAfterUpdate(t *testing.T) {
 	}
 	if keep := engineKeepAfterUpdate(nouveau, nouveau, nil); len(keep) != 1 {
 		t.Fatalf("même version : %v", keep)
+	}
+}
+
+// Nombre de slots : chacun a sa liste de points de reprise.
+func TestCkptSlots(t *testing.T) {
+	cases := []struct {
+		cfg   map[string]string
+		extra []string
+		want  int
+	}{
+		{want: 1},
+		{cfg: map[string]string{"PARALLEL": "3"}, want: 3},
+		{cfg: map[string]string{"PARALLEL": "3"}, extra: []string{"-np", "2"}, want: 2},
+		{extra: []string{"--parallel=6"}, want: 6},
+		{extra: []string{"--parallel", "-1"}, want: 4},
+		{cfg: map[string]string{"PARALLEL": "auto"}, want: 4},
+	}
+	for _, c := range cases {
+		if got := ckptSlots(c.cfg, c.extra); got != c.want {
+			t.Errorf("ckptSlots(%v, %v) = %d, attendu %d", c.cfg, c.extra, got, c.want)
+		}
 	}
 }

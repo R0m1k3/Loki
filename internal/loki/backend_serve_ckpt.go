@@ -167,6 +167,24 @@ func ckptCount(cfg map[string]string, extra []string, argEnv map[string]string) 
 	return n
 }
 
+// ckptSlots : nombre de slots que le moteur ouvrira, chacun avec sa propre liste
+// de points de reprise. --parallel d'EXTRA_ARGS, sinon PARALLEL, sinon 1 (Loki
+// pose toujours --parallel, voir buildServeArgs). Illisible ou « auto » (-1) :
+// 4, ce que choisissent les moteurs récents — on compte large.
+func ckptSlots(cfg map[string]string, extra []string) int {
+	v := flagValue(extra, "-np", "--parallel")
+	if v == "" {
+		v = strings.TrimSpace(cfg["PARALLEL"])
+	}
+	if v == "" {
+		return 1
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 {
+		return n
+	}
+	return 4
+}
+
 // ckptMiB : poids d'un point de reprise d'un hybride (état récurrent en f32).
 func ckptMiB(g *GGUFInfo) int64 {
 	if g != nil {
@@ -254,10 +272,12 @@ func ckptArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 		return args, append(notes, notice+" Pas d'espacement resserré d'office : RAM inconnue ou déjà prise par le modèle "+
 			"(CKPT_MIN_STEP=2048 pour l'imposer).")
 	}
-	worst := int64(n) * ckptMiB(si.GGUF)
+	// La liste est PAR SLOT : avec PARALLEL=4, quatre listes se remplissent.
+	total := n * ckptSlots(cfg, extra)
+	worst := int64(total) * ckptMiB(si.GGUF)
 	if si.RAMAvailMiB > 0 && worst > si.RAMAvailMiB/4 {
 		return args, append(notes, fmt.Sprintf("%s Pas d'espacement resserré d'office : %d points de reprise (~%d Mio) "+
-			"dépasseraient le quart de la RAM libre (CKPT_MIN_STEP=2048 pour l'imposer).", notice, n, worst))
+			"dépasseraient le quart de la RAM libre (CKPT_MIN_STEP=2048 pour l'imposer).", notice, total, worst))
 	}
 	args = append(args, "--checkpoint-min-step", strconv.Itoa(ckptAutoMinStep))
 	return args, append(notes, fmt.Sprintf("%s → --checkpoint-min-step %d : points de reprise exacts plus rapprochés, "+
