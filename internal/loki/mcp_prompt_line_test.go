@@ -8,7 +8,7 @@ import (
 func mcpTestTool(server, tool string) Tool {
 	return Tool{Type: "function", Function: ToolFunction{
 		Name:        mcpExposedName(server, tool),
-		Description: "[MCP: " + server + "] décrit " + tool,
+		Description: mcpTagDescription(server, "décrit "+tool),
 	}}
 }
 
@@ -32,6 +32,10 @@ func TestMCPPromptLineDeriveDesOutils(t *testing.T) {
 			""},
 		{"description vide après le préfixe", []Tool{{Type: "function", Function: ToolFunction{Name: "mcp__x__y", Description: "[MCP: x] "}}},
 			"x (1)"},
+		{"nom de serveur contenant « ] »", []Tool{mcpTestTool("a] b", "t"), mcpTestTool("a] b", "u")},
+			"a] b (2)"},
+		{"préfixe d'un autre serveur que celui du nom d'outil", []Tool{{Type: "function", Function: ToolFunction{Name: "mcp__x__y", Description: "[MCP: z] y"}}},
+			""},
 	}
 	for _, c := range cases {
 		got := mcpPromptLine(c.tools)
@@ -51,6 +55,10 @@ func TestMCPPromptLineDeriveDesOutils(t *testing.T) {
 // planner (aucun outil MCP) n'a pas de ligne MCP, le fil principal l'a dès le
 // premier tour.
 func TestBaseSystemPromptLigneMCPSuitLesOutils(t *testing.T) {
+	// $LOKI_HOME isolé : EnabledTools lit la configuration MCP, et celle de la
+	// machine de test (serveurs réels, connexions comprises) fausserait le cas
+	// « sans outil MCP ».
+	testHome(t)
 	caps := Caps{Agent: true, Mem: MemOff}
 	with := append(EnabledTools(caps), mcpTestTool("github", "issues"))
 	if sp := baseSystemPrompt(caps, with); !strings.Contains(sp, "MCP servers connected") || !strings.Contains(sp, "github (1)") {

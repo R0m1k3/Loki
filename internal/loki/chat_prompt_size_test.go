@@ -49,6 +49,9 @@ import (
 const promptCharBudget = 11000 // ~2750 tokens, tout allumé
 
 func TestSystemPromptStaysLean(t *testing.T) {
+	// $LOKI_HOME isolé : les outils MCP configurés sur la machine de test (et
+	// leur ligne au préambule) ne comptent pas dans le budget de Loki.
+	testHome(t)
 	caps := Caps{Agent: true, Internet: true, Mem: MemAlways}
 	tools := EnabledTools(caps)
 	sp := baseSystemPrompt(caps, tools)

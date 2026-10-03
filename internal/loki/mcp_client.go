@@ -307,7 +307,7 @@ func mcpTools() []Tool {
 			}
 			// Préfixe le serveur d'origine dans la description : aide le modèle à
 			// choisir entre outils similaires de serveurs différents.
-			desc = "[MCP: " + name + "] " + desc
+			desc = mcpTagDescription(name, desc)
 			out = append(out, Tool{
 				Type: "function",
 				Function: ToolFunction{
@@ -449,6 +449,39 @@ func flattenMCPContent(res *mcpsdk.CallToolResult) string {
 	return text
 }
 
+// mcpTagDescription préfixe la description d'un outil MCP par le nom d'origine
+// de son serveur, que le nom d'outil (assaini) ne garde pas. mcpToolServer le
+// relit pour la ligne du préambule : ce format n'existe qu'ici, pour que les
+// deux ne puissent pas diverger en silence.
+func mcpTagDescription(server, desc string) string {
+	return "[MCP: " + server + "] " + desc
+}
+
+// mcpToolServer retrouve le serveur d'origine d'un outil MCP annoncé, d'après
+// le préfixe posé par mcpTagDescription. Le nom brut d'un serveur peut lui-même
+// contenir « ] » : on retient la première coupure dont la forme assainie est
+// bien celle qui figure dans le nom de l'outil.
+func mcpToolServer(t Tool) (string, bool) {
+	name := t.Function.Name
+	if !strings.HasPrefix(name, "mcp__") {
+		return "", false
+	}
+	rest, ok := strings.CutPrefix(t.Function.Description, "[MCP: ")
+	if !ok {
+		return "", false
+	}
+	for i := 0; ; {
+		j := strings.Index(rest[i:], "] ")
+		if j < 0 {
+			return "", false
+		}
+		if server := rest[:i+j]; strings.HasPrefix(name, "mcp__"+mcpSanitize(server)+"__") {
+			return server, true
+		}
+		i += j + 1
+	}
+}
+
 // mcpPromptLine renvoie une ligne système listant les serveurs MCP annoncés et
 // leur nombre d'outils, pour situer le modèle. Elle se DÉDUIT des outils
 // réellement envoyés ce tour-ci (EnabledTools), pas de l'état du pool.
@@ -463,20 +496,9 @@ func flattenMCPContent(res *mcpsdk.CallToolResult) string {
 func mcpPromptLine(tools []Tool) string {
 	counts := map[string]int{}
 	for _, t := range tools {
-		if !strings.HasPrefix(t.Function.Name, "mcp__") {
-			continue
+		if server, ok := mcpToolServer(t); ok {
+			counts[server]++
 		}
-		// mcpTools préfixe chaque description par « [MCP: <serveur>] » : le nom
-		// d'origine du serveur, que le nom d'outil (assaini) ne garde pas.
-		rest, ok := strings.CutPrefix(t.Function.Description, "[MCP: ")
-		if !ok {
-			continue
-		}
-		server, _, ok := strings.Cut(rest, "] ")
-		if !ok {
-			continue
-		}
-		counts[server]++
 	}
 	if len(counts) == 0 {
 		return ""
