@@ -249,6 +249,17 @@ func TestGGUFMetaTranches(t *testing.T) {
 	if _, err := ggufMeta(filepath.Join(dir, "n-00001-of-00002.gguf")); err == nil {
 		t.Fatal("tranche manquante acceptée")
 	}
+	// gguf-split --no-tensor-first-split : la première tranche ne porte que les
+	// clés, aucun tenseur ni aucune donnée. Elle doit passer telle quelle.
+	meta := newGGUF().s("general.architecture", "glm4moe").u32("glm4moe.block_count", 47).
+		u32("split.count", 2)
+	rest := newGGUF().u32("split.no", 1).tensor("blk.46.nextn.eh_proj.weight", 8, 8)
+	writeGGUF(t, dir, "s-00001-of-00002.gguf", meta.bytes())
+	writeGGUF(t, dir, "s-00002-of-00002.gguf", rest.bytes())
+	got, err := ggufMeta(filepath.Join(dir, "s-00001-of-00002.gguf"))
+	if err != nil || got.Arch != "glm4moe" || !got.HasNextNTensor || got.TensorCount != 1 {
+		t.Fatalf("première tranche sans tenseur : %+v, %v", got, err)
+	}
 }
 
 // v1 (compteurs 32 bits) et gros-boutiste : même résultat que le v3 ordinaire.
@@ -256,9 +267,11 @@ func TestGGUFMetaVersionsEtOrdre(t *testing.T) {
 	dir := t.TempDir()
 	v1 := newGGUF()
 	v1.version = 1
+	v2 := newGGUF()
+	v2.version = 2
 	be := newGGUF()
 	be.bo = binary.BigEndian
-	for name, b := range map[string]*ggufBuilder{"v1.gguf": v1, "be.gguf": be} {
+	for name, b := range map[string]*ggufBuilder{"v1.gguf": v1, "v2.gguf": v2, "be.gguf": be} {
 		got, err := ggufMeta(writeGGUF(t, dir, name, qwenMTP(b).bytes()))
 		if err != nil {
 			t.Fatalf("%s : %v", name, err)
@@ -342,6 +355,29 @@ func TestGGUFMetaFichiersAberrants(t *testing.T) {
 	}
 	if _, err := ggufMeta(filepath.Join(dir, "absent.gguf")); err == nil {
 		t.Error("fichier absent accepté")
+	}
+}
+
+// Octet corrompu n'importe où dans l'en-tête (v1 et v3) : le lecteur doit rendre
+// la main vite, sans panic remonté ni allocation démesurée. Les valeurs 0xFF et
+// 0x7F transforment un compteur en nombre géant, le cas qui ferait mal.
+func TestGGUFMetaOctetCorrompu(t *testing.T) {
+	v1 := newGGUF()
+	v1.version = 1
+	for _, b := range []*ggufBuilder{newGGUF(), v1} {
+		full := qwenMTP(b).bytes()
+		hdr := len(full) - 3*32 // le bourrage et les « poids » ne sont jamais lus
+		for i := 0; i < hdr; i++ {
+			for _, v := range []byte{0xFF, 0x7F, 0x00} {
+				mut := append([]byte(nil), full...)
+				mut[i] = v
+				// le filet de sécurité existe, mais aucune entrée ne doit y tomber
+				if _, err := parseGGUF(bytes.NewReader(mut), int64(len(mut))); err != nil &&
+					strings.Contains(err.Error(), "illisible") {
+					t.Fatalf("v%d, octet %d = %#x : %v", b.version, i, v, err)
+				}
+			}
+		}
 	}
 }
 
