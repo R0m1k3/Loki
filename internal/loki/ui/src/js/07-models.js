@@ -856,7 +856,7 @@ function cfgWriteKey(key, val){
 // jeton par jeton pour les interrupteurs (mlock, flash-attn, n-cpu-moe…), sans
 // toucher aux autres drapeaux (--jinja, --device…) qui restent en config brute.
 function eaTokens(){ return cfgReadKey('EXTRA_ARGS').split(/\s+/).filter(Boolean); }
-function eaSetTokens(t){ cfgWriteKey('EXTRA_ARGS', t.join(' ')); }
+function eaSetTokens(t){ cfgWriteKey('EXTRA_ARGS', t.join(' ')); syncKVSub(); }
 function eaHasFlag(flag){ return eaTokens().includes(flag); }
 function eaToggleFlag(flag, on){
   const t = eaTokens().filter(x=>x!==flag);
@@ -884,6 +884,7 @@ function populateSettings(){
   set('s-ubatch', cfgReadKey('UBATCH'));
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
+  syncKVSub();
   // Échantillonnage : envoyé PAR REQUÊTE (applySampling côté serveur), donc pas
   // besoin de redémarrer le moteur pour qu'un changement prenne effet.
   set('s-temp', cfgReadKey('TEMP'));
@@ -930,6 +931,57 @@ function populateSettings(){
   const lm = eaLoadMode();
   set('s-loadmode', lm);
   syncLoadModeSub(lm);
+}
+// Cache KV : le sous-titre dit ce que le moteur utilisera VRAIMENT, comme
+// effectiveKVTypes côté Go. EXTRA_ARGS ferme la ligne de commande et la dernière
+// occurrence gagne : un --cache-type-k q8_0 écrit à la main l'emporte sur la
+// liste, qui afficherait sinon « f16 » pendant que le moteur tourne en q8_0.
+// Les drapeaux de cache qui changent ce que voit le modèle (--context-shift,
+// --cache-reuse > 0) sont signalés au même endroit. Rien n'est jamais modifié
+// ici : c'est un affichage.
+const KV_FIDELITY = {
+  'bf16': 'numérique différente de f16',
+  'q8_0': 'modifie légèrement les sorties', 'q5_0': 'modifie légèrement les sorties', 'q5_1': 'modifie légèrement les sorties',
+  'q4_0': 'perte mesurable', 'q4_1': 'perte mesurable', 'iq4_nl': 'perte mesurable',
+};
+const KV_RANK = {'':0, 'f16':0, 'f32':0, 'bf16':1, 'q4_0':3, 'q4_1':3, 'iq4_nl':3};
+function eaLastValue(flags){
+  let v = '';
+  const t = eaTokens();
+  t.forEach((a, i) => {
+    const eq = a.indexOf('='), name = eq > 0 ? a.slice(0, eq) : a;
+    if(!flags.includes(name)) return;
+    if(eq > 0) v = a.slice(eq+1);
+    else if(i+1 < t.length) v = t[i+1];
+  });
+  return v;
+}
+function syncKVSub(){
+  const el = document.getElementById('s-kv-sub');
+  if(!el) return;
+  const kv = cfgReadKey('KV_TYPE');
+  const xk = eaLastValue(['-ctk','--cache-type-k']), xv = eaLastValue(['-ctv','--cache-type-v']);
+  const k = (xk || cfgReadKey('KV_TYPE_K') || kv).toLowerCase();
+  const v = (xv || cfgReadKey('KV_TYPE_V') || kv).toLowerCase();
+  const rank = x => (x in KV_RANK) ? KV_RANK[x] : 2;
+  const worst = rank(v) > rank(k) ? v : k;
+  const parts = [];
+  if(rank(worst) === 0){
+    parts.push(xk || xv ? 'f16 (défini par EXTRA_ARGS)' : 'compression du contexte');
+  } else {
+    const label = KV_FIDELITY[worst] || 'modifie les sorties';
+    parts.push((xk || xv ? 'défini par EXTRA_ARGS : ' : '') + (k||'f16')+'/'+(v||'f16')+' — '+label);
+    // Placement figé à la main : --fit ne tourne pas et n'absorbera pas le
+    // surplus d'un retour en f16.
+    if(eaTokens().some(a => ['-ot','--override-tensor','--n-cpu-moe','-ncmoe','--cpu-moe','-cmoe'].includes(a.split('=')[0])))
+      parts.push('repasser en f16 : plus de VRAM, --n-cpu-moe à relever');
+  }
+  let shift = false;
+  eaTokens().forEach(a => { if(a === '--context-shift') shift = true; else if(a === '--no-context-shift') shift = false; });
+  if(shift) parts.push('--context-shift : jette des jetons quand le contexte est plein');
+  const reuse = parseInt(eaLastValue(['--cache-reuse']), 10);
+  if(reuse > 0) parts.push('--cache-reuse : cache réutilisé de façon approchée');
+  el.textContent = parts.join(' · ');
 }
 // Chargement du modèle. llama.cpp récent a REMPLACÉ --mlock / --no-mmap par
 // --load-mode (auto, none, mmap, mlock, mmap+mlock, dio). L'éditeur écrit la

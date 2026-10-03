@@ -359,7 +359,10 @@ func cmdServe(args []string) error {
 	if err := waitPortFree(host, port, 5*time.Second); err != nil {
 		return err
 	}
-	warnSlowKV(serveKVTypes(cfg))
+	// Le type EFFECTIF : un -ctk/-ctv d'EXTRA_ARGS l'emporte sur KV_TYPE, et c'est
+	// lui que le moteur accélère ou non.
+	kt, vt, _ := effectiveKVTypes(cfg, extra)
+	warnSlowKV(kt, vt)
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
 		bin, filepath.Base(model), port)
@@ -568,6 +571,13 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	// EXTRA_ARGS (déjà découpé comme le ferait le shell — les guillemets gardent
 	// ensemble un chemin qui contient des espaces) ferme la marche.
 	args = append(args, extra...)
+	// Garde-fous de fidélité (voir backend_serve_fidelity.go) : ils ne touchent à
+	// aucun drapeau, ils DISENT ce que la ligne finale change aux calculs.
+	ek, ev, fromExtra := effectiveKVTypes(cfg, extra)
+	if n := kvFidelityNote(ek, ev, fromExtra, extra); n != "" {
+		notes = append(notes, n)
+	}
+	notes = append(notes, lossyCacheNotes(extra, si.MMProj != "")...)
 	return args, env, notes
 }
 

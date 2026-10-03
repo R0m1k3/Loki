@@ -1234,13 +1234,16 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value)"></span>
           </div>
           <div class="pe-row">
-            <span class="pe-row-l">Cache KV<span class="pe-sub">compression du contexte</span></span>
-            <span class="pe-row-c"><span class="pe-selc"><select id="s-kv" onchange="cfgWriteKey('KV_TYPE', this.value)">
+            <!-- Seul f16 laisse les calculs du modèle intacts : chaque autre
+                 option le dit. Le sous-titre montre le type EFFECTIF — un
+                 -ctk/-ctv d'EXTRA_ARGS l'emporte sur cette liste (syncKVSub). -->
+            <span class="pe-row-l">Cache KV<span class="pe-sub" id="s-kv-sub">compression du contexte</span></span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="s-kv" onchange="cfgWriteKey('KV_TYPE', this.value); syncKVSub()">
               <option value="">f16 (max qualité)</option>
-              <option value="q8_0">q8_0 (léger)</option>
-              <option value="q4_0">q4_0 (très léger)</option>
-              <option value="q5_1">q5_1 (lent sur CUDA)</option>
-              <option value="bf16">bf16</option>
+              <option value="q8_0">q8_0 (léger · modifie légèrement les sorties)</option>
+              <option value="q4_0">q4_0 (très léger · perte mesurable)</option>
+              <option value="q5_1">q5_1 (lent sur CUDA · modifie les sorties)</option>
+              <option value="bf16">bf16 (numérique différente de f16)</option>
             </select></span></span>
           </div>
           <!-- Décodage spéculatif : le type vient de la liste que llama-server
@@ -1353,7 +1356,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-c"><span id="m-raw-caret" class="pe-caret"></span></span>
           </div>
           <div id="m-raw-body" class="pe-row stack" style="display:none">
-            <textarea id="m-content" class="pe-inp" spellcheck="false"></textarea>
+            <textarea id="m-content" class="pe-inp" spellcheck="false" oninput="syncKVSub()"></textarea>
           </div>
         </div>
       </div>

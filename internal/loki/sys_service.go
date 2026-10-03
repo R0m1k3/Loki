@@ -78,7 +78,8 @@ var configTemplate = []struct{ key, help string }{
 		"vide = défaut du moteur (32) ; plus haut = lots courts sur CPU, à mesurer"},
 	{"CUDA_GRAPH_OPT", "on = GGML_CUDA_GRAPH_OPT=1, branches Q/K/V en parallèle au décodage (expérimental, " +
 		"sortie identique, gain de 0 à quelques %) ; off puis redémarrage s'il plante"},
-	{"KV_TYPE", "quantization du cache KV (q8_0, q4_0…) ; KV_TYPE_K / KV_TYPE_V pour les séparer"},
+	{"KV_TYPE", "quantization du cache KV ; vide = f16, sorties de référence ; q8_0 les modifie légèrement, " +
+		"q4_0 avec perte mesurable ; KV_TYPE_K / KV_TYPE_V pour les séparer"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},

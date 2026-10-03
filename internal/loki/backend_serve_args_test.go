@@ -86,6 +86,7 @@ func TestBuildServeArgs(t *testing.T) {
 				"-c", "65536", "-t", "8", "-tb", "16", "-b", "4096", "-ub", "1024",
 				"--host", "127.0.0.1", "--port", "9090",
 				"--parallel", "2", "-ngl", "all", "-ctk", "q8_0", "-ctv", "q8_0"},
+			wantNotes: 1, // cache quantifié : dit, jamais retiré
 		},
 		{
 			name: "THREADS=0 et THREADS_BATCH=0 : aucun drapeau, llama.cpp prend ses cœurs physiques",
@@ -165,7 +166,7 @@ func TestBuildServeArgs(t *testing.T) {
 			name: "cache KV séparé K/V",
 			cfg:  map[string]string{"NGL": "28", "KV_TYPE": "q8_0", "KV_TYPE_V": "q4_0"},
 			si:   serveSysInfo{Help: helpRecent},
-			want: with("--parallel", "1", "-ngl", "28", "-ctk", "q8_0", "-ctv", "q4_0"),
+			want: with("--parallel", "1", "-ngl", "28", "-ctk", "q8_0", "-ctv", "q4_0"), wantNotes: 1,
 		},
 		{
 			// Preset MoE typique : experts sur CPU via EXTRA_ARGS, qui pose aussi
@@ -177,6 +178,7 @@ func TestBuildServeArgs(t *testing.T) {
 			si: serveSysInfo{Help: helpRecent},
 			want: with("-ngl", "99", "--parallel", "1", "-ot", `blk\.(\d+)\.ffn_.*_exps=CPU`,
 				"--n-cpu-moe", "30", "-ctk", "q8_0", "-ctv", "q8_0", "-fa", "on"),
+			wantNotes: 1, // q8_0 venu d'EXTRA_ARGS : vu comme celui de KV_TYPE
 		},
 		{
 			name: "--n-gpu-layers=N dans EXTRA_ARGS : pas de -ngl en double",
