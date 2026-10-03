@@ -7726,8 +7726,11 @@ function handleDelta(d){
     // prompt_tokens_total = comptage exact du moteur (include_usage). Absent sur
     // certains llama-server récents : le serveur publie alors un `ctx_used`
     // estimé en fin de tour, traité plus bas — on ne remet donc PAS la jauge à
-    // zéro ici, on la laisse simplement inchangée.
-    if(d.stats.prompt_tokens_total){ setCtxUsed((d.stats.prompt_tokens_total||0)+(d.stats.gen_tokens||0)); }
+    // zéro ici, on la laisse simplement inchangée. Même calcul que le serveur
+    // (StatsEvent.ctxAfter) : le raisonnement, jamais renvoyé au modèle, ne
+    // compte pas. ctx_isolated = passe du vérificateur, sur sa propre trace :
+    // ses chiffres ne disent rien de la discussion, la jauge ne bouge pas.
+    if(d.stats.prompt_tokens_total && !d.ctx_isolated){ const g=d.stats.gen_tokens||0; setCtxUsed(d.stats.prompt_tokens_total+g-Math.min(g, d.stats.reasoning_tokens||0)); }
     if(T.contentEl||T.reasonEl) renderStats(T.contentEl||T.reasonEl, d.stats); return; }
   if(d.tool_used){
     settleBlocks(); // le bloc texte précédent (raisonnement/contenu) est terminé

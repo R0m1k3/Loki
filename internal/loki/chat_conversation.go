@@ -59,6 +59,14 @@ type Conversation struct {
 	Log      []LogEvent `json:"log"`      // vue « UI » rejouable
 	Seq      int        `json:"seq"`
 	CtxUsed  int        `json:"ctx_used"` // taille réelle du contexte au dernier tour
+	// ctxUsedLen : nombre de messages de Messages que CtxUsed couvre déjà (0 =
+	// inconnu). Ce qui arrive ensuite — le message utilisateur du tour suivant,
+	// la file — est estimé en plus par ctxPending : le moteur ne l'a pas encore
+	// compté. genPeak : génération la plus longue du dernier tour (llama-server
+	// local), pour la garde de marge de compactNeeded. Ni l'un ni l'autre n'est
+	// persisté : un rechargement repart du seul CtxUsed, comme avant.
+	ctxUsedLen int
+	genPeak    int
 
 	Generating bool               `json:"-"`
 	cancel     context.CancelFunc // annule la génération en cours (/stop)
@@ -189,6 +197,7 @@ func (c *Conversation) loadFrom(b []byte) {
 	c.Stop()
 	c.mu.Lock()
 	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
+	c.ctxUsedLen, c.genPeak = 0, 0
 	c.queued = nil // file de l'ancienne discussion : elle ne suit pas la bascule
 	if len(b) > 0 {
 		_ = json.Unmarshal(b, c)
@@ -401,6 +410,7 @@ func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase s
 	if c.epoch == epoch {
 		c.Messages = compacted
 		c.CtxUsed = est // le vrai compte reviendra avec les stats du prochain tour
+		c.ctxUsedLen = len(compacted)
 	}
 	c.mu.Unlock()
 	c.appendDelta(epoch, map[string]any{"compacted": true})
@@ -745,14 +755,22 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Snapshot de la vue modèle.
 	c.mu.Lock()
 	msgs := append([]Message(nil), c.Messages...)
-	ctxUsed := c.CtxUsed
+	// Dernier compte du moteur + ce qu'il n'a pas encore vu (ce message-ci, la
+	// file). Sans ce complément, seul le raisonnement compté à tort masquait le
+	// manque ; maintenant qu'il est retiré, le nouveau message doit compter.
+	ctxUsed := ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+	peak := c.genPeak
+	c.genPeak = 0 // recompté pendant ce tour
 	c.mu.Unlock()
+	// llama-server local seulement : le preset externe garde le seul seuil, et
+	// ses complétions ne nourrissent pas la garde de marge (compactNeeded).
+	local := !externalActive()
 
 	// Compaction proactive (façon Hermes) sur la vue MODÈLE uniquement ; le journal
 	// d'affichage garde le fil complet. Le résumé est un appel modèle non streamé :
 	// il bloque plusieurs secondes AVANT que la vraie réponse commence, d'où la
 	// bannière de progression émise par compactAndPublish.
-	if compactWouldTrigger(msgs, ctxUsed) {
+	if compactNeeded(msgs, ctxUsed, peak) {
 		if out, changed := c.compactAndPublish(ctx, epoch, "début-tour", msgs, ctxUsed, caps); changed {
 			msgs = out
 		}
@@ -791,6 +809,10 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// l'usage est arrivé ; sinon on retombe sur l'estimation (celle qui pilote
 	// déjà la compaction), approximative mais jamais absente.
 	sawUsage := false
+	// Estimation de début de tour, comparée au premier compte réel du moteur
+	// (journal [ctx], seulement au-delà de 2 % d'écart).
+	startEst := ctxUsed
+	turnPeak := 0
 	// asked : le tour s'est terminé sur une question à l'utilisateur (outil ask) —
 	// pas de vérification du mode Code avant sa réponse.
 	asked := false
@@ -847,15 +869,22 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			// compaction de début de tour.
 			c.appendDelta(epoch, map[string]any{"compacting": *ev.Compacting})
 		case ev.Stats != nil:
-			// Taille réelle du contexte (usage.prompt_tokens + généré) pour le compteur
-			// et la décision de compactage au tour suivant.
+			// Taille réelle du contexte (usage.prompt_tokens + généré, raisonnement
+			// non renvoyé retiré) pour le compteur et la décision de compactage au
+			// tour suivant.
 			if ev.Stats.PromptTokensTotal > 0 {
+				if !sawUsage && local && startEst > 0 {
+					logCtxEstimate("début-tour", startEst, ev.Stats.PromptTokensTotal)
+				}
 				sawUsage = true
 				c.mu.Lock()
 				if c.epoch == epoch {
-					c.CtxUsed = ev.Stats.PromptTokensTotal + ev.Stats.GenTokens
+					c.CtxUsed = ev.Stats.ctxAfter()
 				}
 				c.mu.Unlock()
+			}
+			if local {
+				turnPeak = max(turnPeak, ev.Stats.GenTokens)
 			}
 			c.appendDelta(epoch, map[string]any{"stats": ev.Stats})
 		case ev.Ask != nil:
@@ -886,9 +915,16 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		if s := content.String(); strings.TrimSpace(s) != "" {
 			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
 		}
+		// Le dernier compte couvre tout ce qui vient d'être rangé : la dernière
+		// requête portait le tour entier, sa génération en est la réponse.
+		if sawUsage {
+			c.ctxUsedLen = len(c.Messages)
+		}
+		c.genPeak = max(c.genPeak, turnPeak)
 	}
 	msgs = append([]Message(nil), c.Messages...)
-	ctxUsed = c.CtxUsed
+	ctxUsed = ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+	peak = c.genPeak
 	stale := c.epoch != epoch
 	c.mu.Unlock()
 
@@ -900,6 +936,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.mu.Lock()
 		if c.epoch == epoch {
 			c.CtxUsed = est
+			c.ctxUsedLen = len(msgs)
 		}
 		c.mu.Unlock()
 		c.appendDelta(epoch, map[string]any{"ctx_used": est})
@@ -913,7 +950,8 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.codeVerifyLoop(ctx, caps, temperature, epoch, asked)
 		c.mu.Lock()
 		msgs = append([]Message(nil), c.Messages...)
-		ctxUsed = c.CtxUsed
+		ctxUsed = ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+		peak = c.genPeak
 		stale = c.epoch != epoch
 		c.mu.Unlock()
 	}
@@ -927,7 +965,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// retombe tout de suite et le tour suivant démarre avec de la marge.
 	// Sauf si un Reset est passé (rien à compacter) ou si le tour a été annulé
 	// (bouton stop) : on n'enchaîne pas plusieurs secondes de résumé sur un stop.
-	if stale || ctx.Err() != nil || !compactWouldTrigger(msgs, ctxUsed) {
+	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) {
 		return
 	}
 	// context.Background() et non ctx : le tour est terminé, son contexte peut
@@ -953,7 +991,7 @@ func (c *Conversation) CompactNow() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	msgs := append([]Message(nil), c.Messages...)
-	lastReal := c.CtxUsed // dernier contexte réel mesuré, pour estimer le surcoût fixe
+	lastReal := ctxPending(c.CtxUsed, c.ctxUsedLen, msgs) // dernier contexte réel mesuré, pour estimer le surcoût fixe
 	epoch := c.epoch
 	c.mu.Unlock()
 
@@ -1009,6 +1047,7 @@ func (c *Conversation) Reset() {
 	c.Log = nil
 	c.Seq = 0
 	c.CtxUsed = 0
+	c.ctxUsedLen, c.genPeak = 0, 0
 	c.epoch++
 	c.Generating = false
 	c.cancel = nil

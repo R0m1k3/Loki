@@ -116,7 +116,7 @@ func (c *Conversation) runVerifyPass(ctx context.Context, caps Caps, temperature
 	// dans le moteur aussi : effacé à la fin de la passe (llm_slots.go).
 	defer engineSideJob()()
 	_, _ = runChat(withPerfKind(ctx, perfVerify), msgs, temperature, vcaps, func(ev StreamEvent) bool {
-		c.forwardStream(ev, epoch)
+		c.forwardStream(ev, epoch, true)
 		return true
 	})
 }
@@ -165,7 +165,11 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		final = append([]Message{{Role: "system", Content: sp}}, final...)
 	}
 	var content strings.Builder
+	sawUsage := false
 	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
+		if ev.Stats != nil && ev.Stats.PromptTokensTotal > 0 {
+			sawUsage = true
+		}
 		if ev.Content != "" {
 			content.WriteString(ev.Content)
 		}
@@ -175,7 +179,7 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		if ev.Ask != nil {
 			asked = true
 		}
-		c.forwardStream(ev, epoch)
+		c.forwardStream(ev, epoch, false)
 		return true
 	})
 	c.mu.Lock()
@@ -183,6 +187,9 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		c.Messages = append(c.Messages, extra...)
 		if s := content.String(); strings.TrimSpace(s) != "" {
 			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
+		}
+		if sawUsage {
+			c.ctxUsedLen = len(c.Messages) // même règle que generate
 		}
 	}
 	c.mu.Unlock()
@@ -193,7 +200,13 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 // forwardStream relaie les événements d'un runChat secondaire (vérification,
 // correction) vers le journal d'affichage — même mapping que generate(), sans
 // la gestion de compaction (ces passes n'en déclenchent pas : contexte court).
-func (c *Conversation) forwardStream(ev StreamEvent, epoch int) {
+//
+// isolated : la passe tourne sur sa propre trace (vérificateur), PAS sur
+// l'historique de la discussion. Ses comptes ne disent rien du contexte de
+// celle-ci : ils écrasaient CtxUsed avec la petite taille du vérificateur, et
+// le contrôle de fin de tour — puis celui du tour suivant — décidaient sur ce
+// chiffre-là. La jauge de l'UI ne doit pas bouger non plus (ctx_isolated).
+func (c *Conversation) forwardStream(ev StreamEvent, epoch int, isolated bool) {
 	switch {
 	case ev.Err != nil:
 		c.appendDelta(epoch, map[string]any{"error": ev.Err.Error()})
@@ -223,13 +236,21 @@ func (c *Conversation) forwardStream(ev StreamEvent, epoch int) {
 	case ev.Ask != nil:
 		c.appendDelta(epoch, map[string]any{"ask": ev.Ask})
 	case ev.Stats != nil:
-		if ev.Stats.PromptTokensTotal > 0 {
-			c.mu.Lock()
-			if c.epoch == epoch {
-				c.CtxUsed = ev.Stats.PromptTokensTotal + ev.Stats.GenTokens
-			}
-			c.mu.Unlock()
+		if isolated {
+			c.appendDelta(epoch, map[string]any{"stats": ev.Stats, "ctx_isolated": true})
+			break
 		}
+		local := !externalActive()
+		c.mu.Lock()
+		if c.epoch == epoch {
+			if ev.Stats.PromptTokensTotal > 0 {
+				c.CtxUsed = ev.Stats.ctxAfter()
+			}
+			if local {
+				c.genPeak = max(c.genPeak, ev.Stats.GenTokens)
+			}
+		}
+		c.mu.Unlock()
 		c.appendDelta(epoch, map[string]any{"stats": ev.Stats})
 	case ev.DropReasoning:
 		c.appendDelta(epoch, map[string]any{"drop_reasoning": true})

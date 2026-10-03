@@ -215,6 +215,63 @@ func compactWouldTrigger(msgs []Message, knownTokens int) bool {
 	return used >= int(float64(ctxWindow())*compactTriggerFrac)
 }
 
+// compactNeeded = compactWouldTrigger, plus une garde de MARGE DE GÉNÉRATION.
+// Tant que le raisonnement de la dernière étape était compté dans le contexte
+// (à tort : il n'est jamais renvoyé), il offrait par accident une marge à peu
+// près proportionnelle à la longueur des étapes. Ce compte est désormais juste,
+// et sans max_tokens ni budget de raisonnement, une étape aussi longue que la
+// plus longue récente doit encore tenir : sinon le moteur coupe en plein
+// raisonnement (« length »). peakGen = 0 (inconnu, API externe) : seuil seul.
+func compactNeeded(msgs []Message, used, peakGen int) bool {
+	if compactWouldTrigger(msgs, used) {
+		return true
+	}
+	return compactEnabled() && genHeadroomShort(used, peakGen, ctxWindow())
+}
+
+// genHeadroomShort : la fenêtre ne laisse plus la place d'une génération de
+// 1,2 × la plus longue récente (plancher de 8 k jetons, ramené à 1/8 de la
+// fenêtre pour les petites), plus une petite marge. Fonction pure, testable.
+// Plancher et marge sont choisis pour ne JAMAIS devancer le seuil de 75 % à eux
+// seuls : seule une génération longue avance la compaction.
+func genHeadroomShort(used, peakGen, window int) bool {
+	if used <= 0 || peakGen <= 0 || window <= 0 {
+		return false
+	}
+	need := max(peakGen*6/5, min(8192, window/8)) + min(1024, window/32)
+	return used+need > window
+}
+
+// logCtx trace un fait du comptage de contexte (fenêtre pleine, relance après
+// un raisonnement sans action) : de quoi vérifier, journal en main, qu'ils ne
+// deviennent pas plus fréquents.
+func logCtx(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "[ctx] "+format+"\n", args...)
+}
+
+// logCtxEstimate compare le contexte ESTIMÉ avant une requête au compte réel
+// du moteur (usage.prompt_tokens), et ne parle qu'au-delà de 2 % d'écart.
+func logCtxEstimate(phase string, est, actual int) {
+	if actual <= 0 {
+		return
+	}
+	if d := est - actual; d*50 > actual || -d*50 > actual {
+		logCtx("%s estimé=%d réel=%d écart=%+d", phase, est, actual, d)
+	}
+}
+
+// ctxPending ajoute au dernier contexte mesuré (used, valable pour les
+// measured premiers messages) l'estimation des messages arrivés depuis : le
+// nouveau message utilisateur, ceux de la file. Le compte du moteur ne les a
+// pas vus. measured = 0 (inconnu, discussion rechargée) ou plus grand que
+// l'historique (réécrit entre-temps) : on s'en tient au compte mesuré.
+func ctxPending(used, measured int, msgs []Message) int {
+	if used <= 0 || measured <= 0 || measured > len(msgs) {
+		return used
+	}
+	return used + estimateTokens(msgs[measured:])
+}
+
 // logCompact trace UNE ligne par décision de compaction sur la sortie d'erreur
 // (donc dans `journalctl -u loki-ui`). Sans ça, une compaction qui ne se
 // déclenche pas — ou qui se déclenche et n'enlève rien — est invisible : côté

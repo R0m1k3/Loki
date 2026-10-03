@@ -728,6 +728,13 @@ type StatsEvent struct {
 	// Taille TOTALE du prompt traité ce tour (préfixe caché compris), issue de
 	// `usage.prompt_tokens`. 0 si le backend ne renvoie pas d'usage.
 	PromptTokensTotal int `json:"prompt_tokens_total,omitempty"`
+	// Morceaux de raisonnement reçus SÉPARÉS par le moteur (reasoning_content),
+	// llama-server local seulement. Loki ne renvoie jamais ce raisonnement au
+	// modèle (Message n'a pas de champ pour lui) : ces jetons font partie de
+	// GenTokens mais pas de la requête suivante. Un morceau vaut au plus un
+	// jeton, donc ce compte ne peut que sous-estimer — le sens sans danger : on
+	// compacte au pire comme avant, jamais trop tard. Voir ctxAfter.
+	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 	// Conseil ponctuel quand le cache de prompts n'a pas tenu après un travail
 	// annexe (voir noteEnginePrompt). Vide la plupart du temps.
 	CacheHint string `json:"cache_hint,omitempty"`
@@ -745,6 +752,15 @@ type StatsEvent struct {
 	LostAfter string `json:"lost_after,omitempty"`
 	LostAlert bool   `json:"lost_alert,omitempty"`
 	Kind      string `json:"kind,omitempty"`
+}
+
+// ctxAfter : taille du contexte que la requête SUIVANTE renverra réellement au
+// moteur — le prompt de cette complétion plus ce qu'elle a généré, MOINS son
+// raisonnement, jamais renvoyé. Compter ce raisonnement gonflait le contexte de
+// 1 à 8 k jetons par étape, et la compaction (avec perte) partait trop tôt.
+// Borné par GenTokens : le compte de morceaux ne retire jamais plus que généré.
+func (s StatsEvent) ctxAfter() int {
+	return s.PromptTokensTotal + s.GenTokens - min(s.GenTokens, s.ReasoningTokens)
 }
 
 // ChatCallback receives stream events. Return false to abort the stream.
@@ -972,6 +988,18 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// par rendre la main plutôt que faire attendre.
 	const maxNudges = 2
 	nudgeCount := 0
+	// Génération la plus longue de ce tour (llama-server local), pour la garde
+	// de marge de compactNeeded : le raisonnement n'étant plus compté dans le
+	// contexte, il faut s'assurer AUTREMENT qu'une étape aussi longue tient
+	// encore dans la fenêtre.
+	peakGen := 0
+	// Complétion coupée par la fenêtre pleine (finish_reason « length ») :
+	// compactée puis rejouée une fois, au lieu du nudge « arrête de raisonner »
+	// qui raccourcirait la réflexion du modèle.
+	lengthReplays := 0
+	// Contexte estimé pour la requête suivante (en-tour), comparé au compte
+	// réel du moteur quand il arrive — journalisé s'il s'en écarte.
+	lastEst := 0
 	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : relances
 	// consécutives bornées, compteur remis à zéro après chaque outil exécuté.
 	patternRetries := 0
@@ -1427,6 +1455,15 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				// Backend already separates reasoning — trust it, disable our split.
 				sawReasoningField = true
 				thinkOpen = false
+				// Compté ICI seulement : le raisonnement découpé chez nous (<think>
+				// en ligne, plus bas) reste dans assistantContent et repart dans
+				// l'étape suivante — le retirer sous-estimerait le contexte. Pas
+				// pour une API externe : son découpage en morceaux ne dit rien du
+				// nombre de jetons, et son preset doit rester tel quel. stats est
+				// propre à cette tentative : une relance repart de zéro.
+				if !ep.External {
+					stats.ReasoningTokens++
+				}
 				if !scb(StreamEvent{Reasoning: ch.Delta.ReasoningContent}) {
 					aborted = true
 					break
@@ -1560,6 +1597,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				s.LostAlert = perfAlert(rec, perfLostAlertAt(chatCfg))
 			}
 			cb(StreamEvent{Stats: &s})
+			if !ep.External {
+				peakGen = max(peakGen, stats.GenTokens)
+				if lastEst > 0 && stats.PromptTokensTotal > 0 {
+					logCtxEstimate("en-tour", lastEst, stats.PromptTokensTotal)
+				}
+			}
+			lastEst = 0
+		}
+		if finishReason == "length" {
+			logCtx("finish=length prompt=%d généré=%d raisonnement=%d fenêtre=%d", stats.PromptTokensTotal, stats.GenTokens, stats.ReasoningTokens, ctxWindow())
 		}
 		if aborted {
 			return extra, nil
@@ -1977,12 +2024,14 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// comptés. Sans eux, une étape qui lit plusieurs gros fichiers d'un coup
 			// passait de 60 % à plus de 130 % de la fenêtre sans jamais compacter.
 			// Serveur sans usage (base 0) : on laisse 0, compactWouldTrigger estime
-			// alors TOUT l'historique — étape comprise.
+			// alors TOUT l'historique — étape comprise. Le raisonnement de l'étape
+			// est retiré (ctxAfter) : il ne repart pas dans la requête suivante.
 			used := 0
-			if base := stats.PromptTokensTotal + stats.GenTokens; base > 0 {
+			if base := stats.ctxAfter(); base > 0 {
 				used = base + estimateTokens(messages[stepStart:])
+				lastEst = used
 			}
-			if compactWouldTrigger(messages, used) {
+			if compactNeeded(messages, used, peakGen) {
 				yes, no := true, false
 				cb(StreamEvent{Compacting: &yes})
 				c, changed := compactMessages(ctx, messages, caps)
@@ -2020,8 +2069,31 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// Filet de sécurité (le vrai fix est le prompt court, voir baseSystemPrompt) :
 			// si un modèle « pense sans agir » malgré tout, on le relance avec une
 			// consigne impérative au lieu d'afficher « pas de réponse ».
+			//
+			// Sauf si la complétion a été COUPÉE par une fenêtre pleine
+			// (« length » au-delà du seuil de compaction) : le modèle n'a pas
+			// « pensé sans agir », il n'a plus eu de place. Lui dire d'arrêter de
+			// raisonner raccourcirait sa réflexion et alourdirait encore le
+			// contexte ; on compacte et on rejoue l'étape, une fois.
+			if finishReason == "length" && !ep.External && lengthReplays < 1 &&
+				compactWouldTrigger(messages, stats.PromptTokensTotal+stats.GenTokens) {
+				lengthReplays++
+				yes, no := true, false
+				cb(StreamEvent{Compacting: &yes})
+				c, changed := compactMessages(ctx, messages, caps)
+				cb(StreamEvent{Compacting: &no})
+				logCompact("fenêtre-pleine", stats.PromptTokensTotal+stats.GenTokens, messages, c, changed)
+				if changed {
+					cb(StreamEvent{DropReasoning: true})
+					messages = c
+					extra = nil
+					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					continue
+				}
+			}
 			if len(tools) > 0 && !disableTools && nudgeCount < maxNudges {
 				nudgeCount++
+				logCtx("relance « pensé sans agir » n°%d (finish=%s)", nudgeCount, finishReason)
 				// Le raisonnement de ce tour avorté ne mène à rien : on demande à
 				// l'UI de l'effacer avant de relancer, pour ne pas afficher deux
 				// blocs de réflexion successifs.
