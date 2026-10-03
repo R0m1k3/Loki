@@ -162,7 +162,9 @@ func fitBlocker(cfg map[string]string, extra []string, si serveSysInfo) string {
 			ngl = si.ArgEnv["LLAMA_ARG_N_GPU_LAYERS"]
 		}
 	}
-	if ngl = strings.TrimSpace(ngl); ngl != "" && !strings.EqualFold(ngl, "auto") {
+	// -1 est la valeur par défaut du moteur, celle qu'« auto » écrit : fit ne
+	// la prend pas pour un choix de l'utilisateur.
+	if ngl = strings.TrimSpace(ngl); ngl != "" && ngl != "-1" && !strings.EqualFold(ngl, "auto") {
 		return "couches GPU fixées à " + ngl
 	}
 	if hasAnyFlag(extra, "-ts", "--tensor-split") || si.ArgEnv["LLAMA_ARG_TENSOR_SPLIT"] != "" {
@@ -175,8 +177,10 @@ func fitBlocker(cfg map[string]string, extra []string, si serveSysInfo) string {
 	if sm == "" {
 		sm = si.ArgEnv["LLAMA_ARG_SPLIT_MODE"]
 	}
-	if strings.EqualFold(strings.TrimSpace(sm), "row") {
-		return "-sm row"
+	// row ET tensor : fit abandonne sur l'une comme sur l'autre (« not
+	// implemented », common/fit.cpp).
+	if sm = strings.ToLower(strings.TrimSpace(sm)); sm == "row" || sm == "tensor" {
+		return "-sm " + sm
 	}
 	return ""
 }
