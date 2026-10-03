@@ -149,6 +149,14 @@ func TestBuildServeArgs(t *testing.T) {
 			want: with("--parallel", "1", "-ngl", "28", "--no-mmap"),
 		},
 		{
+			// dio n'existe pas sur l'ancien moteur : retiré, et dit par une note
+			// RENDUE (buildServeArgs n'écrit rien elle-même).
+			name: "--load-mode dio sur moteur ancien : retiré, une note",
+			cfg:  map[string]string{"NGL": "28", "EXTRA_ARGS": "--load-mode dio -fa on"},
+			si:   serveSysInfo{Help: helpOld},
+			want: with("--parallel", "1", "-ngl", "28", "-fa", "on"), wantNotes: 1,
+		},
+		{
 			name:    "sélection GPU : variables d'environnement, ligne inchangée",
 			cfg:     map[string]string{"NGL": "28", "CUDA_VISIBLE_DEVICES": "1,0"},
 			si:      serveSysInfo{Help: helpRecent},

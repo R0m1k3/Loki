@@ -60,9 +60,14 @@ func TestNormalizeLoadFlags(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := normalizeLoadFlags(c.in, c.supports)
+			got, note := normalizeLoadFlags(c.in, c.supports)
 			if !reflect.DeepEqual(got, c.want) {
 				t.Fatalf("got %q, want %q", got, c.want)
+			}
+			// Seul « dio » abandonné sur un moteur ancien se signale : les autres
+			// traductions gardent le sens demandé.
+			if wantNote := c.name == "moteur ancien : dio abandonné"; (note != "") != wantNote {
+				t.Fatalf("note = %q, attendue : %v", note, wantNote)
 			}
 		})
 	}

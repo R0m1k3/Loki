@@ -165,7 +165,10 @@ func hasAnyFlag(args []string, flags ...string) bool {
 //
 //	none → --no-mmap · mlock → --mlock --no-mmap · mmap+mlock → --mlock
 //	auto, mmap, dio → rien (défaut de l'ancien moteur)
-func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
+//
+// La note éventuelle (dio abandonné) est RENDUE, pas affichée : buildServeArgs
+// reste pure et c'est cmdServe qui l'écrit, à sa place parmi les autres notes.
+func normalizeLoadFlags(args []string, supportsLoadMode bool) ([]string, string) {
 	if !supportsLoadMode {
 		return downgradeLoadMode(args)
 	}
@@ -185,7 +188,7 @@ func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
 		}
 	}
 	if explicit || !(mlock || nommap || mmap) {
-		return out
+		return out, ""
 	}
 	mode := "mmap"
 	switch {
@@ -196,12 +199,12 @@ func normalizeLoadFlags(args []string, supportsLoadMode bool) []string {
 	case nommap:
 		mode = "none"
 	}
-	return append(out, "--load-mode", mode)
+	return append(out, "--load-mode", mode), ""
 }
 
 // downgradeLoadMode retraduit un --load-mode pour un moteur qui ne le connaît
 // pas : le lui passer tel quel le ferait sortir en erreur au démarrage.
-func downgradeLoadMode(args []string) []string {
+func downgradeLoadMode(args []string) ([]string, string) {
 	mode, found := "", false
 	kept := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
@@ -221,7 +224,7 @@ func downgradeLoadMode(args []string) []string {
 		kept = append(kept, a)
 	}
 	if !found {
-		return args
+		return args, ""
 	}
 	add := func(flag string) {
 		for _, a := range kept {
@@ -240,9 +243,9 @@ func downgradeLoadMode(args []string) []string {
 	case "mmap+mlock":
 		add("--mlock")
 	case "dio":
-		fmt.Fprintf(os.Stderr, "[loki serve] ce moteur ne connaît pas --load-mode dio (DirectIO) : chargement par défaut\n")
+		return kept, "ce moteur ne connaît pas --load-mode dio (DirectIO) : chargement par défaut"
 	}
-	return kept
+	return kept, ""
 }
 
 // cmdServe replaces the historic start.sh: read config.env, build the
@@ -418,7 +421,10 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	// l'utilisateur a écrit à la main décide des défauts que Loki a le droit
 	// d'ajouter (voir hasAnyFlag). Il est aussi traduit vers les drapeaux de
 	// chargement actuels quand le moteur les attend (voir normalizeLoadFlags).
-	extra = normalizeLoadFlags(extra, helpSupportsLoadMode(si.Help))
+	extra, loadNote := normalizeLoadFlags(extra, helpSupportsLoadMode(si.Help))
+	if loadNote != "" {
+		notes = append(notes, loadNote)
+	}
 
 	args = []string{bin,
 		"-m", si.Model,
