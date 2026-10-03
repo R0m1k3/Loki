@@ -38,6 +38,17 @@ const retryCorrectiveLead = "Your last answer contained a TOOL CALL WRITTEN AS T
 // relance qui suit.
 const toolsOffHint = "Do not call any more tools. Answer now, directly, in the user's language, using only the information already gathered."
 
+// budgetNudgeEnds : fins des trois rappels de budget (llm_budget.go). Le seul
+// préfixe « [system] » ne suffit pas à les reconnaître : un utilisateur peut
+// très bien coller un texte qui commence ainsi, et sa demande serait alors
+// sautée par la compaction, le vérificateur ou le titre. Le test
+// TestIsLokiInjected tient ces fins en phase avec budgetNudge.
+var budgetNudgeEnds = []string{
+	"unless exactly one specific call is genuinely still missing.",
+	"say so in the answer instead of investigating further.",
+	"Write your final answer in this message. Do not call another tool.",
+}
+
 // isLokiInjected dit si un message `user` vient de loki et non de
 // l'utilisateur.
 func isLokiInjected(m Message) bool {
@@ -48,8 +59,48 @@ func isLokiInjected(m Message) bool {
 	if !ok {
 		return false
 	}
-	return strings.HasPrefix(s, lokiNotePrefix) || s == thinkNudgeFirst || s == thinkNudgeStuck ||
-		strings.HasPrefix(s, retryCorrectiveLead)
+	if s == thinkNudgeFirst || s == thinkNudgeStuck || s == lokiNotePrefix+toolsOffHint ||
+		strings.HasPrefix(s, retryCorrectiveLead) {
+		return true
+	}
+	if !strings.HasPrefix(s, lokiNotePrefix) {
+		return false
+	}
+	for _, end := range budgetNudgeEnds {
+		if strings.HasSuffix(s, end) {
+			return true
+		}
+	}
+	return false
+}
+
+// dropStrayNudges retire de l'historique à persister les rappels de loki
+// restés en porte-à-faux : en toute fin (le tour a été arrêté ou a échoué avant
+// que le modèle y réponde), ou collés à un autre message `user` (un ajout en
+// cours de réponse arrivé juste derrière, ou un rappel éphémère qu'une
+// compaction en cours de tour a fait entrer dans l'historique). Gardés, ils
+// laisseraient deux `user` d'affilée au tour suivant — exception à chaque tour
+// sur les gabarits à alternance stricte (voir appendNudge). Retirés, on
+// retrouve l'historique d'avant leur persistance ; le cache ne perd que ce
+// qui suivait le rappel, comme avant. Renvoie msgs tel quel s'il n'y a rien à
+// retirer, une copie sinon.
+func dropStrayNudges(msgs []Message) []Message {
+	for {
+		drop := -1
+		for i, m := range msgs {
+			if !isLokiInjected(m) {
+				continue
+			}
+			if i == len(msgs)-1 || msgs[i+1].Role == "user" || (i > 0 && msgs[i-1].Role == "user") {
+				drop = i
+				break
+			}
+		}
+		if drop < 0 {
+			return msgs
+		}
+		msgs = append(append([]Message(nil), msgs[:drop]...), msgs[drop+1:]...)
+	}
 }
 
 // appendNudge ajoute un rappel de loki à la vue du modèle et, quand c'est sans

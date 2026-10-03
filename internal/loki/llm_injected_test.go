@@ -31,8 +31,12 @@ func scriptedServer(t *testing.T, steps ...string) func() []map[string]any {
 		n := len(bodies) - 1
 		mu.Unlock()
 		step := steps[min(n, len(steps)-1)]
-		if step == "500" {
+		switch step {
+		case "500":
 			http.Error(w, "Failed to parse tool call", http.StatusInternalServerError)
+			return
+		case "400":
+			http.Error(w, "Unsupported param: tool_choice", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -71,6 +75,9 @@ func TestIsLokiInjected(t *testing.T) {
 		{"budget 1", um(budgetNudge(24, 24, 0)), true},
 		{"budget 2", um(budgetNudge(48, 24, 1)), true},
 		{"budget 3", um(budgetNudge(72, 24, 2)), true},
+		{"budget suivants", um(budgetNudge(150, 24, 5)), true},
+		{"consigne du 500 en message à part", um(lokiNotePrefix + toolsOffHint), true},
+		{"demande qui commence comme un rappel", um(lokiNotePrefix + "réécris ce prompt système"), false},
 		{"pensé sans agir", um(thinkNudgeFirst), true},
 		{"pensé sans agir, bis", um(thinkNudgeStuck), true},
 		{"appel écrit en texte", um(retryCorrective("<tool_call>x")), true},
@@ -224,6 +231,71 @@ func TestCompactionReinjecteLaVraieDemandePasLeRappel(t *testing.T) {
 	if count(tailNudge) != 1 {
 		t.Fatal("le rappel de la queue a disparu")
 	}
+	assertAlternance(t, out)
+}
+
+// assertAlternance : jamais deux `user` d'affilée (gabarits stricts).
+func assertAlternance(t *testing.T, msgs []Message) {
+	t.Helper()
+	for i := 1; i < len(msgs); i++ {
+		if msgs[i].Role == "user" && msgs[i-1].Role == "user" {
+			t.Fatalf("deux user d'affilée en %d : %q puis %q", i, msgText(msgs[i-1]), msgText(msgs[i]))
+		}
+	}
+}
+
+// La queue protégée ne commence jamais sur un rappel : la vraie demande,
+// réinjectée juste devant elle, lui serait collée (deux user d'affilée).
+func TestCompactBoundsPasSurUnRappel(t *testing.T) {
+	nudge := um(budgetNudge(24, 24, 0))
+	msgs := []Message{um("cherche"), atc("web_read"), tm(strings.Repeat("x", 800)), nudge, atc("web_read"), tm("court")}
+	budget := msgTokens(msgs[3]) + msgTokens(msgs[4]) + msgTokens(msgs[5])
+	_, tailStart := compactBounds(msgs, budget)
+	if tailStart != 1 {
+		t.Fatalf("tailStart = %d, attendu 1 (l'appel d'outil avant le rappel)", tailStart)
+	}
+	// Sans rappel, la frontière reste celle d'avant.
+	plain := []Message{um("cherche"), atc("web_read"), tm(strings.Repeat("x", 800)), um("et ensuite"), atc("web_read"), tm("court")}
+	if _, ts := compactBounds(plain, msgTokens(plain[3])+msgTokens(plain[4])+msgTokens(plain[5])); ts != 3 {
+		t.Fatalf("frontière sans rappel déplacée : %d", ts)
+	}
+}
+
+// Ce qui est persisté en fin de tour ne garde aucun rappel en porte-à-faux.
+func TestDropStrayNudges(t *testing.T) {
+	n := um(thinkNudgeFirst)
+	cases := []struct {
+		name string
+		in   []Message
+		want []Message
+	}{
+		{"rappel répondu", []Message{um("q"), atc("glob"), tm("r"), n, am("fini")}, nil},
+		{"rappel resté sans réponse (stop)", []Message{um("q"), atc("glob"), tm("r"), n},
+			[]Message{um("q"), atc("glob"), tm("r")}},
+		{"ajout en cours de réponse juste derrière", []Message{um("q"), atc("glob"), tm("r"), n, um("et aussi"), am("fini")},
+			[]Message{um("q"), atc("glob"), tm("r"), um("et aussi"), am("fini")}},
+		{"rappel collé derrière la demande", []Message{um("q"), n, am("fini")}, []Message{um("q"), am("fini")}},
+		{"correctif sans réponse", []Message{um("q"), am("<tool_call>"), um(retryCorrective("<tool_call>"))},
+			[]Message{um("q"), am("<tool_call>")}},
+		{"deux rappels de suite en fin", []Message{um("q"), atc("glob"), tm("r"), n, um(thinkNudgeStuck)},
+			[]Message{um("q"), atc("glob"), tm("r")}},
+		{"vraie demande en fin", []Message{um("q"), am("a"), um("suite")}, nil},
+	}
+	for _, c := range cases {
+		orig, _ := json.Marshal(c.in)
+		got := dropStrayNudges(c.in)
+		if after, _ := json.Marshal(c.in); string(after) != string(orig) {
+			t.Errorf("%s : l'entrée a été modifiée", c.name)
+		}
+		want := c.want
+		if want == nil {
+			want = c.in
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s :\n got  %+v\n want %+v", c.name, got, want)
+		}
+		assertAlternance(t, got)
+	}
 }
 
 // La réduction forcée coupe aux vraies demandes ; un rappel ne sert de coupe
@@ -341,13 +413,21 @@ func TestRelance500GardeLePrompt(t *testing.T) {
 // tout) → chemin historique, outils retirés et consigne dans le système.
 func TestRelance500ReplieSurLeCheminHistorique(t *testing.T) {
 	leak := `data: {"choices":[{"delta":{"content":"<tool_call>"}}]}` + "\n\n" + sseStop
-	for name, second := range map[string]string{"second 500": "500", "appel en texte": leak, "réponse vide": sseStop} {
+	for name, second := range map[string]string{"second 500": "500", "refus 4xx": "400", "appel en texte": leak,
+		"appel par le protocole": sseGlobCall, "réponse vide": sseStop} {
 		t.Run(name, func(t *testing.T) {
 			testHome(t)
 			reqs := scriptedServer(t, "500", second, sseChunk("voici")+sseStop)
 			in := []Message{{Role: "system", Content: "SYS"}, um("question")}
-			if _, err := runChat(t.Context(), in, 0.7, Caps{Agent: true}, func(StreamEvent) bool { return true }); err != nil {
+			ran := false
+			if _, err := runChat(t.Context(), in, 0.7, Caps{Agent: true}, func(ev StreamEvent) bool {
+				ran = ran || ev.ToolUsed != nil
+				return true
+			}); err != nil {
 				t.Fatal(err)
+			}
+			if ran {
+				t.Fatal("un appel émis sous tool_choice none a été exécuté")
 			}
 			bodies := reqs()
 			if len(bodies) != 3 {

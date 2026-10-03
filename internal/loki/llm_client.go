@@ -1713,8 +1713,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Relance tool_choice « none » sans réponse exploitable (appel tenté
 		// malgré tout, balisage d'appel en texte, ou rien du tout) : repli UNE
 		// fois sur le chemin historique, outils retirés du gabarit. Le prompt est
-		// alors recalculé, mais le tour aboutit comme avant.
-		if toolChoiceNone && (noneLeak || textualToolCallSnippet(assistantContent.String()) != "" ||
+		// alors recalculé, mais le tour aboutit comme avant. Pas après un stop :
+		// la relance partirait sur un contexte annulé et afficherait une erreur.
+		if toolChoiceNone && ctx.Err() == nil && (noneLeak || textualToolCallSnippet(assistantContent.String()) != "" ||
 			strings.TrimSpace(assistantContent.String()) == "") {
 			logCtx("relance tool_choice=none sans réponse exploitable : repli sans outils")
 			toolChoiceNone = false

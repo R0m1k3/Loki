@@ -188,6 +188,7 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		if s := content.String(); strings.TrimSpace(s) != "" {
 			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
 		}
+		c.Messages = dropStrayNudges(c.Messages) // même règle que generate
 		if sawUsage {
 			c.ctxUsedLen = len(c.Messages) // même règle que generate
 		}

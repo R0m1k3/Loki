@@ -338,7 +338,14 @@ func compactBounds(msgs []Message, tailBudget int) (head, tailStart int) {
 			break
 		}
 	}
-	for tailStart > head && msgs[tailStart].Role != "user" && msgs[tailStart].Role != "assistant" {
+	// Jamais sur un rappel de loki (isLokiInjected) : il a le rôle `user` sans
+	// être une demande. En tête de queue, la vraie demande réinjectée juste
+	// avant (pending, voir compactMessages) lui serait collée — deux `user`
+	// d'affilée, que les gabarits à alternance stricte refusent à chaque tour.
+	// On recule jusqu'à l'appel d'outil qui le précède : la queue garde un
+	// groupe de plus, rien n'est perdu.
+	for tailStart > head && ((msgs[tailStart].Role != "user" && msgs[tailStart].Role != "assistant") ||
+		isLokiInjected(msgs[tailStart])) {
 		tailStart--
 	}
 	return head, tailStart

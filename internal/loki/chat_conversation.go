@@ -920,6 +920,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		if s := content.String(); strings.TrimSpace(s) != "" {
 			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
 		}
+		// Rappel de loki resté sans réponse (stop, erreur) ou collé à un autre
+		// user : retiré, sinon deux `user` d'affilée au tour suivant.
+		c.Messages = dropStrayNudges(c.Messages)
 		// Le dernier compte couvre tout ce qui vient d'être rangé : la dernière
 		// requête portait le tour entier, sa génération en est la réponse.
 		if sawUsage {
