@@ -1177,6 +1177,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Une réponse est arrivée : le budget de reprise réseau repart à neuf pour
 		// la suite de la boucle d'outils.
 		netRetries = 0
+		if !ep.External {
+			engineServed() // le slot porte désormais cette requête (llm_slots.go)
+		}
 		toolCalls := map[int]*ToolCall{}
 		assistantContent := strings.Builder{}
 		finishReason := ""

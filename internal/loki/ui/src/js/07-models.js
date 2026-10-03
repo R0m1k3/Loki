@@ -970,10 +970,13 @@ async function refreshCacheRAM(){
   try{ r = await jpost('/api/preset/cacheram', {content: document.getElementById('m-content').value}); }
   catch(_){ r = {}; }
   if(seq !== cramSeq || !r.ok) return;
-  const auto = r.mib > 0 ? r.mib : r.default;
-  el.placeholder = 'auto · ' + auto;
+  // Valeur fixée (CACHE_RAM, -cram, LLAMA_ARG_CACHE_RAM) : -1 et 0 ne sont pas
+  // « le défaut du moteur », la raison seule suffit.
+  const fixed = /^fixé/.test(r.why || '');
+  el.placeholder = fixed ? (r.mib < 0 ? 'sans limite' : r.mib === 0 ? 'coupé' : String(r.mib))
+                         : 'auto · ' + (r.mib > 0 ? r.mib : r.default);
   if(sub) sub.textContent = 'RAM hôte, copie exacte du contexte · jamais la VRAM' +
-    (r.why ? ' · ' + r.why : '') + (r.mib > 0 ? '' : ' · défaut du moteur');
+    (r.why ? ' · ' + r.why : '') + (r.mib > 0 || fixed ? '' : ' · défaut du moteur');
 }
 function syncKVSub(){
   const el = document.getElementById('s-kv-sub');

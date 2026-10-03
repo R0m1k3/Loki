@@ -80,6 +80,9 @@ var configTemplate = []struct{ key, help string }{
 		"sortie identique, gain de 0 à quelques %) ; off puis redémarrage s'il plante"},
 	{"KV_TYPE", "quantization du cache KV ; vide = f16, sorties de référence ; q8_0 les modifie légèrement, " +
 		"q4_0 avec perte mesurable ; KV_TYPE_K / KV_TYPE_V pour les séparer"},
+	{"CACHE_RAM", "cache de prompts en RAM hôte (--cache-ram, Mio), copie exacte des conversations quittées, jamais la VRAM ; " +
+		"vide = auto (agrandi seulement pour un modèle tout-GPU), -1 = sans limite, 0 = coupé"},
+	{"CACHE_ISOLATE", "off = ne plus effacer le slot après un sous-agent, une vérification, une tâche ou un bench"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},

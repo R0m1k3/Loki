@@ -99,6 +99,9 @@ func runBench(nPrompt, nPredict int) (*benchResult, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		engineServed() // le slot porte désormais le bench : l'effacer a un sens
+	}
 	var parsed struct {
 		Timings struct {
 			PromptN         int     `json:"prompt_n"`

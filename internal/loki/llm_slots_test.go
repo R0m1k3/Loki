@@ -174,3 +174,51 @@ func TestProxysRefusentLesActionsSlots(t *testing.T) {
 		}
 	}
 }
+
+// Un travail annexe que le moteur n'a jamais servi (erreur avant l'envoi,
+// refus, arrêt immédiat) n'a pas pris le slot : il porte encore la
+// conversation, on n'efface rien. Servi, on efface et on arme la vérification.
+func TestFinishSideJobSeulementApresUneRequeteServie(t *testing.T) {
+	slotHintPending.Store(0)
+	calls := 0
+	erase := func() (bool, error) { calls++; return true, nil }
+
+	finishSideJob(30000, engineServedCount(), erase)
+	if calls != 0 || slotHintPending.Load() != 0 {
+		t.Fatalf("sans requête servie : %d effacements, vérification %d", calls, slotHintPending.Load())
+	}
+
+	at := engineServedCount()
+	engineServed()
+	finishSideJob(30000, at, erase)
+	if calls != 1 || slotHintPending.Load() != 30000 {
+		t.Fatalf("après une requête servie : %d effacements, vérification %d", calls, slotHintPending.Load())
+	}
+	slotHintPending.Store(0)
+
+	// Abstention ou échec : rien d'armé.
+	at = engineServedCount()
+	engineServed()
+	finishSideJob(30000, at, func() (bool, error) { return false, nil })
+	if slotHintPending.Load() != 0 {
+		t.Fatal("vérification armée sans effacement")
+	}
+}
+
+// Pendant un travail annexe, ses propres prompts ne comptent pas : ni retenus
+// comme « la conversation », ni comparés à elle.
+func TestNoteEnginePromptIgnoreLesTravauxAnnexes(t *testing.T) {
+	slotHintShown.Store(false)
+	lastEnginePrompt.Store(30000)
+	slotHintPending.Store(30000)
+	sideJobs.Add(1) // ce que fait engineSideJob en entrant
+	if h := noteEnginePrompt(40000, 10, true); h != "" {
+		t.Fatalf("prompt d'un travail annexe comparé : %q", h)
+	}
+	if lastEnginePrompt.Load() != 30000 || slotHintPending.Load() != 30000 {
+		t.Fatalf("prompt annexe retenu : dernier %d, en attente %d", lastEnginePrompt.Load(), slotHintPending.Load())
+	}
+	sideJobs.Add(-1)
+	slotHintPending.Store(0)
+	slotHintShown.Store(false)
+}

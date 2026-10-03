@@ -39,6 +39,8 @@ import (
 //     inconnu ou fork : on s'abstient ;
 //   - un seul slot (/props total_slots, pas la clé PARALLEL qu'EXTRA_ARGS peut
 //     contredire) ;
+//   - le travail annexe a bien été servi par le moteur : sinon le slot porte
+//     encore la conversation (erreur avant l'envoi, refus, arrêt immédiat) ;
 //   - aucune requête de Loki en vol vers le moteur (compteur ci-dessous, tenu
 //     par le chat, les résumés, le bench et les proxys /v1), et le slot 0 au
 //     repos d'après /slots ;
@@ -55,7 +57,28 @@ const slotEraseMinBuild = 8660
 var engineGate struct {
 	mu       sync.Mutex
 	inflight int
+	served   uint64 // réponses 200 du moteur obtenues par runChat ou le bench
 }
+
+// engineServed note qu'une requête de Loki a été acceptée par le moteur local :
+// le slot porte désormais SON état. Un travail annexe qui n'en a obtenu aucune
+// (erreur avant l'envoi, moteur qui refuse, arrêt immédiat) n'a pas pris le
+// slot — il porte encore la conversation, et l'effacer la ferait recalculer.
+func engineServed() {
+	engineGate.mu.Lock()
+	engineGate.served++
+	engineGate.mu.Unlock()
+}
+
+func engineServedCount() uint64 {
+	engineGate.mu.Lock()
+	defer engineGate.mu.Unlock()
+	return engineGate.served
+}
+
+// sideJobs : travaux annexes en cours. Leurs prompts ne sont pas ceux de la
+// conversation : noteEnginePrompt ne les retient ni ne les compare.
+var sideJobs atomic.Int32
 
 // engineRequestStart marque une requête vers le moteur local ; la fonction
 // rendue la clôt (une seule fois, quel que soit le nombre d'appels), une fois
@@ -170,33 +193,52 @@ var slotEraseLogOnce sync.Once
 // « defer engineSideJob()() ». Elle efface le slot si c'est sans risque, et
 // arme la vérification du cache sur la requête suivante (noteEnginePrompt).
 func engineSideJob() func() {
-	before := lastEnginePrompt.Load()
+	before, servedAt := lastEnginePrompt.Load(), engineServedCount()
+	sideJobs.Add(1)
 	return func() {
-		ep := resolveChatEndpoint()
-		if ep.External {
-			return
-		}
-		cfg := ReadConfig()
-		argEnv := map[string]string{}
-		for _, k := range cacheArgEnv {
-			argEnv[k] = os.Getenv(k)
-		}
-		if !cacheIsolationOn(cfg) || cacheRAMOff(cfg, splitArgs(cfg["EXTRA_ARGS"]), argEnv) {
-			return
-		}
-		iso := slotIsolator{base: fmt.Sprintf("http://localhost:%d", LLMPort()), auth: ep.auth, client: http.DefaultClient}
-		erased, err := iso.eraseIfIdle(context.Background())
-		if err != nil {
-			// Moteur sans --slot-save-path (501), ou /slots coupé : l'erreur est
-			// sans conséquence et se répéterait à chaque travail annexe.
-			slotEraseLogOnce.Do(func() {
-				fmt.Fprintf(os.Stderr, "[cache] isolation des travaux annexes indisponible : %v\n", err)
-			})
-		}
-		if erased && before > 0 {
-			slotHintPending.Store(before)
-		}
+		sideJobs.Add(-1)
+		finishSideJob(before, servedAt, eraseLocalSlot)
 	}
+}
+
+// finishSideJob : la fin d'un travail annexe, séparée de ses appels au moteur
+// pour les tests. Rien n'est effacé si le moteur n'a servi aucune requête de
+// Loki depuis le début du travail : le slot porte alors toujours la
+// conversation (ou l'état d'un client qu'on ne connaît pas).
+func finishSideJob(before int64, servedAt uint64, erase func() (bool, error)) {
+	if engineServedCount() == servedAt {
+		return
+	}
+	erased, err := erase()
+	if err != nil {
+		// Moteur sans --slot-save-path (501), ou /slots coupé : l'erreur est
+		// sans conséquence et se répéterait à chaque travail annexe.
+		slotEraseLogOnce.Do(func() {
+			fmt.Fprintf(os.Stderr, "[cache] isolation des travaux annexes indisponible : %v\n", err)
+		})
+	}
+	if erased && before > 0 {
+		slotHintPending.Store(before)
+	}
+}
+
+// eraseLocalSlot efface le slot 0 du moteur local si le preset actif s'y prête
+// et que tous les garde-fous d'eraseIfIdle passent.
+func eraseLocalSlot() (bool, error) {
+	ep := resolveChatEndpoint()
+	if ep.External {
+		return false, nil
+	}
+	cfg := ReadConfig()
+	argEnv := map[string]string{}
+	for _, k := range cacheArgEnv {
+		argEnv[k] = os.Getenv(k)
+	}
+	if !cacheIsolationOn(cfg) || cacheRAMOff(cfg, splitArgs(cfg["EXTRA_ARGS"]), argEnv) {
+		return false, nil
+	}
+	iso := slotIsolator{base: fmt.Sprintf("http://localhost:%d", LLMPort()), auth: ep.auth, client: http.DefaultClient}
+	return iso.eraseIfIdle(context.Background())
 }
 
 // Vérification du cache après un effacement. Le moteur dit, dans l'usage de
@@ -217,6 +259,11 @@ const slotHintMinTokens = 4096
 // conseil à afficher, s'il y a lieu (une seule fois par lancement ; le journal,
 // lui, le note à chaque fois).
 func noteEnginePrompt(total, cached int, hasCached bool) string {
+	// Prompt d'un travail annexe : ni la conversation à comparer, ni la taille
+	// à retenir pour le prochain (deux vérifications de suite, par exemple).
+	if sideJobs.Load() > 0 {
+		return ""
+	}
 	if total > 0 {
 		lastEnginePrompt.Store(int64(total))
 	}
