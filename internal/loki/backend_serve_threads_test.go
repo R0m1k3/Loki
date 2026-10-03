@@ -143,3 +143,21 @@ func TestThreadCount(t *testing.T) {
 		}
 	}
 }
+
+func TestFlagValue(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{nil, ""},
+		{[]string{"-t", "6"}, "6"},
+		{[]string{"--threads=7"}, "7"},
+		{[]string{"-t", "6", "--threads", "8"}, "8"}, // la dernière gagne, comme dans le moteur
+		{[]string{"-tb", "9"}, ""},                   // -tb n'est pas -t
+		{[]string{"-t"}, ""},                         // drapeau orphelin
+	} {
+		if got := flagValue(c.args, "-t", "--threads"); got != c.want {
+			t.Errorf("flagValue(%q) = %q, want %q", c.args, got, c.want)
+		}
+	}
+}

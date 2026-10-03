@@ -118,6 +118,32 @@ func TestBuildServeArgs(t *testing.T) {
 			want: with("--parallel", "1", "-ngl", "28", "-t=6", "--threads-batch", "10"),
 		},
 		{
+			// Sans -tb, llama.cpp remplacerait tout le réglage CPU du batch par
+			// celui de -t : le --poll-batch de l'utilisateur serait effacé.
+			name: "--poll-batch dans EXTRA_ARGS, THREADS vide : -tb 0 le protège, et on le dit",
+			cfg:  map[string]string{"NGL": "28", "EXTRA_ARGS": "--poll-batch 0"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: withThreads([]string{"-tb", "0"}, "--parallel", "1", "-ngl", "28", "--poll-batch", "0"), wantNotes: 1,
+		},
+		{
+			name: "-Cb dans EXTRA_ARGS, THREADS=6 : -tb recopie 6",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "6", "EXTRA_ARGS": "-Cb 0xff"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: withThreads([]string{"-t", "6", "-tb", "6"}, "--parallel", "1", "-ngl", "28", "-Cb", "0xff"),
+		},
+		{
+			name: "-t=5 et --prio-batch dans EXTRA_ARGS : -tb recopie 5",
+			cfg:  map[string]string{"NGL": "28", "EXTRA_ARGS": "-t=5 --prio-batch 2"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: withThreads([]string{"-tb", "5"}, "--parallel", "1", "-ngl", "28", "-t=5", "--prio-batch", "2"),
+		},
+		{
+			name: "-Crb et -tb dans EXTRA_ARGS : Loki se tait",
+			cfg:  map[string]string{"NGL": "28", "EXTRA_ARGS": "-Crb 0-7 -tb 8"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: with("--parallel", "1", "-ngl", "28", "-Crb", "0-7", "-tb", "8"),
+		},
+		{
 			name: "conteneur à l'étroit : -t de la sonde, et une note",
 			cfg:  map[string]string{"NGL": "28"},
 			si:   serveSysInfo{Help: helpRecent, CPU: cpuBudget{N: 4, Engine: 8, Why: "quota cgroup de 4 CPU"}},

@@ -65,21 +65,33 @@ func threadCount(key, v string) (int, string) {
 //	THREADS vide/0             → rien  (cœurs physiques, choisis par llama.cpp)
 //	THREADS_BATCH=N>0          → -tb N
 //	THREADS_BATCH vide/0       → rien  (le moteur recopie -t)
+//	  … sauf -Cb/--poll-batch… → -tb <valeur de -t, sinon 0>  (voir plus bas)
 //
 // Un -t / -tb déjà écrit dans EXTRA_ARGS gagne : on ne double pas le drapeau.
 // Un masque d'affinité posé à la main (-C, -Cr, --cpu-strict) désarme la sonde :
 // l'utilisateur a pris la main sur le placement, on ne devine rien par-dessus.
+//
+// Piège du -tb absent : llama.cpp ne recopie pas seulement le NOMBRE de -t, il
+// remplace TOUT le réglage CPU du batch par celui de -t (postprocess_cpu_params,
+// « cpuparams = *role_model »). Un -Cb, --poll-batch ou --prio-batch écrit dans
+// EXTRA_ARGS serait alors effacé sans un mot — le -tb 0 d'avant le protégeait.
+// Dans ce cas seulement, on pose donc -tb : la valeur de -t si on la connaît
+// (« comme THREADS »), sinon 0, l'ancien comportement.
 func threadArgs(threads, threadsBatch string, extra []string, auto cpuBudget) (args, notes []string) {
 	t, note := threadCount("THREADS", threads)
 	if note != "" {
 		notes = append(notes, note)
 	}
+	tVal := "" // valeur de -t effective, si on la connaît
 	switch {
 	case hasAnyFlag(extra, "-t", "--threads"):
+		tVal = flagValue(extra, "-t", "--threads")
 	case t > 0:
-		args = append(args, "-t", strconv.Itoa(t))
+		tVal = strconv.Itoa(t)
+		args = append(args, "-t", tVal)
 	case auto.N > 0 && !hasAnyFlag(extra, "-C", "--cpu-mask", "-Cr", "--cpu-range", "--cpu-strict"):
-		args = append(args, "-t", strconv.Itoa(auto.N))
+		tVal = strconv.Itoa(auto.N)
+		args = append(args, "-t", tVal)
 		notes = append(notes, fmt.Sprintf("threads auto → -t %d : %s (llama.cpp seul en lancerait %d)",
 			auto.N, auto.Why, auto.Engine))
 	}
@@ -87,10 +99,43 @@ func threadArgs(threads, threadsBatch string, extra []string, auto cpuBudget) (a
 	if note != "" {
 		notes = append(notes, note)
 	}
-	if tb > 0 && !hasAnyFlag(extra, "-tb", "--threads-batch") {
+	switch {
+	case hasAnyFlag(extra, "-tb", "--threads-batch"):
+	case tb > 0:
 		args = append(args, "-tb", strconv.Itoa(tb))
+	case hasAnyFlag(extra, batchCPUFlags...):
+		if tVal == "" {
+			tVal = "0"
+			notes = append(notes, "EXTRA_ARGS règle le CPU du batch (-Cb, --poll-batch…) : -tb 0 posé pour que "+
+				"llama.cpp le garde (tous les threads logiques) ; THREADS_BATCH pour choisir le nombre")
+		}
+		args = append(args, "-tb", tVal)
 	}
 	return args, notes
+}
+
+// batchCPUFlags : les réglages CPU propres au batch, qu'un -tb absent effacerait.
+var batchCPUFlags = []string{"-Cb", "--cpu-mask-batch", "-Crb", "--cpu-range-batch",
+	"--cpu-strict-batch", "--prio-batch", "--poll-batch"}
+
+// flagValue renvoie la valeur de la DERNIÈRE occurrence de l'un des drapeaux
+// (« -t 6 » ou « -t=6 ») — celle que retient le moteur. Vide s'il n'y en a pas.
+func flagValue(args []string, flags ...string) string {
+	v := ""
+	for i, a := range args {
+		name, val, hasEq := strings.Cut(a, "=")
+		for _, f := range flags {
+			if name != f {
+				continue
+			}
+			if hasEq {
+				v = val
+			} else if i+1 < len(args) {
+				v = args[i+1]
+			}
+		}
+	}
+	return v
 }
 
 // cpusetThreads : sonde de conteneur, Linux seulement (fsys = la racine « / »).
