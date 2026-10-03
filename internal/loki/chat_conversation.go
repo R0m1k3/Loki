@@ -840,6 +840,10 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			// ne l'ajoute que quand il est là pour ne pas gonfler chaque événement.
 			if ev.ToolUsed.Body != "" {
 				tu["body"] = ev.ToolUsed.Body
+				tu["body_lines"] = ev.ToolUsed.BodyLines
+				if ev.ToolUsed.BodyTail {
+					tu["body_tail"] = true
+				}
 			}
 			// Lignes +/- d'une écriture (edit / mémoire) : persistées avec le reste
 			// pour que le diff soit encore là après un rafraîchissement.
@@ -1289,6 +1293,31 @@ func (c *Conversation) Subscribe(ctx context.Context, from int, emit func(map[st
 // Bloque jusqu'à ce que ctx (la connexion HTTP) soit annulé — la génération, elle,
 // continue indépendamment. emit renvoie false si l'écriture échoue (client parti).
 func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, convID string, emit func(map[string]any) bool) {
+	c.subscribeSink(ctx, from, tail, convID, tailSink{emit: emit})
+}
+
+// tailSink : sortie d'un abonné. emit écrit et pousse aussitôt ; queue met en
+// tampon (en écrivant d'office un tampon plein) et flush pousse ce qui attend.
+// Sans queue/flush, tout passe par emit, un événement à la fois.
+type tailSink struct {
+	emit  func(map[string]any) bool
+	queue func(map[string]any) bool
+	flush func() bool
+}
+
+// subscribeSink : SubscribeTail, en regroupant le direct. Au réveil, plusieurs
+// événements peuvent attendre (un jeton chacun) : une écriture et un flush par
+// événement multipliaient les appels système et les trames d'un client en
+// retard, ou d'un relais chiffré. Ils partent ensemble, dans l'ordre.
+func (c *Conversation) subscribeSink(ctx context.Context, from int, tail int, convID string, sink tailSink) {
+	emit := sink.emit
+	queue, flush := sink.queue, sink.flush
+	if queue == nil {
+		queue = emit
+	}
+	if flush == nil {
+		flush = func() bool { return true }
+	}
 	// Réveille les attentes de cond quand la connexion se ferme.
 	go func() {
 		<-ctx.Done()
@@ -1448,9 +1477,12 @@ func (c *Conversation) SubscribeTail(ctx context.Context, from int, tail int, co
 			// `lastEmitted` (avant mise à jour) sert de repère : si la compaction de
 			// fin de tour vient de fusionner un bloc que le client suivait en direct,
 			// l'événement fusionné arrive avec un Seq supérieur au sien → `replace`.
-			if !emit(decorateEvent(ev, lastEmitted)) {
+			if !queue(decorateEvent(ev, lastEmitted)) {
 				return
 			}
+		}
+		if !flush() {
+			return
 		}
 		c.mu.Lock()
 	}

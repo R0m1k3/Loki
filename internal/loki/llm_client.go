@@ -551,7 +551,11 @@ type ToolUsedEvent struct {
 	// mem_add/mem_edit), diffusé ligne à ligne pendant que le modèle le tape,
 	// pour que la bulle se remplisse en direct au lieu de rester figée puis de
 	// s'ouvrir d'un coup. Transitoire : seul Diff (état final) est rejoué.
-	Body string
+	// Ce n'est que la FIN du corps (bodyTail) : BodyTail dit que le début a été
+	// omis, BodyLines donne le nombre réel de lignes pour le « +N ».
+	Body      string
+	BodyTail  bool
+	BodyLines int
 	// Diff : lignes ajoutées/retirées quand l'outil a MODIFIÉ quelque chose
 	// (edit, mem_add, mem_edit). L'UI les affiche en vert (+) et rouge (-).
 	Diff []DiffLine
@@ -672,16 +676,11 @@ func writeBodyKey(tool string) string {
 	return ""
 }
 
-// previewArg pulls the (possibly incomplete) string value of key out of a
-// streaming tool-call arguments JSON, so the UI can show the command being
-// typed live. Best-effort: it tolerates a truncated tail and basic escapes.
-func previewArg(args, key string) string {
-	v, _ := previewArgDone(args, key)
-	return v
-}
-
-// previewArgDone : comme previewArg, et dit si la valeur est COMPLÈTE (guillemet
-// fermant reçu) — de quoi agir sur un argument avant la fin du flux.
+// previewArgDone pulls the (possibly incomplete) string value of key out of a
+// streaming tool-call arguments JSON (best-effort: it tolerates a truncated tail
+// and basic escapes), et dit si la valeur est COMPLÈTE (guillemet fermant reçu)
+// — de quoi agir sur un argument avant la fin du flux. Pour l'affichage en
+// direct, argPreview fait la même lecture sans tout relire à chaque morceau.
 func previewArgDone(args, key string) (string, bool) {
 	i := strings.Index(args, "\""+key+"\"")
 	if i < 0 {
@@ -726,6 +725,154 @@ func previewArgDone(args, key string) (string, bool) {
 		b.WriteByte(c)
 	}
 	return b.String(), closed
+}
+
+// argPreview : previewArgDone au fil du flux. Pendant l'écriture d'un fichier,
+// previewArg relisait et redécodait tout le JSON des arguments à CHAQUE morceau
+// — quadratique, et ce CPU-là manque au décodage quand des experts tournent sur
+// le processeur. Ici on retient où on en est et on ne décode que les octets
+// neufs. Même règle que previewArgDone : première occurrence de "clé", puis
+// premier ':', puis premier '"' ; \r ignoré, échappement inconnu (\uXXXX
+// compris) recopié tel quel sans la barre. Seule différence, sur un préfixe :
+// une barre oblique finale reste en attente de son second octet au lieu d'être
+// écrite — elle n'est pas encore un caractère.
+type argPreview struct {
+	key   string
+	pat   string // `"key"`
+	pos   int    // octets de args déjà consommés
+	phase int    // 0 clé, 1 ':', 2 '"' ouvrant, 3 valeur, 4 valeur fermée
+	val   strings.Builder
+	lines int // '\n' de la valeur décodée
+}
+
+func newArgPreview(key string) *argPreview {
+	return &argPreview{key: key, pat: `"` + key + `"`}
+}
+
+// update consomme la suite de args, qui doit prolonger celui des appels
+// précédents (les arguments d'un appel ne font que grandir pendant le flux).
+func (a *argPreview) update(args string) {
+	for a.pos < len(args) && a.phase < 4 {
+		switch a.phase {
+		case 0:
+			// La clé peut être coupée entre deux morceaux : on reprend un peu avant.
+			s := a.pos - (len(a.pat) - 1)
+			if s < 0 {
+				s = 0
+			}
+			i := strings.Index(args[s:], a.pat)
+			if i < 0 {
+				a.pos = len(args)
+				return
+			}
+			a.pos, a.phase = s+i+len(a.pat), 1
+		case 1, 2:
+			sep := byte(':')
+			if a.phase == 2 {
+				sep = '"'
+			}
+			j := strings.IndexByte(args[a.pos:], sep)
+			if j < 0 {
+				a.pos = len(args)
+				return
+			}
+			a.pos += j + 1
+			a.phase++
+		case 3:
+			seg := args[a.pos:]
+			k := strings.IndexAny(seg, "\\\"")
+			if k < 0 {
+				k = len(seg)
+			}
+			a.val.WriteString(seg[:k])
+			a.lines += strings.Count(seg[:k], "\n")
+			a.pos += k
+			if k == len(seg) {
+				return
+			}
+			if seg[k] == '"' {
+				a.pos++
+				a.phase = 4
+				return
+			}
+			if k+1 >= len(seg) {
+				return // échappement coupé : on attend son second octet
+			}
+			switch e := seg[k+1]; e {
+			case 'n':
+				a.val.WriteByte('\n')
+				a.lines++
+			case 't':
+				a.val.WriteByte('\t')
+			case 'r':
+			default: // '"', '\\', '/', et l'inconnu recopié tel quel
+				a.val.WriteByte(e)
+				if e == '\n' {
+					a.lines++
+				}
+			}
+			a.pos += 2
+		}
+	}
+}
+
+// value : la valeur décodée jusqu'ici (sans copie).
+func (a *argPreview) value() string { return a.val.String() }
+
+// done : guillemet fermant reçu.
+func (a *argPreview) done() bool { return a.phase == 4 }
+
+// bodyTailLines / bodyTailBytes : ce qu'un événement de frappe montre du corps.
+const (
+	bodyTailLines = 40
+	bodyTailBytes = 4096
+)
+
+// bodyTail : la fin du corps en cours d'écriture, ses 40 dernières lignes et
+// 4 Kio au plus, coupée en début de ligne (en début de caractère pour une ligne
+// seule plus longue). cut : le début a été omis. La bulle ne fait défiler que
+// la fin de toute façon, et le diff final reste complet.
+func bodyTail(s string) (tail string, cut bool) {
+	lo := len(s) - bodyTailBytes
+	if lo < 0 {
+		lo = 0
+	}
+	start, n, end := -1, 0, len(s)
+	for {
+		i := strings.LastIndexByte(s[:end], '\n')
+		if i < 0 {
+			if lo == 0 {
+				start = 0
+			}
+			break
+		}
+		if i+1 < lo {
+			break
+		}
+		n++
+		start = i + 1
+		if n == bodyTailLines {
+			break
+		}
+		end = i
+	}
+	if start < 0 {
+		start = lo
+		for start < len(s) && !utf8.RuneStart(s[start]) {
+			start++
+		}
+	}
+	return s[start:], start > 0
+}
+
+// bodyLineCount : lignes du corps comme les compte l'UI (bodyLineCount en JS) —
+// un saut de ligne final n'ouvre pas de ligne de plus.
+func bodyLineCount(s string) int {
+	s = strings.TrimSuffix(s, "\n")
+	if s == "" {
+		return 0
+	}
+	return strings.Count(s, "\n") + 1
 }
 
 // StatsEvent carries llama.cpp's per-completion timing (final chunk).
@@ -1281,7 +1428,15 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			engineServed() // le slot porte désormais cette requête (llm_slots.go)
 		}
 		toolCalls := map[int]*ToolCall{}
+		// argBufs : arguments de chaque appel, accumulés sans recopie. `+=` sur la
+		// chaîne recopiait tout le JSON à chaque morceau — quadratique sur l'écriture
+		// d'un gros fichier. cur.Function.Arguments reste la valeur de référence :
+		// on la recale sur le tampon à chaque morceau (String() ne copie rien).
+		argBufs := map[int]*strings.Builder{}
 		assistantContent := strings.Builder{}
+		// retryScanned : longueur de assistantContent déjà balayée sans appel
+		// textuel (voir textualToolCallFrom).
+		retryScanned := 0
 		finishReason := ""
 		// Accumulateur de stats : timings (prefill/decode) puis usage (total prompt)
 		// arrivent sur des chunks séparés ; on émet une copie complète à chaque MAJ
@@ -1294,6 +1449,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		usageGen, genChunks := 0, 0
 		lastPreview := ""   // last command preview emitted (to stream the typing)
 		lastBodyLines := -1 // lignes déjà diffusées du corps en cours d'écriture
+		// Lecture au fil de l'eau de l'argument affiché (commande, chemin…) et du
+		// corps d'une écriture : seuls les octets neufs sont décodés.
+		var labelDec, bodyDec *argPreview
 		// sentAnswer : du texte de réponse ou un outil est déjà parti vers l'UI pour
 		// cette complétion (une reprise le doublerait). sentReasoning : seul du
 		// raisonnement est parti, qu'on sait retirer (DropReasoning). shown : texte
@@ -1445,7 +1603,14 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					if tc.Function.Name != "" {
 						cur.Function.Name = tc.Function.Name
 					}
-					cur.Function.Arguments += tc.Function.Arguments
+					ab := argBufs[idx]
+					if ab == nil {
+						ab = &strings.Builder{}
+						ab.WriteString(cur.Function.Arguments)
+						argBufs[idx] = ab
+					}
+					ab.WriteString(tc.Function.Arguments)
+					cur.Function.Arguments = ab.String()
 				}
 				// Stream the command being typed: extract the partial value and
 				// emit it whenever it grows, so the UI shows it appear live.
@@ -1471,25 +1636,40 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					case "git_clone":
 						key = "url"
 					}
-					p := previewArg(cur.Function.Arguments, key)
+					if labelDec == nil || labelDec.key != key {
+						labelDec = newArgPreview(key)
+					}
+					labelDec.update(cur.Function.Arguments)
+					p := labelDec.value()
 					// Corps en cours de frappe pour les outils d'écriture : on le diffuse
 					// à la LIGNE, pas au token. Un événement par token republierait tout le
 					// contenu à chaque fois (coût quadratique, et c'est ce flot qui saturait
 					// le rendu mobile) ; à la ligne, le nombre d'événements est celui du
-					// fichier et l'animation reste fluide.
-					body := ""
+					// fichier et l'animation reste fluide. Et chaque événement ne porte
+					// que la FIN du corps (bodyTail) : republier tout le fichier à chaque
+					// ligne restait quadratique — 250 Mo de flux pour 120 Ko écrits.
+					full := ""
 					if bk := writeBodyKey(cur.Function.Name); bk != "" {
-						body = previewArg(cur.Function.Arguments, bk)
+						if bodyDec == nil || bodyDec.key != bk {
+							bodyDec = newArgPreview(bk)
+						}
+						bodyDec.update(cur.Function.Arguments)
+						full = bodyDec.value()
 					}
-					grew := body != "" && strings.Count(body, "\n") > lastBodyLines
+					grew := full != "" && bodyDec.lines > lastBodyLines
 					if (p != "" && p != lastPreview) || grew {
 						if p != "" {
 							lastPreview = p
 						}
 						if grew {
-							lastBodyLines = strings.Count(body, "\n")
+							lastBodyLines = bodyDec.lines
 						}
-						if !scb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: cur.Function.Name, Label: lastPreview, Body: body, Typing: true}}) {
+						tu := &ToolUsedEvent{Name: cur.Function.Name, Label: lastPreview, Typing: true}
+						if full != "" {
+							tu.Body, tu.BodyTail = bodyTail(full)
+							tu.BodyLines = bodyLineCount(full)
+						}
+						if !scb(StreamEvent{ToolUsed: tu}) {
 							aborted = true
 							break
 						}
@@ -1541,8 +1721,18 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					// faux appel — parfois un fichier entier — qui ne sera jamais
 					// exécuté. La relance corrective part juste après (voir fin de
 					// boucle). Testé seulement quand le morceau peut ouvrir un motif.
+					// Balayage limité à ce qui suit le précédent (retryScanned, avancé
+					// seulement quand un balayage a VRAIMENT eu lieu : un morceau sans
+					// caractère déclencheur n'est pas relu, l'écart doit rester couvert).
+					// La passe complète de fin de tour, elle, reste entière.
+					hit := false
 					if (callsOn && patternRetries < maxPatternRetries || toolChoiceNone) &&
-						strings.ContainsAny(ch.Delta.Content, "<`{[_.") && textualToolCall(assistantContent.String()) {
+						strings.ContainsAny(ch.Delta.Content, "<`{[_.") {
+						s := assistantContent.String()
+						hit = textualToolCallFrom(s, retryScanned)
+						retryScanned = len(s)
+					}
+					if hit {
 						// Sous tool_choice « none », le moteur ne parse plus les
 						// appels : le balisage arrive en texte. Ce n'est pas une
 						// réponse, on retombe sur la relance sans outils.

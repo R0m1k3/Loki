@@ -83,12 +83,76 @@ func sseHeartbeat(w http.ResponseWriter, flusher http.Flusher) (*sync.Mutex, fun
 // se ferme. La GÉNÉRATION est lancée séparément par /api/chat/send dans une
 // goroutine détachée — fermer le navigateur n'arrête donc plus rien. Partagé par
 // handleChat (clair) et handleE2EChat (chiffré).
-func runChatStream(ctx context.Context, body chatReq, emit func(map[string]any) bool) {
+func runChatStream(ctx context.Context, body chatReq, out *sseStream) {
 	tail := -1
 	if body.Tail != nil {
 		tail = *body.Tail
 	}
-	conv.SubscribeTail(ctx, body.From, tail, body.ConvID, emit)
+	conv.subscribeSink(ctx, body.From, tail, body.ConvID, tailSink{emit: out.emit, queue: out.queue, flush: out.flush})
+}
+
+// sseBatchBytes / sseBatchEvents : taille d'un envoi groupé. Un client très en
+// retard peut trouver des milliers d'événements en attente : on écrit par
+// tranches au lieu de tout empiler en mémoire.
+const (
+	sseBatchBytes  = 128 << 10
+	sseBatchEvents = 256
+)
+
+// sseStream : écriture des trames `data:` d'un flux d'abonnement. frame met un
+// événement en forme (en clair, ou scellé pour le relais E2E — un sceau par
+// événement, le client déchiffre chaque ligne `data:` séparément). mu est
+// celui du battement de cœur : jamais deux écritures mêlées sur w.
+type sseStream struct {
+	w       http.ResponseWriter
+	flusher http.Flusher
+	mu      *sync.Mutex
+	frame   func(map[string]any) ([]byte, bool)
+	buf     []byte
+	n       int
+}
+
+// emit : un événement, écrit et poussé tout de suite (après ce qui attend).
+func (s *sseStream) emit(obj map[string]any) bool {
+	return s.queue(obj) && s.flush()
+}
+
+// queue : un événement de plus dans le tampon, écrit d'office s'il déborde.
+func (s *sseStream) queue(obj map[string]any) bool {
+	b, ok := s.frame(obj)
+	if !ok {
+		return false
+	}
+	s.buf = append(s.buf, b...)
+	s.n++
+	if len(s.buf) >= sseBatchBytes || s.n >= sseBatchEvents {
+		return s.flush()
+	}
+	return true
+}
+
+// flush : une seule écriture et un seul flush pour tout ce qui attend.
+func (s *sseStream) flush() bool {
+	if len(s.buf) == 0 {
+		return true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.w.Write(s.buf)
+	// Un gros événement (diff final) ne doit pas garder son tampon à vie.
+	if cap(s.buf) > 4*sseBatchBytes {
+		s.buf = nil
+	} else {
+		s.buf = s.buf[:0]
+	}
+	s.n = 0
+	if err != nil {
+		return false
+	}
+	if s.flusher != nil {
+		s.flusher.Flush()
+	}
+	return true
 }
 
 // handleChatSend ajoute un message et lance la génération en arrière-plan. Réponse
@@ -244,17 +308,9 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	flusher, _ := w.(http.Flusher)
 	mu, stop := sseHeartbeat(w, flusher)
 	defer stop()
-	emit := func(obj map[string]any) bool {
+	frame := func(obj map[string]any) ([]byte, bool) {
 		b, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": obj}}})
-		mu.Lock()
-		defer mu.Unlock()
-		if _, err := w.Write([]byte("data: " + string(b) + "\n\n")); err != nil {
-			return false
-		}
-		if flusher != nil {
-			flusher.Flush()
-		}
-		return true
+		return []byte("data: " + string(b) + "\n\n"), true
 	}
-	runChatStream(r.Context(), body, emit)
+	runChatStream(r.Context(), body, &sseStream{w: w, flusher: flusher, mu: mu, frame: frame})
 }

@@ -43,22 +43,27 @@ var defaultRetryPatterns = []string{
 var (
 	retryOnce sync.Once
 	retryRes  []*regexp.Regexp
+	// retryCustom : la surcharge `retry_patterns` est active. Ses motifs sont
+	// quelconques (\A, (?s).*? sur des Ko…) : le balayage fenêtré pendant le
+	// flux (textualToolCallFrom) ne vaut que pour les motifs embarqués.
+	retryCustom bool
 )
 
 func retryPatterns() []*regexp.Regexp {
-	retryOnce.Do(func() { retryRes = compileRetryPatterns() })
+	retryOnce.Do(func() { retryRes, retryCustom = compileRetryPatterns() })
 	return retryRes
 }
 
-func compileRetryPatterns() []*regexp.Regexp {
+func compileRetryPatterns() ([]*regexp.Regexp, bool) {
 	pats := defaultRetryPatterns
+	custom := false
 	// Surcharge optionnelle : clé d'état `retry_patterns` = tableau JSON de
 	// regex. Pas d'UI dédiée — c'est un réglage d'expert, posé via
 	// `loki config` ou l'API ; l'embarqué couvre les cas connus.
 	if raw := getStr(bkState, "retry_patterns"); raw != "" {
-		var custom []string
-		if json.Unmarshal([]byte(raw), &custom) == nil && len(custom) > 0 {
-			pats = custom
+		var over []string
+		if json.Unmarshal([]byte(raw), &over) == nil && len(over) > 0 {
+			pats, custom = over, true
 		}
 	}
 	var out []*regexp.Regexp
@@ -67,13 +72,86 @@ func compileRetryPatterns() []*regexp.Regexp {
 			out = append(out, re)
 		}
 	}
-	return out
+	return out, custom
 }
 
 // textualToolCall dit si le texte final du tour contient un appel d'outil
 // écrit en toutes lettres au lieu d'être émis par le protocole.
 func textualToolCall(content string) bool {
 	return textualToolCallSnippet(content) != ""
+}
+
+// retryScanMargin / retryScanMaxBack : marge relue avant la fin du balayage
+// précédent, et recul au-delà duquel on retombe sur le balayage complet.
+const (
+	retryScanMargin  = 512
+	retryScanMaxBack = 16 << 10
+)
+
+// textualToolCallFrom : textualToolCall pendant le flux, quand content[:scanned]
+// a DÉJÀ été balayé sans rien trouver. Relire toute la réponse à chaque morceau
+// coûtait jusqu'à 360 µs par jeton sur 80 Ko — du CPU volé au décodage quand
+// des experts tournent sur le processeur. Une correspondance neuve finit
+// forcément après scanned : on ne relit que la fin, à partir d'un vrai début de
+// ligne (sinon `^` verrait un début de ligne au milieu d'une phrase et
+// relancerait un tour parfaitement bon). Motifs de la surcharge : balayage
+// complet, rien ne borne leur portée.
+func textualToolCallFrom(content string, scanned int) bool {
+	if content == "" {
+		return false
+	}
+	res := retryPatterns()
+	start := 0
+	if !retryCustom {
+		start = retryScanStart(content, scanned)
+	}
+	w := content[start:]
+	for _, re := range res {
+		if re.MatchString(w) {
+			return true
+		}
+	}
+	return false
+}
+
+// retryScanStart : début de la fenêtre à relire. On part de scanned − marge,
+// puis on recule tant qu'on est dans une suite que les motifs embarqués peuvent
+// traverser sur toute sa longueur (\w+, \s*, `{"name":`, multioctet) : un
+// `<function=` suivi de 600 lettres, ou un `{"name":` noyé dans les blancs,
+// reste donc entier dans la fenêtre. Enfin, début de la ligne. Recul trop long
+// ou ligne sans fin : 0, le balayage complet d'avant.
+func retryScanStart(content string, scanned int) int {
+	if scanned > len(content) {
+		scanned = len(content)
+	}
+	p := scanned - retryScanMargin
+	if p <= 0 {
+		return 0
+	}
+	floor := scanned - retryScanMaxBack
+	for p > 0 && retryRunByte(content[p-1]) {
+		p--
+		if p < floor {
+			return 0
+		}
+	}
+	i := strings.LastIndexByte(content[:p], '\n')
+	if i < 0 || i+1 < floor {
+		return 0
+	}
+	return i + 1
+}
+
+func retryRunByte(c byte) bool {
+	switch {
+	case c >= 0x80, c == '_', c >= '0' && c <= '9', c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
+		return true
+	}
+	switch c {
+	case ' ', '\t', '\n', '\r', '\f', '"', ':', '{':
+		return true
+	}
+	return false
 }
 
 // textualToolCallSnippet renvoie l'extrait fautif (le motif reconnu et un peu

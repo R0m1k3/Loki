@@ -219,6 +219,10 @@ func (c *Conversation) forwardStream(ev StreamEvent, epoch int, isolated bool) {
 		}
 		if ev.ToolUsed.Body != "" {
 			tu["body"] = ev.ToolUsed.Body
+			tu["body_lines"] = ev.ToolUsed.BodyLines
+			if ev.ToolUsed.BodyTail {
+				tu["body_tail"] = true
+			}
 		}
 		if len(ev.ToolUsed.Diff) > 0 {
 			tu["diff"] = ev.ToolUsed.Diff

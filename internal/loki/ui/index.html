@@ -6900,7 +6900,9 @@ function renderToolMsg(el, tu){
   let add=0, del=0;
   if(tu.added!=null || tu.removed!=null){ add=tu.added||0; del=tu.removed||0; }
   else if(tu.diff && tu.diff.length){ tu.diff.forEach(l=>{ if(l.op==='+') add++; else if(l.op==='-') del++; }); }
-  else if(tu.body){ add=bodyLineCount(tu.body); }
+  // Pendant la frappe, body n'est que la FIN du corps : body_lines porte le
+  // vrai total (repli sur le décompte pour un serveur d'avant ce champ).
+  else if(tu.body){ add=tu.body_lines!=null ? tu.body_lines : bodyLineCount(tu.body); }
   if(add||del) setLabelCounts(el, add, del);
   const body=bodyOf(el); body.innerHTML='';
   const head=document.createElement('div'); head.className='tool-head';
@@ -6923,6 +6925,11 @@ function renderToolMsg(el, tu){
     sub.textContent='écriture en cours'; // le +N vit sur l'étiquette (visible repliée)
     body.appendChild(sub);
     const pre=document.createElement('pre'); pre.className='diff live';
+    // Début omis par le serveur (seules les dernières lignes voyagent) : on le dit.
+    if(tu.body_tail){
+      const more=document.createElement('span'); more.className='dl'; more.textContent='  …';
+      pre.appendChild(more);
+    }
     lines.forEach((t,i)=>{
       const ln=document.createElement('span');
       ln.className='dl add'+(i===lines.length-1?' fresh':'');
