@@ -3437,7 +3437,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <span class="pe-row-c"><input id="s-ngl" class="pe-val" type="text" inputmode="numeric" placeholder="999" oninput="cfgWriteKey('NGL', this.value)"></span>
           </div>
           <div class="pe-row">
-            <span class="pe-row-l">Experts MoE sur CPU<span class="pe-sub">vide = non</span></span>
+            <span class="pe-row-l">Experts MoE sur CPU<span class="pe-sub">vide = non · sur 2 GPU, coupe le pipeline entre cartes (prompt plus lent)</span></span>
             <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value)"></span>
           </div>
           <div class="pe-row">

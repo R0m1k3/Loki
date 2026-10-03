@@ -189,7 +189,10 @@ func safePresetPath(name string) (string, error) {
 // version effaçait la clé, et le moteur repartait sur le défaut « toutes les
 // interfaces » : une machine volontairement fermée se rouvrait toute seule au
 // premier changement de preset.
-var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST"}
+// CUDA_LAUNCH_QUEUES (files de lancement CUDA, voir launchQueuesEnv) suit la
+// même logique : un « off » posé parce que CETTE machine bloque ne doit pas
+// disparaître à la bascule suivante.
+var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST", "CUDA_LAUNCH_QUEUES"}
 
 // softPreservedKeys : préservées SEULEMENT si le preset d'arrivée ne les définit
 // pas lui-même. CUDA_VISIBLE_DEVICES est dans ce cas : c'est d'ordinaire un
@@ -199,7 +202,8 @@ var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VIS
 // inconditionnellement écrasait cette valeur par l'ancienne (mono-GPU) : le
 // modèle se retrouvait entièrement sur une seule carte et mourait sur
 // « cudaMalloc failed: out of memory ». Le preset explicite gagne.
-var softPreservedKeys = map[string]bool{"CUDA_VISIBLE_DEVICES": true, "HOST": true}
+// CUDA_LAUNCH_QUEUES aussi : un preset peut l'imposer pour son modèle.
+var softPreservedKeys = map[string]bool{"CUDA_VISIBLE_DEVICES": true, "HOST": true, "CUDA_LAUNCH_QUEUES": true}
 
 // applyPresetFile installe le preset comme configuration active, en réinjectant
 // les réglages « appareil » par-dessus. Séparé de SwitchToPreset pour être

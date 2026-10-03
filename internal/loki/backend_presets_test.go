@@ -47,7 +47,7 @@ func TestSwitchToPresetGardeLesReglagesMachine(t *testing.T) {
 		}
 	}
 	// Configuration courante : un preset + les réglages machine.
-	setConfig(t, "MODEL=ancien.gguf\nCTX=4096\nCUDA_VISIBLE_DEVICES=1\nWEB_ENGINE=go\nMEM_MODE=always\n")
+	setConfig(t, "MODEL=ancien.gguf\nCTX=4096\nCUDA_VISIBLE_DEVICES=1\nWEB_ENGINE=go\nMEM_MODE=always\nCUDA_LAUNCH_QUEUES=off\n")
 	target := filepath.Join(home, "cible.env")
 	write(target, "MODEL=nouveau.gguf\nCTX=8192\n")
 
@@ -60,7 +60,7 @@ func TestSwitchToPresetGardeLesReglagesMachine(t *testing.T) {
 		t.Fatalf("le preset n'a pas été appliqué : %v", cfg)
 	}
 	for k, want := range map[string]string{
-		"CUDA_VISIBLE_DEVICES": "1", "WEB_ENGINE": "go", "MEM_MODE": "always",
+		"CUDA_VISIBLE_DEVICES": "1", "WEB_ENGINE": "go", "MEM_MODE": "always", "CUDA_LAUNCH_QUEUES": "off",
 	} {
 		if cfg[k] != want {
 			t.Errorf("%s = %q après bascule, attendu %q (réglage machine effacé)", k, cfg[k], want)
