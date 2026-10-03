@@ -443,8 +443,6 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		notes = append(notes, loadNote)
 	}
 
-	// Threads : vide ou 0 = AUCUN drapeau, pour que llama.cpp prenne ses cœurs
-	// physiques au lieu de tous les threads logiques (voir threadArgs).
 	// Files de lancement CUDA : une variable d'environnement, pas un drapeau —
 	// la ligne de commande n'en dépend pas (voir launchQueuesEnv).
 	q, qNotes := launchQueuesEnv(cfg, extra, si)
@@ -453,6 +451,8 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	}
 	notes = append(notes, qNotes...)
 
+	// Threads : vide ou 0 = AUCUN drapeau, pour que llama.cpp prenne ses cœurs
+	// physiques au lieu de tous les threads logiques (voir threadArgs).
 	threads, threadNotes := threadArgs(cfg["THREADS"], cfg["THREADS_BATCH"], extra, si.CPU)
 	notes = append(notes, threadNotes...)
 	args = []string{bin,

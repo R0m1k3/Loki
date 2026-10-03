@@ -51,7 +51,8 @@ var launchQueueValues = map[string]bool{"0.25x": true, "0.5x": true, "2x": true,
 // pipelineBlocker. llama.cpp les applique quand le drapeau manque — les ignorer
 // ferait conclure à un pipeline que le moteur n'ouvrira pas.
 var serveArgEnv = []string{"LLAMA_ARG_DEVICE", "LLAMA_ARG_SPLIT_MODE", "LLAMA_ARG_N_GPU_LAYERS",
-	"LLAMA_ARG_CPU_MOE", "LLAMA_ARG_N_CPU_MOE", "LLAMA_ARG_NO_KV_OFFLOAD"}
+	"LLAMA_ARG_OVERRIDE_TENSOR", "LLAMA_ARG_CPU_MOE", "LLAMA_ARG_N_CPU_MOE", "LLAMA_ARG_N_CPU_FFN",
+	"LLAMA_ARG_KV_OFFLOAD", "LLAMA_ARG_NO_KV_OFFLOAD"}
 
 // launchQueuesEnv décide de CUDA_SCALE_LAUNCH_QUEUES. Fonction pure : le nombre
 // de GPU et l'environnement arrivent déjà sondés dans si. Valeur vide = ne rien
@@ -103,20 +104,31 @@ func servedGPUCount(extra []string, si serveSysInfo) int {
 // pipelineBlocker dit pourquoi llama.cpp n'ouvrira PAS le pipeline entre
 // cartes (llama-context.cpp : toutes les couches sur GPU, découpe par couches,
 // cache KV sur GPU, aucune surcharge de tenseurs). Vide = il peut l'ouvrir.
-// --n-cpu-moe et --cpu-moe sont des surcharges de tenseurs déguisées : le
-// preset MoE à experts sur CPU n'a donc jamais de pipeline.
+// --n-cpu-moe, --cpu-moe et --n-cpu-ffn sont des surcharges de tenseurs
+// déguisées : le preset MoE à experts sur CPU n'a donc jamais de pipeline.
+//
+// Attention à la façon dont llama.cpp lit ces réglages (common/arg.cpp) : les
+// variables LLAMA_ARG_* passent d'abord, la ligne de commande ensuite. Pour un
+// réglage à valeur unique (-sm, -ngl, -kvo/-nkvo), la ligne de commande
+// l'emporte ; mais les surcharges de tenseurs S'ACCUMULENT — variable et
+// drapeaux, chaque occurrence ajoute les siennes. Un --n-cpu-moe 0 n'annule
+// donc pas un LLAMA_ARG_N_CPU_MOE=30.
 func pipelineBlocker(cfg map[string]string, extra []string, argEnv map[string]string) string {
-	if hasAnyFlag(extra, "-ot", "--override-tensor", "--cpu-moe", "-cmoe") || envOn(argEnv["LLAMA_ARG_CPU_MOE"]) {
+	if hasAnyFlag(extra, "-ot", "--override-tensor", "--cpu-moe", "-cmoe") ||
+		argEnv["LLAMA_ARG_OVERRIDE_TENSOR"] != "" || envTruthy(argEnv["LLAMA_ARG_CPU_MOE"]) {
 		return "surcharge de tenseurs"
 	}
-	moe := flagValue(extra, "--n-cpu-moe", "-ncmoe")
-	if moe == "" {
-		moe = argEnv["LLAMA_ARG_N_CPU_MOE"]
+	for _, n := range []struct{ env, short, long string }{
+		{"LLAMA_ARG_N_CPU_MOE", "-ncmoe", "--n-cpu-moe"},
+		{"LLAMA_ARG_N_CPU_FFN", "-ncffn", "--n-cpu-ffn"},
+	} {
+		for _, v := range append(flagValues(extra, n.short, n.long), argEnv[n.env]) {
+			if v = strings.TrimSpace(v); v != "" && v != "0" {
+				return "couches " + n.long + " sur CPU"
+			}
+		}
 	}
-	if moe != "" && moe != "0" {
-		return "experts MoE sur CPU"
-	}
-	if hasAnyFlag(extra, "-nkvo", "--no-kv-offload") || envOn(argEnv["LLAMA_ARG_NO_KV_OFFLOAD"]) {
+	if !kvOffloaded(extra, argEnv) {
 		return "cache KV sur CPU"
 	}
 	sm := flagValue(extra, "-sm", "--split-mode")
@@ -126,26 +138,79 @@ func pipelineBlocker(cfg map[string]string, extra []string, argEnv map[string]st
 	if sm != "" && sm != "layer" {
 		return "découpe " + sm
 	}
-	// Couches GPU : celles d'EXTRA_ARGS, sinon NGL (que buildServeArgs traduit),
-	// sinon la variable du moteur. Un nombre choisi — hors la sentinelle 999 —
-	// laisse en général des couches au CPU ; auto, all et 999 visent le tout-GPU.
+	// Couches GPU : celles d'EXTRA_ARGS, sinon NGL (que buildServeArgs traduit
+	// toujours en -ngl, sauf NGL=auto qui ne pose rien — la variable du moteur
+	// décide alors). Un nombre choisi — hors la sentinelle 999 — laisse en
+	// général des couches au CPU ; auto, all et 999 visent le tout-GPU.
 	ngl := flagValue(extra, "-ngl", "--n-gpu-layers", "--gpu-layers")
 	if ngl == "" {
 		ngl = strings.TrimSpace(cfg["NGL"])
+		if strings.EqualFold(ngl, "auto") {
+			ngl = argEnv["LLAMA_ARG_N_GPU_LAYERS"]
+		}
 	}
-	if ngl == "" || ngl == "auto" {
-		ngl = argEnv["LLAMA_ARG_N_GPU_LAYERS"]
-	}
-	if ngl != "" && ngl != "auto" && ngl != "all" && ngl != "999" {
+	if ngl = strings.ToLower(strings.TrimSpace(ngl)); ngl != "" && ngl != "auto" && ngl != "all" && ngl != "999" {
 		return "couches GPU limitées à " + ngl
 	}
 	return ""
 }
 
-// envOn lit une variable booléenne comme llama.cpp : vide, 0 ou false = non.
-func envOn(v string) bool {
-	v = strings.ToLower(strings.TrimSpace(v))
-	return v != "" && v != "0" && v != "false"
+// kvOffloaded : le cache KV reste-t-il sur GPU ? Le dernier -kvo/-nkvo de la
+// ligne de commande tranche ; sinon LLAMA_ARG_NO_KV_OFFLOAD, dont la SEULE
+// présence vaut « non » pour llama.cpp (quelle que soit sa valeur), puis
+// LLAMA_ARG_KV_OFFLOAD lu comme un booléen.
+func kvOffloaded(extra []string, argEnv map[string]string) bool {
+	on, set := true, false
+	for _, a := range extra {
+		name, _, _ := strings.Cut(a, "=")
+		switch name {
+		case "-kvo", "--kv-offload":
+			on, set = true, true
+		case "-nkvo", "--no-kv-offload":
+			on, set = false, true
+		}
+	}
+	if set {
+		return on
+	}
+	if argEnv["LLAMA_ARG_NO_KV_OFFLOAD"] != "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(argEnv["LLAMA_ARG_KV_OFFLOAD"])) {
+	case "off", "disabled", "false", "0":
+		return false
+	}
+	return true
+}
+
+// envTruthy lit un drapeau sans valeur passé par variable, comme llama.cpp :
+// seuls on, enabled, true et 1 l'activent.
+func envTruthy(v string) bool {
+	switch strings.TrimSpace(v) {
+	case "on", "enabled", "true", "1":
+		return true
+	}
+	return false
+}
+
+// flagValues : les valeurs de TOUTES les occurrences d'un drapeau (« -x 1 » ou
+// « -x=1 »), pour ceux que llama.cpp cumule au lieu de garder le dernier.
+func flagValues(args []string, flags ...string) []string {
+	var vals []string
+	for i, a := range args {
+		name, val, hasEq := strings.Cut(a, "=")
+		for _, f := range flags {
+			if name != f {
+				continue
+			}
+			if hasEq {
+				vals = append(vals, val)
+			} else if i+1 < len(args) {
+				vals = append(vals, args[i+1])
+			}
+		}
+	}
+	return vals
 }
 
 // probeServeGPUs remplit ce dont launchQueuesEnv a besoin. On ne sonde
@@ -155,8 +220,10 @@ func probeServeGPUs(cfg map[string]string, extra []string, si *serveSysInfo) {
 	si.LaunchQueues = os.Getenv("CUDA_SCALE_LAUNCH_QUEUES")
 	si.ArgEnv = map[string]string{}
 	for _, k := range serveArgEnv {
-		if v := os.Getenv(k); v != "" {
+		if v, ok := os.LookupEnv(k); ok && v != "" {
 			si.ArgEnv[k] = v
+		} else if ok && k == "LLAMA_ARG_NO_KV_OFFLOAD" {
+			si.ArgEnv[k] = "1" // présente mais vide : llama.cpp n'y lit que la présence
 		}
 	}
 	if si.LaunchQueues != "" || strings.EqualFold(strings.TrimSpace(cfg["CUDA_LAUNCH_QUEUES"]), "off") {
