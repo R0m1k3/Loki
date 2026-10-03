@@ -785,13 +785,26 @@ func summaryRuneCap() int {
 //   - finish_reason=length : le texte est gardé (le début d'un bon résumé vaut
 //     mieux que rien), marqué « […] » et tracé dans le journal.
 func cleanSummary(content, reasoning, finish string) (string, error) {
-	c := content
-	if i := strings.LastIndex(c, thinkClose); i >= 0 {
-		c = c[i+len(thinkClose):]
+	c := strings.TrimSpace(content)
+	// Le raisonnement ne se retire qu'en TÊTE : soit un bloc <think>…</think>
+	// qui ouvre la réponse, soit un </think> sans <think> avant lui (gabarit qui
+	// ouvre le bloc dans le prompt). Couper au DERNIER </think>, comme avant,
+	// amputait tout le début d'un résumé de session Code qui cite la balise (un
+	// parseur, un gabarit) — et une balise citée après un <think> en milieu de
+	// texte n'est pas du raisonnement non plus.
+	for {
+		i := strings.Index(c, thinkClose)
+		if i < 0 {
+			break
+		}
+		if o := strings.Index(c[:i], "<think>"); o > 0 {
+			break
+		}
+		c = strings.TrimSpace(c[i+len(thinkClose):])
+		if !strings.HasPrefix(c, "<think>") {
+			break
+		}
 	}
-	c = strings.TrimSpace(c)
-	// En TÊTE seulement : un résumé de session Code peut citer la balise
-	// <think> (un parseur, un gabarit) sans être du raisonnement.
 	if strings.HasPrefix(c, "<think>") {
 		return "", fmt.Errorf("résumé: raisonnement jamais refermé, aucun résumé")
 	}
@@ -801,18 +814,19 @@ func cleanSummary(content, reasoning, finish string) (string, error) {
 		}
 		return "", fmt.Errorf("résumé: texte vide")
 	}
-	cut := false
+	cut := ""
 	if r := []rune(c); len(r) > summaryRuneCap() {
 		// Coupé sur une frontière de rune (é, … ne doivent pas devenir des �).
 		c = strings.TrimSpace(string(r[:summaryRuneCap()]))
-		cut = true
+		cut = fmt.Sprintf("par le filet de %d caractères", summaryRuneCap())
 	}
 	if finish == "length" {
-		fmt.Fprintf(os.Stderr, "[compact] résumé coupé par max_tokens=%d (%d caractères gardés)\n",
-			compactSummaryBudget(), len([]rune(c)))
-		cut = true
+		cut = fmt.Sprintf("par max_tokens=%d", compactSummaryBudget())
 	}
-	if cut {
+	if cut != "" {
+		// Tracé dans les deux cas : le filet ne mord que sur une API qui
+		// ignore max_tokens, et c'est l'ÉTAT D'AVANCEMENT qui tombe.
+		fmt.Fprintf(os.Stderr, "[compact] résumé coupé %s (%d caractères gardés)\n", cut, len([]rune(c)))
 		c += " […]"
 	}
 	return c, nil

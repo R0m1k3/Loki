@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -259,6 +260,11 @@ func TestCompactageModeCodeGardeLEtat(t *testing.T) {
 // dernier. Seul le raisonnement sans résumé est refusé (repli sur le torse).
 func TestCleanSummary(t *testing.T) {
 	testHome(t)
+	// Fenêtre fixée : le filet (budget×6) en dépend, le cas « long » ne doit pas
+	// basculer au-delà si la valeur par défaut de CTX change.
+	if err := SetConfigKey("CTX", "65536"); err != nil {
+		t.Fatal(err)
+	}
 	long := strings.Repeat("é", 7000) + " ÉTAT D'AVANCEMENT"
 	huge := strings.Repeat("x", summaryRuneCap()+500)
 	cases := []struct {
@@ -272,6 +278,11 @@ func TestCleanSummary(t *testing.T) {
 		{"length gardé et marqué", "- début du résumé", "", "length", "- début du résumé […]", false},
 		{"au-delà du filet", huge, "", "stop", strings.Repeat("x", summaryRuneCap()) + " […]", false},
 		{"balise citée en milieu", "- le parseur retire <think> en tête", "", "stop", "- le parseur retire <think> en tête", false},
+		{"bloc cité en milieu gardé entier", "- A\n- le parseur retire <think>x</think> en tête\n- B", "", "stop", "- A\n- le parseur retire <think>x</think> en tête\n- B", false},
+		{"think retiré, balise citée après", "<think>r</think>\n- A\n- le parseur coupe à </think>\n- B", "", "stop", "- A\n- le parseur coupe à </think>\n- B", false},
+		{"ouverture dans le prompt", "je réfléchis</think>\n- résumé", "", "stop", "- résumé", false},
+		{"deux blocs en tête", "<think>a</think><think>b</think>\n- résumé", "", "stop", "- résumé", false},
+		{"second bloc jamais refermé", "<think>a</think>\n<think>b", "", "length", "", true},
 		{"think jamais refermé", "<think>je réfléchis encore", "", "length", "", true},
 		{"que du reasoning_content", "", "je réfléchis", "length", "", true},
 		{"think vide de réponse", "<think>x</think>  ", "", "stop", "", true},
@@ -289,9 +300,18 @@ func TestCleanSummary(t *testing.T) {
 // réponse qui n'a que du raisonnement est une erreur (repli de l'appelant).
 func TestSummarizeLongNotTruncated(t *testing.T) {
 	testHome(t)
+	if err := SetConfigKey("CTX", "65536"); err != nil {
+		t.Fatal(err)
+	}
 	long := strings.Repeat("ü", 7000)
+	// Réponse changée entre deux requêtes : derrière un mutex, le handler tourne
+	// dans une goroutine du serveur.
+	var mu sync.Mutex
 	var reply map[string]any
+	setReply := func(r map[string]any) { mu.Lock(); reply = r; mu.Unlock() }
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		_ = json.NewEncoder(w).Encode(reply)
 	}))
 	t.Cleanup(srv.Close)
@@ -299,12 +319,12 @@ func TestSummarizeLongNotTruncated(t *testing.T) {
 	if err := SetConfigKey("PORT", u.Port()); err != nil {
 		t.Fatal(err)
 	}
-	reply = map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": long}, "finish_reason": "stop"}}}
+	setReply(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": long}, "finish_reason": "stop"}}})
 	got, err := summarizeTranscriptFor(context.Background(), "transcript", false)
 	if err != nil || got != long {
 		t.Fatalf("résumé tronqué : %d caractères, %v", len([]rune(got)), err)
 	}
-	reply = map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": "", "reasoning_content": "hmm"}, "finish_reason": "length"}}}
+	setReply(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": "", "reasoning_content": "hmm"}, "finish_reason": "length"}}})
 	if got, err := summarizeTranscriptFor(context.Background(), "transcript", false); err == nil {
 		t.Fatalf("raisonnement seul accepté comme résumé : %q", got)
 	}
