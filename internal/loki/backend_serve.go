@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// binSupportsReasoningFlag dit si ce llama-server accepte « --reasoning ».
+// helpSupportsReasoningFlag dit si ce llama-server accepte « --reasoning ».
 //
 // Le drapeau est récent : les moteurs plus anciens, et certains forks, ne le
 // connaissent pas et REFUSENT de démarrer sur un argument inconnu. Comme on ne
@@ -23,9 +23,11 @@ import (
 // L'aide se lit avec le même chemin de bibliothèques que le vrai lancement
 // (setLibraryPath a déjà été appelé) : sans ça un moteur parfaitement valide
 // échoue à s'exécuter (« libllama-common.so introuvable ») et on conclurait à
-// tort qu'il ne gère pas le drapeau.
-func binSupportsReasoningFlag(bin string) bool {
-	return strings.Contains(binHelp(bin), "--reasoning ")
+// tort qu'il ne gère pas le drapeau. Les tests de capacité prennent le TEXTE de
+// l'aide, pas le binaire : buildServeArgs reste ainsi une fonction pure,
+// testable avec une aide fabriquée.
+func helpSupportsReasoningFlag(help string) bool {
+	return strings.Contains(help, "--reasoning ")
 }
 
 // binHelp lit « <bin> --help » UNE fois par binaire et garde le texte. Plusieurs
@@ -57,20 +59,19 @@ func binHelp(bin string) string {
 	return h
 }
 
-// binSupportsLoadMode : les moteurs récents ont fusionné --mlock, --mmap et
+// helpSupportsLoadMode : les moteurs récents ont fusionné --mlock, --mmap et
 // --no-mmap dans un seul --load-mode ; les anciens ne connaissent que les trois
 // drapeaux d'origine. On traduit donc à l'exécution, sans réécrire le preset :
 // le même EXTRA_ARGS reste lançable sur les deux générations de moteur.
-func binSupportsLoadMode(bin string) bool {
-	return strings.Contains(binHelp(bin), "--load-mode")
+func helpSupportsLoadMode(help string) bool {
+	return strings.Contains(help, "--load-mode")
 }
 
-// binSupportsNGLAuto : « -ngl auto » laisse llama.cpp mesurer la VRAM libre et
+// helpSupportsNGLAuto : « -ngl auto » laisse llama.cpp mesurer la VRAM libre et
 // choisir le nombre de couches. Imposer un nombre (999 compris) désarme ce
 // calcul — « n_gpu_layers already set by user to 999, abort » — et le moteur
 // tente alors de tout mettre sur le GPU, quitte à échouer en cudaMalloc.
-func binSupportsNGLAuto(bin string) bool {
-	h := binHelp(bin)
+func helpSupportsNGLAuto(h string) bool {
 	i := strings.Index(h, "--n-gpu-layers")
 	if i < 0 {
 		i = strings.Index(h, "-ngl")
@@ -85,16 +86,16 @@ func binSupportsNGLAuto(bin string) bool {
 	return strings.Contains(h[i:end], "'auto'")
 }
 
-// binFitsLayersItself : ce moteur sait-il répartir les couches tout seul ?
+// helpFitsLayersItself : ce moteur sait-il répartir les couches tout seul ?
 //
-// La lecture fine de l'aide (binSupportsNGLAuto) reste la source de vérité, mais
+// La lecture fine de l'aide (helpSupportsNGLAuto) reste la source de vérité, mais
 // elle dépend de la mise en page d'un texte d'aide — une description reformulée
 // ou une colonne plus large, et on conclut « non » sur un moteur parfaitement
 // capable, donc on lui réimpose 999 et l'abandon revient. --load-mode est arrivé
 // dans la même vague que « -ngl auto » : sa présence sert de second témoin, plus
 // grossier mais insensible à la mise en page.
-func binFitsLayersItself(bin string) bool {
-	return binSupportsNGLAuto(bin) || binSupportsLoadMode(bin)
+func helpFitsLayersItself(help string) bool {
+	return helpSupportsNGLAuto(help) || helpSupportsLoadMode(help)
 }
 
 // nglArgs traduit la valeur NGL du preset en arguments, et renvoie au passage la
@@ -247,6 +248,11 @@ func downgradeLoadMode(args []string) []string {
 // cmdServe replaces the historic start.sh: read config.env, build the
 // llama-server invocation, and exec it (replacing this process so systemd
 // supervises llama-server directly).
+//
+// Tout ce qui touche au monde (fichiers, aide du moteur, variables
+// d'environnement, port, exec) reste ICI ; la composition de la ligne de
+// commande vit dans buildServeArgs, pure, pour qu'un changement de drapeau se
+// vérifie en table de tests plutôt qu'en relançant un moteur.
 func cmdServe(args []string) error {
 	cfg := ReadConfig()
 	bin := cfg["BIN"]
@@ -291,32 +297,131 @@ func cmdServe(args []string) error {
 	// Linux, PATH on Windows — handled inside execServer.
 	setLibraryPath(filepath.Dir(bin))
 
-	// Sélection GPU (loki gpu) : on filtre les devices visibles par llama-server.
-	// CUDA_DEVICE_ORDER=PCI_BUS_ID garantit que les index correspondent à ceux
-	// affichés par nvidia-smi (sinon CUDA réordonne par "device le plus rapide").
-	if v := cfg["CUDA_VISIBLE_DEVICES"]; v != "" {
-		_ = os.Setenv("CUDA_VISIBLE_DEVICES", v)
-		_ = os.Setenv("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
+	// La sélection GPU est posée AVANT de lire l'aide du moteur, comme elle l'a
+	// toujours été : le moteur interrogé voit déjà les mêmes devices que celui
+	// qu'on lancera. buildServeArgs la renvoie aussi dans env (même valeur).
+	applyServeEnv(cudaDeviceEnv(cfg))
+
+	si := serveSysInfo{Help: binHelp(bin), Model: model}
+	// Vision : le projecteur multimodal (mmproj-*.gguf) donne des yeux au modèle.
+	// C'est un fichier .gguf À PART du modèle, chargé via --mmproj. On le résout
+	// comme le modèle (nom simple cherché dans les dossiers déclarés, ou chemin
+	// absolu), pour qu'un preset écrit sous Windows reste lançable ailleurs et que
+	// le champ « Vision » de l'interface n'ait qu'à écrire le nom du fichier.
+	// Introuvable = on préfère le dire clairement plutôt que laisser llama-server
+	// mourir en boucle sur un « failed to load mmproj » cryptique.
+	if mm := strings.TrimSpace(cfg["MMPROJ"]); mm != "" {
+		mmPath, err := resolveServeModelPath(mm)
+		if err != nil {
+			return fmt.Errorf("projecteur vision introuvable : %s (%v)", mm, err)
+		}
+		if _, err := os.Stat(mmPath); err != nil {
+			return fmt.Errorf("projecteur vision introuvable : %s", mmPath)
+		}
+		si.MMProj = mmPath
+	}
+	// API_KEY protège le serveur quand il est exposé sur internet : llama-server
+	// exige alors l'en-tête "Authorization: Bearer <clé>". La clé est lue depuis
+	// $LOKI_HOME/.api_key en priorité (elle survit ainsi aux changements de preset
+	// qui réécrivent config.env), avec config.env comme repli rétro-compatible.
+	si.APIKey, _ = effectiveAPIKeyErr()
+
+	llmArgs, env, notes := buildServeArgs(cfg, splitArgs(cfg["EXTRA_ARGS"]), bin, si)
+	applyServeEnv(env)
+	for _, n := range notes {
+		fmt.Fprintln(os.Stderr, "[loki serve] "+n)
 	}
 
+	// Working dir = LOKI_HOME so relative paths in EXTRA_ARGS (e.g. --mmproj
+	// mmproj-F16.gguf) still resolve.
+	_ = os.Chdir(LokiHome())
+
+	// Port déjà pris (souvent un llama-server orphelin qu'un stop n'a pas pu
+	// tuer) : deux moteurs sur un même port se partagent les requêtes au hasard,
+	// VRAM saturée et réponses du mauvais modèle. On refuse en clair.
+	host, port := argValue(llmArgs, "--host"), argValue(llmArgs, "--port")
+	if err := waitPortFree(host, port, 5*time.Second); err != nil {
+		return err
+	}
+	warnSlowKV(serveKVTypes(cfg))
+
+	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
+		bin, filepath.Base(model), port)
+
+	// Hand off to the llama-server process. On Unix this replaces the current
+	// process (exec); on Windows it runs as a child and waits. See sys_platform_*.go.
+	return execServer(bin, llmArgs)
+}
+
+// serveSysInfo rassemble ce que cmdServe a dû demander au monde avant de
+// composer la ligne de commande : l'aide du moteur (d'où se déduisent ses
+// capacités), les chemins déjà résolus et vérifiés, la clé d'API. Avec elle,
+// buildServeArgs n'a plus besoin de toucher ni au disque ni au binaire.
+type serveSysInfo struct {
+	Help   string // sortie de « <bin> --help » ; vide = moteur inconnu, aucun risque pris
+	Model  string // chemin du .gguf principal, résolu et vérifié
+	MMProj string // chemin du projecteur vision, résolu et vérifié ; vide = pas de vision
+	APIKey string // clé effective (.api_key, sinon config.env) ; vide = serveur ouvert
+}
+
+// cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
+// llama-server. CUDA_DEVICE_ORDER=PCI_BUS_ID garantit que les index
+// correspondent à ceux affichés par nvidia-smi (sinon CUDA réordonne par
+// « device le plus rapide »).
+func cudaDeviceEnv(cfg map[string]string) map[string]string {
+	env := map[string]string{}
+	if v := cfg["CUDA_VISIBLE_DEVICES"]; v != "" {
+		env["CUDA_VISIBLE_DEVICES"] = v
+		env["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+	}
+	return env
+}
+
+func applyServeEnv(env map[string]string) {
+	for k, v := range env {
+		_ = os.Setenv(k, v)
+	}
+}
+
+// serveKVTypes donne les types de cache K et V du preset : KV_TYPE pour les
+// deux, KV_TYPE_K / KV_TYPE_V pour les régler séparément. Vide = défaut moteur.
+func serveKVTypes(cfg map[string]string) (k, v string) {
+	kv := cfg["KV_TYPE"]
+	k, v = kv, kv
+	if s := cfg["KV_TYPE_K"]; s != "" {
+		k = s
+	}
+	if s := cfg["KV_TYPE_V"]; s != "" {
+		v = s
+	}
+	return k, v
+}
+
+// buildServeArgs compose la ligne de commande de llama-server (bin en tête) à
+// partir du preset, d'EXTRA_ARGS tel que découpé par splitArgs et de ce que
+// cmdServe a sondé. Fonction pure : elle renvoie aussi les variables
+// d'environnement à poser et les notes à afficher, sans rien faire elle-même.
+// L'ordre des arguments est celui qu'a toujours produit cmdServe — le moteur
+// retient la DERNIÈRE occurrence d'un drapeau, donc l'ordre fait partie du
+// comportement.
+func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveSysInfo) (args []string, env map[string]string, notes []string) {
 	get := func(key, fallback string) string {
 		if v, ok := cfg[key]; ok && v != "" {
 			return v
 		}
 		return fallback
 	}
-	kv := get("KV_TYPE", "")
-	ktv := get("KV_TYPE_K", kv)
-	vtv := get("KV_TYPE_V", kv)
+	ktv, vtv := serveKVTypes(cfg)
+	env = cudaDeviceEnv(cfg)
 
 	// EXTRA_ARGS est lu ICI, avant de composer la ligne de commande : ce que
 	// l'utilisateur a écrit à la main décide des défauts que Loki a le droit
 	// d'ajouter (voir hasAnyFlag). Il est aussi traduit vers les drapeaux de
 	// chargement actuels quand le moteur les attend (voir normalizeLoadFlags).
-	extra := normalizeLoadFlags(splitArgs(cfg["EXTRA_ARGS"]), binSupportsLoadMode(bin))
+	extra = normalizeLoadFlags(extra, helpSupportsLoadMode(si.Help))
 
-	llmArgs := []string{bin,
-		"-m", model,
+	args = []string{bin,
+		"-m", si.Model,
 		"-c", get("CTX", "32768"),
 		"-t", get("THREADS", "0"),
 		"-tb", get("THREADS_BATCH", "0"),
@@ -334,7 +439,7 @@ func cmdServe(args []string) error {
 	// veut vraiment servir plusieurs requêtes à la fois — ou --parallel dans
 	// EXTRA_ARGS, auquel cas on ne redouble pas le drapeau.
 	if !hasAnyFlag(extra, "--parallel", "-np") {
-		llmArgs = append(llmArgs, "--parallel", get("PARALLEL", "1"))
+		args = append(args, "--parallel", get("PARALLEL", "1"))
 	}
 	// Couches GPU. Quatre cas, dans cet ordre :
 	//
@@ -357,34 +462,21 @@ func cmdServe(args []string) error {
 	// le DIT sur stderr plutôt que de le faire en douce. Qui veut réellement
 	// forcer tout sur le GPU écrit NGL=all (ou un nombre qui n'est pas 999).
 	if !hasAnyFlag(extra, "-ngl", "--n-gpu-layers", "--gpu-layers") {
-		args, note := nglArgs(get("NGL", ""), binFitsLayersItself(bin))
+		ngl, note := nglArgs(get("NGL", ""), helpFitsLayersItself(si.Help))
 		if note != "" {
-			fmt.Fprintln(os.Stderr, "[loki serve] "+note)
+			notes = append(notes, note)
 		}
-		llmArgs = append(llmArgs, args...)
+		args = append(args, ngl...)
 	}
 	if ktv != "" {
-		llmArgs = append(llmArgs, "-ctk", ktv)
+		args = append(args, "-ctk", ktv)
 	}
 	if vtv != "" {
-		llmArgs = append(llmArgs, "-ctv", vtv)
+		args = append(args, "-ctv", vtv)
 	}
-	// Vision : le projecteur multimodal (mmproj-*.gguf) donne des yeux au modèle.
-	// C'est un fichier .gguf À PART du modèle, chargé via --mmproj. On le résout
-	// comme le modèle (nom simple cherché dans les dossiers déclarés, ou chemin
-	// absolu), pour qu'un preset écrit sous Windows reste lançable ailleurs et que
-	// le champ « Vision » de l'interface n'ait qu'à écrire le nom du fichier.
-	// Introuvable = on préfère le dire clairement plutôt que laisser llama-server
-	// mourir en boucle sur un « failed to load mmproj » cryptique.
-	if mm := strings.TrimSpace(cfg["MMPROJ"]); mm != "" {
-		mmPath, err := resolveServeModelPath(mm)
-		if err != nil {
-			return fmt.Errorf("projecteur vision introuvable : %s (%v)", mm, err)
-		}
-		if _, err := os.Stat(mmPath); err != nil {
-			return fmt.Errorf("projecteur vision introuvable : %s", mmPath)
-		}
-		llmArgs = append(llmArgs, "--mmproj", mmPath)
+	// Vision : chemin déjà résolu et vérifié par cmdServe (voir là-bas).
+	if si.MMProj != "" {
+		args = append(args, "--mmproj", si.MMProj)
 	}
 	// Raisonnement. Trois cas, et la nuance compte :
 	//
@@ -404,48 +496,25 @@ func cmdServe(args []string) error {
 			// contenu). L'anti-boucle côté llm_client.go reste le garde-fou. NE PAS forcer 0 :
 			// sur llama.cpp vanilla, 0 = "immediate end" → coupe tout le raisonnement
 			// (le fork ik_llama.cpp l'ignore). Configurable via REASONING_BUDGET.
-			llmArgs = append(llmArgs, "--reasoning", r, "--reasoning-budget", get("REASONING_BUDGET", "-1"))
-		} else if binSupportsReasoningFlag(bin) {
+			args = append(args, "--reasoning", r, "--reasoning-budget", get("REASONING_BUDGET", "-1"))
+		} else if helpSupportsReasoningFlag(si.Help) {
 			// Pas de budget ici : « off » suffit, et un budget sur un moteur qui
 			// n'attend rien d'autre ne ferait qu'ajouter une occasion d'échouer.
-			llmArgs = append(llmArgs, "--reasoning", "off")
+			args = append(args, "--reasoning", "off")
 		} else {
 			// Vieux moteur (ou fork) qui ne connaît pas le drapeau : le lui passer
 			// le ferait sortir en erreur au démarrage, donc boucler. On le dit et on
 			// continue sans — mieux vaut un modèle qui réfléchit qu'un moteur mort.
-			fmt.Fprintf(os.Stderr, "[loki serve] ce moteur ne connaît pas --reasoning : impossible de désactiver le raisonnement\n")
+			notes = append(notes, "ce moteur ne connaît pas --reasoning : impossible de désactiver le raisonnement")
 		}
 	}
-	// API_KEY protège le serveur quand il est exposé sur internet : llama-server
-	// exige alors l'en-tête "Authorization: Bearer <clé>". La clé est lue depuis
-	// $LOKI_HOME/.api_key en priorité (elle survit ainsi aux changements de preset
-	// qui réécrivent config.env), avec config.env comme repli rétro-compatible.
-	if k, _ := effectiveAPIKeyErr(); k != "" {
-		llmArgs = append(llmArgs, "--api-key", k)
+	if si.APIKey != "" {
+		args = append(args, "--api-key", si.APIKey)
 	}
-	// EXTRA_ARGS (déjà découpé plus haut comme le ferait le shell — les guillemets
-	// gardent ensemble un chemin qui contient des espaces) ferme la marche.
-	llmArgs = append(llmArgs, extra...)
-
-	// Working dir = LOKI_HOME so relative paths in EXTRA_ARGS (e.g. --mmproj
-	// mmproj-F16.gguf) still resolve.
-	_ = os.Chdir(LokiHome())
-
-	// Port déjà pris (souvent un llama-server orphelin qu'un stop n'a pas pu
-	// tuer) : deux moteurs sur un même port se partagent les requêtes au hasard,
-	// VRAM saturée et réponses du mauvais modèle. On refuse en clair.
-	host, port := argValue(llmArgs, "--host"), argValue(llmArgs, "--port")
-	if err := waitPortFree(host, port, 5*time.Second); err != nil {
-		return err
-	}
-	warnSlowKV(ktv, vtv)
-
-	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
-		bin, filepath.Base(model), port)
-
-	// Hand off to the llama-server process. On Unix this replaces the current
-	// process (exec); on Windows it runs as a child and waits. See sys_platform_*.go.
-	return execServer(bin, llmArgs)
+	// EXTRA_ARGS (déjà découpé comme le ferait le shell — les guillemets gardent
+	// ensemble un chemin qui contient des espaces) ferme la marche.
+	args = append(args, extra...)
+	return args, env, notes
 }
 
 // argValue renvoie la valeur de la DERNIÈRE occurrence de flag (llama-server
