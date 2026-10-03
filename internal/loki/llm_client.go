@@ -2038,6 +2038,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				cb(StreamEvent{Compacting: &no})
 				logCompact("en-tour", used, messages, c, changed)
 				if changed {
+					lastEst = 0 // estimation d'avant compaction : plus rien à comparer
 					messages = c
 					// La nouvelle base contient déjà tout ce tour : on la publie et on
 					// repart d'un `extra` vide, sinon l'appelant la ré-empilerait avec

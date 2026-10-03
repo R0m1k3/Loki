@@ -47,6 +47,8 @@ func TestGenHeadroomShort(t *testing.T) {
 		{"65k, courte : plancher 8k + marge, sous 84 %", 55000, 2000, 65536, false, true},
 		{"65k, longue : 1,2×15k ne tient plus", 47000, 15000, 65536, true, false},
 		{"65k, longue mais la place y est", 40000, 15000, 65536, false, false},
+		{"65k, énorme (45k) mais historique tout juste compacté", 20000, 45000, 65536, false, false},
+		{"65k, énorme (45k) au-delà de la moitié", 33000, 45000, 65536, true, false},
 		{"131k, courte : rien avant le seuil", 98000, 4000, 131072, false, false},
 		{"131k, très longue génération", 95000, 30000, 131072, true, false},
 		{"8k, plancher ramené à 1/8", 6000, 0, 8192, false, false},
@@ -66,6 +68,14 @@ func TestGenHeadroomShort(t *testing.T) {
 		below := int(float64(w)*compactTriggerFrac) - 1
 		if genHeadroomShort(below, 1, w) {
 			t.Errorf("fenêtre %d : la garde devance le seuil sans génération longue", w)
+		}
+		// Génération aussi longue que la fenêtre : jamais avant la moitié, sinon
+		// l'historique fraîchement compacté la redéclenche à chaque étape.
+		if genHeadroomShort(w/2, w, w) {
+			t.Errorf("fenêtre %d : la garde part à 50 %% (compaction en boucle)", w)
+		}
+		if !genHeadroomShort(w/2+1, w, w) {
+			t.Errorf("fenêtre %d : la garde ne part pas au-delà de 50 %% avec une génération énorme", w)
 		}
 	}
 }
@@ -290,5 +300,18 @@ func TestPasseIsoleeNeTouchePasLeContexte(t *testing.T) {
 	}
 	if c.genPeak != 800 {
 		t.Fatalf("passe de correction : genPeak = %d, attendu 800", c.genPeak)
+	}
+}
+
+// Preset externe : le compte mesuré seul, comme avant ; local : complété des
+// messages arrivés depuis la mesure.
+func TestCtxNowLockedExternal(t *testing.T) {
+	msgs := []Message{um("bonjour"), am("salut"), um(strings.Repeat("x", 4000))}
+	c := &Conversation{CtxUsed: 30000, ctxUsedLen: 2}
+	if got := c.ctxNowLocked(msgs, false); got != 30000 {
+		t.Errorf("externe : %d, attendu le compte mesuré seul (30000)", got)
+	}
+	if got, want := c.ctxNowLocked(msgs, true), 30000+estimateTokens(msgs[2:]); got != want {
+		t.Errorf("local : %d, attendu %d", got, want)
 	}
 }

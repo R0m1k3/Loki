@@ -234,12 +234,18 @@ func compactNeeded(msgs []Message, used, peakGen int) bool {
 // fenêtre pour les petites), plus une petite marge. Fonction pure, testable.
 // Plancher et marge sont choisis pour ne JAMAIS devancer le seuil de 75 % à eux
 // seuls : seule une génération longue avance la compaction.
+//
+// Et jamais avant la MOITIÉ de la fenêtre, si longue que soit la génération :
+// une étape de 40 k sur 65 k (ou de 20 k sur 32 k) réclamait sinon une place
+// que l'historique compacté lui-même — prompt système, outils, résumé, queue —
+// ne laisse pas. La garde repartait alors à CHAQUE étape, résumé de résumé, le
+// fil perdu pour rien. Au-delà, c'est le rejeu sur « length » qui rattrape.
 func genHeadroomShort(used, peakGen, window int) bool {
 	if used <= 0 || peakGen <= 0 || window <= 0 {
 		return false
 	}
 	need := max(peakGen*6/5, min(8192, window/8)) + min(1024, window/32)
-	return used+need > window
+	return used+min(need, window/2) > window
 }
 
 // logCtx trace un fait du comptage de contexte (fenêtre pleine, relance après

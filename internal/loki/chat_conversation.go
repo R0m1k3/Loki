@@ -752,27 +752,35 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// sous-agents, vérification) est rattaché à la discussion active.
 	ctx = withPerf(ctx, perfMain, getStr(bkChat, ckActive))
 
+	// llama-server local seulement : le preset externe garde le seul seuil, et
+	// ses complétions ne nourrissent pas la garde de marge (compactNeeded).
+	local := !externalActive()
 	// Snapshot de la vue modèle.
 	c.mu.Lock()
 	msgs := append([]Message(nil), c.Messages...)
 	// Dernier compte du moteur + ce qu'il n'a pas encore vu (ce message-ci, la
 	// file). Sans ce complément, seul le raisonnement compté à tort masquait le
 	// manque ; maintenant qu'il est retiré, le nouveau message doit compter.
-	ctxUsed := ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+	ctxUsed := c.ctxNowLocked(msgs, local)
 	peak := c.genPeak
 	c.genPeak = 0 // recompté pendant ce tour
 	c.mu.Unlock()
-	// llama-server local seulement : le preset externe garde le seul seuil, et
-	// ses complétions ne nourrissent pas la garde de marge (compactNeeded).
-	local := !externalActive()
 
 	// Compaction proactive (façon Hermes) sur la vue MODÈLE uniquement ; le journal
 	// d'affichage garde le fil complet. Le résumé est un appel modèle non streamé :
 	// il bloque plusieurs secondes AVANT que la vraie réponse commence, d'où la
 	// bannière de progression émise par compactAndPublish.
+	// Estimation de début de tour, comparée au premier compte réel du moteur
+	// (journal [ctx], seulement au-delà de 2 % d'écart).
+	startEst := ctxUsed
 	if compactNeeded(msgs, ctxUsed, peak) {
 		if out, changed := c.compactAndPublish(ctx, epoch, "début-tour", msgs, ctxUsed, caps); changed {
 			msgs = out
+			// Le chiffre d'avant compaction ne dit plus rien de la requête qui
+			// part : on compare celui que la compaction vient de poser.
+			c.mu.Lock()
+			startEst = c.CtxUsed
+			c.mu.Unlock()
 		}
 	}
 
@@ -809,9 +817,6 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// l'usage est arrivé ; sinon on retombe sur l'estimation (celle qui pilote
 	// déjà la compaction), approximative mais jamais absente.
 	sawUsage := false
-	// Estimation de début de tour, comparée au premier compte réel du moteur
-	// (journal [ctx], seulement au-delà de 2 % d'écart).
-	startEst := ctxUsed
 	turnPeak := 0
 	// asked : le tour s'est terminé sur une question à l'utilisateur (outil ask) —
 	// pas de vérification du mode Code avant sa réponse.
@@ -923,7 +928,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.genPeak = max(c.genPeak, turnPeak)
 	}
 	msgs = append([]Message(nil), c.Messages...)
-	ctxUsed = ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+	ctxUsed = c.ctxNowLocked(msgs, local)
 	peak = c.genPeak
 	stale := c.epoch != epoch
 	c.mu.Unlock()
@@ -950,7 +955,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		c.codeVerifyLoop(ctx, caps, temperature, epoch, asked)
 		c.mu.Lock()
 		msgs = append([]Message(nil), c.Messages...)
-		ctxUsed = ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+		ctxUsed = c.ctxNowLocked(msgs, local)
 		peak = c.genPeak
 		stale = c.epoch != epoch
 		c.mu.Unlock()
@@ -973,6 +978,18 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	c.compactAndPublish(context.Background(), epoch, "fin-tour", msgs, ctxUsed, caps)
 }
 
+// ctxNowLocked : contexte à juger pour compacter, c.mu tenu. llama-server
+// local : le dernier compte plus les messages arrivés depuis (ctxPending). Preset
+// externe : le dernier compte seul, comme avant — son CtxUsed garde encore le
+// raisonnement (ctxAfter n'y retire rien), qui couvre déjà ce complément ; l'y
+// ajouter le ferait compacter plus tôt qu'avant.
+func (c *Conversation) ctxNowLocked(msgs []Message, local bool) int {
+	if !local {
+		return c.CtxUsed
+	}
+	return ctxPending(c.CtxUsed, c.ctxUsedLen, msgs)
+}
+
 // CompactNow force une compaction du contexte MAINTENANT, sans attendre le seuil
 // (bouton « compacter » de l'UI). Détaché comme la génération : émet la bannière
 // de progression, résume les anciens tours, remplace le torse et persiste. Les
@@ -982,6 +999,7 @@ func (c *Conversation) CompactNow() error {
 	if !healthCheck() {
 		return errModelLoading
 	}
+	local := !externalActive()
 	c.mu.Lock()
 	if c.Generating {
 		c.mu.Unlock()
@@ -991,7 +1009,7 @@ func (c *Conversation) CompactNow() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	msgs := append([]Message(nil), c.Messages...)
-	lastReal := ctxPending(c.CtxUsed, c.ctxUsedLen, msgs) // dernier contexte réel mesuré, pour estimer le surcoût fixe
+	lastReal := c.ctxNowLocked(msgs, local) // dernier contexte réel mesuré, pour estimer le surcoût fixe
 	epoch := c.epoch
 	c.mu.Unlock()
 
