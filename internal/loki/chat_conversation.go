@@ -738,6 +738,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			go sendPushToAll("Loki", "Réponse prête · "+fmtDurFR(time.Since(turnStart)))
 		}
 	}()
+	// Télémétrie : tout ce que ce tour envoie au moteur (étapes, compaction,
+	// sous-agents, vérification) est rattaché à la discussion active.
+	ctx = withPerf(ctx, perfMain, getStr(bkChat, ckActive))
 
 	// Snapshot de la vue modèle.
 	c.mu.Lock()

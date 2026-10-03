@@ -115,7 +115,7 @@ func (c *Conversation) runVerifyPass(ctx context.Context, caps Caps, temperature
 	// meurt dans cette passe. Seuls les deltas d'affichage sortent. Son état
 	// dans le moteur aussi : effacé à la fin de la passe (llm_slots.go).
 	defer engineSideJob()()
-	_, _ = runChat(ctx, msgs, temperature, vcaps, func(ev StreamEvent) bool {
+	_, _ = runChat(withPerfKind(ctx, perfVerify), msgs, temperature, vcaps, func(ev StreamEvent) bool {
 		c.forwardStream(ev, epoch)
 		return true
 	})

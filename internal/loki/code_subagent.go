@@ -113,7 +113,7 @@ func toolSubagent(ctx context.Context, args map[string]any, parent Caps) string 
 	// boucle (OpenFox l'a relevé). Le TEMP du preset, s'il est posé, l'emporte.
 	// Seul le texte écrit APRÈS le dernier outil revient au builder : la
 	// narration entre deux lectures n'est pas le rapport.
-	if _, err := runChat(ctx, msgs, subagentTemperature, caps, func(ev StreamEvent) bool {
+	if _, err := runChat(withPerfKind(ctx, perfSubagent), msgs, subagentTemperature, caps, func(ev StreamEvent) bool {
 		if ev.ToolUsed != nil {
 			out.Reset()
 		}

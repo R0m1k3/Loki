@@ -1151,6 +1151,9 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 #chat .msg .statline{margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;
   color:var(--dim);opacity:.75}
 #chat .msg .statline:empty{display:none}
+/* Cache de prompts perdu (gros recalcul) : la vitesse passe en ambre, la
+   ligne reste discrète mais ne se lit plus comme un tour ordinaire. */
+#chat .msg .statline.cache-miss>.spd{color:var(--warn)}
 /* « Masquer la vitesse de génération » ne masque QUE la vitesse : le temps de
    travail du tour (.worktime) n'est pas une mesure de moteur, c'est ce que la
    réponse a coûté. Une ligne qui ne portait que de la vitesse disparaît en
@@ -7399,16 +7402,32 @@ function renderStats(el, s){
   if(!el||!s) return;
   const parts=[];
   const pt=s.prompt_tokens||s.prompt_tokens_total;
-  // Débit de lecture inconnu (API tierce sans timings) : on n'affiche que la taille.
-  if(pt) parts.push('prefill '+pt+' tok'+(s.prompt_per_second ? ' · '+s.prompt_per_second.toFixed(0)+' tok/s' : ''));
+  const pps=s.prompt_per_second ? ' · '+s.prompt_per_second.toFixed(0)+' tok/s' : '';
+  // Cache connu (cache_tokens présent, même à 0) : ce qui a été recalculé et ce
+  // qui venait du cache. Inconnu (moteur ancien, API tierce) : la taille seule,
+  // comme avant — un « 0 en cache » inventé serait pire que rien.
+  const cached=s.cache_tokens;
+  if(cached!=null && (s.prompt_tokens!=null || s.prompt_tokens_total)){
+    const fresh=s.prompt_tokens!=null ? s.prompt_tokens : Math.max(0,s.prompt_tokens_total-cached);
+    parts.push('prefill '+nfmt(fresh)+' nouveaux / '+nfmt(cached)+' en cache'+pps);
+  } else if(pt) parts.push('prefill '+pt+' tok'+pps); // débit inconnu (API tierce sans timings) : la taille seule
   if(s.gen_tokens) parts.push('decode '+s.gen_tokens+' tok · '+(s.gen_per_second||0).toFixed(1)+' tok/s');
+  // Perte de cache signalée par le serveur (seuil relevé sur un modèle hybride,
+  // dont les points de reprise font perdre un peu à chaque étape).
+  if(s.lost_alert && s.lost) parts.push(nfmt(s.lost)+' recalculés'+(s.lost_after ? ' après '+s.lost_after : ''));
   if(!parts.length) return;
   // Réponse de l'assistant : ligne de mesures dédiée sous le texte (son étiquette
   // est masquée dans cette mise en page). Bulle repliable : l'étiquette EST le
   // bouton de repli, on y écrit comme avant.
   if(el.classList.contains('collapsible')) setLabel(el, ['reasoning'].concat(workLabel()||[], parts).join('  ·  '));
-  else paintStats(el, parts.join('  ·  '));
+  else{
+    paintStats(el, parts.join('  ·  '));
+    const sl=el.querySelector(':scope > .statline');
+    if(sl) sl.classList.toggle('cache-miss', !!s.lost_alert);
+  }
 }
+// Milliers séparés par une espace fine insécable : « 41 230 », pas « 41230 ».
+function nfmt(n){ return String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f'); }
 // --- Compteurs de bulle -----------------------------------------------------
 // Ils sont PAR BULLE, jamais par tour. Un tour d'agent en ouvre une nouvelle
 // après CHAQUE appel d'outil (le flux repasse T.contentEl à null) ; les

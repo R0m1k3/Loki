@@ -143,6 +143,10 @@ func runBench(nPrompt, nPredict int) (*benchResult, error) {
 		PredictedN: t.PredictedN, PredictedMs: t.PredictedMs, PredictedPerSec: t.PredictedPerSec,
 		Elapsed: elapsed,
 	}
+	// Trace dans la télémétrie : le bench a pris le slot, la perte de cache du
+	// tour suivant lui revient (perf_log.go). Cache inconnu : cache_prompt:false.
+	perfRecord(perfRec{Kind: perfBench, Complete: true, Total: t.PromptN, New: t.PromptN,
+		PPms: t.PromptMs, PPtps: t.PromptPerSecond, Gen: t.PredictedN, TGtps: t.PredictedPerSec}, nil)
 	saveLastBench(res)
 	saveBenchForActivePreset(res)
 	return res, nil

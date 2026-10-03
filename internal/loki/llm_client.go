@@ -731,6 +731,20 @@ type StatsEvent struct {
 	// Conseil ponctuel quand le cache de prompts n'a pas tenu après un travail
 	// annexe (voir noteEnginePrompt). Vide la plupart du temps.
 	CacheHint string `json:"cache_hint,omitempty"`
+	// Télémétrie d'affichage (perf_log.go), jamais relue pour décider quoi que ce
+	// soit. Pointeurs : nil = le moteur ne l'a pas dit, ce qui n'est pas 0 — un
+	// cache_n à 0 (tout recalculé) est précisément ce qu'il faut pouvoir montrer.
+	CacheTokens   *int   `json:"cache_tokens,omitempty"`
+	DraftN        *int   `json:"draft_n,omitempty"`
+	DraftAccepted *int   `json:"draft_accepted,omitempty"`
+	TTFTms        *int64 `json:"ttft_ms,omitempty"`
+	// Posés sur le dernier événement de la complétion seulement, une fois
+	// celle-ci rangée : jetons du tour précédent qu'il a fallu recalculer, et
+	// s'il faut le signaler (seuil relevé sur un modèle hybride).
+	Lost      *int   `json:"lost,omitempty"`
+	LostAfter string `json:"lost_after,omitempty"`
+	LostAlert bool   `json:"lost_alert,omitempty"`
+	Kind      string `json:"kind,omitempty"`
 }
 
 // ChatCallback receives stream events. Return false to abort the stream.
@@ -758,13 +772,14 @@ type streamChunk struct {
 		PredictedPerSec float64 `json:"predicted_per_second"`
 	} `json:"timings"`
 	// Chunk final (include_usage) : taille totale du prompt, hors choices.
+	// ⚠️ Rien de plus ici : un champ typé de travers fait échouer le décodage
+	// du chunk ENTIER, qui est sauté — texte final, finish_reason et usage
+	// compris. Les compteurs de télémétrie (cache_n, draft_n, cached_tokens) se
+	// lisent à part, sans jamais échouer (perfWire, perf_log.go).
 	Usage *struct {
-		PromptTokens        int `json:"prompt_tokens"`
-		CompletionTokens    int `json:"completion_tokens"`
-		TotalTokens         int `json:"total_tokens"`
-		PromptTokensDetails *struct {
-			CachedTokens int `json:"cached_tokens"`
-		} `json:"prompt_tokens_details"`
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
 }
 
@@ -908,6 +923,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// bubble works regardless of backend. The ik_llama.cpp fork already sends
 	// reasoning_content, in which case we leave content untouched.
 	chatCfg := ReadConfig()
+	// Nature et conversation de ces complétions, pour la télémétrie seulement
+	// (perf_log.go) : rien de tout ça ne part dans la requête.
+	ptag, perfIter := perfTagOf(ctx), 0
 	reasoningOn := reasoningActive(chatCfg["REASONING"])
 	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
 	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
@@ -1005,13 +1023,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			logBudget(toolRuns, budget, budgetNudges)
 			messages = append(messages, Message{Role: "user", Content: msg})
 		}
+		// Normalisé juste avant l'envoi : un seul système, en tête. Les gabarits
+		// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
+		// Gardé à part : la télémétrie compare ces messages-là d'une requête à
+		// l'autre (perfPrefix).
+		sent := normalizeSystemMessages(messages)
 		payload := map[string]any{
 			"model": ep.Model,
-			// Normalisé juste avant l'envoi : un seul système, en tête. Les gabarits
-			// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
 			// Les images de l'historique y sont rangées par référence
 			// (chat_images.go) : on remet leurs octets juste avant l'envoi.
-			"messages":    expandImageRefs(normalizeSystemMessages(messages)),
+			"messages":    expandImageRefs(sent),
 			"stream":      true,
 			"temperature": temperature,
 			// include_usage → chunk final avec `usage.prompt_tokens` = taille TOTALE
@@ -1250,6 +1271,13 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// build llama.cpp (MTP/spéculatif), a `choices:[]` — on les traite AVANT le
 			// garde de choices, sinon `gen_tokens`/`gen_per_second` (decode) sont jetés
 			// et l'UI retombe à « 0 tok/s » à la fin de la génération.
+			// Deuxième lecture, tolérante, pour la télémétrie : seulement sur les
+			// chunks qui portent timings ou usage, pas sur chaque jeton.
+			var pw perfWire
+			if chunk.Timings != nil || chunk.Usage != nil {
+				pw = decodePerfWire([]byte(data))
+				stats.applyPerf(pw)
+			}
 			if chunk.Timings != nil {
 				sawTimings = true
 				stats.PromptTokens = chunk.Timings.PromptN
@@ -1268,11 +1296,8 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				stats.PromptTokensTotal = chunk.Usage.PromptTokens
 				s := stats
 				if !ep.External {
-					cached, has := 0, chunk.Usage.PromptTokensDetails != nil
-					if has {
-						cached = chunk.Usage.PromptTokensDetails.CachedTokens
-					}
-					s.CacheHint = noteEnginePrompt(chunk.Usage.PromptTokens, cached, has)
+					cached := pw.cachedTokens()
+					s.CacheHint = noteEnginePrompt(chunk.Usage.PromptTokens, cached.int(), cached.ok)
 				}
 				scb(StreamEvent{Stats: &s})
 			}
@@ -1490,6 +1515,12 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		scanErr := sc.Err()
 		resp.Body.Close()
 		endReq()
+		// Premier jeton, de quelque nature qu'il soit (raisonnement, texte ou
+		// appel d'outil). tReq est repris à chaque tentative.
+		if !tFirst.IsZero() {
+			ms := tFirst.Sub(tReq).Milliseconds()
+			stats.TTFTms = &ms
+		}
 		if !sawTimings && !tFirst.IsZero() {
 			// Décodage mesuré ici ; le 1er token tombe dans la lecture du prompt.
 			// Pas de débit de lecture : le serveur a pu réutiliser une partie du
@@ -1505,6 +1536,26 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 				stats.GenPerSecond = float64(gen-1) / sec
 			}
 			s := stats
+			cb(StreamEvent{Stats: &s})
+		}
+		// Télémétrie (perf_log.go). Une complétion coupée avant son chunk final
+		// (arrêt, appel écrit en texte, refus anticipé, flux cassé) n'a ni cache
+		// ni total fiables : rangée comme incomplète, sans calcul de perte.
+		complete := !aborted && (scanErr == nil || finishReason != "") && (sawTimings || stats.PromptTokensTotal > 0)
+		var prefix []uint64
+		if complete {
+			prefix = perfPrefix(sent)
+		}
+		rec := perfRecord(perfRecFromStats(ptag, perfIter, complete, stats), prefix)
+		perfIter++
+		if complete {
+			// Dernier événement de la complétion, copie COMPLÈTE des stats : rejoué
+			// depuis le journal, il ne fait que repeindre la même ligne.
+			s := stats
+			s.Kind, s.Lost, s.LostAfter = rec.Kind, rec.Lost, rec.LostAfter
+			if (rec.Lost != nil && *rec.Lost > 0) || (rec.Cached != nil && *rec.Cached == 0) {
+				s.LostAlert = perfAlert(rec, perfLostAlertAt(chatCfg))
+			}
 			cb(StreamEvent{Stats: &s})
 		}
 		if aborted {

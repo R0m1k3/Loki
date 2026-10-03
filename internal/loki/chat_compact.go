@@ -676,10 +676,18 @@ Write the summary in the SAME language as the conversation.`
 		}
 		return "", fmt.Errorf("résumé: %s %d: %s", who, resp.StatusCode, strings.TrimSpace(string(b)))
 	}
-	var out summarizeResp
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return "", err
 	}
+	var out summarizeResp
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", err
+	}
+	// Télémétrie de la compaction : réponse non streamée, timings et usage sont
+	// à la racine. Lue à part et sans échec possible (perfWire) : un compteur
+	// mal typé ne doit jamais faire échouer la compaction.
+	perfRecord(perfRecFromWire(perfTag{kind: perfCompact, conv: perfTagOf(ctx).conv}, decodePerfWire(raw)), nil)
 	if len(out.Choices) == 0 {
 		return "", fmt.Errorf("résumé: réponse vide")
 	}

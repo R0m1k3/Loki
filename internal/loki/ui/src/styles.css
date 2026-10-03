@@ -1116,6 +1116,9 @@ h1{color:var(--text);font-weight:600;letter-spacing:-.01em}
 #chat .msg .statline{margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;
   color:var(--dim);opacity:.75}
 #chat .msg .statline:empty{display:none}
+/* Cache de prompts perdu (gros recalcul) : la vitesse passe en ambre, la
+   ligne reste discrète mais ne se lit plus comme un tour ordinaire. */
+#chat .msg .statline.cache-miss>.spd{color:var(--warn)}
 /* « Masquer la vitesse de génération » ne masque QUE la vitesse : le temps de
    travail du tour (.worktime) n'est pas une mesure de moteur, c'est ce que la
    réponse a coûté. Une ligne qui ne portait que de la vitesse disparaît en
