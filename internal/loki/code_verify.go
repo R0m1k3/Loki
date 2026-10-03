@@ -266,7 +266,8 @@ func (c *Conversation) lastUserText() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for i := len(c.Messages) - 1; i >= 0; i-- {
-		if c.Messages[i].Role != "user" {
+		// Un rappel de loki (budget, relance) n'est pas la tâche.
+		if c.Messages[i].Role != "user" || isLokiInjected(c.Messages[i]) {
 			continue
 		}
 		if s, ok := c.Messages[i].Content.(string); ok {

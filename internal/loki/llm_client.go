@@ -962,6 +962,15 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 	// retry the same turn once with tools removed so the model answers in plain
 	// text from the tool results already gathered, instead of dying mid-chat.
 	disableTools := false
+	// Première relance après ce 500, sur le llama-server local : outils GARDÉS
+	// à l'identique dans la requête, mais tool_choice « none » et la consigne en
+	// fin de fil (withTrailingHint). Le prompt rendu ne change pas jusqu'au
+	// dernier message, donc le cache sert presque tout ; retirer les outils
+	// changeait le gabarit dès le système et recalculait toute la conversation.
+	// Les appels éventuels sont ignorés (callsOn) ; le moindre écart — nouveau
+	// refus, appel émis malgré tout, réponse vide — retombe UNE fois sur le
+	// chemin historique (outils retirés, consigne via steerSystem).
+	toolChoiceNone := false
 	// Filet réactif (façon Hermes) : si llama-server refuse le prompt (souvent un
 	// dépassement de la fenêtre de contexte après de gros résultats d'outils), on
 	// compacte l'historique en vol et on rejoue le tour — une seule fois.
@@ -1045,17 +1054,25 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			}
 		}
 		// Rappel injecté EN FIN d'historique : le préfixe déjà en cache côté
-		// llama-server reste valide, seul le nouveau message est à traiter.
+		// llama-server reste valide, seul le nouveau message est à traiter. Et
+		// persisté tel quel (appendNudge) : le tour suivant le renvoie à
+		// l'identique au lieu de diverger juste avant lui.
 		if msg := budgetNudge(toolRuns, budget, budgetNudges); msg != "" {
 			budgetNudges++
 			logBudget(toolRuns, budget, budgetNudges)
-			messages = append(messages, Message{Role: "user", Content: msg})
+			messages, extra = appendNudge(messages, extra, msg)
 		}
+		// Appels d'outils exécutables pour cette complétion : outils annoncés,
+		// et ni coupés ni neutralisés par tool_choice « none ».
+		callsOn := len(tools) > 0 && !disableTools && !toolChoiceNone
 		// Normalisé juste avant l'envoi : un seul système, en tête. Les gabarits
 		// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
 		// Gardé à part : la télémétrie compare ces messages-là d'une requête à
 		// l'autre (perfPrefix).
 		sent := normalizeSystemMessages(messages)
+		if toolChoiceNone {
+			sent = withTrailingHint(sent, toolsOffHint)
+		}
 		payload := map[string]any{
 			"model": ep.Model,
 			// Les images de l'historique y sont rangées par référence
@@ -1089,6 +1106,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// string ("{...}{...}") and then fails to parse (HTTP 500). Forcing a
 			// single tool call per turn avoids that.
 			payload["parallel_tool_calls"] = false
+			if toolChoiceNone {
+				payload["tool_choice"] = "none"
+			}
 		}
 		body, _ := json.Marshal(payload)
 		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
@@ -1194,12 +1214,27 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// in plain text rather than leaving the chat dead. Seulement sur 500 :
 			// un 401, 429 ou 502 (API externe, passerelle) n'a rien à voir avec un
 			// appel mal formé, et couper les outils pour ça cassait le tour d'agent.
-			if resp.StatusCode == http.StatusInternalServerError && !disableTools && len(tools) > 0 {
+			//
+			// Sur le llama-server local, la première relance garde le prompt
+			// intact (voir toolChoiceNone). Une API externe garde le chemin
+			// historique : certaines passerelles OpenAI-compatibles traitent
+			// tool_choice à leur façon. Si la relance « none » est refusée à
+			// son tour (500, ou un 4xx d'un moteur qui ne connaîtrait pas le
+			// champ), on retombe sur le chemin historique au lieu de finir le
+			// tour.
+			if !disableTools && len(tools) > 0 && (resp.StatusCode == http.StatusInternalServerError ||
+				(toolChoiceNone && resp.StatusCode >= 400 && resp.StatusCode < 500)) {
+				if !ep.External && !toolChoiceNone {
+					toolChoiceNone = true
+					logCtx("relance sans outil après un 500 : tool_choice=none, prompt conservé")
+					continue
+				}
+				toolChoiceNone = false
 				disableTools = true
 				// Nudge the model to answer in plain text from what it already
 				// gathered, so it doesn't immediately re-emit a tool call that
 				// llama.cpp would again fail to parse.
-				messages = steerSystem(messages, "Do not call any more tools. Answer now, directly, in the user's language, using only the information already gathered.")
+				messages = steerSystem(messages, toolsOffHint)
 				continue
 			}
 			// Dernier recours, APRÈS les filets sémantiques ci-dessus : un statut
@@ -1279,6 +1314,9 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		aborted := false
 		// patternHit : flux coupé sur un appel d'outil écrit en texte (voir plus bas).
 		patternHit := false
+		// noneLeak : sous tool_choice « none », le modèle a quand même tenté un
+		// appel (protocole ou texte) — voir toolChoiceNone.
+		noneLeak := false
 		// preflight : write/edit refusé dès son chemin (voir plus bas) ; non-nil
 		// mais vide = chemin déjà vérifié, rien à signaler.
 		var preflight *preflightRefusal
@@ -1349,7 +1387,13 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// relance sans outils après un 500 — le moteur peut quand même parser un
 			// appel que le modèle a émis de lui-même ; l'exécuter donnait « outil
 			// inconnu », réinjecté puis mis en boucle. On l'ignore (AJEAN 0.13.12).
-			if len(tools) > 0 && !disableTools && len(ch.Delta.ToolCalls) > 0 {
+			// Relance tool_choice « none » : un appel émis malgré tout n'est pas
+			// exécuté, on coupe et on retombe sur la relance sans outils.
+			if toolChoiceNone && len(ch.Delta.ToolCalls) > 0 {
+				noneLeak = true
+				break
+			}
+			if callsOn && len(ch.Delta.ToolCalls) > 0 {
 				// Un appel d'outil clôt le texte : on vide MAINTENANT le reliquat
 				// retenu par la garde « </think> » (voir plus bas). Sinon il n'était
 				// émis qu'en fin de flux, donc APRÈS l'événement d'outil, et l'UI
@@ -1481,9 +1525,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					// faux appel — parfois un fichier entier — qui ne sera jamais
 					// exécuté. La relance corrective part juste après (voir fin de
 					// boucle). Testé seulement quand le morceau peut ouvrir un motif.
-					if len(tools) > 0 && !disableTools && patternRetries < maxPatternRetries &&
+					if (callsOn && patternRetries < maxPatternRetries || toolChoiceNone) &&
 						strings.ContainsAny(ch.Delta.Content, "<`{[_.") && textualToolCall(assistantContent.String()) {
-						patternHit = true
+						// Sous tool_choice « none », le moteur ne parse plus les
+						// appels : le balisage arrive en texte. Ce n'est pas une
+						// réponse, on retombe sur la relance sans outils.
+						if toolChoiceNone {
+							noneLeak = true
+						} else {
+							patternHit = true
+						}
 						break
 					}
 				} else {
@@ -1614,7 +1665,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Coupure APRÈS le dernier chunk (finish_reason reçu) : la réponse est
 		// complète, seule la fermeture a raté. On la garde telle quelle. Flux
 		// coupé par NOUS sur un appel écrit en texte : pas une panne non plus.
-		if scanErr != nil && (finishReason != "" || patternHit || (preflight != nil && preflight.msg != "")) {
+		if scanErr != nil && (finishReason != "" || patternHit || noneLeak || (preflight != nil && preflight.msg != "")) {
 			scanErr = nil
 		}
 		// Flux coupé vers une API DISTANTE (Wi-Fi, VPN, proxy qui décroche) : on
@@ -1658,6 +1709,22 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// Complétion lue en entier : le budget de reprises vaut par coupure
 		// rapprochée, pas pour tout un long tour d'agent.
 		streamRetries = 0
+
+		// Relance tool_choice « none » sans réponse exploitable (appel tenté
+		// malgré tout, balisage d'appel en texte, ou rien du tout) : repli UNE
+		// fois sur le chemin historique, outils retirés du gabarit. Le prompt est
+		// alors recalculé, mais le tour aboutit comme avant.
+		if toolChoiceNone && (noneLeak || textualToolCallSnippet(assistantContent.String()) != "" ||
+			strings.TrimSpace(assistantContent.String()) == "") {
+			logCtx("relance tool_choice=none sans réponse exploitable : repli sans outils")
+			toolChoiceNone = false
+			disableTools = true
+			if sentReasoning && !sentAnswer {
+				cb(StreamEvent{DropReasoning: true})
+			}
+			messages = steerSystem(messages, toolsOffHint)
+			continue
+		}
 
 		// Écriture refusée en plein flux (pré-vol) : l'appel, réduit à son chemin,
 		// entre dans l'historique avec le refus pour résultat — le modèle voit
@@ -2055,7 +2122,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// mentir sur ce qui s'est passé — mais l'historique du modèle garde la
 		// trace ET la correction, donc la vraie réponse suit immédiatement.
 		if snippet := textualToolCallSnippet(assistantContent.String()); snippet != "" &&
-			patternRetries < maxPatternRetries && len(tools) > 0 && !disableTools {
+			patternRetries < maxPatternRetries && callsOn {
 			patternRetries++
 			bad := Message{Role: "assistant", Content: assistantContent.String()}
 			fix := Message{Role: "user", Content: retryCorrective(snippet)}
@@ -2092,21 +2159,24 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 					continue
 				}
 			}
-			if len(tools) > 0 && !disableTools && nudgeCount < maxNudges {
+			if callsOn && nudgeCount < maxNudges {
 				nudgeCount++
 				logCtx("relance « pensé sans agir » n°%d (finish=%s)", nudgeCount, finishReason)
 				// Le raisonnement de ce tour avorté ne mène à rien : on demande à
 				// l'UI de l'effacer avant de relancer, pour ne pas afficher deux
 				// blocs de réflexion successifs.
 				cb(StreamEvent{DropReasoning: true})
-				nudge := "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act."
+				nudge := thinkNudgeFirst
 				if nudgeCount > 1 {
 					// Le premier nudge n'a pas suffi : le modèle re-décrit le même
 					// plan sans l'exécuter. Second nudge plus impératif, où on lui
 					// interdit explicitement de re-raisonner.
-					nudge = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant."
+					nudge = thinkNudgeStuck
 				}
-				messages = append(messages, Message{Role: "user", Content: nudge})
+				// Persisté tel qu'envoyé (appendNudge) : au tour suivant, le modèle
+				// relit la consigne qui a produit sa réponse, et le préfixe en
+				// cache tient jusqu'à elle.
+				messages, extra = appendNudge(messages, extra, nudge)
 				continue
 			}
 			cb(StreamEvent{Content: "_(le modèle n'a pas produit de réponse — finish: " + finishReason + ")_"})

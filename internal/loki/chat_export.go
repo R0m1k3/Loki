@@ -221,7 +221,8 @@ func filterLog(log []LogEvent, o exportOpts) []LogEvent {
 func lastTurnsMessages(msgs []Message, n int) []Message {
 	seen := 0
 	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role != "user" {
+		// Un rappel de loki n'ouvre pas un échange.
+		if msgs[i].Role != "user" || isLokiInjected(msgs[i]) {
 			continue
 		}
 		seen++

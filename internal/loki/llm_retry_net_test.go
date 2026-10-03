@@ -99,10 +99,11 @@ func TestStatutTransitoireEstRejoueEtAboutit(t *testing.T) {
 // échecs déterministes ; attendre puis rejouer à l'identique ne ferait que
 // retarder l'erreur de plusieurs secondes.
 //
-// Le tour peut malgré tout repartir UNE fois : le filet de compaction en vol,
-// antérieur à ce fichier, retente le tour avec un historique résumé (le 500 est
-// souvent un dépassement de contexte). C'est un rejeu SÉMANTIQUE — il change la
-// requête et n'attend pas. La preuve qu'aucune reprise réseau n'a eu lieu est
+// Le tour peut malgré tout repartir : le filet de compaction en vol, antérieur
+// à ce fichier, retente le tour avec un historique résumé (le 500 est souvent
+// un dépassement de contexte), et la relance d'un appel d'outil mal formé
+// essaie tool_choice « none » puis, refusée elle aussi, le retrait des outils.
+// Ce sont des rejeux SÉMANTIQUES — ils changent la requête et n'attendent pas. La preuve qu'aucune reprise réseau n'a eu lieu est
 // donc le CHRONO : trois reprises coûteraient au bas mot 0,8 + 1,6 s d'attente.
 func TestErreur500NestPasRejoueeParLeReseau(t *testing.T) {
 	testHome(t)
@@ -119,9 +120,9 @@ func TestErreur500NestPasRejoueeParLeReseau(t *testing.T) {
 	if elapsed >= llmNetWait {
 		t.Fatalf("rendu la main en %v : une attente de reprise réseau a eu lieu sur un 500", elapsed)
 	}
-	// Borne haute large : ce qui compte est qu'on ne soit pas allé au bout du
-	// budget réseau (1 + 3 = 4 appels).
-	if n := calls.Load(); n > 2 {
+	// Borne haute : l'appel, la relance « none » et le repli sans outils. Trois
+	// reprises réseau en ajouteraient au moins trois.
+	if n := calls.Load(); n > 3 {
 		t.Fatalf("%d appels au moteur sur un 500 : le budget de reprise réseau a été consommé", n)
 	}
 }

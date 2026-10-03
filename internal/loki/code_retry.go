@@ -106,7 +106,7 @@ const maxPatternRetries = 3
 // retryCorrective : le message réinjecté pour relancer le tour, avec l'extrait
 // fautif.
 func retryCorrective(snippet string) string {
-	return "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed:\n" + snippet +
+	return retryCorrectiveLead + snippet +
 		"\nTool calls must go through the tool-call protocol, never in the answer text. " +
 		"Redo it now: emit the real tool call, or answer directly without pretending to call a tool."
 }

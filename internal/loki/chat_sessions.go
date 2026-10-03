@@ -169,7 +169,7 @@ func convTouchMeta(id string, title string, turns int) {
 // posera tout seul au premier échange.
 func convSummary(msgs []Message) string {
 	for _, m := range msgs {
-		if m.Role != "user" {
+		if m.Role != "user" || isLokiInjected(m) {
 			continue
 		}
 		s, _ := m.Content.(string)

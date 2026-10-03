@@ -489,9 +489,13 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	//     répondre le modèle une seconde fois à une vieille question ;
 	//   - repli sans résumé (mid = torse dégraissé) : ce message y est déjà, il se
 	//     retrouvait en double, cette fois APRÈS ses propres résultats d'outils.
+	//
+	// Un rappel de loki (budget d'outils, relance) a le rôle `user` sans être une
+	// demande (isLokiInjected) : ni il ne prouve qu'une demande a été servie, ni
+	// il ne se réinjecte à la place de la vraie.
 	tailHasUser := false
 	for _, m := range msgs[tailStart:] {
-		if m.Role == "user" {
+		if m.Role == "user" && !isLokiInjected(m) {
 			tailHasUser = true
 			break
 		}
@@ -499,7 +503,7 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	summarized := err == nil && !summaryLooksEmpty(summary)
 	var pending []Message
 	for i := len(torso) - 1; i >= 0 && summarized && !tailHasUser; i-- {
-		if torso[i].Role != "user" {
+		if torso[i].Role != "user" || isLokiInjected(torso[i]) {
 			continue
 		}
 		if strings.HasPrefix(msgText(torso[i]), compactSummaryPrefix) {
@@ -620,6 +624,12 @@ func renderTranscript(msgs []Message) string {
 	for _, m := range msgs {
 		switch m.Role {
 		case "user":
+			// Rappel de loki : une note du système, pas une demande que le
+			// résumé devrait attribuer à l'utilisateur.
+			if isLokiInjected(m) {
+				fmt.Fprintf(&b, "System: %s\n", msgText(m))
+				continue
+			}
 			fmt.Fprintf(&b, "User: %s\n", msgText(m))
 		case "assistant":
 			if t := msgText(m); t != "" {
@@ -904,12 +914,26 @@ func shrinkToFit(msgs []Message, actual int) ([]Message, bool) {
 		head++
 	}
 	for estimateTokens(out) > target {
-		next := -1
+		// Coupe d'abord aux vraies demandes : couper sur un rappel de loki
+		// jetterait la demande en gardant la fin de sa boucle d'outils. Un
+		// rappel ne sert de coupe qu'en dernier recours, quand il n'y a plus
+		// aucune demande après la tête (une seule longue boucle d'outils) —
+		// comme avant qu'ils soient persistés.
+		next, nudge := -1, -1
 		for k := head + 1; k < len(out); k++ {
-			if out[k].Role == "user" {
+			if out[k].Role != "user" {
+				continue
+			}
+			if !isLokiInjected(out[k]) {
 				next = k
 				break
 			}
+			if nudge < 0 {
+				nudge = k
+			}
+		}
+		if next < 0 {
+			next = nudge
 		}
 		if next < 0 {
 			break
