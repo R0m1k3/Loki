@@ -14,11 +14,13 @@ package loki
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,15 +34,27 @@ type gpuStat struct {
 	Temp  int
 }
 
-// gpuStats interroge nvidia-smi. Renvoie nil quand il est absent (machine sans
-// GPU NVIDIA, Mac, CPU seul) : l'absence de mesure n'est pas une erreur, elle
-// prive juste le déchargement de son bilan chiffré.
-func gpuStats() []gpuStat {
-	out, err := hideCmd(exec.Command("nvidia-smi",
+// nvidiaSmiQuery lance la requête nvidia-smi. Variable pour que les tests
+// substituent un faux exécutable et comptent les lancements.
+var nvidiaSmiQuery = func() ([]byte, error) {
+	return hideCmd(exec.Command("nvidia-smi",
 		"--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu",
 		"--format=csv,noheader,nounits")).Output()
+}
+
+// gpuStats interroge nvidia-smi. Renvoie nil quand il est absent (machine sans
+// GPU NVIDIA, Mac, CPU seul) : l'absence de mesure n'est pas une erreur, elle
+// prive juste le déchargement de son bilan chiffré. Toujours une lecture
+// FRAÎCHE : le bilan du déchargement (gpuSettle) en dépend, voir gpuStatsCached.
+func gpuStats() []gpuStat {
+	gpus, _ := gpuStatsErr()
+	return gpus
+}
+
+func gpuStatsErr() ([]gpuStat, error) {
+	out, err := nvidiaSmiQuery()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var gpus []gpuStat
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -58,7 +72,65 @@ func gpuStats() []gpuStat {
 		g.Temp, _ = strconv.Atoi(parts[4])
 		gpus = append(gpus, g)
 	}
-	return gpus
+	return gpus, nil
+}
+
+// gpuCache : la lecture des jauges, partagée. Chaque onglet ouvert (et chaque
+// téléphone) interroge /api/vram toutes les 3 s, et chacun lançait SON
+// nvidia-smi — un processus qui réveille le pilote et vole quelques
+// millisecondes de CPU aux threads de llama-server pendant une génération en
+// partie sur CPU. Une lecture vieille de deux secondes suffit largement à une
+// jauge ; le verrou tenu pendant la requête fait que des appels simultanés
+// attendent la même lecture au lieu d'en lancer chacun une.
+//
+// Un nvidia-smi INTROUVABLE (Mac, CPU seul) est mémorisé une minute : inutile de
+// rechercher le binaire dans le PATH toutes les deux secondes. Une autre erreur
+// (carte en réinitialisation) se retente au bout du délai normal.
+type gpuCache struct {
+	mu   sync.Mutex
+	exp  time.Time
+	gpus []gpuStat
+}
+
+const (
+	gpuCacheTTL    = 2 * time.Second
+	gpuCacheAbsent = time.Minute
+)
+
+// get : now est l'horloge (time.Now hors tests).
+func (c *gpuCache) get(now func() time.Time, query func() ([]gpuStat, error)) []gpuStat {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if now().Before(c.exp) {
+		return c.gpus
+	}
+	gpus, err := query()
+	ttl := gpuCacheTTL
+	if errors.Is(err, exec.ErrNotFound) {
+		ttl = gpuCacheAbsent
+	}
+	// L'échéance part de la FIN de la requête : un nvidia-smi lent ne doit pas
+	// laisser une lecture déjà vieille passer pour neuve.
+	c.gpus, c.exp = gpus, now().Add(ttl)
+	return c.gpus
+}
+
+// invalidate : la prochaine lecture repart de nvidia-smi.
+func (c *gpuCache) invalidate() {
+	c.mu.Lock()
+	c.exp = time.Time{}
+	c.mu.Unlock()
+}
+
+var gpuMonitor gpuCache
+
+// gpuStatsCached : la lecture des jauges du moniteur (handleVram), SEULEMENT.
+// Le déchargement garde gpuStats : gpuSettle conclut sur deux lectures égales
+// de suite, et une valeur servie deux fois par le cache l'y ferait conclure à
+// tort — exactement le faux bilan qu'il est écrit pour éviter. La tranche
+// rendue est partagée : lecture seule.
+func gpuStatsCached() []gpuStat {
+	return gpuMonitor.get(time.Now, gpuStatsErr)
 }
 
 // gpuUsedMB : VRAM occupée, toutes cartes confondues.
@@ -113,10 +185,13 @@ func gpuSettle(before int, sample func() (int, bool), pause time.Duration) int {
 }
 
 func gpuUsedSettled(before int) int {
-	return gpuSettle(before, func() (int, bool) {
-		g := gpuStats()
-		return gpuUsedMB(g), g != nil
-	}, 500*time.Millisecond)
+	return gpuSettle(before, gpuSettleSample, 500*time.Millisecond)
+}
+
+// gpuSettleSample : une lecture fraîche pour gpuSettle — jamais le cache.
+func gpuSettleSample() (int, bool) {
+	g := gpuStats()
+	return gpuUsedMB(g), g != nil
 }
 
 // engineNeedsStop : faut-il envoyer « stop » ? Actif, évidemment. Mais sous
@@ -204,6 +279,9 @@ func handleVramUnload(w http.ResponseWriter, r *http.Request) {
 	if gpus != nil {
 		after = gpuUsedSettled(before)
 	}
+	// Les jauges ne doivent pas montrer, deux secondes encore, une carte pleine
+	// qu'on vient d'annoncer libérée.
+	gpuMonitor.invalidate()
 	freed := before - after
 	if freed < 0 {
 		freed = 0

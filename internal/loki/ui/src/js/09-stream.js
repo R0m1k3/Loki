@@ -770,6 +770,14 @@ async function send(){
   fail('échec de l\'envoi — réessaie');
 }
 loadAll();
-setInterval(loadStatus, 5000);
-setInterval(loadVram, 3000);
-setInterval(loadRam, 3000);
+// Jauges et pastille d'état : rien à rafraîchir dans un onglet que personne ne
+// regarde. Chaque tic lançait sinon un nvidia-smi côté serveur, pour chaque
+// onglet ou téléphone laissé ouvert, pendant que le modèle génère. Au retour de
+// l'onglet, une lecture immédiate remet tout à jour.
+const pollVisible=(fn)=>()=>{ if(!document.hidden) fn(); };
+setInterval(pollVisible(loadStatus), 5000);
+setInterval(pollVisible(loadVram), 3000);
+setInterval(pollVisible(loadRam), 3000);
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden){ loadStatus(); loadVram(); loadRam(); }
+});

@@ -189,10 +189,11 @@ func handleServiceLog(w http.ResponseWriter, r *http.Request) {
 
 // handleVram expose l'état des cartes à l'interface (jauges du moniteur).
 // La lecture nvidia-smi elle-même vit dans web_vram.go, avec le déchargement
-// de la VRAM qui s'en sert pour chiffrer la mémoire rendue.
+// de la VRAM qui s'en sert pour chiffrer la mémoire rendue. Lecture partagée
+// (gpuStatsCached) : tous les onglets se contentent d'un seul nvidia-smi.
 func handleVram(w http.ResponseWriter, r *http.Request) {
 	gpus := []map[string]any{}
-	for _, g := range gpuStats() {
+	for _, g := range gpuStatsCached() {
 		gpus = append(gpus, map[string]any{
 			"name": g.Name, "used": g.Used, "total": g.Total, "util": g.Util, "temp": g.Temp,
 		})
