@@ -33,7 +33,30 @@ async function jfetch(u, opts){
     const k = await askKeyOnce();
     if(k){ opts.headers = authHeaders(opts.headers); r = await fetch(u, opts); }
   }
+  // 403 de la garde anti-site-tiers (web_auth.go, crossSiteReject) : sans ce
+  // bandeau, l'interface restait vide sans dire pourquoi — chaque appel échouait
+  // en silence dans la console.
+  if(r.status === 403 && !accessBlockedShown){
+    r.clone().json().then(j=>{ if(j && j.error) showAccessBlocked(j.error); }).catch(()=>{});
+  }
   return r;
+}
+
+// showAccessBlocked : bandeau fixe expliquant le refus d'accès et comment le
+// lever (nom de domaine derrière un reverse proxy, sans clé de pilotage).
+let accessBlockedShown = false;
+function showAccessBlocked(msg){
+  if(accessBlockedShown) return;
+  accessBlockedShown = true;
+  const d = document.createElement('div');
+  d.id = 'access-blocked';
+  d.setAttribute('role', 'alert');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;padding:12px 16px;background:var(--err,#b3564d);color:#fff;font-size:13px;line-height:1.5';
+  const host = location.hostname;
+  d.innerHTML = '<b>Accès refusé par Loki</b> — ' + escHtml(msg) +
+    '<br>Derrière un reverse proxy : ajoute <code>LOKI_TRUSTED_HOSTS=' + escHtml(host) +
+    '</code> aux variables du conteneur puis recrée-le, ou définis une clé de pilotage (<code>docker exec -it loki loki set-web-key</code>).';
+  document.body.appendChild(d);
 }
 // askKeyOnce : UNE seule demande de clé à la fois, partagée par tous les appels.
 //

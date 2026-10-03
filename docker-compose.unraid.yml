@@ -34,6 +34,11 @@ services:
       # lancement). Ex. LOKI_MODEL=Qwen3-14B-Q4_K_M.gguf après dépôt du
       # fichier dans /mnt/user/appdata/loki/models.
       - LOKI_MODEL=
+      # Accès par NOM DE DOMAINE (reverse proxy, ex. loki.mondomaine.fr) sans
+      # clé de pilotage : liste ici le(s) nom(s), séparés par des virgules —
+      # sinon l'API répond 403 (protection contre les sites tiers / DNS
+      # rebinding). Inutile pour un accès par IP ou nom local.
+      - LOKI_TRUSTED_HOSTS=
     volumes:
       # /data : config, base, mémoire, workspace, modèles téléchargés par l'UI
       - /mnt/user/appdata/loki/data:/data

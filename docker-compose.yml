@@ -22,6 +22,9 @@ services:
       - LOKI_MODEL=${LOKI_MODEL:-}
       - LOKI_CTX=${LOKI_CTX:-}
       - LOKI_NGL=${LOKI_NGL:-}
+      # Accès par nom de domaine (reverse proxy) sans clé de pilotage : nom(s)
+      # autorisé(s), séparés par des virgules — sinon l'API répond 403.
+      - LOKI_TRUSTED_HOSTS=${LOKI_TRUSTED_HOSTS:-}
     volumes:
       # /data = LOKI_HOME : config, base bbolt, mémoire, workspace, modèles téléchargés
       - ./data:/data
