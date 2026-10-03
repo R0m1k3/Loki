@@ -112,6 +112,11 @@ func modelLoadError() string {
 		switch {
 		case strings.Contains(low, "model loaded"), strings.Contains(low, "server is listening"):
 			loaded = true
+		case strings.Contains(low, "failed to create mtp context"),
+			strings.Contains(low, "failed to load draft model"),
+			strings.Contains(low, "failed to initialize speculative decoding context"):
+			// Avant l'échec générique : c'est le brouillon qui manque, pas le modèle.
+			reason = "le décodage spéculatif n'a pas pu démarrer (tête MTP ou modèle brouillon) — SPEC=off dans le preset"
 		case strings.Contains(l, "has offset") && strings.Contains(l, "expected"):
 			reason = "format de quantification non reconnu par ce moteur"
 		case strings.Contains(low, "unknown model architecture"),

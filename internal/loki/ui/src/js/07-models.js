@@ -165,7 +165,7 @@ async function openItem(kind, key){
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
     attachDownload();                      // téléchargement encore en cours côté serveur ?
-    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(),
+    await Promise.all([loadGpuDevices(), populateModelPicker(), populateMmproj(), populateDraft(),
                        populateDlDirs(), refreshInstalled()]);
     if(seq !== openSeq) return;
   }
@@ -523,7 +523,7 @@ async function deleteInstalled(m){
   }
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
   toast('modèle supprimé — ' + fmtSize(r.freed||0) + ' libérés');
-  await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(),
+  await Promise.all([populateModelPicker(), populateMmproj(), populateDraft(), populateDlDirs(),
                      populateModelDirs(), refreshInstalled()]);
 }
 // Un .gguf donné est-il déjà sur le disque, complet ? Sert avant de proposer un
@@ -897,7 +897,7 @@ function populateSettings(){
   set('s-reppen', cfgReadKey('REPEAT_PENALTY'));
   set('s-moe', eaGetValued('--n-cpu-moe'));
   set('s-spec-n', eaGetValued('--spec-draft-n-max'));
-  setSpecType(eaGetValued('--spec-type'));
+  setSpecType(eaGetValued('--spec-type') || specFromKey(cfgReadKey('SPEC')));
   const chk = (id,v)=>{ const e=document.getElementById(id); if(e) e.checked=v; };
   // Raisonnement : trois états dans le fichier, deux positions sur l'interrupteur.
   // « off » est une interdiction explicite passée au moteur ; la clé ABSENTE, elle,
@@ -1046,7 +1046,14 @@ function syncLoadModeSub(mode){
   const el = document.getElementById('s-loadmode-sub');
   if(el) el.textContent = LOAD_MODE_SUB[mode] ?? mode;
 }
-// --- Décodage spéculatif (--spec-type / --spec-draft-n-max) ----------------
+// --- Décodage spéculatif (SPEC, MODEL_DRAFT, --spec-type, --spec-draft-n-max)
+// « auto » et « MTP » passent par la clé SPEC : Loki cherche la tête MTP dans
+// le fichier et pose les garde-fous au lancement. Les autres types restent des
+// --spec-type d'EXTRA_ARGS, qui ont toujours le dernier mot côté serveur.
+function specFromKey(v){
+  v = String(v||'').trim().toLowerCase();
+  return v === 'auto' ? 'auto' : v === 'mtp' ? 'draft-mtp' : '';
+}
 // Sélectionne le type courant. --spec-type accepte en réalité une LISTE séparée
 // par des virgules ; une valeur composée (ou un type sorti après cette version
 // de loki) ne correspondrait à aucune option et serait silencieusement effacée
@@ -1072,15 +1079,53 @@ function syncSpecRow(){
   if(!sel || !row) return;
   const on = !!sel.value;
   row.style.display = on ? '' : 'none';
+  // Le brouillon ne sert qu'à SPEC (auto / MTP) ; un brouillon déjà posé reste
+  // visible pour qu'on puisse le retirer.
+  const dr = document.getElementById('s-draft-row');
+  if(dr) dr.style.display = (sel.value === 'auto' || sel.value === 'draft-mtp' || cfgReadKey('MODEL_DRAFT')) ? '' : 'none';
   return on;
 }
 function onSpecType(){
   const v = document.getElementById('s-spec').value;
-  eaSetValued('--spec-type', v);
+  const viaKey = v === 'auto' || v === 'draft-mtp';
+  // « non » écrit SPEC=off : explicite, et identique au défaut du serveur.
+  cfgWriteKey('SPEC', v === 'auto' ? 'auto' : v === 'draft-mtp' ? 'mtp' : v ? '' : 'off');
+  eaSetValued('--spec-type', viaKey ? '' : v);
   if(!v){
     eaSetValued('--spec-draft-n-max', '');
     document.getElementById('s-spec-n').value = '';
   }
+  syncSpecRow();
+}
+// Liste des brouillons : tous les .gguf sauf les projecteurs vision. Une tête
+// MTP publiée à part (mtp-*.gguf) est ce qu'on y choisira le plus souvent.
+async function populateDraft(){
+  const sel = document.getElementById('m-draft');
+  if(!sel) return;
+  const list = await jget('/api/models');
+  const cur = readEnvKey(document.getElementById('m-content').value, 'MODEL_DRAFT');
+  const items = (list||[]).filter(m => !isMmprojName(m.name));
+  const hit = matchModel(cur, items);
+  let html = '<option value="">— aucun —</option>';
+  let matched = false;
+  for(const m of items){
+    const on = (m === hit) ? ' selected' : '';
+    if(on) matched = true;
+    html += '<option value="'+escHtml(m.value)+'"'+on+'>'+escHtml(m.name)+' ('+fmtSize(m.size)+')</option>';
+  }
+  if(cur && !matched){
+    html += '<option value="'+escHtml(cur)+'" selected>'+escHtml(baseName(cur)||cur)+' (introuvable)</option>';
+  }
+  sel.innerHTML = html;
+  syncSpecRow();
+}
+// Choisir un brouillon, c'est demander la spéculation : on passe en « auto » si
+// elle était coupée (les garde-fous de Loki restent en place).
+function onPickDraft(){
+  const v = document.getElementById('m-draft').value;
+  cfgWriteKey('MODEL_DRAFT', v);
+  const sel = document.getElementById('s-spec');
+  if(v && sel && !sel.value){ sel.value = 'auto'; onSpecType(); toast('décodage spéculatif : auto'); }
   syncSpecRow();
 }
 
@@ -1214,7 +1259,7 @@ let dlQueue = [];
 // fichier. Le fichier a pu atterrir hors du dossier loki : l'option porte alors
 // le chemin complet, pas le simple nom.
 async function selectInstalled(fname){
-  await Promise.all([populateModelPicker(), populateMmproj(), populateDlDirs(), refreshInstalled()]);
+  await Promise.all([populateModelPicker(), populateMmproj(), populateDraft(), populateDlDirs(), refreshInstalled()]);
   const pick = (id, cb)=>{
     const s = document.getElementById(id);
     if(!s) return false;
@@ -1222,6 +1267,7 @@ async function selectInstalled(fname){
     if(!o) return false;
     s.value = o.value; cb(); return true;
   };
+  if(/^mtp-/i.test(fname)) return pick('m-draft', onPickDraft);
   return isMmprojName(fname) ? pick('m-mmproj', onPickMmproj) : pick('m-model', onPickModel);
 }
 async function startDownload(){
@@ -1514,11 +1560,27 @@ async function hfPickRepo(repo){
   }
   o.appendChild(note);
 
+  // Tête MTP publiée à part (mtp-*.gguf) : même règle que le projecteur, elle
+  // ne vaut que pour SON modèle. Décochée : la spéculation reste un choix.
+  let dfChk = null;
+  const df = (r.drafts||[])[0] && hfBestProjector(r.drafts);
+  if(df){
+    const dn = document.createElement('label');
+    dn.className = 'hf-mm';
+    dfChk = document.createElement('input');
+    dfChk.type = 'checkbox';
+    const t = document.createElement('span');
+    t.textContent = ' installer aussi la tête MTP (décodage plus rapide, ~1-2 Go de VRAM) — '+df.name+' ('+fmtSize(df.size)+')'
+      + (installed(df.name) ? ' — déjà sur le disque' : '');
+    dn.append(dfChk, t);
+    o.appendChild(dn);
+  }
+
   const list = document.createElement('div'); list.className = 'hf-list';
   for(const m of r.models){
     const row = document.createElement('div');
     row.className = 'hf-row';
-    row.onclick = ()=>hfInstall(m, mm && mmChk && mmChk.checked ? mm : null);
+    row.onclick = ()=>hfInstall(m, mm && mmChk && mmChk.checked ? mm : null, df && dfChk && dfChk.checked ? df : null);
     const n = document.createElement('span'); n.className = 'hf-name';
     n.textContent = m.quant || m.name;
     const meta = document.createElement('span'); meta.className = 'hf-meta';
@@ -1565,14 +1627,14 @@ function hfBestProjector(list){
 
 // Installe : le modèle d'abord, le projecteur ensuite (la file s'en charge). Le
 // champ Vision du preset ne se remplit correctement que dans cet ordre.
-async function hfInstall(model, projector){
+async function hfInstall(model, projector, draft){
   // Le fichier est là : rien à télécharger, donc rien à confirmer — la sonde le
   // constate côté serveur et startDownloadURL le sélectionne.
   const here = await modelIsOnDisk(model.name);
   if(!here && model.verdict === 'trop' && !await askConfirm(
       (model.why||'Ce modèle dépasse la mémoire disponible.')+'\n\nLe téléchargement fonctionnera, mais le moteur risque de ne pas le charger.',
       {title:'Installer quand même ?', okText:'Installer', danger:true})) return;
-  dlQueue = projector ? [projector.url] : [];
+  dlQueue = [projector, draft].filter(Boolean).map(x => x.url);
   document.getElementById('m-hf-url').value = model.url;
   await startDownloadURL(model.url);
 }

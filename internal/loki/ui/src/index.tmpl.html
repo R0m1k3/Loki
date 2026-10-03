@@ -1255,16 +1255,19 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               <option value="bf16">bf16 (numérique différente de f16)</option>
             </select></span></span>
           </div>
-          <!-- Décodage spéculatif : le type vient de la liste que llama-server
-               accepte pour --spec-type. Le nombre de jetons anticipés
+          <!-- Décodage spéculatif : « auto » et « MTP » écrivent la clé SPEC,
+               que Loki traduit au lancement (tête MTP détectée dans le fichier,
+               garde-fous VRAM) ; les autres types vont tels quels dans
+               --spec-type. « non » écrit SPEC=off. Le nombre de jetons anticipés
                (--spec-draft-n-max) n'a de sens qu'une fois un type choisi, donc
                sa ligne n'apparaît qu'à ce moment. -->
           <div class="pe-row">
             <span class="pe-row-l">Décodage spéculatif<span class="pe-sub">anticipe des jetons pour accélérer</span></span>
             <span class="pe-row-c"><span class="pe-selc"><select id="s-spec" onchange="onSpecType()">
               <option value="">non</option>
+              <option value="auto">auto (MTP si le modèle en a une et que la VRAM suit)</option>
               <optgroup label="Modèle brouillon">
-                <option value="draft-mtp">MTP (intégré au modèle)</option>
+                <option value="draft-mtp">MTP (imposé)</option>
                 <option value="draft-eagle3">EAGLE-3</option>
                 <option value="draft-simple">modèle brouillon séparé</option>
                 <option value="draft-dflash">dFlash</option>
@@ -1282,6 +1285,12 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <div class="pe-row" id="s-spec-n-row" style="display:none">
             <span class="pe-row-l">Jetons anticipés<span class="pe-sub">par étape — défaut 3</span></span>
             <span class="pe-row-c"><input id="s-spec-n" class="pe-val" type="number" min="1" step="1" placeholder="3" oninput="eaSetValued('--spec-draft-n-max', this.value)"></span>
+          </div>
+          <!-- Tête MTP publiée à part (mtp-*.gguf) ou petit modèle brouillon :
+               clé MODEL_DRAFT, résolue au lancement comme le projecteur vision. -->
+          <div class="pe-row" id="s-draft-row" style="display:none">
+            <span class="pe-row-l">Brouillon<span class="pe-sub">tête MTP à part ou petit modèle</span></span>
+            <span class="pe-row-c"><span class="pe-selc"><select id="m-draft" onchange="onPickDraft()"></select></span></span>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Raisonnement<span class="pe-sub" id="s-reasoning-sub">réflexion étape par étape</span></span>

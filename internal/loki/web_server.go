@@ -131,6 +131,9 @@ func newWebMux() *http.ServeMux {
 	// Planificateur des tâches : une goroutine, un tic par minute, dans le process
 	// qui détient la conversation et le modèle (idempotent, cf. sync.Once).
 	StartTaskScheduler()
+	// Jeton de tentative du décodage spéculatif automatique : effacé dès que le
+	// moteur répond, sans dépendre d'une page ouverte (voir backend_serve_spec.go).
+	startSpecAttemptWatch()
 	mux := http.NewServeMux()
 	// Pages publiques : le HTML et le JS ne contiennent aucun secret. Toute la
 	// donnée et toutes les actions passent par /api/* qui, lui, exige la clé.

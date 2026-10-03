@@ -344,10 +344,19 @@ func cmdServe(args []string) error {
 	probeFidelityEnv(&si)
 	probeCacheRAM(cfg, extra, &si)
 	probeCkptEnv(&si)
-	// Build du moteur : seulement pour un hybride, le seul cas où il décide de
-	// quelque chose (voir ckptArgs) — inutile de lancer « --version » sinon.
-	if ggufHybrid(si.GGUF) {
+	spec := specMode(cfg)
+	if spec == "auto" || spec == "mtp" {
+		probeSpec(cfg, &si)
+	}
+	// Build du moteur : seulement pour un hybride ou SPEC=auto, les seuls cas où
+	// il décide de quelque chose (voir ckptArgs, specAutoBlocker) — inutile de
+	// lancer « --version » sinon.
+	if ggufHybrid(si.GGUF) || spec == "auto" {
 		si.EngineBuild = engineBuildTrusted(bin)
+	}
+	specMark := specAutoMark{FP: configFingerprint(cfg), Bin: bin, Build: si.EngineBuild}
+	if spec == "auto" {
+		si.SpecAutoBlocked = specAutoCheck(specMark)
 	}
 	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
 		si.SlotDir = prepareSlotDir(LokiHome())
@@ -374,6 +383,11 @@ func cmdServe(args []string) error {
 	// lui que le moteur accélère ou non.
 	kt, vt, _ := effectiveKVTypes(cfg, extra, si.ArgEnv)
 	warnSlowKV(kt, vt)
+	// Jeton de tentative : posé au dernier moment, port libre, l'ancien moteur
+	// est donc bien parti — le process web ne peut pas le confondre avec lui.
+	if _, _, auto := specArgs(cfg, extra, si); auto {
+		specAutoAttempt(specMark)
+	}
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
 		bin, filepath.Base(model), port)
@@ -409,8 +423,16 @@ type serveSysInfo struct {
 	SlotDir     string    // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
 
 	// Build d'un moteur officiel (engineBuildTrusted), lu seulement pour un
-	// modèle hybride ; 0 = inconnu ou non lu : ni avis ni drapeau automatique.
+	// modèle hybride ou SPEC=auto ; 0 = inconnu ou non lu : ni avis ni drapeau
+	// automatique.
 	EngineBuild int
+
+	// Décodage spéculatif (voir backend_serve_spec.go), lu seulement si SPEC le
+	// demande.
+	Draft           string    // MODEL_DRAFT résolu et vérifié ; vide = absent ou introuvable
+	DraftErr        string    // pourquoi MODEL_DRAFT n'a pas été trouvé
+	DraftGGUF       *GGUFInfo // métadonnées du brouillon ; nil = illisibles
+	SpecAutoBlocked string    // un essai automatique précédent a échoué : la raison
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -606,6 +628,11 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	ck, ckNotes := ckptArgs(cfg, extra, si)
 	args = append(args, ck...)
 	notes = append(notes, ckNotes...)
+	// Décodage spéculatif (voir backend_serve_spec.go) : rien tant que SPEC
+	// n'est pas posé.
+	sp, spNotes, _ := specArgs(cfg, extra, si)
+	args = append(args, sp...)
+	notes = append(notes, spNotes...)
 	// EXTRA_ARGS (déjà découpé comme le ferait le shell — les guillemets gardent
 	// ensemble un chemin qui contient des espaces) ferme la marche.
 	args = append(args, extra...)

@@ -114,14 +114,7 @@ func fitTargetArgs(cfg map[string]string, extra []string, si serveSysInfo) (args
 	case si.ArgEnv["LLAMA_ARG_FIT_TARGET"] != "":
 		return ignore("LLAMA_ARG_FIT_TARGET déjà posé dans l'environnement")
 	}
-	ctx := flagValue(extra, "-c", "--ctx-size")
-	if ctx == "" {
-		ctx = strings.TrimSpace(cfg["CTX"])
-		if ctx == "" {
-			ctx = "32768"
-		}
-	}
-	if n, err := strconv.Atoi(ctx); err != nil || n <= 0 {
+	if ctx, ok := ctxFixed(cfg, extra); !ok {
 		return ignore("contexte « " + ctx + " » non fixé — --fit pourrait le réduire pour tenir ; donne un CTX chiffré")
 	}
 	if why := fitBlocker(cfg, extra, si); why != "" {
