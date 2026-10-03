@@ -104,7 +104,18 @@ func oaiHandler() http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
+		// /slots en lecture seulement : save, restore et erase restent à Loki
+		// (llm_slots.go).
+		if slotsWrite(r) {
+			sendOAIError(w, http.StatusMethodNotAllowed,
+				"/slots est en lecture seule à travers Loki", "invalid_request_error", "method_not_allowed")
+			return
+		}
 		if strings.HasPrefix(p, "/v1") || p == "/health" || p == "/props" || p == "/metrics" || strings.HasPrefix(p, "/slots") {
+			// Requête en vol vers le moteur : l'isolation des travaux annexes
+			// n'efface pas le slot pendant ce temps. Différé : ReverseProxy panique
+			// (ErrAbortHandler) quand le client coupe en plein flux.
+			defer engineRequestStart()()
 			lp.ServeHTTP(w, r)
 			return
 		}

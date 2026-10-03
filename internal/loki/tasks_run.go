@@ -90,6 +90,9 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 	}
 
 	var content strings.Builder
+	// La tâche a pris le slot de la conversation : effacé une fois la tâche
+	// finie, verrou de génération encore tenu (llm_slots.go).
+	defer engineSideJob()()
 	_, err := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
 		if ev.Content != "" {
 			content.WriteString(ev.Content)

@@ -660,6 +660,9 @@ Write the summary in the SAME language as the conversation.`
 	}
 	req.Header.Set("Content-Type", "application/json")
 	ep.auth(req.Header.Set)
+	if !ep.External {
+		defer engineRequestStart()() // voir llm_slots.go
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", friendlyLLMError(err)

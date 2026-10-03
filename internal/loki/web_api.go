@@ -463,6 +463,20 @@ type saveReq struct {
 	Content string `json:"content"`
 }
 
+// handlePresetCacheRAM : aperçu de la taille du cache de prompts en RAM pour le
+// preset en cours d'édition (champ CACHE_RAM de l'éditeur).
+func handlePresetCacheRAM(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	mib, why := cacheRAMPreview(req.Content)
+	sendJSON(w, 200, map[string]any{"ok": true, "mib": mib, "default": engineCacheRAMDefault, "why": why})
+}
+
 func handlePresetSave(w http.ResponseWriter, r *http.Request) {
 	var req presetSaveReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

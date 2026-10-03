@@ -519,6 +519,13 @@ func newLinkHandler(mux *http.ServeMux) http.Handler {
 				http.Error(w, "endpoint OpenAI désactivé via le relais (transiterait en clair) ; LOKI_LINK_ALLOW_OAI=1 pour l'autoriser", http.StatusForbidden)
 				return
 			}
+			// /slots en lecture seule : un pair distant n'efface, ne sauve ni ne
+			// restaure rien sur ce moteur (llm_slots.go).
+			if slotsWrite(r) {
+				http.Error(w, "/slots est en lecture seule via le relais", http.StatusMethodNotAllowed)
+				return
+			}
+			defer engineRequestStart()() // voir oaiHandler
 			lp.ServeHTTP(w, r)
 			return
 		}

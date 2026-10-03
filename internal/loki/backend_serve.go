@@ -342,6 +342,10 @@ func cmdServe(args []string) error {
 	probeServeGPUs(cfg, extra, &si)
 	probeExpertEnv(&si)
 	probeFidelityEnv(&si)
+	probeCacheRAM(cfg, extra, &si)
+	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
+		si.SlotDir = prepareSlotDir(LokiHome())
+	}
 
 	llmArgs, env, notes := buildServeArgs(cfg, extra, bin, si)
 	applyServeEnv(env)
@@ -388,6 +392,15 @@ type serveSysInfo struct {
 	GPUs         int               // GPU visibles (CUDA_VISIBLE_DEVICES, sinon nvidia-smi) ; 0 = inconnu ou non sondé
 	ArgEnv       map[string]string // LLAMA_ARG_* de l'environnement qui décident du pipeline, de --fit et du cache (serveArgEnv, fitArgEnv, fidelityArgEnv)
 	UserEnv      map[string]string // GGML_* des réglages d'expert déjà posés (voir expertEnvKeys) : intouchés
+
+	// Cache de prompts (voir backend_serve_cache.go). Zéro = inconnu : le moteur
+	// garde son défaut.
+	GGUF        *GGUFInfo // métadonnées du modèle ; nil = illisibles
+	ModelBytes  int64     // taille du modèle, toutes tranches
+	RAMMiB      int64     // RAM de la machine, limite du conteneur comprise
+	RAMAvailMiB int64     // RAM libre au lancement
+	VRAMMiB     int64     // VRAM NVIDIA des cartes visibles
+	SlotDir     string    // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -569,6 +582,11 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	if si.APIKey != "" {
 		args = append(args, "--api-key", si.APIKey)
 	}
+	// Cache de prompts en RAM et dossier des slots (voir backend_serve_cache.go) :
+	// avant EXTRA_ARGS, qui garde le dernier mot.
+	cram, cramNotes := cacheRAMArgs(cfg, extra, si)
+	args = append(append(args, cram...), slotSaveArgs(cfg, extra, si)...)
+	notes = append(notes, cramNotes...)
 	// EXTRA_ARGS (déjà découpé comme le ferait le shell — les guillemets gardent
 	// ensemble un chemin qui contient des espaces) ferme la marche.
 	args = append(args, extra...)

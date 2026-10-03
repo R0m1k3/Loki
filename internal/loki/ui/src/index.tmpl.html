@@ -1234,6 +1234,13 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value)"></span>
           </div>
           <div class="pe-row">
+            <!-- Cache de prompts en RAM hôte (--cache-ram, Mio) : copie exacte de
+                 l'état, rechargée quand la conversation revient. Vide = auto, la
+                 valeur calculée s'affiche en indication (refreshCacheRAM). -->
+            <span class="pe-row-l">Cache de prompts (Mio)<span class="pe-sub" id="s-cram-sub">RAM hôte, copie exacte du contexte · jamais la VRAM</span></span>
+            <span class="pe-row-c"><input id="s-cram" class="pe-val" type="number" min="-1" step="1024" placeholder="auto" oninput="cfgWriteKey('CACHE_RAM', this.value)"></span>
+          </div>
+          <div class="pe-row">
             <!-- Seul f16 laisse les calculs du modèle intacts : chaque autre
                  option le dit. Le sous-titre montre le type EFFECTIF — un
                  -ctk/-ctv d'EXTRA_ARGS l'emporte sur cette liste (syncKVSub). -->

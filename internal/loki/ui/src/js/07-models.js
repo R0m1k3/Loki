@@ -882,6 +882,8 @@ function populateSettings(){
   set('s-threads', cfgReadKey('THREADS'));
   set('s-batch', cfgReadKey('BATCH'));
   set('s-ubatch', cfgReadKey('UBATCH'));
+  set('s-cram', cfgReadKey('CACHE_RAM'));
+  refreshCacheRAM();
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
   syncKVSub();
@@ -955,6 +957,23 @@ function eaLastValue(flags){
     else if(i+1 < t.length) v = t[i+1];
   });
   return v;
+}
+// Valeur auto du cache de prompts, calculée côté serveur comme au lancement
+// (VRAM, RAM libre, métadonnées du modèle) : affichée en indication du champ
+// CACHE_RAM. Une seule demande en vol ; la dernière gagne.
+let cramSeq = 0;
+async function refreshCacheRAM(){
+  const el = document.getElementById('s-cram'), sub = document.getElementById('s-cram-sub');
+  if(!el) return;
+  const seq = ++cramSeq;
+  let r = {};
+  try{ r = await jpost('/api/preset/cacheram', {content: document.getElementById('m-content').value}); }
+  catch(_){ r = {}; }
+  if(seq !== cramSeq || !r.ok) return;
+  const auto = r.mib > 0 ? r.mib : r.default;
+  el.placeholder = 'auto · ' + auto;
+  if(sub) sub.textContent = 'RAM hôte, copie exacte du contexte · jamais la VRAM' +
+    (r.why ? ' · ' + r.why : '') + (r.mib > 0 ? '' : ' · défaut du moteur');
 }
 function syncKVSub(){
   const el = document.getElementById('s-kv-sub');

@@ -184,7 +184,7 @@ func TestGGUFMetaQwenHybrideMTP(t *testing.T) {
 	want := GGUFInfo{
 		Version: 3, Arch: "qwen35", BlockCount: 4, NextN: 1, ContextLength: 262144,
 		KeyLen: 256, ValLen: 256, HeadCountKV: 4, HeadCountKVLayers: []int{0, 0, 0, 4},
-		FullAttnInterval: 4, Hybrid: true, HasNextNTensor: true, TensorCount: 3,
+		FullAttnInterval: 4, Hybrid: true, SSMConv: 4, HasNextNTensor: true, TensorCount: 3,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ggufMeta =\n%+v\nattendu\n%+v", got, want)

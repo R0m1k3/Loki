@@ -54,6 +54,9 @@ func runBench(nPrompt, nPredict int) (*benchResult, error) {
 	if !healthCheck() {
 		return nil, fmt.Errorf("serveur injoignable sur :%d", port)
 	}
+	// Le bench prend le slot de la conversation : une fois fini, on l'efface
+	// pour qu'elle soit rechargée depuis le cache RAM (llm_slots.go).
+	defer engineSideJob()()
 	if nPrompt <= 0 {
 		nPrompt = 2000
 	}
@@ -90,6 +93,7 @@ func runBench(nPrompt, nPredict int) (*benchResult, error) {
 	req.Header.Set("Content-Type", "application/json")
 	authHeader(req)
 	client := &http.Client{Timeout: 5 * time.Minute}
+	defer engineRequestStart()() // avant l'effacement, différé plus haut
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

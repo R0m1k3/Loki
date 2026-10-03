@@ -48,6 +48,15 @@ type GGUFInfo struct {
 	HeadCountKVLayers []int
 	FullAttnInterval  int  // <arch>.full_attention_interval, si présent
 	Hybrid            bool // au moins une clé <arch>.ssm.* : couches à état récurrent
+	// Repli de llama.cpp quand key_length / value_length manquent : n_embd / n_head.
+	EmbeddingLength int // <arch>.embedding_length
+	HeadCount       int // <arch>.attention.head_count (valeur unique seulement)
+	// Taille de l'état récurrent par couche (llama_hparams::n_embd_r / n_embd_s),
+	// pour estimer ce que pèse un état sauvegardé d'un modèle hybride.
+	SSMConv   int // <arch>.ssm.conv_kernel
+	SSMInner  int // <arch>.ssm.inner_size
+	SSMState  int // <arch>.ssm.state_size
+	SSMGroups int // <arch>.ssm.group_count
 	// HasNextNTensor : le tenseur blk.{BlockCount-1}.nextn.eh_proj.weight existe
 	// dans l'une des tranches. C'est le test de llama.cpp lui-même pour reconnaître
 	// une tête MTP : la clé nextn_predict_layers seule ne suffit pas, certains GGUF
@@ -501,6 +510,12 @@ func ggufInfoFrom(first *ggufFile, all []*ggufFile) GGUFInfo {
 	in.KeyLen = get("attention.key_length")
 	in.ValLen = get("attention.value_length")
 	in.FullAttnInterval = get("full_attention_interval")
+	in.EmbeddingLength = get("embedding_length")
+	in.HeadCount = get("attention.head_count")
+	in.SSMConv = get("ssm.conv_kernel")
+	in.SSMInner = get("ssm.inner_size")
+	in.SSMState = get("ssm.state_size")
+	in.SSMGroups = get("ssm.group_count")
 	in.HeadCountKV = get("attention.head_count_kv")
 	if arr, ok := first.arrays[p+"attention.head_count_kv"]; ok {
 		in.HeadCountKVLayers = make([]int, len(arr))

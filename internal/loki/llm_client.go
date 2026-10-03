@@ -728,6 +728,9 @@ type StatsEvent struct {
 	// Taille TOTALE du prompt traité ce tour (préfixe caché compris), issue de
 	// `usage.prompt_tokens`. 0 si le backend ne renvoie pas d'usage.
 	PromptTokensTotal int `json:"prompt_tokens_total,omitempty"`
+	// Conseil ponctuel quand le cache de prompts n'a pas tenu après un travail
+	// annexe (voir noteEnginePrompt). Vide la plupart du temps.
+	CacheHint string `json:"cache_hint,omitempty"`
 }
 
 // ChatCallback receives stream events. Return false to abort the stream.
@@ -756,9 +759,12 @@ type streamChunk struct {
 	} `json:"timings"`
 	// Chunk final (include_usage) : taille totale du prompt, hors choices.
 	Usage *struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-		TotalTokens      int `json:"total_tokens"`
+		PromptTokens        int `json:"prompt_tokens"`
+		CompletionTokens    int `json:"completion_tokens"`
+		TotalTokens         int `json:"total_tokens"`
+		PromptTokensDetails *struct {
+			CachedTokens int `json:"cached_tokens"`
+		} `json:"prompt_tokens_details"`
 	} `json:"usage"`
 }
 
@@ -1046,8 +1052,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// temps qu'un 401 garanti. Chaque endpoint porte la sienne.
 		ep.auth(req.Header.Set)
 		tReq := time.Now() // secours des stats quand le serveur n'envoie pas de timings
+		// Requête en vol vers le moteur local, jusqu'à la lecture complète du corps :
+		// l'isolation des travaux annexes n'efface jamais le slot pendant ce temps
+		// (llm_slots.go). Rien à compter pour une API externe.
+		endReq := func() {}
+		if !ep.External {
+			endReq = engineRequestStart()
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
+			endReq()
 			// Rien n'est encore parti à l'écran : le tour est rejouable tel quel.
 			// C'est le cas du moteur qui redémarre (bascule de preset, rechargement
 			// de modèle) — quelques secondes de connexion refusée qui faisaient
@@ -1070,6 +1084,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		if resp.StatusCode != http.StatusOK {
 			b, _ := io.ReadAll(io.LimitReader(resp.Body, 2000))
 			resp.Body.Close()
+			endReq()
 			msg := strings.TrimSpace(string(b))
 			if msg == "" {
 				msg = resp.Status
@@ -1249,6 +1264,13 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			if chunk.Usage != nil && chunk.Usage.PromptTokens > 0 {
 				stats.PromptTokensTotal = chunk.Usage.PromptTokens
 				s := stats
+				if !ep.External {
+					cached, has := 0, chunk.Usage.PromptTokensDetails != nil
+					if has {
+						cached = chunk.Usage.PromptTokensDetails.CachedTokens
+					}
+					s.CacheHint = noteEnginePrompt(chunk.Usage.PromptTokens, cached, has)
+				}
 				scb(StreamEvent{Stats: &s})
 			}
 			if len(chunk.Choices) == 0 {
@@ -1464,6 +1486,7 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 		// arguments tronqués. On refuse donc le tour, en le disant.
 		scanErr := sc.Err()
 		resp.Body.Close()
+		endReq()
 		if !sawTimings && !tFirst.IsZero() {
 			// Décodage mesuré ici ; le 1er token tombe dans la lecture du prompt.
 			// Pas de débit de lecture : le serveur a pu réutiliser une partie du

@@ -103,6 +103,10 @@ func toolSubagent(ctx context.Context, args map[string]any, parent Caps) string 
 		{Role: "user", Content: task + framing},
 	}
 	var out strings.Builder
+	// Le sous-agent occupe le slot de la conversation du builder : une fois son
+	// rapport rendu, on l'efface pour que le builder reparte du cache RAM
+	// (llm_slots.go). Pas entre ses lectures : seulement à la fin.
+	defer engineSideJob()()
 	// Trace jetable : aucun forwardStream, rien de persisté. L'utilisateur voit
 	// la bulle de l'outil `subagent` et son rapport, pas les dix lectures.
 	// Température 0.6 et non 0 : en glouton, Qwen avec réflexion tourne vite en

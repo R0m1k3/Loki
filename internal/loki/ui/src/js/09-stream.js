@@ -537,6 +537,8 @@ function handleDelta(d){
   if(d.compact_noop){ setCompacting(false); if(!REPLAYING) toast('rien à compacter (contexte déjà minimal)'); return; }
   if(d.ctx_used!==undefined){ setCtxUsed(d.ctx_used); return; }
   if(d.stats){ T.serverStats=d.stats; feedConvSpeed(d.stats);
+    // Conseil ponctuel (cache de prompts trop petit) : en direct seulement.
+    if(d.stats.cache_hint && !REPLAYING) toast(d.stats.cache_hint);
     // prompt_tokens_total = comptage exact du moteur (include_usage). Absent sur
     // certains llama-server récents : le serveur publie alors un `ctx_used`
     // estimé en fin de tour, traité plus bas — on ne remet donc PAS la jauge à

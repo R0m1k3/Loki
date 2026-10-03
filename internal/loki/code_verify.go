@@ -112,7 +112,9 @@ func (c *Conversation) runVerifyPass(ctx context.Context, caps Caps, temperature
 		{Role: "user", Content: user.String()},
 	}
 	// Trace ISOLÉE : ni persistée dans c.Messages, ni compactée — elle vit et
-	// meurt dans cette passe. Seuls les deltas d'affichage sortent.
+	// meurt dans cette passe. Seuls les deltas d'affichage sortent. Son état
+	// dans le moteur aussi : effacé à la fin de la passe (llm_slots.go).
+	defer engineSideJob()()
 	_, _ = runChat(ctx, msgs, temperature, vcaps, func(ev StreamEvent) bool {
 		c.forwardStream(ev, epoch)
 		return true
