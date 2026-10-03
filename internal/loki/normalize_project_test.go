@@ -43,7 +43,7 @@ func TestInjectSkillsKeepsProjectMessageSeparate(t *testing.T) {
 		{Role: "system", Content: projectContextPrefix + " — projet A"},
 		{Role: "user", Content: "bonjour"},
 	}
-	out := normalizeSystemMessages(InjectSkills(in, Caps{Agent: true}))
+	out := normalizeSystemMessages(InjectSkills(in, Caps{Agent: true}, nil))
 	if s, _ := out[0].Content.(string); out[0].Role != "system" || strings.Contains(s, projectContextPrefix) {
 		t.Fatalf("le contexte projet ne doit pas rester dans le système : %#v", out[0])
 	}

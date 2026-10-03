@@ -821,7 +821,8 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// asked : le tour s'est terminé sur une question à l'utilisateur (outil ask) —
 	// pas de vérification du mode Code avant sa réponse.
 	asked := false
-	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
+	sent, tools := prepareTurn(final, caps)
+	extra, _ := runChatTools(ctx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		switch {
 		case ev.Err != nil:
 			c.appendDelta(epoch, map[string]any{"error": ev.Err.Error()})

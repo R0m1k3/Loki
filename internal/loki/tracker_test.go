@@ -289,3 +289,32 @@ func TestStrTolerantAuType(t *testing.T) {
 		t.Fatalf("str(\"texte\") = %q", got)
 	}
 }
+
+// Deux trackers au même horodatage (points datés du même jour, sans heure)
+// sortent toujours dans le même ordre — par nom — quel que soit l'ordre de
+// parcours du stockage. La liste part dans le contexte du modèle : un ordre
+// tiré au sort changerait le prompt d'un tour à l'autre.
+func TestTrackerListOrdreStableAEgalite(t *testing.T) {
+	newProjectHome(t)
+	ensureDefaultProject()
+
+	for _, name := range []string{"zinc", "azote", "magnésium"} {
+		if _, err := trackerAdd(name, "2026-05-04", "1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := trackerAdd("récent", "2026-06-01", "2"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"récent", "azote", "magnésium", "zinc"}
+	for round := 0; round < 20; round++ {
+		list := trackerList()
+		var got []string
+		for _, m := range list {
+			got = append(got, m.Name)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("ordre %v, attendu %v (le plus récent d'abord, puis par nom)", got, want)
+		}
+	}
+}

@@ -107,7 +107,19 @@ func trackerList() []trackerMeta {
 		}
 		out = append(out, m)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].LastTS > out[j].LastTS })
+	// Départage par nom puis slug : allKV parcourt une map, et deux trackers au
+	// même horodatage (deux points datés du même jour, sans heure) sortaient dans
+	// un ordre tiré au sort. Cette liste part dans le contexte du modèle — un ordre qui
+	// change d'un tour à l'autre change le prompt, et tout le cache derrière.
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].LastTS != out[j].LastTS {
+			return out[i].LastTS > out[j].LastTS
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Slug < out[j].Slug
+	})
 	return out
 }
 

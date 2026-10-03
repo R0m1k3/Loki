@@ -50,8 +50,9 @@ const promptCharBudget = 11000 // ~2750 tokens, tout allumé
 
 func TestSystemPromptStaysLean(t *testing.T) {
 	caps := Caps{Agent: true, Internet: true, Mem: MemAlways}
-	sp := baseSystemPrompt(caps)
-	tb, err := json.Marshal(EnabledTools(caps))
+	tools := EnabledTools(caps)
+	sp := baseSystemPrompt(caps, tools)
+	tb, err := json.Marshal(tools)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestSystemPromptStaysLean(t *testing.T) {
 // Le prompt ne doit pas redevenir un catalogue d'outils : leurs schémas partent
 // dans la MÊME requête et les décrivent déjà un par un.
 func TestSystemPromptDoesNotRelistTools(t *testing.T) {
-	sp := baseSystemPrompt(Caps{Agent: true, Internet: true, Mem: MemAlways})
+	sp := baseSystemPrompt(Caps{Agent: true, Internet: true, Mem: MemAlways}, nil)
 	for _, line := range strings.Split(sp, "\n") {
 		l := strings.TrimSpace(line)
 		if !strings.HasPrefix(l, "- ") {
@@ -88,7 +89,7 @@ func TestSystemPromptDoesNotRelistTools(t *testing.T) {
 // ordonne d'appeler des outils invente des appels textuels qui fuient dans la
 // réponse.
 func TestSystemPromptEmptyWithoutTools(t *testing.T) {
-	if sp := baseSystemPrompt(Caps{Mem: MemOff}); sp != "" {
+	if sp := baseSystemPrompt(Caps{Mem: MemOff}, nil); sp != "" {
 		t.Fatalf("préambule non vide sans outils : %q", sp)
 	}
 }

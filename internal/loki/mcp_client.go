@@ -449,21 +449,41 @@ func flattenMCPContent(res *mcpsdk.CallToolResult) string {
 	return text
 }
 
-// mcpPromptLine renvoie une ligne système listant les serveurs MCP connectés et
-// leur nombre d'outils, pour situer le modèle. Ne force PAS de connexion : lit
-// seulement l'état déjà établi par mcpTools() (appelé par EnabledTools sur le
-// même tour), pour ne pas payer deux fois le handshake.
-func mcpPromptLine() string {
-	mcpMgr.mu.Lock()
-	defer mcpMgr.mu.Unlock()
-	var names []string
-	for name, s := range mcpMgr.sessions {
-		if s.sess != nil && len(s.tools) > 0 {
-			names = append(names, fmt.Sprintf("%s (%d)", name, len(s.tools)))
+// mcpPromptLine renvoie une ligne système listant les serveurs MCP annoncés et
+// leur nombre d'outils, pour situer le modèle. Elle se DÉDUIT des outils
+// réellement envoyés ce tour-ci (EnabledTools), pas de l'état du pool.
+//
+// Lue dans le pool, elle arrivait en retard d'un tour : le préambule est bâti
+// avant que mcpTools n'ouvre les connexions, si bien que le premier tour après
+// un démarrage partait sans la ligne et le second avec — tout le prompt à
+// recalculer pour une ligne. Elle comptait aussi les outils masqués par
+// l'utilisateur, et s'affichait pour un rôle (planner…) qui ne reçoit aucun
+// outil MCP. Tirée de la même tranche que les schémas, elle ne peut plus les
+// contredire.
+func mcpPromptLine(tools []Tool) string {
+	counts := map[string]int{}
+	for _, t := range tools {
+		if !strings.HasPrefix(t.Function.Name, "mcp__") {
+			continue
 		}
+		// mcpTools préfixe chaque description par « [MCP: <serveur>] » : le nom
+		// d'origine du serveur, que le nom d'outil (assaini) ne garde pas.
+		rest, ok := strings.CutPrefix(t.Function.Description, "[MCP: ")
+		if !ok {
+			continue
+		}
+		server, _, ok := strings.Cut(rest, "] ")
+		if !ok {
+			continue
+		}
+		counts[server]++
 	}
-	if len(names) == 0 {
+	if len(counts) == 0 {
 		return ""
+	}
+	names := make([]string, 0, len(counts))
+	for name, n := range counts {
+		names = append(names, fmt.Sprintf("%s (%d)", name, n))
 	}
 	sort.Strings(names)
 	return "\n\nMCP servers connected (their tools are prefixed mcp__<server>__<tool>): " + strings.Join(names, ", ") + "."

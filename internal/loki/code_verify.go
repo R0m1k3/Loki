@@ -166,7 +166,8 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	}
 	var content strings.Builder
 	sawUsage := false
-	extra, _ := runChat(ctx, InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
+	sent, tools := prepareTurn(final, caps)
+	extra, _ := runChatTools(ctx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		if ev.Stats != nil && ev.Stats.PromptTokensTotal > 0 {
 			sawUsage = true
 		}

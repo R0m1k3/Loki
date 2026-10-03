@@ -73,7 +73,8 @@ func cmdChat(args []string) error {
 			msgs = compacted
 			fmt.Println(dim("[contexte compacté pour tenir dans la fenêtre]"))
 		}
-		extra, err := runChat(context.Background(), InjectSkills(msgs, caps), 0.7, caps, func(ev StreamEvent) bool {
+		sent, tools := prepareTurn(msgs, caps)
+		extra, err := runChatTools(context.Background(), sent, tools, 0.7, caps, func(ev StreamEvent) bool {
 			switch {
 			case ev.Err != nil:
 				fmt.Printf("\n%s\n", red("[erreur] "+ev.Err.Error()))

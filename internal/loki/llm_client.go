@@ -233,13 +233,13 @@ func globalCaps() Caps {
 // InjectSkills prepends context system messages to msgs: the decisive-agent
 // preamble + machine briefing (when tools are enabled) and the lightweight
 // skills directory (when skills are enabled). Merges with an existing system
-// message if present.
-func InjectSkills(msgs []Message, caps Caps) []Message {
+// message if present. tools = the tools sent on this same turn (see prepareTurn).
+func InjectSkills(msgs []Message, caps Caps, tools []Tool) []Message {
 	var parts []string
 	// Decisive-agent preamble (anti-loop) — only when the model actually has
 	// tools, otherwise it nudges a plain chat model to "call tools" it doesn't
 	// have, which leaks malformed tool-call text into the answer.
-	if bp := baseSystemPrompt(caps); bp != "" {
+	if bp := baseSystemPrompt(caps, tools); bp != "" {
 		parts = append(parts, bp)
 	}
 	if mp := machineSystemPrompt(caps); mp != "" {
@@ -258,6 +258,17 @@ func InjectSkills(msgs []Message, caps Caps) []Message {
 		return merged
 	}
 	return append([]Message{{Role: "system", Content: prefix}}, msgs...)
+}
+
+// prepareTurn calcule UNE fois les outils du tour, puis le préambule à partir
+// d'eux : la séquence et les outils renvoyés vont ensemble à runChatTools.
+//
+// Les calculer deux fois (préambule, puis runChat) payait deux fois les
+// tentatives de connexion MCP d'un serveur en panne, et laissait le préambule
+// décrire un autre état que les schémas envoyés à côté.
+func prepareTurn(msgs []Message, caps Caps) ([]Message, []Tool) {
+	tools := EnabledTools(caps)
+	return InjectSkills(msgs, caps, tools), tools
 }
 
 // steerSystem ajoute une consigne système SANS jamais créer un second message
@@ -930,8 +941,13 @@ func toolCallLabel(name string, args map[string]any) string {
 // prenne en compte dans la SUITE de sa réponse (AJEAN 0.14.0) au lieu
 // d'obliger à arrêter puis relancer. Ajoutés à `messages` ET à `extra`.
 func runChat(ctx context.Context, messages []Message, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
+	return runChatTools(ctx, messages, EnabledTools(caps), temperature, caps, cb, injectQueued...)
+}
+
+// runChatTools est runChat avec les outils déjà calculés par prepareTurn : ceux
+// que décrit le préambule, à l'octet près.
+func runChatTools(ctx context.Context, messages []Message, tools []Tool, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
 	var extra []Message
-	tools := EnabledTools(caps)
 	// Some backends (vanilla llama.cpp builds) don't populate `reasoning_content`
 	// in streaming mode: the model's <think> block (opened by the chat template)
 	// arrives inline in `content`, terminated by a literal </think>. When

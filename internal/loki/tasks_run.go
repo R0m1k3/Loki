@@ -69,9 +69,11 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 		temperature = 0.7
 	}
 	// La note de tâche (conscience du mode autonome + compte-rendu du passage
-	// précédent) va EN TÊTE DU MESSAGE UTILISATEUR, pas dans le système : le
-	// préfixe système + outils reste ainsi identique à celui du chat, et le cache
-	// de prompt de llama-server sert aux deux. Une note dans le système faisait
+	// précédent) va EN TÊTE DU MESSAGE UTILISATEUR, pas dans le système : elle
+	// n'ajoute aucun écart au préfixe système + outils. Il n'est pas pour autant
+	// celui du chat : le briefing machine porte le dossier de travail de la
+	// tâche, et taskCaps ne reprend ni le pilotage du navigateur ni une mémoire
+	// coupée. Une note dans le système faisait
 	// tout recalculer à la tâche, PUIS au message suivant de l'utilisateur (12 s
 	// mesurées en amont pour un simple « salut », AJEAN 0.17.5).
 	if note := taskContextNote(taskName, lastReport); note != "" {
@@ -79,7 +81,7 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 	}
 	msgs := []Message{{Role: "user", Content: prompt}}
 	// Même préambule que la vraie génération : consigne personnelle + préambule
-	// agent + briefing machine (via InjectSkills), pour que l'IA ait le même
+	// agent + briefing machine (via prepareTurn), pour que l'IA ait le même
 	// contexte et les mêmes outils qu'en chat.
 	// Contexte du projet de la tâche : le projet est déjà forcé par l'appelant
 	// (setProjectOverride dans runTask), donc ces messages décrivent le bon
@@ -93,7 +95,8 @@ func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prom
 	// La tâche a pris le slot de la conversation : effacé une fois la tâche
 	// finie, verrou de génération encore tenu (llm_slots.go).
 	defer engineSideJob()()
-	_, err := runChat(withPerf(ctx, perfTask, "task:"+taskID), InjectSkills(final, caps), temperature, caps, func(ev StreamEvent) bool {
+	sent, tools := prepareTurn(final, caps)
+	_, err := runChatTools(withPerf(ctx, perfTask, "task:"+taskID), sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		if ev.Content != "" {
 			content.WriteString(ev.Content)
 		}

@@ -26,7 +26,10 @@ const (
 // ("Wait, let me check… Wait, I'll just run it…") and commits to an action.
 // The per-tool "Outil disponible" sections live in machine/skills prompts so
 // they only appear when the matching feature is on.
-func baseSystemPrompt(caps Caps) string {
+//
+// tools = les outils annoncés sur ce même tour (EnabledTools) : ce qui en est
+// dit ici (la ligne MCP) en est déduit, jamais relu ailleurs.
+func baseSystemPrompt(caps Caps, tools []Tool) string {
 	hasMem := caps.Mem != MemOff
 	// No tool access at all → no agentic preamble. A plain chat model told to
 	// "call tools immediately" hallucinates textual tool calls (e.g.
@@ -119,10 +122,10 @@ func baseSystemPrompt(caps Caps) string {
 	if caps.Agent && caps.ComputerUse {
 		b.WriteString(cuPromptLine())
 	}
+	// Ligne MCP tirée des outils de CE tour (voir mcpPromptLine) : un rôle sans
+	// outil MCP n'en reçoit pas, et le premier tour après un démarrage l'a déjà.
 	if caps.Agent {
-		if line := mcpPromptLine(); line != "" {
-			b.WriteString(line)
-		}
+		b.WriteString(mcpPromptLine(tools))
 	}
 	b.WriteString("\nDate: " + time.Now().Format("2006-01-02"))
 	return b.String()
