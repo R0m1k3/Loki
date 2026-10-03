@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -328,6 +329,12 @@ func cmdServe(args []string) error {
 	// $LOKI_HOME/.api_key en priorité (elle survit ainsi aux changements de preset
 	// qui réécrivent config.env), avec config.env comme repli rétro-compatible.
 	si.APIKey, _ = effectiveAPIKeyErr()
+	// Conteneur à l'étroit (cpuset, quota) : seul Linux l'expose, dans /proc et
+	// /sys. Un LLAMA_ARG_THREADS déjà posé est un choix de l'utilisateur — un -t
+	// de Loki l'écraserait, donc on ne sonde même pas.
+	if runtime.GOOS == "linux" && os.Getenv("LLAMA_ARG_THREADS") == "" {
+		si.CPU = cpusetThreads(os.DirFS("/"))
+	}
 
 	llmArgs, env, notes := buildServeArgs(cfg, splitArgs(cfg["EXTRA_ARGS"]), bin, si)
 	applyServeEnv(env)
@@ -361,10 +368,11 @@ func cmdServe(args []string) error {
 // capacités), les chemins déjà résolus et vérifiés, la clé d'API. Avec elle,
 // buildServeArgs n'a plus besoin de toucher ni au disque ni au binaire.
 type serveSysInfo struct {
-	Help   string // sortie de « <bin> --help » ; vide = moteur inconnu, aucun risque pris
-	Model  string // chemin du .gguf principal, résolu et vérifié
-	MMProj string // chemin du projecteur vision, résolu et vérifié ; vide = pas de vision
-	APIKey string // clé effective (.api_key, sinon config.env) ; vide = serveur ouvert
+	Help   string    // sortie de « <bin> --help » ; vide = moteur inconnu, aucun risque pris
+	Model  string    // chemin du .gguf principal, résolu et vérifié
+	MMProj string    // chemin du projecteur vision, résolu et vérifié ; vide = pas de vision
+	APIKey string    // clé effective (.api_key, sinon config.env) ; vide = serveur ouvert
+	CPU    cpuBudget // sonde de conteneur (Linux) ; zéro = llama.cpp choisit ses threads seul
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -426,16 +434,21 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		notes = append(notes, loadNote)
 	}
 
+	// Threads : vide ou 0 = AUCUN drapeau, pour que llama.cpp prenne ses cœurs
+	// physiques au lieu de tous les threads logiques (voir threadArgs).
+	threads, threadNotes := threadArgs(cfg["THREADS"], cfg["THREADS_BATCH"], extra, si.CPU)
+	notes = append(notes, threadNotes...)
 	args = []string{bin,
 		"-m", si.Model,
 		"-c", get("CTX", "32768"),
-		"-t", get("THREADS", "0"),
-		"-tb", get("THREADS_BATCH", "0"),
+	}
+	args = append(args, threads...)
+	args = append(args,
 		"-b", get("BATCH", "2048"),
 		"-ub", get("UBATCH", "512"),
 		"--host", get("HOST", "0.0.0.0"),
 		"--port", get("PORT", "8080"),
-	}
+	)
 	// --parallel 1 EXPLICITE : les llama-server récents ouvrent plusieurs slots
 	// par défaut, soit des tampons de calcul GPU multipliés d'autant — pour un
 	// serveur mono-utilisateur comme Loki, c'est de la VRAM brûlée pour rien.

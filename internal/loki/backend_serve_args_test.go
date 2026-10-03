@@ -28,10 +28,15 @@ const (
 func TestBuildServeArgs(t *testing.T) {
 	const bin, model = "/opt/llama/llama-server", "/models/Qwen3.6-27B-Q4_K_M.gguf"
 	base := []string{bin, "-m", model,
-		"-c", "32768", "-t", "0", "-tb", "0", "-b", "2048", "-ub", "512",
+		"-c", "32768", "-b", "2048", "-ub", "512",
 		"--host", "0.0.0.0", "--port", "8080"}
 	with := func(tail ...string) []string {
 		return append(append([]string{}, base...), tail...)
+	}
+	// withThreads insère -t / -tb à leur place, juste après -c.
+	withThreads := func(threads []string, tail ...string) []string {
+		out := append(append([]string{}, base[:5]...), threads...)
+		return append(append(out, base[5:]...), tail...)
 	}
 	cases := []struct {
 		name      string
@@ -81,6 +86,54 @@ func TestBuildServeArgs(t *testing.T) {
 				"-c", "65536", "-t", "8", "-tb", "16", "-b", "4096", "-ub", "1024",
 				"--host", "127.0.0.1", "--port", "9090",
 				"--parallel", "2", "-ngl", "all", "-ctk", "q8_0", "-ctv", "q8_0"},
+		},
+		{
+			name: "THREADS=0 et THREADS_BATCH=0 : aucun drapeau, llama.cpp prend ses cœurs physiques",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "0", "THREADS_BATCH": "0"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: with("--parallel", "1", "-ngl", "28"),
+		},
+		{
+			name: "THREADS=6 seul : -t 6, -tb laissé au moteur (il recopie -t)",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "6"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: withThreads([]string{"-t", "6"}, "--parallel", "1", "-ngl", "28"),
+		},
+		{
+			name: "THREADS_BATCH seul : -tb sans -t",
+			cfg:  map[string]string{"NGL": "28", "THREADS_BATCH": "12"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: withThreads([]string{"-tb", "12"}, "--parallel", "1", "-ngl", "28"),
+		},
+		{
+			name: "THREADS illisible ou négatif : ignoré, et dit",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "auto", "THREADS_BATCH": "-1"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: with("--parallel", "1", "-ngl", "28"), wantNotes: 2,
+		},
+		{
+			name: "-t=6 dans EXTRA_ARGS : pas de -t de Loki",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "8", "THREADS_BATCH": "16", "EXTRA_ARGS": "-t=6 --threads-batch 10"},
+			si:   serveSysInfo{Help: helpRecent},
+			want: with("--parallel", "1", "-ngl", "28", "-t=6", "--threads-batch", "10"),
+		},
+		{
+			name: "conteneur à l'étroit : -t de la sonde, et une note",
+			cfg:  map[string]string{"NGL": "28"},
+			si:   serveSysInfo{Help: helpRecent, CPU: cpuBudget{N: 4, Engine: 8, Why: "quota cgroup de 4 CPU"}},
+			want: withThreads([]string{"-t", "4"}, "--parallel", "1", "-ngl", "28"), wantNotes: 1,
+		},
+		{
+			name: "THREADS explicite : la sonde se tait",
+			cfg:  map[string]string{"NGL": "28", "THREADS": "6"},
+			si:   serveSysInfo{Help: helpRecent, CPU: cpuBudget{N: 4, Engine: 8, Why: "quota"}},
+			want: withThreads([]string{"-t", "6"}, "--parallel", "1", "-ngl", "28"),
+		},
+		{
+			name: "masque d'affinité dans EXTRA_ARGS : la sonde se tait",
+			cfg:  map[string]string{"NGL": "28", "EXTRA_ARGS": "-Cr 0-3"},
+			si:   serveSysInfo{Help: helpRecent, CPU: cpuBudget{N: 4, Engine: 8, Why: "quota"}},
+			want: with("--parallel", "1", "-ngl", "28", "-Cr", "0-3"),
 		},
 		{
 			name: "cache KV séparé K/V",

@@ -3441,12 +3441,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
             <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value)"></span>
           </div>
           <div class="pe-row">
-            <span class="pe-row-l">Threads CPU<span class="pe-sub">0 = auto</span></span>
-            <span class="pe-row-c"><input id="s-threads" class="pe-val" type="number" min="0" step="1" placeholder="0" oninput="cfgWriteKey('THREADS', this.value)"></span>
+            <span class="pe-row-l">Threads CPU<span class="pe-sub">vide ou 0 = cœurs physiques</span></span>
+            <span class="pe-row-c"><input id="s-threads" class="pe-val" type="number" min="0" step="1" placeholder="auto" oninput="cfgWriteKey('THREADS', this.value)"></span>
           </div>
           <div class="pe-row">
-            <span class="pe-row-l">Threads (batch)<span class="pe-sub">0 = auto</span></span>
-            <span class="pe-row-c"><input id="s-tbatch" class="pe-val" type="number" min="0" step="1" placeholder="0" oninput="cfgWriteKey('THREADS_BATCH', this.value)"></span>
+            <span class="pe-row-l">Threads (batch)<span class="pe-sub">prefill et MTP · vide ou 0 = comme Threads CPU</span></span>
+            <span class="pe-row-c"><input id="s-tbatch" class="pe-val" type="number" min="0" step="1" placeholder="auto" oninput="cfgWriteKey('THREADS_BATCH', this.value)"></span>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">BATCH</span>
