@@ -80,6 +80,17 @@ func probeSpec(cfg map[string]string, si *serveSysInfo) {
 	}
 }
 
+// specSidecarArch : têtes de spéculation qui ne sont pas des modèles autonomes
+// (llama.cpp : draft-eagle3, draft-dflash/dspark). Un -md vers elles avec
+// draft-simple ne démarrerait pas : leur type se règle à la main.
+func specSidecarArch(arch string) bool {
+	switch strings.ToLower(strings.TrimSpace(arch)) {
+	case "eagle3", "dflash":
+		return true
+	}
+	return false
+}
+
 // specMode lit SPEC : "off", "auto", "mtp", ou "" si illisible.
 func specMode(cfg map[string]string) string {
 	switch v := strings.ToLower(strings.TrimSpace(cfg["SPEC"])); v {
@@ -228,6 +239,9 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 			}
 			// Type explicite : llama.cpp ne le devine que sur la première tranche.
 			args, mtp = []string{"-md", si.Draft, "--spec-type", "draft-mtp"}, true
+		case specSidecarArch(si.DraftGGUF.Arch):
+			return skip("MODEL_DRAFT est une tête " + si.DraftGGUF.Arch +
+				", pas un modèle brouillon : règle -md et --spec-type dans EXTRA_ARGS")
 		default:
 			if !strings.Contains(si.Help, "--spec-type") || !strings.Contains(si.Help, "draft-simple") {
 				return skip("ce moteur ne connaît pas --spec-type draft-simple")
@@ -359,32 +373,56 @@ func specAutoVerdict(cur specAutoMark, attempt *specAutoMark, failed map[string]
 	return "", false
 }
 
-// specAutoCheck lit l'état, tranche et range : jeton consommé, échec inscrit.
-func specAutoCheck(cur specAutoMark) string {
-	why := ""
+// specAutoPeek lit l'état sans rien changer : la raison de couper l'auto (vide
+// = permis) et s'il faudra inscrire l'échec. Rien n'est consommé avant que le
+// port soit libre (specAutoSettle) : un second « loki serve », refusé parce que
+// le premier charge encore, ne doit pas prendre le jeton de celui-ci pour un
+// échec.
+func specAutoPeek(cur specAutoMark) (why string, record bool) {
+	_ = view(bkState, func(b *bolt.Bucket) error {
+		attempt, failed := readSpecAuto(b)
+		why, record = specAutoVerdict(cur, attempt, failed)
+		return nil
+	})
+	return why, record
+}
+
+// specAutoSettle range, port libre, juste avant de lancer le moteur : l'ancien
+// jeton est consommé, l'échec inscrit s'il y a lieu (record, why), et un
+// nouveau jeton posé si ce lancement ajoute des drapeaux automatiques.
+func specAutoSettle(cur specAutoMark, why string, record, attempt bool) {
 	_ = update(bkState, func(b *bolt.Bucket) error {
-		var attempt *specAutoMark
-		if raw := b.Get([]byte(specAttemptKey)); raw != nil {
-			var a specAutoMark
-			if json.Unmarshal(raw, &a) == nil {
-				attempt = &a
+		_, failed := readSpecAuto(b)
+		_ = b.Delete([]byte(specAttemptKey))
+		if record {
+			if err := putFailed(b, failed, cur.key(), why); err != nil {
+				return err
 			}
 		}
-		failed := map[string]string{}
-		if raw := b.Get([]byte(specFailedKey)); raw != nil {
-			_ = json.Unmarshal(raw, &failed)
-		}
-		w, record := specAutoVerdict(cur, attempt, failed)
-		why = w
-		if attempt != nil {
-			_ = b.Delete([]byte(specAttemptKey))
-		}
-		if !record {
+		if !attempt {
 			return nil
 		}
-		return putFailed(b, failed, cur.key(), w)
+		raw, err := json.Marshal(cur)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(specAttemptKey), raw)
 	})
-	return why
+}
+
+// readSpecAuto : le jeton en cours (nil = aucun) et les échecs inscrits.
+func readSpecAuto(b *bolt.Bucket) (attempt *specAutoMark, failed map[string]string) {
+	if raw := b.Get([]byte(specAttemptKey)); raw != nil {
+		var a specAutoMark
+		if json.Unmarshal(raw, &a) == nil {
+			attempt = &a
+		}
+	}
+	failed = map[string]string{}
+	if raw := b.Get([]byte(specFailedKey)); raw != nil {
+		_ = json.Unmarshal(raw, &failed)
+	}
+	return attempt, failed
 }
 
 func putFailed(b *bolt.Bucket, failed map[string]string, key, why string) error {
@@ -397,11 +435,6 @@ func putFailed(b *bolt.Bucket, failed map[string]string, key, why string) error 
 		return err
 	}
 	return b.Put([]byte(specFailedKey), raw)
-}
-
-// specAutoAttempt pose le jeton juste avant de lancer le moteur.
-func specAutoAttempt(cur specAutoMark) {
-	_ = putJSON(bkState, specAttemptKey, cur)
 }
 
 // --- Côté process web --------------------------------------------------------
@@ -431,7 +464,7 @@ func specAttemptTick() {
 		return
 	}
 	if externalActive() {
-		_ = putBytes(bkState, specAttemptKey, nil) // plus de moteur local à attendre
+		specAttemptClear(a, "") // plus de moteur local à attendre
 		return
 	}
 	if !healthCheck() {
@@ -445,27 +478,38 @@ func specAttemptTick() {
 		why = fmt.Sprintf("seulement %d/%d couches sur GPU avec le brouillon : fit a déplacé des couches en RAM", n, m)
 		fmt.Println("[loki] SPEC=auto : " + why + " — coupé au prochain démarrage (SPEC=mtp pour l'imposer)")
 	}
+	specAttemptClear(a, why)
+}
+
+// specAttemptClear efface le jeton a — et lui seul : relu sous verrou, car un
+// « loki serve » a pu entre-temps poser celui d'un AUTRE lancement, qui n'a pas
+// encore répondu. why non vide inscrit l'échec de a.
+func specAttemptClear(a specAutoMark, why string) {
 	_ = update(bkState, func(b *bolt.Bucket) error {
+		cur, failed := readSpecAuto(b)
+		if cur == nil || cur.key() != a.key() {
+			return nil
+		}
 		_ = b.Delete([]byte(specAttemptKey))
 		if why == "" {
 			return nil
-		}
-		failed := map[string]string{}
-		if raw := b.Get([]byte(specFailedKey)); raw != nil {
-			_ = json.Unmarshal(raw, &failed)
 		}
 		return putFailed(b, failed, a.key(), why)
 	})
 }
 
-// lastOffload lit « offloaded N/M layers to GPU » du DERNIER chargement du
-// journal (après la dernière ligne load_model). 0, 0 = introuvable : on ne
+// lastOffload lit les lignes « offloaded N/M layers to GPU » du DERNIER
+// chargement du journal, repéré à la ligne du serveur « loading model
+// '<chemin>' ». Pas à « load_model » (le serveur écrit encore « load_model:
+// initializing… » APRÈS le chargement) ni à « loading model tensors » (écrit
+// aussi pour le brouillon, qui masquerait le modèle). Un brouillon chargé à
+// part a sa propre ligne : la pire des deux compte. 0, 0 = introuvable : on ne
 // conclut rien.
 func lastOffload(log string) (n, m int) {
 	lines := strings.Split(log, "\n")
 	start := -1
 	for i, l := range lines {
-		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") {
+		if strings.Contains(l, "loading model '") {
 			start = i
 		}
 	}
@@ -473,9 +517,17 @@ func lastOffload(log string) (n, m int) {
 		return 0, 0
 	}
 	for _, l := range lines[start:] {
-		if s := offloadedRe.FindStringSubmatch(l); s != nil {
-			n, _ = strconv.Atoi(s[1])
-			m, _ = strconv.Atoi(s[2])
+		s := offloadedRe.FindStringSubmatch(l)
+		if s == nil {
+			continue
+		}
+		a, _ := strconv.Atoi(s[1])
+		b, _ := strconv.Atoi(s[2])
+		if m == 0 || a < b {
+			n, m = a, b
+		}
+		if a < b {
+			break
 		}
 	}
 	return n, m

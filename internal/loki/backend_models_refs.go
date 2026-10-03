@@ -46,10 +46,11 @@ func modelRefKey(v string) string {
 }
 
 // modelKeysOf liste les .gguf référencés par une configuration : le modèle, le
-// projecteur vision, et un --mmproj posé à la main dans EXTRA_ARGS (les presets
-// d'avant la clé MMPROJ l'écrivaient là).
+// projecteur vision, le brouillon (MODEL_DRAFT : une tête MTP effacée sous le
+// moteur coupe la spéculation sans rien dire), et un --mmproj posé à la main
+// dans EXTRA_ARGS (les presets d'avant la clé MMPROJ l'écrivaient là).
 func modelKeysOf(env map[string]string) []string {
-	vals := []string{env["MODEL"], env["MMPROJ"]}
+	vals := []string{env["MODEL"], env["MMPROJ"], env["MODEL_DRAFT"]}
 	args := splitArgs(env["EXTRA_ARGS"])
 	for i, a := range args {
 		if a == "--mmproj" && i+1 < len(args) {

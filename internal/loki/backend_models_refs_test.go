@@ -142,6 +142,14 @@ func TestProjecteurCompteCommeReference(t *testing.T) {
 	if len(users) != 1 || users[0] != "Vision" {
 		t.Fatalf("--mmproj d'EXTRA_ARGS non compté : %v", users)
 	}
+	// La tête MTP publiée à part aussi (MODEL_DRAFT).
+	writeModel(t, modelsDir(), "mtp-Qwen3.6-27B.gguf", 4)
+	if _, err := SavePreset("", "MTP", `MODEL="m.gguf"`+"\n"+`SPEC=auto`+"\n"+`MODEL_DRAFT="mtp-Qwen3.6-27B.gguf"`+"\n"); err != nil {
+		t.Fatal(err)
+	}
+	if users, _ := modelUsers("mtp-Qwen3.6-27B.gguf"); len(users) != 1 || users[0] != "MTP" {
+		t.Fatalf("MODEL_DRAFT= non compté : %v", users)
+	}
 }
 
 // Une famille de tranches incomplète n'est pas « déjà là » : il reste à

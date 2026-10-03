@@ -1126,6 +1126,9 @@ function onPickDraft(){
   cfgWriteKey('MODEL_DRAFT', v);
   const sel = document.getElementById('s-spec');
   if(v && sel && !sel.value){ sel.value = 'auto'; onSpecType(); toast('décodage spéculatif : auto'); }
+  // Un ancien preset portait le MTP en --spec-type dans EXTRA_ARGS : sans clé
+  // SPEC, le brouillon serait ignoré au lancement. On le range dans SPEC=mtp.
+  else if(v && sel && sel.value === 'draft-mtp' && specFromKey(cfgReadKey('SPEC')) !== 'draft-mtp') onSpecType();
   syncSpecRow();
 }
 

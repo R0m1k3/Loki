@@ -114,6 +114,18 @@ func TestSpecArgs(t *testing.T) {
 				s.Draft = "/models/Qwen3-0.6B.gguf"
 				s.DraftGGUF = &GGUFInfo{Arch: "qwen3", BlockCount: 28}
 			}},
+		{name: "MODEL_DRAFT tête dFlash : pas de draft-simple, réglage à la main",
+			cfg: with(forced, "MODEL_DRAFT", "dflash-Qwen3.6.gguf"), notes: 1,
+			si: func(s *serveSysInfo) {
+				s.Draft = "/models/dflash-Qwen3.6.gguf"
+				s.DraftGGUF = &GGUFInfo{Arch: "dflash", BlockCount: 5}
+			}},
+		{name: "MODEL_DRAFT tête EAGLE-3 : idem",
+			cfg: with(auto, "MODEL_DRAFT", "eagle3.gguf"), notes: 1,
+			si: func(s *serveSysInfo) {
+				s.Draft = "/models/eagle3.gguf"
+				s.DraftGGUF = &GGUFInfo{Arch: "eagle3", BlockCount: 1}
+			}},
 		{name: "MODEL_DRAFT introuvable : moteur lancé sans, pas d'erreur",
 			cfg: with(auto, "MODEL_DRAFT", "absent.gguf"), notes: 1,
 			si: func(s *serveSysInfo) { s.DraftErr = "fichier introuvable" }},
@@ -223,28 +235,62 @@ func TestSpecAutoVerdict(t *testing.T) {
 // pour cette combinaison seulement.
 func TestSpecAutoCheckStore(t *testing.T) {
 	testHome(t)
+	// Ce que fait cmdServe : lire, puis — port libre — ranger et poser le jeton.
+	launch := func(cur specAutoMark, wantAttempt bool) string {
+		why, record := specAutoPeek(cur)
+		specAutoSettle(cur, why, record, wantAttempt && why == "")
+		return why
+	}
 	cur := specAutoMark{FP: "abc", Bin: "/e/llama-server", Build: 11351}
-	if why := specAutoCheck(cur); why != "" {
+	if why := launch(cur, true); why != "" {
 		t.Fatalf("base vide : permis, got %q", why)
 	}
-	specAutoAttempt(cur)
-	if why := specAutoCheck(cur); why == "" {
+	// Second « loki serve » refusé (port pris) : il a lu, sans rien ranger. Le
+	// jeton du premier, qui charge encore, doit rester intact.
+	if why, _ := specAutoPeek(cur); why == "" {
+		t.Fatal("jeton présent : le lecteur doit le voir")
+	}
+	var a specAutoMark
+	if !getJSON(bkState, specAttemptKey, &a) || a != cur {
+		t.Fatal("specAutoPeek ne doit rien consommer")
+	}
+	if why := launch(cur, true); why == "" {
 		t.Fatal("jeton resté : l'auto doit être coupé")
 	}
-	if why := specAutoCheck(cur); why == "" {
+	if getJSON(bkState, specAttemptKey, &a) {
+		t.Error("auto coupé : aucun nouveau jeton")
+	}
+	if why := launch(cur, true); why == "" {
 		t.Error("l'échec doit rester inscrit au lancement suivant")
 	}
 	updated := cur
 	updated.Build = 11400
-	if why := specAutoCheck(updated); why != "" {
+	if why := launch(updated, true); why != "" {
 		t.Errorf("moteur mis à jour : nouvel essai permis, got %q", why)
 	}
-	// Un jeton d'une autre configuration est jeté sans rien conclure.
-	specAutoAttempt(specAutoMark{FP: "zzz", Bin: "/e/llama-server", Build: 11351})
-	if why := specAutoCheck(updated); why != "" {
-		t.Errorf("jeton étranger : permis, got %q", why)
+	// Le process web efface SON jeton ; pas celui d'un lancement plus récent.
+	specAttemptClear(cur, "")
+	if !getJSON(bkState, specAttemptKey, &a) || a != updated {
+		t.Fatal("le jeton d'un autre lancement doit rester")
 	}
-	var a specAutoMark
+	specAttemptClear(updated, "")
+	if getJSON(bkState, specAttemptKey, &a) {
+		t.Fatal("le moteur a répondu : jeton effacé")
+	}
+	if why := launch(updated, true); why != "" {
+		t.Errorf("lancement réussi : permis, got %q", why)
+	}
+	// Répondu mais couches en RAM : échec inscrit pour cette combinaison.
+	specAttemptClear(updated, "couches en RAM")
+	if why, _ := specAutoPeek(updated); why != "couches en RAM" {
+		t.Errorf("échec après chargement : coupé, got %q", why)
+	}
+	// Un jeton d'une autre configuration est jeté sans rien conclure.
+	other := specAutoMark{FP: "zzz", Bin: "/e/llama-server", Build: 11351}
+	specAutoSettle(other, "", false, true)
+	if why := launch(cur, false); why == "" {
+		t.Error("échec de cur toujours inscrit")
+	}
 	if getJSON(bkState, specAttemptKey, &a) {
 		t.Error("le jeton étranger doit être consommé")
 	}
@@ -266,5 +312,23 @@ func TestLastOffload(t *testing.T) {
 	}
 	if n, m := lastOffload("srv load_model: loading model 'x'\nload_tensors: offloaded 50/65 layers to GPU"); n != 50 || m != 65 {
 		t.Errorf("chargement partiel : got %d/%d", n, m)
+	}
+	// Le journal réel de llama-server : « load_model: initializing » APRÈS le
+	// chargement, et un brouillon chargé à part qui a ses propres lignes.
+	srvLog := strings.Join([]string{
+		"srv    load_model: loading model '/models/Qwen3.6-27B.gguf'",
+		"load_tensors: loading model tensors, this can take a while... (load_mode = mmap)",
+		"load_tensors: offloaded 52/65 layers to GPU",
+		"load_tensors: loading model tensors, this can take a while... (load_mode = mmap)",
+		"load_tensors: offloaded 2/2 layers to GPU",
+		"srv    load_model: initializing, n_slots = 1, n_ctx_slot = 65536, kv_unified = 'false'",
+		"main: server is listening on http://127.0.0.1:8080",
+	}, "\n")
+	if n, m := lastOffload(srvLog); n != 52 || m != 65 {
+		t.Errorf("modèle partiel, brouillon complet : le pire compte, got %d/%d", n, m)
+	}
+	full := strings.Replace(srvLog, "52/65", "65/65", 1)
+	if n, m := lastOffload(full); n != m || m == 0 {
+		t.Errorf("tout sur GPU : got %d/%d", n, m)
 	}
 }

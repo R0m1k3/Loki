@@ -354,9 +354,11 @@ func cmdServe(args []string) error {
 	if ggufHybrid(si.GGUF) || spec == "auto" {
 		si.EngineBuild = engineBuildTrusted(bin)
 	}
+	// Lu seulement ici ; rien n'est consommé avant que le port soit libre.
 	specMark := specAutoMark{FP: configFingerprint(cfg), Bin: bin, Build: si.EngineBuild}
+	specRecord := false
 	if spec == "auto" {
-		si.SpecAutoBlocked = specAutoCheck(specMark)
+		si.SpecAutoBlocked, specRecord = specAutoPeek(specMark)
 	}
 	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
 		si.SlotDir = prepareSlotDir(LokiHome())
@@ -383,10 +385,12 @@ func cmdServe(args []string) error {
 	// lui que le moteur accélère ou non.
 	kt, vt, _ := effectiveKVTypes(cfg, extra, si.ArgEnv)
 	warnSlowKV(kt, vt)
-	// Jeton de tentative : posé au dernier moment, port libre, l'ancien moteur
-	// est donc bien parti — le process web ne peut pas le confondre avec lui.
-	if _, _, auto := specArgs(cfg, extra, si); auto {
-		specAutoAttempt(specMark)
+	// Jeton de tentative : l'ancien consommé (et l'échec inscrit), le nouveau
+	// posé, au dernier moment — port libre, l'ancien moteur est donc bien parti
+	// et le process web ne peut pas le confondre avec lui.
+	if spec == "auto" {
+		_, _, auto := specArgs(cfg, extra, si)
+		specAutoSettle(specMark, si.SpecAutoBlocked, specRecord, auto)
 	}
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
