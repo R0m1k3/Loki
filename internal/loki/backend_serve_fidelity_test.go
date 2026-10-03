@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,27 +18,36 @@ import (
 )
 
 func TestEffectiveKVTypes(t *testing.T) {
+	const ea, kv = "défini par EXTRA_ARGS", "KV_TYPE"
+	const env = "défini par LLAMA_ARG_CACHE_TYPE_K/V"
 	for _, c := range []struct {
-		name      string
-		cfg       map[string]string
-		extra     string
-		k, v      string
-		fromExtra bool
+		name   string
+		cfg    map[string]string
+		extra  string
+		argEnv map[string]string
+		k, v   string
+		src    string
 	}{
-		{"rien : défaut moteur", map[string]string{}, "", "", "", false},
-		{"KV_TYPE seul", map[string]string{"KV_TYPE": "q8_0"}, "", "q8_0", "q8_0", false},
+		{"rien : défaut moteur", map[string]string{}, "", nil, "", "", ""},
+		{"KV_TYPE seul", map[string]string{"KV_TYPE": "q8_0"}, "", nil, "q8_0", "q8_0", kv},
 		{"EXTRA_ARGS l'emporte sur KV_TYPE", map[string]string{"KV_TYPE": "f16"},
-			"--cache-type-k q8_0 --cache-type-v q8_0", "q8_0", "q8_0", true},
+			"--cache-type-k q8_0 --cache-type-v q8_0", nil, "q8_0", "q8_0", ea},
 		{"formes courtes, la dernière gagne", map[string]string{},
-			"-ctk q4_0 -ctv q4_0 -ctk q8_0", "q8_0", "q4_0", true},
-		{"forme --flag=valeur", map[string]string{}, "--cache-type-v=q8_0", "", "q8_0", true},
+			"-ctk q4_0 -ctv q4_0 -ctk q8_0", nil, "q8_0", "q4_0", ea},
+		{"forme --flag=valeur", map[string]string{}, "--cache-type-v=q8_0", nil, "", "q8_0", ea},
 		{"K seul dans EXTRA_ARGS, V du preset", map[string]string{"KV_TYPE_V": "q4_0"},
-			"-ctk q8_0", "q8_0", "q4_0", true},
+			"-ctk q8_0", nil, "q8_0", "q4_0", ea},
+		// Les variables passent AVANT la ligne de commande : seules, elles
+		// décident ; un -ctk venu de KV_TYPE les écrase.
+		{"variables seules", map[string]string{}, "",
+			map[string]string{"LLAMA_ARG_CACHE_TYPE_K": "q8_0", "LLAMA_ARG_CACHE_TYPE_V": "q8_0"}, "q8_0", "q8_0", env},
+		{"KV_TYPE_K écrase la variable K, la variable V reste", map[string]string{"KV_TYPE_K": "f16"}, "",
+			map[string]string{"LLAMA_ARG_CACHE_TYPE_K": "q4_0", "LLAMA_ARG_CACHE_TYPE_V": "q8_0"}, "f16", "q8_0", kv},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			k, v, fe := effectiveKVTypes(c.cfg, splitArgs(c.extra))
-			if k != c.k || v != c.v || fe != c.fromExtra {
-				t.Fatalf("got %q/%q extra=%v, want %q/%q extra=%v", k, v, fe, c.k, c.v, c.fromExtra)
+			k, v, src := effectiveKVTypes(c.cfg, splitArgs(c.extra), c.argEnv)
+			if k != c.k || v != c.v || src != c.src {
+				t.Fatalf("got %q/%q src=%q, want %q/%q src=%q", k, v, src, c.k, c.v, c.src)
 			}
 		})
 	}
@@ -45,27 +55,35 @@ func TestEffectiveKVTypes(t *testing.T) {
 
 func TestKVFidelityNote(t *testing.T) {
 	for _, c := range []struct {
-		name      string
-		k, v      string
-		fromExtra bool
-		extra     string
-		want      []string // fragments attendus ; nil = aucune note
+		name   string
+		k, v   string
+		src    string
+		extra  string
+		argEnv map[string]string
+		want   []string // fragments attendus ; nil = aucune note
+		fit    bool     // la note doit parler de --fit (placement figé)
 	}{
-		{"défaut moteur : rien à dire", "", "", false, "", nil},
-		{"f16 explicite : rien à dire", "f16", "f16", false, "", nil},
-		{"f32 ne perd rien", "f32", "f32", false, "", nil},
-		{"q8_0 : léger écart", "q8_0", "q8_0", false, "", []string{"q8_0/q8_0", "KV_TYPE", "modifie légèrement"}},
-		{"q4_0 : perte mesurable", "q4_0", "q4_0", false, "", []string{"perte mesurable"}},
-		{"mixte : le pire des deux", "q8_0", "q4_0", false, "", []string{"perte mesurable"}},
-		{"bf16 : numérique différente", "bf16", "bf16", false, "", []string{"mantisse"}},
-		{"V seul quantifié", "", "q8_0", false, "", []string{"f16/q8_0"}},
-		{"type inconnu : supposé altérer", "q3_k", "q3_k", false, "", []string{"modifie les sorties"}},
-		{"venu d'EXTRA_ARGS, placement figé : --fit ne compense pas", "q8_0", "q8_0", true,
-			"-ot per_layer_token_embd.weight=CPU --n-cpu-moe 40 --cache-type-k q8_0",
-			[]string{"défini par EXTRA_ARGS", "relever --n-cpu-moe"}},
+		{"défaut moteur : rien à dire", "", "", "", "", nil, nil, false},
+		{"f16 explicite : rien à dire", "f16", "f16", "KV_TYPE", "", nil, nil, false},
+		{"f32 ne perd rien", "f32", "f32", "KV_TYPE", "", nil, nil, false},
+		{"q8_0 : léger écart", "q8_0", "q8_0", "KV_TYPE", "", nil,
+			[]string{"q8_0/q8_0", "KV_TYPE", "modifie légèrement"}, false},
+		{"q4_0 : perte mesurable", "q4_0", "q4_0", "KV_TYPE", "", nil, []string{"perte mesurable"}, false},
+		{"mixte : le pire des deux", "q8_0", "q4_0", "KV_TYPE", "", nil, []string{"perte mesurable"}, false},
+		{"bf16 : numérique différente", "bf16", "bf16", "KV_TYPE", "", nil, []string{"mantisse"}, false},
+		{"V seul quantifié", "", "q8_0", "KV_TYPE", "", nil, []string{"f16/q8_0"}, false},
+		{"type inconnu : supposé altérer", "q3_k", "q3_k", "KV_TYPE", "", nil, []string{"modifie les sorties"}, false},
+		{"venu d'EXTRA_ARGS, placement figé : --fit ne compense pas", "q8_0", "q8_0", "défini par EXTRA_ARGS",
+			"-ot per_layer_token_embd.weight=CPU --n-cpu-moe 40 --cache-type-k q8_0", nil,
+			[]string{"défini par EXTRA_ARGS", "relever --n-cpu-moe"}, true},
+		// --n-cpu-moe 0 ne place rien : --fit tourne, rien à en dire.
+		{"--n-cpu-moe 0 : placement libre", "q8_0", "q8_0", "défini par EXTRA_ARGS",
+			"--n-cpu-moe 0 -ctk q8_0 -ctv q8_0", nil, []string{"q8_0/q8_0"}, false},
+		{"experts sur CPU par variable : placement figé aussi", "q8_0", "q8_0", "KV_TYPE", "",
+			map[string]string{"LLAMA_ARG_N_CPU_MOE": "30"}, []string{"relever --n-cpu-moe"}, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := kvFidelityNote(c.k, c.v, c.fromExtra, splitArgs(c.extra))
+			got := kvFidelityNote(c.k, c.v, c.src, splitArgs(c.extra), c.argEnv)
 			if c.want == nil {
 				if got != "" {
 					t.Fatalf("note inattendue : %q", got)
@@ -77,34 +95,62 @@ func TestKVFidelityNote(t *testing.T) {
 					t.Fatalf("note %q sans %q", got, w)
 				}
 			}
-			if !strings.Contains(c.extra, "-ot") && strings.Contains(got, "--fit") {
-				t.Fatalf("placement libre, mais la note parle de --fit : %q", got)
+			if strings.Contains(got, "--fit") != c.fit {
+				t.Fatalf("note %q : mention de --fit attendue = %v", got, c.fit)
 			}
 		})
 	}
 }
 
 func TestLossyCacheNotes(t *testing.T) {
+	// Aides des deux générations de llama-server : l'ancienne ne connaît que
+	// --no-context-shift et glisse par défaut, la récente ne glisse pas.
+	const helpShiftOld = "--no-context-shift   disables context shift on infinite text generation (default: disabled)"
+	const helpShiftNew = "--context-shift, --no-context-shift   whether to use context shift on infinite text generation (default: disabled)"
+	envOf := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
 	for _, c := range []struct {
-		name   string
-		extra  string
-		mmproj bool
-		want   []string // un fragment par note attendue, dans l'ordre
+		name  string
+		extra string
+		si    serveSysInfo
+		want  []string // un fragment par note attendue, dans l'ordre
 	}{
-		{"rien", "", false, nil},
-		{"--context-shift", "--context-shift", false, []string{"jette des jetons"}},
-		{"--no-context-shift ne déclenche rien", "--no-context-shift", false, nil},
-		{"la dernière occurrence décide", "--context-shift --no-context-shift", false, nil},
-		{"--cache-reuse 256", "--cache-reuse 256", false, []string{"--cache-reuse 256"}},
-		{"--cache-reuse=256", "--cache-reuse=256", false, []string{"--cache-reuse 256"}},
-		{"--cache-reuse 0 : désactivé", "--cache-reuse 0", false, nil},
-		{"--swa-full est sans perte", "--swa-full", false, nil},
-		{"les deux", "--context-shift --cache-reuse 64", false, []string{"jette", "--cache-reuse 64"}},
-		{"vision : llama.cpp les ignore, on le dit", "--context-shift --cache-reuse 64", true,
-			[]string{"l'ignore", "l'ignore"}},
+		{"rien", "", serveSysInfo{}, nil},
+		{"--context-shift", "--context-shift", serveSysInfo{}, []string{"--context-shift (EXTRA_ARGS)"}},
+		{"--no-context-shift ne déclenche rien", "--no-context-shift", serveSysInfo{}, nil},
+		{"la dernière occurrence décide", "--context-shift --no-context-shift", serveSysInfo{}, nil},
+		{"--cache-reuse 256", "--cache-reuse 256", serveSysInfo{}, []string{"--cache-reuse 256 (EXTRA_ARGS)"}},
+		{"--cache-reuse=256", "--cache-reuse=256", serveSysInfo{}, []string{"--cache-reuse 256"}},
+		{"--cache-reuse 0 : désactivé", "--cache-reuse 0", serveSysInfo{}, nil},
+		{"--swa-full est sans perte", "--swa-full", serveSysInfo{}, nil},
+		{"les deux", "--context-shift --cache-reuse 64", serveSysInfo{}, []string{"jette", "--cache-reuse 64"}},
+		{"vision (MMPROJ) : llama.cpp les ignore, on le dit", "--context-shift --cache-reuse 64",
+			serveSysInfo{MMProj: "/m/mmproj.gguf"}, []string{"l'ignore", "l'ignore"}},
+		{"vision par --mmproj d'EXTRA_ARGS : pareil", "--mmproj mmproj-F16.gguf --cache-reuse 64",
+			serveSysInfo{}, []string{"l'ignore"}},
+		// Les variables du moteur comptent quand la ligne de commande se tait.
+		{"LLAMA_ARG_CACHE_REUSE", "", serveSysInfo{ArgEnv: envOf("LLAMA_ARG_CACHE_REUSE", "128")},
+			[]string{"--cache-reuse 128 (LLAMA_ARG_CACHE_REUSE)"}},
+		{"--cache-reuse 0 d'EXTRA_ARGS écrase la variable", "--cache-reuse 0",
+			serveSysInfo{ArgEnv: envOf("LLAMA_ARG_CACHE_REUSE", "128")}, nil},
+		{"LLAMA_ARG_CONTEXT_SHIFT=1", "", serveSysInfo{Help: helpShiftNew, ArgEnv: envOf("LLAMA_ARG_CONTEXT_SHIFT", "1")},
+			[]string{"(LLAMA_ARG_CONTEXT_SHIFT)"}},
+		{"moteur récent sans drapeau : rien", "", serveSysInfo{Help: helpShiftNew}, nil},
+		// Défaut d'un moteur ancien : il jette des jetons sans qu'on ait rien écrit.
+		{"moteur ancien : glisse par défaut, on le dit", "", serveSysInfo{Help: helpShiftOld},
+			[]string{"glisse le contexte par défaut"}},
+		{"moteur ancien, --no-context-shift : rien", "--no-context-shift", serveSysInfo{Help: helpShiftOld}, nil},
+		{"moteur ancien, LLAMA_ARG_NO_CONTEXT_SHIFT=1 : rien", "",
+			serveSysInfo{Help: helpShiftOld, ArgEnv: envOf("LLAMA_ARG_NO_CONTEXT_SHIFT", "1")}, nil},
+		{"moteur inconnu (aide vide) : on ne suppose rien", "", serveSysInfo{}, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := lossyCacheNotes(splitArgs(c.extra), c.mmproj)
+			got := lossyCacheNotes(splitArgs(c.extra), c.si)
 			if len(got) != len(c.want) {
 				t.Fatalf("notes = %q, en attendait %d", got, len(c.want))
 			}
@@ -236,12 +282,23 @@ func TestCleCacheReserveeAuBench(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		banned := func(s string) bool { return s == "cache_prompt" || s == "n_cache_reuse" }
 		ast.Inspect(file, func(n ast.Node) bool {
+			// Un champ de structure sérialisé (étiquette json:"cache_prompt")
+			// enverrait la clé aussi sûrement qu'une map : on lit les étiquettes.
+			if f, ok := n.(*ast.Field); ok && f.Tag != nil {
+				if tag, err := strconv.Unquote(f.Tag.Value); err == nil {
+					if name, _, _ := strings.Cut(reflect.StructTag(tag).Get("json"), ","); banned(name) {
+						t.Errorf("%s : champ %q hors du benchmark", fset.Position(f.Pos()), name)
+					}
+				}
+				return true
+			}
 			lit, ok := n.(*ast.BasicLit)
 			if !ok || lit.Kind != token.STRING {
 				return true
 			}
-			if s, err := strconv.Unquote(lit.Value); err == nil && (s == "cache_prompt" || s == "n_cache_reuse") {
+			if s, err := strconv.Unquote(lit.Value); err == nil && banned(s) {
 				t.Errorf("%s : clé %q hors du benchmark", fset.Position(lit.Pos()), s)
 			}
 			return true

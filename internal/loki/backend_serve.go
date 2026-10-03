@@ -341,6 +341,7 @@ func cmdServe(args []string) error {
 	// launchQueuesEnv). Après la sélection GPU, qui fait partie de la réponse.
 	probeServeGPUs(cfg, extra, &si)
 	probeExpertEnv(&si)
+	probeFidelityEnv(&si)
 
 	llmArgs, env, notes := buildServeArgs(cfg, extra, bin, si)
 	applyServeEnv(env)
@@ -361,7 +362,7 @@ func cmdServe(args []string) error {
 	}
 	// Le type EFFECTIF : un -ctk/-ctv d'EXTRA_ARGS l'emporte sur KV_TYPE, et c'est
 	// lui que le moteur accélère ou non.
-	kt, vt, _ := effectiveKVTypes(cfg, extra)
+	kt, vt, _ := effectiveKVTypes(cfg, extra, si.ArgEnv)
 	warnSlowKV(kt, vt)
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
@@ -385,7 +386,7 @@ type serveSysInfo struct {
 
 	LaunchQueues string            // CUDA_SCALE_LAUNCH_QUEUES déjà dans l'environnement : choix de l'utilisateur, intouché
 	GPUs         int               // GPU visibles (CUDA_VISIBLE_DEVICES, sinon nvidia-smi) ; 0 = inconnu ou non sondé
-	ArgEnv       map[string]string // LLAMA_ARG_* de l'environnement qui décident du pipeline et de --fit (serveArgEnv, fitArgEnv)
+	ArgEnv       map[string]string // LLAMA_ARG_* de l'environnement qui décident du pipeline, de --fit et du cache (serveArgEnv, fitArgEnv, fidelityArgEnv)
 	UserEnv      map[string]string // GGML_* des réglages d'expert déjà posés (voir expertEnvKeys) : intouchés
 }
 
@@ -573,11 +574,11 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	args = append(args, extra...)
 	// Garde-fous de fidélité (voir backend_serve_fidelity.go) : ils ne touchent à
 	// aucun drapeau, ils DISENT ce que la ligne finale change aux calculs.
-	ek, ev, fromExtra := effectiveKVTypes(cfg, extra)
-	if n := kvFidelityNote(ek, ev, fromExtra, extra); n != "" {
+	ek, ev, src := effectiveKVTypes(cfg, extra, si.ArgEnv)
+	if n := kvFidelityNote(ek, ev, src, extra, si.ArgEnv); n != "" {
 		notes = append(notes, n)
 	}
-	notes = append(notes, lossyCacheNotes(extra, si.MMProj != "")...)
+	notes = append(notes, lossyCacheNotes(extra, si)...)
 	return args, env, notes
 }
 

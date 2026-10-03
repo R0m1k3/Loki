@@ -5889,8 +5889,11 @@ function syncKVSub(){
     const label = KV_FIDELITY[worst] || 'modifie les sorties';
     parts.push((xk || xv ? 'défini par EXTRA_ARGS : ' : '') + (k||'f16')+'/'+(v||'f16')+' — '+label);
     // Placement figé à la main : --fit ne tourne pas et n'absorbera pas le
-    // surplus d'un retour en f16.
-    if(eaTokens().some(a => ['-ot','--override-tensor','--n-cpu-moe','-ncmoe','--cpu-moe','-cmoe'].includes(a.split('=')[0])))
+    // surplus d'un retour en f16. Comme tensorOverride côté Go : un
+    // --n-cpu-moe 0 ne place rien.
+    const placed = f => { const n = eaLastValue(f).trim(); return n !== '' && n !== '0'; };
+    if(eaTokens().some(a => ['-ot','--override-tensor','--cpu-moe','-cmoe'].includes(a.split('=')[0])) ||
+       placed(['--n-cpu-moe','-ncmoe']) || placed(['--n-cpu-ffn','-ncffn']))
       parts.push('repasser en f16 : plus de VRAM, --n-cpu-moe à relever');
   }
   let shift = false;
