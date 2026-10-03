@@ -680,8 +680,11 @@ Write the summary in the SAME language as the conversation.`
 	if err != nil {
 		return "", err
 	}
+	// Decoder et non Unmarshal : comme avant, seule la première valeur JSON
+	// compte — un octet parasite après elle (proxy, passerelle) ne doit pas
+	// faire échouer une compaction qui passait.
 	var out summarizeResp
-	if err := json.Unmarshal(raw, &out); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&out); err != nil {
 		return "", err
 	}
 	// Télémétrie de la compaction : réponse non streamée, timings et usage sont

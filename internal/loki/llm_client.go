@@ -1553,7 +1553,10 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 			// depuis le journal, il ne fait que repeindre la même ligne.
 			s := stats
 			s.Kind, s.Lost, s.LostAfter = rec.Kind, rec.Lost, rec.LostAfter
-			if (rec.Lost != nil && *rec.Lost > 0) || (rec.Cached != nil && *rec.Cached == 0) {
+			// Pas d'alerte pour une API externe : son cache (s'il existe) suit ses
+			// propres règles, sans slot ni points de reprise à surveiller ici. Le
+			// relevé reste dans l'anneau, l'affichage ne change pas.
+			if !ep.External && ((rec.Lost != nil && *rec.Lost > 0) || (rec.Cached != nil && *rec.Cached == 0)) {
 				s.LostAlert = perfAlert(rec, perfLostAlertAt(chatCfg))
 			}
 			cb(StreamEvent{Stats: &s})

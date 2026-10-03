@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -115,8 +116,10 @@ type perfWire struct {
 }
 
 func decodePerfWire(data []byte) perfWire {
+	// Decoder plutôt qu'Unmarshal : un octet parasite après la réponse ne doit
+	// pas tout rendre inconnu. Ce qui a pu être lu l'est ; le reste reste inconnu.
 	var w perfWire
-	_ = json.Unmarshal(data, &w) // ce qui a pu être lu l'est ; le reste reste inconnu
+	_ = json.NewDecoder(bytes.NewReader(data)).Decode(&w)
 	return w
 }
 
@@ -390,12 +393,24 @@ func perfLine(r perfRec) string {
 // reprise : perdre jusqu'à un espacement de points (--checkpoint-min-step,
 // 2048 posé par Loki) plus un micro-batch est l'état NORMAL, pas un incident.
 // Le signaler à chaque étape noierait les vraies pertes.
+//
+// Même ordre de priorité que le lancement (ckptArgs) : un -cms d'EXTRA_ARGS ou
+// LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT l'emporte sur CKPT_MIN_STEP, un -ub
+// d'EXTRA_ARGS sur UBATCH.
 func perfLostAlertAt(cfg map[string]string) int {
 	const base = 1000
-	step := 0
-	if n, err := strconv.Atoi(strings.TrimSpace(cfg["CKPT_MIN_STEP"])); err == nil && n > 0 {
-		step = n
-	} else if m := strings.TrimSpace(cfg["MODEL"]); m != "" {
+	extra := splitArgs(cfg["EXTRA_ARGS"])
+	num := func(vals ...string) int {
+		for _, v := range vals {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 {
+				return n
+			}
+		}
+		return 0
+	}
+	step := num(flagValue(extra, "-cms", "--checkpoint-min-step"),
+		os.Getenv("LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT"), cfg["CKPT_MIN_STEP"])
+	if m := strings.TrimSpace(cfg["MODEL"]); step == 0 && m != "" {
 		if p, err := resolveServeModelPath(m); err == nil {
 			if g, err := ggufMeta(p); err == nil && ggufHybrid(&g) {
 				step = 2048
@@ -405,9 +420,9 @@ func perfLostAlertAt(cfg map[string]string) int {
 	if step == 0 {
 		return base
 	}
-	ub := 512
-	if n, err := strconv.Atoi(strings.TrimSpace(cfg["UBATCH"])); err == nil && n > 0 {
-		ub = n
+	ub := num(flagValue(extra, "-ub", "--ubatch-size"), cfg["UBATCH"])
+	if ub == 0 {
+		ub = 512
 	}
 	return max(base, step+ub)
 }

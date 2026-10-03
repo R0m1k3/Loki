@@ -249,7 +249,7 @@ function renderStats(el, s){
   if(s.gen_tokens) parts.push('decode '+s.gen_tokens+' tok · '+(s.gen_per_second||0).toFixed(1)+' tok/s');
   // Perte de cache signalée par le serveur (seuil relevé sur un modèle hybride,
   // dont les points de reprise font perdre un peu à chaque étape).
-  if(s.lost_alert && s.lost) parts.push(nfmt(s.lost)+' recalculés'+(s.lost_after ? ' après '+s.lost_after : ''));
+  if(s.lost_alert && s.lost) parts.push(nfmt(s.lost)+' recalculés'+(s.lost_after ? ' après '+s.lost_after.split(',').map(k=>PERF_KIND[k]||k).join(', ') : ''));
   if(!parts.length) return;
   // Réponse de l'assistant : ligne de mesures dédiée sous le texte (son étiquette
   // est masquée dans cette mise en page). Bulle repliable : l'étiquette EST le
@@ -261,6 +261,9 @@ function renderStats(el, s){
     if(sl) sl.classList.toggle('cache-miss', !!s.lost_alert);
   }
 }
+// Ce qui s'est intercalé avant une perte de cache (lost_after, perf_log.go),
+// dit en clair : les identifiants internes n'ont rien à faire dans l'interface.
+const PERF_KIND={main:'tour', subagent:'sous-agent', verify:'vérification', task:'tâche', compact:'compaction', bench:'bench', foreign:'client /v1'};
 // Milliers séparés par une espace fine insécable : « 41 230 », pas « 41230 ».
 function nfmt(n){ return String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f'); }
 // --- Compteurs de bulle -----------------------------------------------------

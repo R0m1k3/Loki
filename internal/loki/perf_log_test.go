@@ -43,6 +43,8 @@ func TestPerfWireDecode(t *testing.T) {
 		{"moteur muet", `{"usage":{"prompt_tokens":900}}`, nil, nil, nil},
 		// Types de travers (fork, passerelle) : lu si c'est un nombre, sinon inconnu.
 		{"types de travers", `{"timings":{"cache_n":"abc","draft_n":"12","draft_n_accepted":7.0}}`, nil, iptr(12), iptr(7)},
+		// Octets parasites après la réponse (proxy) : la première valeur compte.
+		{"octets parasites", `{"timings":{"cache_n":12}}` + "\nxyz", iptr(12), nil, nil},
 		{"structure de travers", `{"timings":"nope","usage":{"prompt_tokens_details":{"cached_tokens":5.9}}}`, iptr(5), nil, nil},
 	}
 	eq := func(a, b *int) bool { return (a == nil) == (b == nil) && (a == nil || *a == *b) }
@@ -268,11 +270,19 @@ func TestPerfLostAlert(t *testing.T) {
 		{"espacement posé", map[string]string{"CKPT_MIN_STEP": "2048"}, 2560},
 		{"espacement et micro-batch", map[string]string{"CKPT_MIN_STEP": "4096", "UBATCH": "1024"}, 5120},
 		{"espacement illisible", map[string]string{"CKPT_MIN_STEP": "beaucoup"}, 1000},
+		// Comme au lancement : EXTRA_ARGS l'emporte sur les clés du preset.
+		{"-cms d'EXTRA_ARGS", map[string]string{"CKPT_MIN_STEP": "2048", "EXTRA_ARGS": "--checkpoint-min-step 8192 -ub 256"}, 8448},
+		{"-ub d'EXTRA_ARGS seul", map[string]string{"CKPT_MIN_STEP": "2048", "UBATCH": "1024", "EXTRA_ARGS": "-ub=2048"}, 4096},
 	}
+	t.Setenv("LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT", "")
 	for _, c := range cases {
 		if got := perfLostAlertAt(c.cfg); got != c.want {
 			t.Errorf("%s : seuil %d, attendu %d", c.name, got, c.want)
 		}
+	}
+	t.Setenv("LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT", "3000")
+	if got := perfLostAlertAt(map[string]string{"CKPT_MIN_STEP": "2048"}); got != 3512 {
+		t.Errorf("LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT ignorée : seuil %d", got)
 	}
 	if perfAlert(perfRec{Lost: iptr(900)}, 1000) || !perfAlert(perfRec{Lost: iptr(1500)}, 1000) {
 		t.Fatal("seuil de perte")
