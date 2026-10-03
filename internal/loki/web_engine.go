@@ -33,16 +33,7 @@ func handleEngineStatus(w http.ResponseWriter, r *http.Request) {
 	bin := currentEngineBin()
 	build, commit := engineBuildOf(bin)
 	imageBin := providedEngineBin()
-
-	source := "custom"
-	switch {
-	case imageBin != "" && samePath(bin, imageBin):
-		source = "image"
-	case engineOwns(bin):
-		source = "downloaded"
-	case prebuiltOwns(bin):
-		source = "prebuilt"
-	}
+	source := engineSource(bin)
 
 	var installed []map[string]any
 	for _, tag := range engineInstalled() {
@@ -67,6 +58,9 @@ func handleEngineStatus(w http.ResponseWriter, r *http.Request) {
 		"dir":       engineDir(),
 		"installed": installed,
 		"job":       lcJobSnapshot(0, false),
+		// Avis « moteur trop ancien » : seulement pour un build digne de foi
+		// (voir engineBuildTrust), jamais pour un compilé ou un fork.
+		"notice": engineBuildNotice(engineBuildTrust(source, build)),
 	})
 }
 
@@ -166,10 +160,24 @@ func engineRunUpdate(tag string) {
 		lcFail(err)
 		return
 	}
-	// On garde la version qu'on vient de poser ; les précédentes ne servent plus
-	// (le retour arrière se fait sur le moteur de l'image, qui, lui, est intact).
-	enginePrune(map[string]bool{filepath.Base(filepath.Dir(bin)): true}, lcAppend)
+	enginePrune(engineKeepAfterUpdate(bin, ancien, lcAppend), lcAppend)
 	lcDone("moteur mis à jour (" + tag + ")")
+}
+
+// engineKeepAfterUpdate : les versions téléchargées que le ménage épargne après
+// une bascule. La nouvelle, et celle qui tournait juste avant si c'en était une
+// : le moteur de l'image n'est pas forcément l'ancien build (il dépend de
+// LLAMACPP_IMAGE), et revenir sur la version d'hier ne doit demander ni réseau
+// ni que le tag soit encore publié. Les plus anciennes partent (~450 Mo chacune).
+func engineKeepAfterUpdate(bin, ancien string, logf func(string)) map[string]bool {
+	keep := map[string]bool{filepath.Base(filepath.Dir(bin)): true}
+	if prev := engineTagOf(ancien); prev != "" && !keep[prev] {
+		keep[prev] = true
+		if logf != nil {
+			logf("version précédente gardée pour revenir en arrière : " + prev)
+		}
+	}
+	return keep
 }
 
 // engineSwitchTo pointe BIN sur un moteur et redémarre le service s'il tournait.

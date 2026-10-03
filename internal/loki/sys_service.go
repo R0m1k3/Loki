@@ -83,7 +83,14 @@ var configTemplate = []struct{ key, help string }{
 	{"CACHE_RAM", "cache de prompts en RAM hôte (--cache-ram, Mio), copie exacte des conversations quittées, jamais la VRAM ; " +
 		"vide = auto (agrandi seulement pour un modèle tout-GPU), -1 = sans limite, 0 = coupé"},
 	{"CACHE_ISOLATE", "off = ne plus effacer le slot après un sous-agent, une vérification, une tâche ou un bench"},
+	{"CTX_CHECKPOINTS", "points de reprise par slot d'un modèle hybride (--ctx-checkpoints) ; vide = défaut du moteur (32) ; " +
+		"chacun pèse 70 à 200 Mio de RAM hôte : 8 à 16 si le modèle remplit déjà la RAM"},
+	{"CKPT_MIN_STEP", "espacement minimal en jetons entre deux points de reprise (--checkpoint-min-step), > 0 ; " +
+		"vide = défaut du moteur, ou 2048 d'office sur un hybride avec un moteur officiel antérieur à b10864"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
+	{"REASONING_PRESERVE", "on/off = garder ou non la réflexion des tours passés dans le gabarit (--reasoning-preserve) ; " +
+		"vide = défaut du moteur (on depuis b10763). Loki ne renvoie pas cette réflexion : off rend l'ancien historique " +
+		"aux gabarits type Qwen3.6, mais change celui des gabarits qui la gardent d'eux-mêmes (Qwen3.8)"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"TEMP", "température d'échantillonnage ; vide = défaut du moteur"},

@@ -2763,6 +2763,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <div style="font-size:12px;line-height:1.5">
         <div>Moteur <b>llama.cpp</b> <span id="eng-build" class="mcp-tag eng-ver"></span> <span id="eng-source" class="mcp-tag"></span></div>
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
+        <div id="eng-notice" class="muted" style="margin-top:6px;display:none"></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
           <!-- « vérifier » ne fait QUE regarder (aucun téléchargement, aucune
@@ -2771,6 +2772,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
           <button onclick="engCheck()">vérifier les mises à jour</button>
           <button onclick="engUpdate()">mettre à jour le moteur</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
+          <span id="eng-others"></span>
         </div>
         <div class="muted" style="margin-top:6px">Télécharge llama-server et ses bibliothèques depuis l'image officielle
           <code id="eng-repo"></code> (~170&nbsp;Mo), sans reconstruire l'image de Loki. Le nouveau moteur est essayé
@@ -7979,6 +7981,20 @@ async function loadEngine(){
   // Le retour arrière n'a de sens que si on n'est pas déjà dessus.
   const revert = document.getElementById('eng-revert');
   if(revert) revert.style.display = (s.image_bin && s.source !== 'image') ? '' : 'none';
+  // Versions téléchargées gardées à côté (la précédente survit à une mise à
+  // jour) : revenir dessus ne demande ni réseau ni que le tag soit encore publié.
+  const others = document.getElementById('eng-others');
+  if(others) others.innerHTML = (s.installed || []).filter(v=>!v.in_use).map(v=>{
+    const tag = String(v.tag).replace(/[^A-Za-z0-9._-]/g,'');
+    return '<button onclick="engUse(\''+tag+'\')">utiliser '+(v.build ? 'b'+v.build : tag)+'</button>';
+  }).join(' ');
+  // Build trop ancien pour les points de reprise des hybrides (voir
+  // engineBuildNotice) : un avis, rien n'est changé d'office ici.
+  const notice = document.getElementById('eng-notice');
+  if(notice){
+    notice.textContent = s.notice ? '⚠ '+s.notice : '';
+    notice.style.display = s.notice ? '' : 'none';
+  }
   engSay('');
 }
 

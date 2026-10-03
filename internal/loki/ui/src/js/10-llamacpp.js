@@ -140,6 +140,20 @@ async function loadEngine(){
   // Le retour arrière n'a de sens que si on n'est pas déjà dessus.
   const revert = document.getElementById('eng-revert');
   if(revert) revert.style.display = (s.image_bin && s.source !== 'image') ? '' : 'none';
+  // Versions téléchargées gardées à côté (la précédente survit à une mise à
+  // jour) : revenir dessus ne demande ni réseau ni que le tag soit encore publié.
+  const others = document.getElementById('eng-others');
+  if(others) others.innerHTML = (s.installed || []).filter(v=>!v.in_use).map(v=>{
+    const tag = String(v.tag).replace(/[^A-Za-z0-9._-]/g,'');
+    return '<button onclick="engUse(\''+tag+'\')">utiliser '+(v.build ? 'b'+v.build : tag)+'</button>';
+  }).join(' ');
+  // Build trop ancien pour les points de reprise des hybrides (voir
+  // engineBuildNotice) : un avis, rien n'est changé d'office ici.
+  const notice = document.getElementById('eng-notice');
+  if(notice){
+    notice.textContent = s.notice ? '⚠ '+s.notice : '';
+    notice.style.display = s.notice ? '' : 'none';
+  }
   engSay('');
 }
 

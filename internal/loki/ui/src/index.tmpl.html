@@ -540,6 +540,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
       <div style="font-size:12px;line-height:1.5">
         <div>Moteur <b>llama.cpp</b> <span id="eng-build" class="mcp-tag eng-ver"></span> <span id="eng-source" class="mcp-tag"></span></div>
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
+        <div id="eng-notice" class="muted" style="margin-top:6px;display:none"></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
           <!-- « vérifier » ne fait QUE regarder (aucun téléchargement, aucune
@@ -548,6 +549,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <button onclick="engCheck()">vérifier les mises à jour</button>
           <button onclick="engUpdate()">mettre à jour le moteur</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
+          <span id="eng-others"></span>
         </div>
         <div class="muted" style="margin-top:6px">Télécharge llama-server et ses bibliothèques depuis l'image officielle
           <code id="eng-repo"></code> (~170&nbsp;Mo), sans reconstruire l'image de Loki. Le nouveau moteur est essayé

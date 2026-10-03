@@ -343,6 +343,12 @@ func cmdServe(args []string) error {
 	probeExpertEnv(&si)
 	probeFidelityEnv(&si)
 	probeCacheRAM(cfg, extra, &si)
+	probeCkptEnv(&si)
+	// Build du moteur : seulement pour un hybride, le seul cas où il décide de
+	// quelque chose (voir ckptArgs) — inutile de lancer « --version » sinon.
+	if ggufHybrid(si.GGUF) {
+		si.EngineBuild = engineBuildTrusted(bin)
+	}
 	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
 		si.SlotDir = prepareSlotDir(LokiHome())
 	}
@@ -401,6 +407,10 @@ type serveSysInfo struct {
 	RAMAvailMiB int64     // RAM libre au lancement
 	VRAMMiB     int64     // VRAM NVIDIA des cartes visibles
 	SlotDir     string    // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
+
+	// Build d'un moteur officiel (engineBuildTrusted), lu seulement pour un
+	// modèle hybride ; 0 = inconnu ou non lu : ni avis ni drapeau automatique.
+	EngineBuild int
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -579,6 +589,11 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 			notes = append(notes, "ce moteur ne connaît pas --reasoning : impossible de désactiver le raisonnement")
 		}
 	}
+	// Conservation du raisonnement des tours passés : seulement si
+	// REASONING_PRESERVE est posée (voir reasoningPreserveArgs pour le compromis).
+	rp, rpNotes := reasoningPreserveArgs(cfg, extra, si)
+	args = append(args, rp...)
+	notes = append(notes, rpNotes...)
 	if si.APIKey != "" {
 		args = append(args, "--api-key", si.APIKey)
 	}
@@ -587,6 +602,10 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	cram, cramNotes := cacheRAMArgs(cfg, extra, si)
 	args = append(append(args, cram...), slotSaveArgs(cfg, extra, si)...)
 	notes = append(notes, cramNotes...)
+	// Points de reprise des hybrides (voir backend_serve_ckpt.go).
+	ck, ckNotes := ckptArgs(cfg, extra, si)
+	args = append(args, ck...)
+	notes = append(notes, ckNotes...)
 	// EXTRA_ARGS (déjà découpé comme le ferait le shell — les guillemets gardent
 	// ensemble un chemin qui contient des espaces) ferme la marche.
 	args = append(args, extra...)
