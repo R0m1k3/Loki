@@ -54,6 +54,9 @@ func checkArgPreview(t *testing.T, args, key string, chunks []string) {
 		if n := strings.Count(a.value(), "\n"); n != a.lines {
 			t.Fatalf("lines=%d, la valeur en compte %d", a.lines, n)
 		}
+		if n := bodyLineCount(a.value()); n != a.lineCount() {
+			t.Fatalf("lineCount=%d, bodyLineCount=%d (valeur %q)", a.lineCount(), n, a.value())
+		}
 	}
 }
 

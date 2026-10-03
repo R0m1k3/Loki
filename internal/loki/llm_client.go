@@ -822,6 +822,21 @@ func (a *argPreview) value() string { return a.val.String() }
 // done : guillemet fermant reçu.
 func (a *argPreview) done() bool { return a.phase == 4 }
 
+// lineCount : bodyLineCount(value()) sans relire la valeur. Recompter les '\n'
+// de tout le corps à chaque ligne émise restait quadratique.
+func (a *argPreview) lineCount() int {
+	n := a.val.Len()
+	switch {
+	case n == 0:
+		return 0
+	case a.val.String()[n-1] != '\n':
+		return a.lines + 1
+	case n == 1:
+		return 0 // "\n" seul : bodyLineCount le compte vide
+	}
+	return a.lines
+}
+
 // bodyTailLines / bodyTailBytes : ce qu'un événement de frappe montre du corps.
 const (
 	bodyTailLines = 40
@@ -1667,7 +1682,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 						tu := &ToolUsedEvent{Name: cur.Function.Name, Label: lastPreview, Typing: true}
 						if full != "" {
 							tu.Body, tu.BodyTail = bodyTail(full)
-							tu.BodyLines = bodyLineCount(full)
+							tu.BodyLines = bodyDec.lineCount()
 						}
 						if !scb(StreamEvent{ToolUsed: tu}) {
 							aborted = true
