@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -250,5 +251,61 @@ func TestCompactageModeCodeGardeLEtat(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("critères non rendus après compactage")
+	}
+}
+
+// Le résumé n'est plus coupé à 2200 caractères : max_tokens borne déjà la
+// sortie, et l'ancienne coupe faisait tomber l'ÉTAT D'AVANCEMENT, écrit en
+// dernier. Seul le raisonnement sans résumé est refusé (repli sur le torse).
+func TestCleanSummary(t *testing.T) {
+	testHome(t)
+	long := strings.Repeat("é", 7000) + " ÉTAT D'AVANCEMENT"
+	huge := strings.Repeat("x", summaryRuneCap()+500)
+	cases := []struct {
+		name, content, reasoning, finish string
+		want                             string
+		err                              bool
+	}{
+		{"simple", "  - fait A\n- fait B ", "", "stop", "- fait A\n- fait B", false},
+		{"long gardé entier", long, "", "stop", long, false},
+		{"think retiré", "<think>je réfléchis</think>\n- résumé", "", "stop", "- résumé", false},
+		{"length gardé et marqué", "- début du résumé", "", "length", "- début du résumé […]", false},
+		{"au-delà du filet", huge, "", "stop", strings.Repeat("x", summaryRuneCap()) + " […]", false},
+		{"balise citée en milieu", "- le parseur retire <think> en tête", "", "stop", "- le parseur retire <think> en tête", false},
+		{"think jamais refermé", "<think>je réfléchis encore", "", "length", "", true},
+		{"que du reasoning_content", "", "je réfléchis", "length", "", true},
+		{"think vide de réponse", "<think>x</think>  ", "", "stop", "", true},
+		{"vide", "", "", "stop", "", true},
+	}
+	for _, c := range cases {
+		got, err := cleanSummary(c.content, c.reasoning, c.finish)
+		if (err != nil) != c.err || got != c.want {
+			t.Errorf("%s : %q, %v", c.name, got, err)
+		}
+	}
+}
+
+// Bout à bout : un résumé de 7000 caractères revient intact du moteur, et une
+// réponse qui n'a que du raisonnement est une erreur (repli de l'appelant).
+func TestSummarizeLongNotTruncated(t *testing.T) {
+	testHome(t)
+	long := strings.Repeat("ü", 7000)
+	var reply map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(reply)
+	}))
+	t.Cleanup(srv.Close)
+	u, _ := url.Parse(srv.URL)
+	if err := SetConfigKey("PORT", u.Port()); err != nil {
+		t.Fatal(err)
+	}
+	reply = map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": long}, "finish_reason": "stop"}}}
+	got, err := summarizeTranscriptFor(context.Background(), "transcript", false)
+	if err != nil || got != long {
+		t.Fatalf("résumé tronqué : %d caractères, %v", len([]rune(got)), err)
+	}
+	reply = map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": "", "reasoning_content": "hmm"}, "finish_reason": "length"}}}
+	if got, err := summarizeTranscriptFor(context.Background(), "transcript", false); err == nil {
+		t.Fatalf("raisonnement seul accepté comme résumé : %q", got)
 	}
 }

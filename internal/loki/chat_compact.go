@@ -651,8 +651,10 @@ func renderTranscript(msgs []Message) string {
 type summarizeResp struct {
 	Choices []struct {
 		Message struct {
-			Content string `json:"content"`
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 }
 
@@ -757,20 +759,61 @@ Write the summary in the SAME language as the conversation.`
 	if len(out.Choices) == 0 {
 		return "", fmt.Errorf("résumé: réponse vide")
 	}
-	c := out.Choices[0].Message.Content
-	// Certains modèles à raisonnement préfixent un bloc <think>…</think> : on ne
-	// garde que la réponse finale.
+	ch := out.Choices[0]
+	return cleanSummary(ch.Message.Content, ch.Message.ReasoningContent, ch.FinishReason)
+}
+
+// summaryRuneCap borne le résumé en caractères, en filet de sécurité
+// seulement. L'ancienne borne fixe de 2200 caractères (≈ 550 tokens) coupait
+// un résumé que max_tokens autorisait à ~1600 tokens — et le prompt met l'ÉTAT
+// D'AVANCEMENT en dernier : c'était précisément lui, ce dont l'agent a besoin
+// pour reprendre, qui tombait. max_tokens borne déjà la sortie ; ×6 caractères
+// par token laisse passer tout résumé que le moteur a pu produire (le français
+// tourne autour de 4) et ne mord que sur une API qui ignorerait max_tokens.
+func summaryRuneCap() int {
+	return compactSummaryBudget() * 6
+}
+
+// cleanSummary extrait le texte final d'une réponse de résumé. Une erreur fait
+// retomber l'appelant sur le torse dégraissé, sans perte : bien mieux que
+// d'installer du raisonnement brut comme « mémoire » de la conversation.
+//   - un bloc <think>…</think> en tête est retiré, seule la réponse compte ;
+//   - un <think> ouvert en tête et jamais refermé (modèle qui ignore
+//     enable_thinking=false et bute sur max_tokens), ou un texte vide à côté
+//     d'un reasoning_content : il n'y a QUE du raisonnement, pas de résumé →
+//     erreur ;
+//   - finish_reason=length : le texte est gardé (le début d'un bon résumé vaut
+//     mieux que rien), marqué « […] » et tracé dans le journal.
+func cleanSummary(content, reasoning, finish string) (string, error) {
+	c := content
 	if i := strings.LastIndex(c, thinkClose); i >= 0 {
 		c = c[i+len(thinkClose):]
 	}
 	c = strings.TrimSpace(c)
-	// Garde-fou dur : même si le modèle ignore la consigne de longueur, on tronque
-	// pour garantir une vraie compression. 2200 caractères (≈ 550 tokens) et pas
-	// 1500 : le résumé doit désormais porter les FAITS déjà trouvés, pas seulement
-	// l'intention, sinon l'IA repart en recherche après chaque compactage. Coupé
-	// sur une frontière de rune (é, … ne doivent pas devenir des �).
-	if r := []rune(c); len(r) > 2200 {
-		c = strings.TrimSpace(string(r[:2200])) + " […]"
+	// En TÊTE seulement : un résumé de session Code peut citer la balise
+	// <think> (un parseur, un gabarit) sans être du raisonnement.
+	if strings.HasPrefix(c, "<think>") {
+		return "", fmt.Errorf("résumé: raisonnement jamais refermé, aucun résumé")
+	}
+	if c == "" {
+		if strings.TrimSpace(reasoning) != "" || strings.TrimSpace(content) != "" {
+			return "", fmt.Errorf("résumé: rien hors du raisonnement")
+		}
+		return "", fmt.Errorf("résumé: texte vide")
+	}
+	cut := false
+	if r := []rune(c); len(r) > summaryRuneCap() {
+		// Coupé sur une frontière de rune (é, … ne doivent pas devenir des �).
+		c = strings.TrimSpace(string(r[:summaryRuneCap()]))
+		cut = true
+	}
+	if finish == "length" {
+		fmt.Fprintf(os.Stderr, "[compact] résumé coupé par max_tokens=%d (%d caractères gardés)\n",
+			compactSummaryBudget(), len([]rune(c)))
+		cut = true
+	}
+	if cut {
+		c += " […]"
 	}
 	return c, nil
 }
