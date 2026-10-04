@@ -185,6 +185,22 @@ func engineRequestBeginSide(keep func(*prewarmRun) bool, side bool) (func(), uin
 	}, seq
 }
 
+// engineProxyBegin : engineRequestBeginSide pour une requête d'un client passée
+// par les proxys de Loki (/v1, /health, /props, /metrics, /slots). Comptée en
+// vol dans tous les cas, comme avant. Une lecture (GET, HEAD : /v1/models, une
+// sonde /health d'Open WebUI…) ne calcule rien dans aucun slot : elle ne doit
+// ni annuler un préchauffage (PREWARM), ni dire que le slot ne porte plus la
+// discussion (COMPACT_CONTINUATION, SLOT_PERSIST). Sans ces clés, aucune
+// différence.
+func engineProxyBegin(r *http.Request, side bool) func() {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		end, _ := engineRequestBeginSide(func(*prewarmRun) bool { return true }, true)
+		return end
+	}
+	end, _ := engineRequestBeginSide(nil, side)
+	return end
+}
+
 // slotsWrite : une action sur /slots (save, restore, erase) plutôt qu'une
 // lecture. Les proxys de Loki la refusent : seul Loki, en local, efface — et
 // save ou restore écriraient des Gio sur le disque pour un client distant.

@@ -531,6 +531,9 @@ Ajoutées par ce fork :
   exactement les jetons gardés (gabarit qui rend le dernier tour à
   l'identique), sinon recalcul comme avant. Ce que voit le modèle ne change
   pas : llama.cpp ne reprend un état que sur un préfixe de jetons identique.
+  Avec `PREWARM`, le préchauffage passe par le slot après chaque tour : une
+  bascule faite ensuite ne garde rien (les deux clés se recouvrent peu). Une
+  simple lecture d'un client (`/v1/models`, `/health`) ne compte pas.
 - **Spéculation par n-grammes** (clé `SPEC`, valeurs `ngram` et `mtp+ngram`,
   **off** par défaut, `loki config set SPEC ngram`, moteur relancé) : en mode
   Code, le modèle recopie sans cesse ce qui est déjà dans le contexte (chemins,

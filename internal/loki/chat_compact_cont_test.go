@@ -634,3 +634,47 @@ func TestBuildChatPayloadNoSampling(t *testing.T) {
 		t.Fatalf("échantillonnage posé malgré noSampling : %v", p)
 	}
 }
+
+// Corrections de relecture du lot 2 : une lecture passée par les proxys de
+// Loki (GET /v1/models, /health d'un client qui sonde) ne calcule rien dans un
+// slot — elle ne retire pas le tampon de la discussion et n'annule pas un
+// préchauffage. Une complétion de client, si.
+func TestProxyReadKeepsSlotStamp(t *testing.T) {
+	testHome(t)
+	contReset(t)
+	if err := SetConfigKey("MODEL", "/models/a.gguf"); err != nil {
+		t.Fatal(err)
+	}
+	end, seq := engineRequestBegin(nil)
+	end()
+	engineMarkMain(seq, "c1")
+	cancelled := false
+	p := &prewarmRun{cancel: func() { cancelled = true }}
+	endP, ok := prewarmBegin(p)
+	if !ok {
+		t.Fatal("préchauffage refusé, moteur libre")
+	}
+	defer endP()
+	// Le préchauffage retire lui-même le tampon : reposé à la main, pour voir
+	// ce que fait la lecture seule.
+	engineGate.mu.Lock()
+	engineGate.main.seq = engineGate.seq
+	engineGate.mu.Unlock()
+	for _, m := range []string{http.MethodGet, http.MethodHead} {
+		r := httptest.NewRequest(m, "/v1/models", nil)
+		engineProxyBegin(r, false)()
+	}
+	if cancelled {
+		t.Error("une lecture a annulé le préchauffage")
+	}
+	if !engineSlotHolds("c1") {
+		t.Error("une lecture a retiré le tampon de la discussion")
+	}
+	engineProxyBegin(httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil), false)()
+	if !cancelled {
+		t.Error("une complétion de client n'a pas annulé le préchauffage")
+	}
+	if engineSlotHolds("c1") {
+		t.Error("tampon gardé après une complétion de client")
+	}
+}

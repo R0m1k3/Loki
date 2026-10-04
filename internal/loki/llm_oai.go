@@ -123,8 +123,7 @@ func oaiHandler() http.Handler {
 			// Requête en vol vers le moteur : l'isolation des travaux annexes
 			// n'efface pas le slot pendant ce temps. Différé : ReverseProxy panique
 			// (ErrAbortHandler) quand le client coupe en plein flux.
-			end, _ := engineRequestBeginSide(nil, side)
-			defer end()
+			defer engineProxyBegin(r, side)()
 			// Complétion d'un client externe : elle prend le slot sous le nez de
 			// la conversation. Notée pour nommer la perte de cache qui suit.
 			if r.Method == http.MethodPost && strings.HasPrefix(p, "/v1/") {

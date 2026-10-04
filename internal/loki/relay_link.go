@@ -530,8 +530,7 @@ func newLinkHandler(mux *http.ServeMux) http.Handler {
 				http.Error(w, msg, status)
 				return
 			}
-			end, _ := engineRequestBeginSide(nil, side) // voir oaiHandler
-			defer end()
+			defer engineProxyBegin(r, side)() // voir oaiHandler
 			lp.ServeHTTP(w, r)
 			return
 		}
