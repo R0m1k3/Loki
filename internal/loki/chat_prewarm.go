@@ -375,7 +375,7 @@ func (c *Conversation) prewarm(why string) {
 			return
 		}
 	}
-	if sideJobs.Load() > 0 || benchRunning() || prewarmNearMidnight(time.Now()) {
+	if sideJobs.Load() > 0 || benchRunning() || tuneGuard() != nil || prewarmNearMidnight(time.Now()) {
 		return
 	}
 	if !healthCheck() {

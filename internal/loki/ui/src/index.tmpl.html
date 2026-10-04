@@ -1350,6 +1350,12 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <div class="pe-row stack" id="s-loadmode-warn-row" style="display:none">
             <div class="pe-note" id="s-loadmode-warn" style="color:var(--warn)"></div>
           </div>
+          <!-- Optimiseur sans perte (backend_tune*.go) : essais sur un moteur
+               privé, mesurés au bench complet. Rien n'est écrit sans un clic. -->
+          <div class="pe-row" id="m-tune-row">
+            <span class="pe-row-l">Optimiseur<span class="pe-sub" id="m-tune-sub">lots, threads, marges --fit… mesurés sur un moteur privé · rien n'est écrit sans ton accord</span></span>
+            <span class="pe-row-c"><button class="pe-link" onclick="openTuneModal()">Optimiser…</button></span>
+          </div>
         </div>
       </div>
 
@@ -1414,6 +1420,24 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <button class="pe-btn" onclick="closeModal()">annuler</button>
         <button class="pe-btn primary" onclick="saveItem()">enregistrer</button>
       </div>
+    </div>
+  </div>
+</div>
+<!-- Optimiseur sans perte (29-tune.js) : au-dessus de l'éditeur de preset, d'où
+     il s'ouvre. Les options cochées ici ne s'enregistrent nulle part. -->
+<div id="tune-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeTuneModal()">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;width:100%;max-width:640px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong>Optimiser le preset</strong>
+      <button onclick="closeTuneModal()" style="margin:0" title="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg></button>
+    </div>
+    <div id="tune-body" style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;overflow:auto"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">
+      <button id="tune-cancel" onclick="cancelTuneUI()" style="display:none">annuler l'optimisation</button>
+      <button id="tune-copy" onclick="applyTuneUI('copy')" style="display:none">enregistrer dans une copie</button>
+      <button id="tune-apply" onclick="applyTuneUI('preset')" style="display:none;border-color:var(--accent);color:var(--accent)">appliquer à ce preset…</button>
+      <button id="tune-start" onclick="startTuneUI()" style="border-color:var(--accent);color:var(--accent)">lancer</button>
+      <button onclick="closeTuneModal()">fermer</button>
     </div>
   </div>
 </div>

@@ -182,6 +182,9 @@ func engineKeepAfterUpdate(bin, ancien string, logf func(string)) map[string]boo
 
 // engineSwitchTo pointe BIN sur un moteur et redémarre le service s'il tournait.
 func engineSwitchTo(bin string) error {
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	wasUp := serviceIsActive()
 	if wasUp {
 		lcPhase("arrêt du moteur…")
@@ -209,6 +212,9 @@ func engineSwitchTo(bin string) error {
 // de l'image ({tag:"image"}). Aucun réseau : c'est la sortie de secours quand une
 // mise à jour s'avère décevante.
 func handleEngineUse(w http.ResponseWriter, r *http.Request) {
+	if tuneDenyHTTP(w) {
+		return
+	}
 	var req struct {
 		Tag string `json:"tag"`
 	}

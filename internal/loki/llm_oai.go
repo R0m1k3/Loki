@@ -136,6 +136,13 @@ func oaiHandler() http.Handler {
 						"benchmark en cours sur ce moteur — réessaie dans un moment", "server_error", "benchmark_running")
 					return
 				}
+				// Optimisation : le vrai moteur est arrêté, un moteur d'essai tient la carte.
+				if tuneGuard() != nil {
+					w.Header().Set("Retry-After", "60")
+					sendOAIError(w, http.StatusServiceUnavailable,
+						"optimisation du moteur en cours — réessaie dans quelques minutes", "server_error", "tuning_running")
+					return
+				}
 				perfNoteForeign()
 			}
 			lp.ServeHTTP(w, r)

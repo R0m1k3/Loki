@@ -11,11 +11,11 @@ import (
 	"time"
 )
 
-// serviceAction wraps `systemctl <action> <svc>` with passwordless sudo where
+// serviceActionOS wraps `systemctl <action> <svc>` with passwordless sudo where
 // it makes sense, and prints a follow-up status check after start/restart.
 // Sans systemd (conteneur Docker, LOKI_CONTAINER=1), on bascule sur la
 // supervision par fichier PID (sys_service_container.go).
-func serviceAction(action string) error {
+func serviceActionOS(action string) error {
 	if !systemdAvailable() {
 		return userSvcAction(action)
 	}

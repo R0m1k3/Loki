@@ -148,6 +148,10 @@ func gpuList() error {
 // gpuSet writes (or clears) CUDA_VISIBLE_DEVICES in config.env then offers a
 // restart so the change takes effect.
 func gpuSet(value string) error {
+	// La sélection GPU relance le moteur : pas pendant une optimisation.
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	if err := SetConfigKey("CUDA_VISIBLE_DEVICES", value); err != nil {
 		return err
 	}

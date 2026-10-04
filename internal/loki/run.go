@@ -96,6 +96,8 @@ func Main() {
 		mustExit(cmdTest(args))
 	case "bench":
 		mustExit(cmdBench(args))
+	case "tune":
+		mustExit(cmdTune(args))
 	case "llamacpp":
 		mustExit(cmdLlamacpp(args))
 	case "update":
@@ -136,6 +138,14 @@ Moteur (loki-engine) :
   edit                          éditer la configuration dans $EDITOR
   switch [N]                    activer un preset de presets/ (interactif ou par numéro)
   test | bench [N] [--full]     vérifier que l'IA répond / mesurer prefill + decode (--full : en profondeur)
+  tune [--placement] [--opt-in] [--budget MIN] [--stages lots,threads…]
+                                optimiseur sans perte : essais (lots, threads, marges --fit…)
+                                sur un moteur privé, mesurés au bench complet ; rien n'est
+                                écrit sans ta réponse (copie du preset ou preset actuel,
+                                vérifié puis rétabli en cas d'échec). --placement : --fit à la
+                                place des experts / --tensor-split placés à la main (réécrit
+                                EXTRA_ARGS) ; --opt-in : SPEC, CUDA_GRAPH_OPT, --backend-sampling
+                                --stages : marges,lots,delestage,threads,files (défaut : toutes)
   vram                          utilisation GPU/VRAM (nvidia-smi)
   gpu [index…]                  liste les GPU / choisit le(s)quel(s) utiliser (gpu all = tous)
   set-api-key [clé]             protéger llama-server (clé Bearer); vide = générer, "" = retirer

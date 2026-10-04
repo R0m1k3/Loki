@@ -565,6 +565,9 @@ func handlePresetAutoPlace(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePresetSave(w http.ResponseWriter, r *http.Request) {
+	if tuneDenyHTTP(w) {
+		return
+	}
 	var req presetSaveReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
@@ -703,6 +706,9 @@ func handleAgentToggle(w http.ResponseWriter, r *http.Request) {
 // key?} l'écrit puis redémarre le service (llama-server lit --api-key au lancement).
 func handleAPIKey(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
+		if tuneDenyHTTP(w) {
+			return
+		}
 		var req struct {
 			Action string `json:"action"`
 			Key    string `json:"key"`
@@ -1300,6 +1306,9 @@ func handleMemDelete(w http.ResponseWriter, r *http.Request) {
 // même contrat que handleSwitch. C'est ce qui rend le sélecteur de l'en-tête
 // utilisable même sans avoir créé de preset.
 func handleModelUse(w http.ResponseWriter, r *http.Request) {
+	if tuneDenyHTTP(w) {
+		return
+	}
 	var req struct {
 		Value string `json:"value"`
 	}
@@ -1327,6 +1336,11 @@ func handleModelUse(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSwitch(w http.ResponseWriter, r *http.Request) {
+	// Pendant une optimisation, la configuration active est celle qu'elle mesure
+	// et le moteur ne doit pas redémarrer (backend_tune_lock.go).
+	if tuneDenyHTTP(w) {
+		return
+	}
 	// id = identité stable du preset (nom de fichier). Le numéro seul est
 	// dangereux : si la liste a changé depuis l'affichage (réordonnée, preset
 	// ajouté ou supprimé depuis un autre appareil), la même position désigne un

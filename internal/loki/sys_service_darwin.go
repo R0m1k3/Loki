@@ -48,9 +48,9 @@ func launchdPlistPath(svc string) string {
 // en écriture par l'utilisateur du service après le chown de l'installation).
 func launchdLogPath() string { return filepath.Join(LokiHome(), serviceName()+".log") }
 
-// serviceAction mappe start/stop/restart/enable/disable sur launchctl. `load -w`
+// serviceActionOS mappe start/stop/restart/enable/disable sur launchctl. `load -w`
 // (re)active le service ET le rend persistant au boot ; `unload -w` le désactive.
-func serviceAction(action string) error {
+func serviceActionOS(action string) error {
 	svc := serviceName()
 	plist := launchdPlistPath(svc)
 	// Pas de LaunchDaemon installé — cas normal d'un Mac de bureau, où Loki tourne

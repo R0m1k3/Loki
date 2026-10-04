@@ -17,6 +17,23 @@ import (
 //
 // editConfig and showVram live here because they work the same everywhere.
 
+// serviceAction : le seul passage vers serviceActionOS pour le reste de Loki.
+// Pendant une optimisation (backend_tune_lock.go), le moteur d'essai tient la
+// VRAM : démarrer le vrai moteur à côté — bascule de preset, GPU, mise à jour,
+// rechargement… — chargerait deux modèles. Refus, quel que soit l'appelant et la
+// plateforme ; l'optimiseur, lui, appelle serviceActionOS directement. Un verrou
+// périmé (optimisation tuée) est écarté AVANT tout démarrage, son essai
+// orphelin arrêté : sinon le moteur relancé partagerait la carte avec lui.
+func serviceAction(action string) error {
+	if action == "start" || action == "restart" {
+		if err := tuneGuard(); err != nil {
+			return err
+		}
+		tuneReapStale()
+	}
+	return serviceActionOS(action)
+}
+
 // preflightEngine vérifie ce sans quoi le moteur ne PEUT pas démarrer, avant de
 // lancer le service. Sinon llama-server sortait en erreur, systemd le relançait
 // toutes les 3 s, et `loki start` affichait un « activating » rassurant pendant

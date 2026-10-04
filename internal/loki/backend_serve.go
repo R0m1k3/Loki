@@ -260,6 +260,18 @@ func downgradeLoadMode(args []string) ([]string, string) {
 // vérifie en table de tests plutôt qu'en relançant un moteur.
 func cmdServe(args []string) error {
 	cfg := ReadConfig()
+	// Moteur d'ESSAI de l'optimiseur (backend_tune_run.go) : sa configuration
+	// est une copie posée dans le dossier de l'essai, jamais config.env, et rien
+	// de ce que le vrai moteur laisse derrière lui (état des slots, jeton de
+	// SPEC=auto) n'est touché. Sans la variable, rien ne change.
+	trialDir := os.Getenv(tuneTrialEnv)
+	if trialDir != "" {
+		c, err := readTuneTrialConfig(trialDir)
+		if err != nil {
+			return err
+		}
+		cfg = c
+	}
 	bin := cfg["BIN"]
 	if bin == "" {
 		return fmt.Errorf("BIN non défini — lance « loki edit »")
@@ -367,7 +379,12 @@ func cmdServe(args []string) error {
 	}
 	probeSlotPersistEnv(cfg, &si)
 	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
-		si.SlotDir = prepareSlotDir(LokiHome(), slotPersistOn(cfg))
+		if trialDir != "" {
+			// L'essai a son propre dossier : celui du vrai moteur garde ses états.
+			si.SlotDir = prepareSlotDir(trialDir, false)
+		} else {
+			si.SlotDir = prepareSlotDir(LokiHome(), slotPersistOn(cfg))
+		}
 	}
 
 	llmArgs, env, notes := buildServeArgs(cfg, extra, bin, si)
@@ -377,10 +394,14 @@ func cmdServe(args []string) error {
 	// poids sur CPU…) : ceux des autres presets restent, pour leur retour.
 	// Clé retirée : plus aucun état gardé sur le disque.
 	persistKey := ""
-	if ok, _ := slotPersistPlan(cfg, extra, si); ok {
+	persistOK, _ := slotPersistPlan(cfg, extra, si)
+	switch {
+	case trialDir != "":
+		// Un essai ne garde rien et n'efface rien.
+	case persistOK:
 		persistKey = slotPersistKey(llmArgs, env, si, bin)
 		slotPersistPrune(si.SlotDir)
-	} else if !slotPersistOn(cfg) {
+	case !slotPersistOn(cfg):
 		slotPersistPurge(filepath.Join(LokiHome(), "slots"))
 	}
 	for _, n := range notes {
@@ -390,6 +411,21 @@ func cmdServe(args []string) error {
 	// échec certain (voir loadModeRisk), LOAD_GUARD=off pour passer outre.
 	if _, refuse := loadModeRisk(cfg, llmArgs, si); refuse != "" {
 		return fmt.Errorf("%s", refuse)
+	}
+
+	// Essai : écoute sur 127.0.0.1 et le port libre choisi par l'optimiseur,
+	// même si EXTRA_ARGS en nomme d'autres (le dernier --port gagne). La ligne
+	// composée est rendue à l'optimiseur, qui la compare à celle de référence
+	// AVANT de charger quoi que ce soit ; à blanc, on s'arrête là.
+	if trialDir != "" {
+		llmArgs = tuneForceAddr(llmArgs, cfg["HOST"], cfg["PORT"])
+		l := tuneLaunch{Bin: bin, Args: llmArgs, Env: env, Notes: notes, Probe: tuneProbeFrom(si)}
+		if err := writeTuneLaunch(trialDir, l); err != nil {
+			return err
+		}
+		if os.Getenv(tuneDryRunEnv) != "" {
+			return nil
+		}
 	}
 
 	// Working dir = LOKI_HOME so relative paths in EXTRA_ARGS (e.g. --mmproj
@@ -410,14 +446,16 @@ func cmdServe(args []string) error {
 	// Jeton de tentative : l'ancien consommé (et l'échec inscrit), le nouveau
 	// posé, au dernier moment — port libre, l'ancien moteur est donc bien parti
 	// et le process web ne peut pas le confondre avec lui.
-	if spec == "auto" {
+	if spec == "auto" && trialDir == "" {
 		_, _, auto := specArgs(cfg, extra, si)
 		specAutoSettle(specMark, si.SpecAutoBlocked, specRecord, auto)
 	}
 
 	// Posée au dernier moment, port libre : l'ancien moteur est parti, la clé
 	// lue par le process web est celle du moteur qui répondra.
-	writeSlotPersistMarker(LokiHome(), persistKey)
+	if trialDir == "" {
+		writeSlotPersistMarker(LokiHome(), persistKey)
+	}
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
 		bin, filepath.Base(model), port)

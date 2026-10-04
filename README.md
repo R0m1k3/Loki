@@ -135,7 +135,7 @@ un reverse proxy (`loki.mondomaine.fr`), définir une clé
 `LOKI_TRUSTED_HOSTS`.
 
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
-`logs`, `restart`, `config`, `bench`, `test`…).
+`logs`, `restart`, `config`, `bench`, `tune`, `test`…).
 
 ### Données et persistance
 
@@ -638,6 +638,86 @@ Ajoutées par ce fork :
   (échec certain), avec la raison en clair. VRAM inconnue : avertissement, jamais
   de refus. `mmap` et `auto` ne sont jamais concernés. Rien ne change dans la
   ligne de commande.
+- **Optimiseur sans perte** (`loki tune`, bouton **« Optimiser… »** dans
+  l'éditeur du preset en service ; rien ne tourne de soi-même, aucune clé de
+  config). Cherche, pour cette machine et ce build du moteur, les réglages
+  d'ordonnancement qui raccourcissent un tour de conversation, sans rien changer
+  à ce que calcule le modèle (sortie équivalente en distribution : les sommes
+  flottantes ne sont pas identiques au bit près d'un lot ou d'un placement à
+  l'autre ; la spéculation vérifie chaque jeton). **Isolation** : le vrai moteur
+  est arrêté (comme « décharger la VRAM »), chaque essai est une **copie** de la
+  configuration avec ses surcharges dans `LOKI_HOME/tune/run/` — `config.env`
+  n'est jamais écrit — lancée par `loki serve` sur `127.0.0.1` et un port libre,
+  mêmes `CUDA_VISIBLE_DEVICES` ; son groupe de processus est tué en sortie
+  quoi qu'il arrive, puis le vrai moteur est relancé. **Verrou** exclusif entre
+  processus (`LOKI_HOME/tune.lock`, PID + instant de démarrage + binaire) :
+  pendant la mesure, tout démarrage du moteur (`serviceAction`, toutes
+  plateformes), bascule ou enregistrement de preset, choix des GPU, clé d'API,
+  mise à jour ou recompilation du moteur, rechargement de la VRAM, bench, chat,
+  compaction, `bash_bg` et clients `/v1` (503) sont refusés avec une phrase
+  claire ; les tâches planifiées attendent. Un verrou dont le propriétaire est
+  mort (Loki tué en plein essai) est écarté avant tout démarrage du moteur :
+  l'essai orphelin n'est arrêté que si PID, instant de démarrage ET binaire
+  concordent (`taskkill /T` sous Windows), et le moteur est relancé au
+  démarrage de l'interface s'il tournait avant. **Refus d'entrée** : preset
+  externe, aucun preset actif, génération, tâche, bench ou job `bash_bg` en
+  cours, moteur occupé (`/slots`) — en ligne de commande, seul ce dernier
+  contrôle voit le processus web : préférer le bouton. **Essais** (descente étape par étape depuis
+  la meilleure configuration du moment, chaque axe seulement si l'aide du
+  moteur et la machine le permettent) : placement — seulement avec « inclure
+  le placement » / `--placement` : `--fit` à la place des experts placés à la
+  main (`-ot …exps…`, `--n-cpu-moe`, `--cpu-moe`) ou d'un `--tensor-split` ;
+  marges `FIT_TARGET` (2 cartes ou plus, `--fit-target` dans l'aide) ;
+  `UBATCH` ∈ {512, 1024, 2048, + 4096 pour un MoE} × `BATCH` ∈ {max(2048, ub),
+  2 × ub ≤ 8192}, lot > micro-lot sur 2 cartes tout GPU, jamais de micro-lot
+  plus grand sans `nvidia-smi` ; `OP_OFFLOAD_MIN_BATCH` ∈ {32, 128, 512} et
+  threads (omis = cœurs physiques, physiques − 1, moitié ; Linux) seulement
+  avec des poids sur CPU ; `CUDA_LAUNCH_QUEUES` off/4x sur 2 cartes ou plus ;
+  avec « inclure les options opt-in » / `--opt-in` : `SPEC=auto`,
+  `SPEC_N_MAX` ∈ {2, 3, 4}, `CUDA_GRAPH_OPT=on`, `--backend-sampling`. Un
+  réglage qu'`EXTRA_ARGS` écraserait (`-ub`, `-t`, `-fitt`…) est réglé **dans
+  EXTRA_ARGS, sur place** ; EXTRA_ARGS est traité jeton par jeton et seuls les
+  drapeaux de la liste blanche (`-ot` des experts, `-ncmoe`, `-cmoe`, `-sm`,
+  `-ts`, `-mg`, `-fit`, `-fitt`, `-b`, `-ub`, `-t`, `-tb`, + `--spec-draft-n-max`
+  et `-bs` en opt-in) bougent ; tous les autres jetons (`--cache-type-k`,
+  `--flash-attn`, `--chat-template-file`…) ressortent à l'octet près. **Jamais
+  touchés** : `MODEL`, `CTX`, `KV_TYPE*` (un cache déjà quantifié est signalé
+  zone grise, jamais modifié), `MMPROJ`, `REASONING*`, `TEMP` et autres clés
+  d'échantillonnage, `PARALLEL`, `NGL`, `SPLIT_MODE`, `CUDA_VISIBLE_DEVICES`.
+  **Garde-fous** : chaque essai est d'abord composé à blanc (`loki serve` sans
+  rien charger) et sa ligne de commande comparée à celle de référence hors
+  réglages permis — toute autre différence (contexte, cache KV, flash-attn,
+  slots, variable du moteur…) l'écarte comme « dénature » ; une fois chargé,
+  `n_ctx`, `total_slots` (`/props`) et les types du cache KV (journal) sont
+  recomparés ; moins de couches déportées que la référence = « fit en recul »
+  (performance), écarté ; moins de 768 Mio de VRAM libre sur une carte après la
+  mesure (+ 512 avec `MMPROJ`) = « trop juste », jamais retenu ; échec de
+  chargement ou OOM = essai ignoré ; deux essais à la même ligne de commande ne
+  sont mesurés qu'une fois. **Mesure** : le bench complet (prefill à froid à une
+  profondeur D fixe pour tous les essais, trois tours qui reprennent le cache —
+  points de reprise réels d'un hybride compris —, decode à D, ligne courte en
+  prose), avec l'échantillonnage et le raisonnement du preset. **Score** : durée
+  d'un tour type = K / prefill des tours + G / decode à D + f × D / prefill à
+  froid, K, G et f tirés des médianes de la télémétrie (`/api/perf/summary`)
+  quand elle en a vu assez, sinon 2000, 600 et 5 %. La référence est mesurée
+  deux fois ; un essai ne gagne que s'il bat la meilleure configuration du
+  moment de plus de max(3 %, écart entre passages) sur **deux** passages, sans
+  ralentir de plus de 5 % le decode en prose. Budget par défaut 30 min
+  (`--budget`), ETA et annulation ; au-delà, résultat partiel dit tel ; étapes de
+  base à la carte (`--stages lots,threads…`, cases de la fenêtre). **Résultat**
+  : les mesures de chaque essai et le diff des clés, enregistrés par preset
+  avec l'empreinte et le build du moteur (l'éditeur propose de relancer après
+  une mise à jour du moteur). **Rien n'est écrit sans un clic** : « enregistrer
+  dans une copie » (preset « (optimisé) », non activé) ou « appliquer à ce
+  preset » après confirmation du diff — et une confirmation de plus si
+  EXTRA_ARGS est réécrit par le placement. Le preset est sauvegardé
+  (`LOKI_HOME/tune/backup/`), réécrit clé par clé (commentaires et ordre
+  intacts), réappliqué ; la configuration active doit alors être exactement la
+  référence plus les clés réglées, le moteur redémarre et doit répondre avec le
+  même contexte et les mêmes slots puis tenir une sonde (prompt de D jetons et
+  decode) — sinon l'ancienne version est rétablie et le moteur relancé. Pendant
+  la mesure, le chat est indisponible : prévoir 10 à 40 minutes selon la taille
+  du modèle (un modèle relu depuis un disque lent recharge à chaque essai).
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

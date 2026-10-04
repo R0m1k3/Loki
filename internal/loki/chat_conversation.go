@@ -84,6 +84,10 @@ type Conversation struct {
 	// benching : le verrou est tenu par un benchmark (llm_bench_job.go). Même
 	// logique que la tâche : l'interface et les refus disent qui occupe le moteur.
 	benching bool
+	// leaseWhy : le refus à donner tant que benching tient le verrou —
+	// errBenchBusy pour un bench, errTuneBusy pour l'optimiseur, qui prend le
+	// même verrou (backend_tune_job.go).
+	leaseWhy error
 
 	// File d'attente des messages envoyés PENDANT une génération (AJEAN
 	// 0.14.0). Ils sont injectés dans le tour en cours à la prochaine frontière
@@ -475,9 +479,12 @@ var ErrBusy = fmt.Errorf("génération en cours")
 // nomme la tâche et on dit comment reprendre la main.
 func (c *Conversation) busyReason() error {
 	c.mu.Lock()
-	name, bench := c.runningTaskName, c.benching
+	name, bench, why := c.runningTaskName, c.benching, c.leaseWhy
 	c.mu.Unlock()
 	if bench {
+		if why != nil {
+			return why
+		}
 		return errBenchBusy
 	}
 	if name == "" {
@@ -497,6 +504,11 @@ var errModelLoading = fmt.Errorf("⏳ Le modèle est encore en train de charger 
 // MODÈLE en tête du message, mais rendues comme pastilles dans la bulle : le fil
 // doit montrer ce que l'utilisateur a écrit, pas la consigne qu'on ajoute pour lui.
 func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, temperature float64) error {
+	// Optimisation en cours (backend_tune_lock.go) : le vrai moteur est arrêté,
+	// « le modèle charge » serait faux — on dit pourquoi.
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	if !healthCheck() {
 		return errModelLoading
 	}
@@ -1049,6 +1061,9 @@ func (c *Conversation) ctxNowLocked(msgs []Message, local bool) int {
 // événements passent par le flux d'abonnement, donc tous les appareils voient la
 // progression. Renvoie ErrBusy si un tour est déjà en cours.
 func (c *Conversation) CompactNow() error {
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	if !healthCheck() {
 		return errModelLoading
 	}
@@ -1123,6 +1138,7 @@ func (c *Conversation) Reset() {
 	c.epoch++
 	c.Generating = false
 	c.benching = false // Stop a annulé le bench : le verrou est rendu ici
+	c.leaseWhy = nil
 	c.cancel = nil
 	c.queued = nil // les messages en attente visaient le fil qu'on vient de vider
 	c.cond.Broadcast()

@@ -319,6 +319,9 @@ func handleVramReload(w http.ResponseWriter, r *http.Request) {
 	if !postOnly(w, r) {
 		return
 	}
+	if tuneDenyHTTP(w) {
+		return
+	}
 	if serviceIsActive() {
 		sendJSON(w, 200, map[string]any{"ok": true, "already": true})
 		return

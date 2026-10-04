@@ -267,6 +267,9 @@ func presetImposesEngine(p string) bool {
 // SwitchToPreset installe le preset et redémarre le service. Les réglages
 // « appareil » (preservedKeys) sont conservés à travers la bascule.
 func SwitchToPreset(target string) error {
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	// SLOT_PERSIST : relevé sur la configuration d'avant, gardé juste avant
 	// l'arrêt (llm_slotpersist.go). Sans la clé, ou hors du process web (rien
 	// n'y dit ce que porte le slot) : nil, rien ne se passe.

@@ -139,6 +139,9 @@ func newWebMux() *http.ServeMux {
 	// Jeton de tentative du décodage spéculatif automatique : effacé dès que le
 	// moteur répond, sans dépendre d'une page ouverte (voir backend_serve_spec.go).
 	startSpecAttemptWatch()
+	// Optimisation interrompue (Loki tué en plein essai) : essai orphelin arrêté,
+	// moteur relancé s'il tournait avant (backend_tune_lock.go).
+	go tuneRecoverAtBoot()
 	mux := http.NewServeMux()
 	// Pages publiques : le HTML et le JS ne contiennent aucun secret. Toute la
 	// donnée et toutes les actions passent par /api/* qui, lui, exige la clé.
@@ -336,6 +339,11 @@ func newWebMux() *http.ServeMux {
 	api("/api/bench/status", handleBenchStatus) // progression, puis résultat
 	api("/api/bench/cancel", handleBenchCancel) // POST : annule
 	api("/api/bench/last", handleBenchLast)
+	api("/api/tune", handleTune)              // POST : optimiseur sans perte, en arrière-plan (backend_tune_job.go)
+	api("/api/tune/status", handleTuneStatus) // progression, puis résultat
+	api("/api/tune/cancel", handleTuneCancel) // POST : annule
+	api("/api/tune/apply", handleTuneApply)   // POST : écrit le résultat, sur clic seulement
+	api("/api/tune/last", handleTuneLast)
 	api("/api/perf/summary", handlePerfSummary)
 	api("/api/chat", handleChat)                       // flux d'ABONNEMENT (SSE) : rejoue + suit le fil
 	api("/api/chat/send", handleChatSend)              // envoie un message (lance la génération détachée)

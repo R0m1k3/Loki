@@ -159,6 +159,9 @@ type benchOpts struct {
 	Mode    string
 	Prompt  int // jetons de la ligne courte
 	Predict int // jetons générés par la ligne courte
+	// Depth : profondeur imposée — l'optimiseur (backend_tune_run.go) compare
+	// ses essais à la MÊME profondeur ; 0 = choisie selon le contexte.
+	Depth int
 }
 
 func (o benchOpts) full() bool { return o.Mode == benchModeFull }
@@ -675,6 +678,9 @@ func benchRun(ctx context.Context, e benchEngine, opts benchOpts, s benchSetup, 
 
 	// 3. La profondeur.
 	d, why := benchDepthFor(nCtx, s.cpuPlaced, warm)
+	if opts.Depth > 0 {
+		d, why = opts.Depth, ""
+	}
 	depth := &benchDepth{Ctx: nCtx, Target: d, Reuse: -1}
 	res.Depth = depth
 	if why != "" {
@@ -821,6 +827,9 @@ func runBench(ctx context.Context, opts benchOpts, progress benchProgress) (*ben
 	// resté en vie — attribuée à tort à ce preset.
 	if externalActive() {
 		return nil, fmt.Errorf("benchmark indisponible : le preset actif est une API externe")
+	}
+	if err := tuneGuard(); err != nil {
+		return nil, err
 	}
 	port := LLMPort()
 	if !healthCheck() {

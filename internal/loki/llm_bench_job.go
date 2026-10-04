@@ -38,18 +38,25 @@ var errBenchBusy = errors.New("un benchmark occupe le moteur — attends sa fin 
 // qui a pu démarrer depuis ne doit pas être déclaré libre. L'epoch ne suffit
 // pas : changer de discussion le bumpe SANS arrêter le bench (loadFrom).
 func (c *Conversation) benchLease(cancel context.CancelFunc) (func(), error) {
+	return c.measureLease(cancel, errBenchBusy)
+}
+
+// measureLease : le verrou de génération pour une mesure du moteur — bench,
+// ou optimiseur (backend_tune_job.go) — why étant le refus que reçoivent les
+// autres pendant ce temps.
+func (c *Conversation) measureLease(cancel context.CancelFunc, why error) (func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.Generating {
 		return nil, ErrBusy
 	}
-	c.Generating, c.benching, c.cancel = true, true, cancel
+	c.Generating, c.benching, c.cancel, c.leaseWhy = true, true, cancel, why
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			c.mu.Lock()
 			if c.benching {
-				c.Generating, c.benching, c.cancel = false, false, nil
+				c.Generating, c.benching, c.cancel, c.leaseWhy = false, false, nil, nil
 			}
 			c.mu.Unlock()
 		})
@@ -91,6 +98,9 @@ func benchStart(opts benchOpts) (id string, code int, err error) {
 	// suivi de progression ne doit pas rester bloqué derrière.
 	if externalActive() {
 		return "", http.StatusBadRequest, errors.New("benchmark indisponible : le preset actif est une API externe")
+	}
+	if err := tuneGuard(); err != nil {
+		return "", http.StatusConflict, err
 	}
 	if !healthCheck() {
 		return "", http.StatusServiceUnavailable, errModelLoading

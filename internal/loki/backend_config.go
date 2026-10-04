@@ -92,6 +92,9 @@ func maskAPIKey(k string) string {
 //	loki set-api-key           génère une clé aléatoire
 //	loki set-api-key ""        supprime la protection
 func cmdSetAPIKey(args []string) error {
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	var key string
 	switch {
 	case len(args) == 0:

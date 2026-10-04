@@ -217,6 +217,9 @@ func llamacppInstall(args []string) error {
 // ---------------------------------------------------------------------------
 
 func llamacppUpdate(args []string) error {
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	ref := ""
 	clean := false
 	noRestart := false

@@ -86,6 +86,11 @@ func lcPhase(phase string) {
 
 // startLcJob démarre un job (install ou update) si aucun n'est en cours.
 func startLcJob(action string, run func()) error {
+	// Compiler, installer ou changer de moteur l'arrête et le relance : pas pendant
+	// une optimisation (backend_tune_lock.go).
+	if err := tuneGuard(); err != nil {
+		return err
+	}
 	lcMu.Lock()
 	defer lcMu.Unlock()
 	if lcCur != nil && lcCur.Running {
@@ -430,6 +435,9 @@ func lcRunPrebuilt() {
 // service redémarre pour prendre le nouveau binaire. L'UI n'appelle ceci que
 // quand la version cible existe déjà (sinon elle lance un job d'installation).
 func handleLlamacppUse(w http.ResponseWriter, r *http.Request) {
+	if tuneDenyHTTP(w) {
+		return
+	}
 	var req struct {
 		Mode string `json:"mode"`
 	}

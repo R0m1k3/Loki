@@ -30,6 +30,9 @@ import (
 // lastReport est le compte-rendu du passage précédent (vide au premier) : il est
 // réinjecté pour donner à l'IA une continuité d'une exécution à l'autre.
 func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prompt, lastReport string, caps Caps, temperature float64) (string, error) {
+	if err := tuneGuard(); err != nil {
+		return "", err
+	}
 	if !healthCheck() {
 		return "", errModelLoading
 	}

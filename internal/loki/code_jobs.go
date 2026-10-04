@@ -83,6 +83,12 @@ func toolBashBg(args map[string]any) string {
 	if reason := dangerousCommand(command); reason != "" {
 		return refusedCommandResult(reason)
 	}
+	// Un serveur de dev ou un build lancé pendant une optimisation fausserait
+	// ses mesures (CPU, disque) — et un tour de modèle n'a de toute façon pas pu
+	// démarrer : ceci ne vise qu'un tour lancé juste avant.
+	if err := tuneGuard(); err != nil {
+		return "[erreur] " + err.Error()
+	}
 	ws := agentCwd()
 	logDir := filepath.Join(ws, ".loki", "jobs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
@@ -169,6 +175,23 @@ func toolBashTail(args map[string]any) string {
 		tail = "(aucune sortie pour l'instant)"
 	}
 	return out + "\n" + tailRunes(tail, toolMaxOutput)
+}
+
+// bgJobsRunning : jobs d'arrière-plan encore en vie. L'optimiseur refuse de
+// mesurer à côté d'eux : un build ou un serveur de dev prend le CPU et le
+// disque que mesurent ses essais.
+func bgJobsRunning() int {
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
+	n := 0
+	for _, j := range jobs {
+		j.mu.Lock()
+		if !j.done {
+			n++
+		}
+		j.mu.Unlock()
+	}
+	return n
 }
 
 // stopConvJobs tue les jobs d'une discussion (suppression / vidage de la

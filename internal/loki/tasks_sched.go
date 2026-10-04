@@ -49,7 +49,8 @@ func primeNextRuns() {
 // toute façon impossible (gate de génération), et étaler leur départ évite qu'une
 // rafale de tâches monopolise le modèle d'un coup.
 func tickTasks(now time.Time) {
-	if tasksPaused() {
+	if tasksPaused() || tuneGuard() != nil {
+		// Optimisation en cours : la tâche due attend sa fin, elle n'échoue pas.
 		return
 	}
 	nowMs := now.UnixMilli()
