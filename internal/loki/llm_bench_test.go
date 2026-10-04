@@ -18,14 +18,15 @@ import (
 // de jetons à 4 octets par jeton, un cache qui reprend le prompt précédent
 // quand cache_prompt est vrai, et le journal des requêtes de chat reçues.
 type fakeBenchEngine struct {
-	mu       sync.Mutex
-	nCtx     int
-	busy     bool
-	failAt   int           // n° (1-based) de la requête de chat qui répond 500 ; 0 = aucune
-	noTiming bool          // réponses sans timings
-	slowHot  time.Duration // délai des tours qui reprennent le cache
-	prev     int
-	calls    []map[string]any
+	mu           sync.Mutex
+	nCtx         int
+	busy         bool
+	failAt       int           // n° (1-based) de la requête de chat qui répond 500 ; 0 = aucune
+	noTiming     bool          // réponses sans timings
+	rejectEffort string        // niveau de reasoning_effort que le « gabarit » refuse (500)
+	slowHot      time.Duration // délai des tours qui reprennent le cache
+	prev         int
+	calls        []map[string]any
 }
 
 func (f *fakeBenchEngine) handler(t *testing.T) http.Handler {
@@ -55,6 +56,13 @@ func (f *fakeBenchEngine) handler(t *testing.T) http.Handler {
 			f.mu.Unlock()
 			if f.failAt == n {
 				http.Error(w, `{"error":"boom"}`, http.StatusInternalServerError)
+				return
+			}
+			if e, _ := p["reasoning_effort"].(string); f.rejectEffort != "" && e == f.rejectEffort {
+				// Le vrai message cite la trace jinja d'abord : les niveaux acceptés
+				// arrivent bien après les 300 premiers caractères.
+				http.Error(w, `{"error":{"code":500,"message":"`+strings.Repeat("jinja trace ", 40)+
+					`Unexpected reasoning effort `+e+`. Supported types are xhigh (default), medium, and low."}}`, http.StatusInternalServerError)
 				return
 			}
 			cache, _ := p["cache_prompt"].(bool)
@@ -539,5 +547,93 @@ func TestBenchRefuseV1(t *testing.T) {
 	oaiHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader("{}")))
 	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") == "" {
 		t.Fatalf("pendant le bench : %d, Retry-After=%q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+}
+
+// Un gabarit qui refuse le niveau de raisonnement du preset : le bench rejoue
+// une fois avec le niveau accepté, comme le chat, et le retient — au lieu
+// d'échouer sur le 500.
+func TestBenchNiveauRaisonnementRefuse(t *testing.T) {
+	f := &fakeBenchEngine{nCtx: 16384, rejectEffort: "high"}
+	eng, _ := f.start(t)
+	s := benchSetupFrom(map[string]string{"REASONING_EFFORT": "high"}, nil)
+	var learned []string
+	s.learn = func(want, got string) { learned = append(learned, want+">"+got) }
+	res, err := benchRun(context.Background(), eng, benchOpts{Mode: benchModeQuick}, s, testBenchCorpora(), nil)
+	if err != nil {
+		t.Fatalf("refus du niveau non rattrapé : %v", err)
+	}
+	if len(f.calls) != 3 || res.PredictedPerSec != 50 {
+		t.Fatalf("%d requêtes (attendu 3 : refus, préchauffage rejoué, ligne courte)", len(f.calls))
+	}
+	for i, p := range f.calls[1:] {
+		kw, _ := p["chat_template_kwargs"].(map[string]any)
+		if p["reasoning_effort"] != "xhigh" || kw["reasoning_effort"] != "xhigh" {
+			t.Errorf("requête %d : niveau %v / %v, attendu xhigh", i+2, p["reasoning_effort"], kw)
+		}
+	}
+	if len(learned) != 1 || learned[0] != "high>xhigh" {
+		t.Errorf("traduction retenue : %v", learned)
+	}
+	// Une autre erreur que ce refus n'est pas rejouée.
+	f2 := &fakeBenchEngine{nCtx: 16384, failAt: 1}
+	eng2, _ := f2.start(t)
+	if _, err := benchRun(context.Background(), eng2, benchOpts{}, benchSetupFrom(map[string]string{"REASONING_EFFORT": "high"}, nil), testBenchCorpora(), nil); err == nil || len(f2.calls) != 1 {
+		t.Errorf("500 ordinaire : err=%v, %d requêtes", err, len(f2.calls))
+	}
+}
+
+// Un gros ubatch sur un petit contexte : le préchauffage reste sous le quart
+// de la fenêtre au lieu de la dépasser.
+func TestBenchPrechauffageBorne(t *testing.T) {
+	f := &fakeBenchEngine{nCtx: 8192}
+	eng, _ := f.start(t)
+	s := benchSetupFrom(map[string]string{"UBATCH": "4096"}, nil)
+	if _, err := benchRun(context.Background(), eng, benchOpts{}, s, testBenchCorpora(), nil); err != nil {
+		t.Fatal(err)
+	}
+	c := f.calls[0]["messages"].([]any)[0].(map[string]any)["content"].(string)
+	if toks := len(c) / 4; toks > 8192/4+64 {
+		t.Errorf("préchauffage de %d jetons sur 8192 de contexte", toks)
+	}
+}
+
+// Changer de discussion n'arrête pas le bench et ne rend pas le verrou ; un
+// Reset l'arrête et le rend, et la libération tardive du bench ne déclare pas
+// libre le tour qui a démarré depuis.
+func TestBenchVerrouEtDiscussions(t *testing.T) {
+	testHome(t)
+	c := newTestConv()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	release, err := c.benchLease(cancel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.loadFrom("autre", nil)
+	if ctx.Err() != nil || !c.isGenerating() || c.busyReason() != errBenchBusy {
+		t.Fatal("changer de discussion a arrêté le bench ou rendu son verrou")
+	}
+	release()
+	if c.isGenerating() {
+		t.Fatal("verrou non rendu à la fin du bench, après un changement de discussion")
+	}
+
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	release2, err := c.benchLease(cancel2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Reset()
+	if ctx2.Err() == nil || c.isGenerating() {
+		t.Fatal("Reset doit arrêter le bench et rendre le verrou")
+	}
+	c.mu.Lock()
+	c.Generating = true // un tour démarré depuis
+	c.mu.Unlock()
+	release2()
+	if !c.isGenerating() {
+		t.Fatal("la libération tardive du bench a déclaré libre le tour suivant")
 	}
 }

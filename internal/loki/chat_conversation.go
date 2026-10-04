@@ -198,7 +198,14 @@ func LoadConversation() {
 // cache de la discussion active change sous mu, avec le contenu (voir
 // convActivate). L'appelant NE doit PAS détenir mu.
 func (c *Conversation) loadFrom(id string, b []byte) {
-	c.Stop()
+	// Un benchmark n'appartient à aucune discussion : changer de fil ne l'arrête
+	// pas, et le verrou reste à lui jusqu'à sa fin (llm_bench_job.go).
+	c.mu.Lock()
+	bench := c.benching
+	c.mu.Unlock()
+	if !bench {
+		c.Stop()
+	}
 	c.mu.Lock()
 	if c == conv {
 		convActiveRemember(id)
@@ -211,8 +218,10 @@ func (c *Conversation) loadFrom(id string, b []byte) {
 		c.Messages = stripImageParts(c.Messages) // même guérison qu'au chargement
 	}
 	go pruneChatImages() // plus rien ne référence les images de l'ancien fil
-	c.Generating = false
-	c.cancel = nil
+	if !c.benching {
+		c.Generating = false
+		c.cancel = nil
+	}
 	c.epoch++
 	c.cond.Broadcast()
 	c.mu.Unlock()
@@ -1069,6 +1078,7 @@ func (c *Conversation) Reset() {
 	c.ctxUsedLen, c.genPeak = 0, 0
 	c.epoch++
 	c.Generating = false
+	c.benching = false // Stop a annulé le bench : le verrou est rendu ici
 	c.cancel = nil
 	c.queued = nil // les messages en attente visaient le fil qu'on vient de vider
 	c.cond.Broadcast()

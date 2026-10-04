@@ -75,8 +75,8 @@ function benchResultHTML(x, saved){
     if(d.skipped) notes.push('profondeur sautée : '+d.skipped);
     if(d.cold) rows.push(['prefill à froid · '+d.cold.new+' tok', d.cold.prompt_per_second.toFixed(0)+' tok/s']);
     if(d.turns&&d.turns.length){
-      rows.push(['prefill des tours suivants (cache)', d.cached_per_second.toFixed(0)+' tok/s']);
-      rows.push(['decode en profondeur', d.decode_per_second.toFixed(1)+' tok/s']);
+      rows.push(['prefill des tours suivants (cache)', (d.cached_per_second||0).toFixed(0)+' tok/s']);
+      rows.push(['decode en profondeur', (d.decode_per_second||0).toFixed(1)+' tok/s']);
       rows.push(['reprise du cache', d.reuse>=0 ? Math.round(d.reuse*100)+' %' : 'n/a']);
       rows.push(['brouillon accepté (code)', benchDraftTxt(d.draft)]);
     }

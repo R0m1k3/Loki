@@ -236,13 +236,28 @@ func (e benchEngine) do(ctx context.Context, method, path string, payload any) (
 	defer resp.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if resp.StatusCode != http.StatusOK {
-		snip := strings.TrimSpace(string(data))
-		if len(snip) > 300 {
-			snip = snip[:300]
-		}
-		return nil, fmt.Errorf("%s %s : %s %s", method, path, resp.Status, snip)
+		return nil, &benchHTTPError{method: method, path: path, status: resp.Status, body: string(data)}
 	}
 	return data, err
+}
+
+// benchHTTPError : une réponse non-200 du moteur. Le corps est gardé en entier :
+// le refus d'un niveau de raisonnement cite les niveaux acceptés en FIN de
+// message (llm_effort.go), bien au-delà de l'extrait affiché.
+type benchHTTPError struct {
+	method, path, status, body string
+}
+
+func (e *benchHTTPError) Error() string {
+	snip := strings.TrimSpace(e.body)
+	if len(snip) > 300 {
+		cut := 300
+		for cut > 0 && !utf8.RuneStart(snip[cut]) {
+			cut-- // jamais au milieu d'un caractère
+		}
+		snip = snip[:cut]
+	}
+	return fmt.Sprintf("%s %s : %s %s", e.method, e.path, e.status, snip)
 }
 
 // idle : le moteur est-il libre ? Un slot qui travaille, c'est une requête
@@ -395,8 +410,12 @@ var benchArgEnv = []string{"LLAMA_ARG_CACHE_TYPE_K", "LLAMA_ARG_CACHE_TYPE_V",
 // benchSetup : ce que le bench tire du preset, une fois.
 type benchSetup struct {
 	cfg       map[string]string
-	effort    string
+	want      string // niveau de raisonnement demandé par le preset
+	off       bool   // raisonnement interdit
+	effort    string // niveau envoyé (want, ou la traduction apprise)
 	kwargs    map[string]any
+	retried   bool                   // refus du niveau déjà rejoué une fois
+	learn     func(want, got string) // retient la traduction (nil : tests)
 	ub        int
 	cpuPlaced bool // poids sur CPU (-ot, --n-cpu-moe…) : profondeur plafonnée
 	hybrid    bool // modèle hybride : reprise du cache aux points de contrôle
@@ -412,7 +431,7 @@ func benchSetupFrom(cfg map[string]string, argEnv map[string]string) benchSetup 
 	want := reasoningEffortValue(cfg["REASONING_EFFORT"])
 	effort := effortResolve(want)
 	off := reasoningExplicitlyOff(cfg["REASONING"]) || want == "none"
-	s := benchSetup{cfg: cfg, effort: effort, kwargs: reasoningTemplateKwargs(off, effort), ub: 512,
+	s := benchSetup{cfg: cfg, want: want, off: off, effort: effort, kwargs: reasoningTemplateKwargs(off, effort), ub: 512,
 		gpus: strings.TrimSpace(cfg["CUDA_VISIBLE_DEVICES"])}
 	for _, v := range []string{flagValue(extra, "-ub", "--ubatch-size"), cfg["UBATCH"]} {
 		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 {
@@ -474,6 +493,29 @@ func (s benchSetup) payload(msgs []Message, maxTokens int, cache bool) map[strin
 		p["chat_template_kwargs"] = s.kwargs
 	}
 	return p
+}
+
+// ask envoie une requête de chat du bench. Un gabarit qui REFUSE le niveau de
+// raisonnement du preset (Qwen3.8 ne connaît pas « high ») est traité comme
+// dans le chat (runChatTools) : on rejoue une fois avec le niveau qu'il accepte,
+// ou sans le champ, et la traduction est retenue pour ce modèle. Sans ça, le
+// bench d'un processus neuf échouait sur un 500 là où le chat, lui, répond.
+func (s *benchSetup) ask(ctx context.Context, e benchEngine, msgs []Message, maxTokens int, cache bool) (benchReply, error) {
+	r, err := e.chat(ctx, s.payload(msgs, maxTokens, cache))
+	var he *benchHTTPError
+	if err == nil || s.retried || s.want == "" || !errors.As(err, &he) {
+		return r, err
+	}
+	fixed, ok := effortFromRejection(he.body, s.want)
+	if !ok {
+		return r, err
+	}
+	s.retried = true
+	if s.learn != nil {
+		s.learn(s.want, fixed)
+	}
+	s.effort, s.kwargs = fixed, reasoningTemplateKwargs(s.off, fixed)
+	return e.chat(ctx, s.payload(msgs, maxTokens, cache))
 }
 
 // benchDepthFor choisit la profondeur : la moitié du contexte, plafonnée, et
@@ -580,11 +622,17 @@ func benchRun(ctx context.Context, e benchEngine, opts benchOpts, s benchSetup, 
 
 	// 1. Préchauffage, jeté : premières allocations, graphes CUDA, pages du
 	// modèle — sans lui, la première mesure paie l'installation. Pris en fin de
-	// corpus, loin de ce que relira la profondeur.
+	// corpus, loin de ce que relira la profondeur. Deux ubatchs, mais jamais plus
+	// du quart du contexte : un preset à -ub 4096 sur 8k de contexte enverrait
+	// sinon un prompt plus grand que la fenêtre, et le bench échouerait là.
 	next("préchauffage")
-	warm := 2*s.ub + benchWarmGen
-	warmText, _ := benchSlice(corp.code, benchLineStart(corp.code, len(corp.code)-int(float64(2*s.ub)*codeRatio)), len(corp.code))
-	if _, err := e.chat(ctx, s.payload([]Message{{Role: "user", Content: warmText + "\n\n" + benchAskFirst}}, benchWarmGen, false)); err != nil {
+	warmTok := 2 * s.ub
+	if nCtx > 0 {
+		warmTok = max(min(warmTok, nCtx/4), 64)
+	}
+	warm := warmTok + benchWarmGen
+	warmText, _ := benchSlice(corp.code, benchLineStart(corp.code, len(corp.code)-int(float64(warmTok)*codeRatio)), len(corp.code))
+	if _, err := s.ask(ctx, e, []Message{{Role: "user", Content: warmText + "\n\n" + benchAskFirst}}, benchWarmGen, false); err != nil {
 		return nil, fmt.Errorf("préchauffage : %w", err)
 	}
 
@@ -599,7 +647,7 @@ func benchRun(ctx context.Context, e benchEngine, opts benchOpts, s benchSetup, 
 		chunk, _ := benchSlice(corp.code, benchLineStart(corp.code, len(corp.code)/2), int(float64(rest)*codeRatio))
 		prompt += "\n\n" + chunk
 	}
-	quick, err := e.chat(ctx, s.payload([]Message{{Role: "user", Content: strings.TrimSpace(prompt) + benchAskProse}}, opts.Predict, false))
+	quick, err := s.ask(ctx, e, []Message{{Role: "user", Content: strings.TrimSpace(prompt) + benchAskProse}}, opts.Predict, false)
 	if err != nil {
 		return nil, fmt.Errorf("ligne courte : %w", err)
 	}
@@ -621,7 +669,7 @@ func benchRun(ctx context.Context, e benchEngine, opts benchOpts, s benchSetup, 
 		res.Elapsed = time.Since(t0).Seconds()
 		return res, nil
 	}
-	if err := benchDepthRun(ctx, e, s, corp.code, codeRatio, depth, next); err != nil {
+	if err := benchDepthRun(ctx, e, &s, corp.code, codeRatio, depth, next); err != nil {
 		return nil, err
 	}
 	res.Elapsed = time.Since(t0).Seconds()
@@ -635,12 +683,11 @@ func benchTimedOut(ctx context.Context, err error) bool {
 
 // benchDepthRun : prefill à froid à D, puis benchTurns tours qui prolongent la
 // même discussion avec du code jamais vu.
-func benchDepthRun(ctx context.Context, e benchEngine, s benchSetup, code string, ratio float64, depth *benchDepth, next func(string)) error {
+func benchDepthRun(ctx context.Context, e benchEngine, s *benchSetup, code string, ratio float64, depth *benchDepth, next func(string)) error {
 	next(fmt.Sprintf("prefill à froid (%d jetons)", depth.Target))
 	prefix, off := benchSlice(code, 0, int(float64(depth.Target)*ratio))
 	msgs := []Message{{Role: "user", Content: "Voici un fichier source de l'interface web de Loki :\n\n```html\n" + prefix + "\n```\n\n" + benchAskFirst}}
-	io0, rss0, ioOK := engineIOSample()
-	cold, err := e.chat(ctx, s.payload(msgs, benchGenTokens, false))
+	cold, err := s.ask(ctx, e, msgs, benchGenTokens, false)
 	if benchTimedOut(ctx, err) {
 		depth.Partial = fmt.Sprintf("prefill à froid interrompu après %s", benchReqTimeout)
 		return nil
@@ -651,6 +698,10 @@ func benchDepthRun(ctx context.Context, e benchEngine, s benchSetup, code string
 	ct := cold.turn
 	depth.Cold = &ct
 	prev, answer := cold.promptTotal(), cold.content
+	// Relectures du disque comptées sur les TOURS seulement (decode à D) : le
+	// prefill à froid lit légitimement des pages du modèle, il fausserait
+	// l'indication.
+	io0, rss0, ioOK := engineIOSample()
 	var newN, gen int
 	var promptMs, genMs float64
 	for r := 1; r <= benchTurns; r++ {
@@ -671,7 +722,7 @@ func benchDepthRun(ctx context.Context, e benchEngine, s benchSetup, code string
 		msgs = append(msgs,
 			Message{Role: "assistant", Content: answer},
 			Message{Role: "user", Content: "Suite du fichier :\n\n```html\n" + chunk + "\n```\n\n" + benchAskNext})
-		rep, err := e.chat(ctx, s.payload(msgs, benchGenTokens, true))
+		rep, err := s.ask(ctx, e, msgs, benchGenTokens, true)
 		if benchTimedOut(ctx, err) {
 			depth.Partial = fmt.Sprintf("tour %d interrompu après %s", r, benchReqTimeout)
 			break
@@ -770,6 +821,10 @@ func runBench(ctx context.Context, opts benchOpts, progress benchProgress) (*ben
 		}
 	}
 	setup := benchSetupFrom(cfg, argEnv)
+	setup.learn = func(want, got string) {
+		effortRemember(want, got)
+		logEffortFallback(want, got)
+	}
 	eng := benchEngine{base: fmt.Sprintf("http://localhost:%d", port), auth: resolveChatEndpoint().auth, client: http.DefaultClient}
 	// Le bench prend le slot de la conversation : une fois fini (erreur et
 	// annulation comprises), on l'efface si c'est sans risque, pour que son état

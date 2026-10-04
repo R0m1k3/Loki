@@ -33,8 +33,10 @@ var errBenchBusy = errors.New("un benchmark occupe le moteur — attends sa fin 
 
 // benchLease prend le verrou de génération pour un benchmark. cancel est
 // branché sur le bouton stop du chat, comme pour une tâche planifiée. La
-// fonction rendue le libère ; si un Reset l'a déjà rendu entre-temps (epoch
-// changé), elle ne touche pas au tour qui a pu démarrer depuis.
+// fonction rendue le libère tant que benching dit que le verrou est encore au
+// bench : un Reset l'a peut-être déjà rendu (benching remis à faux), et le tour
+// qui a pu démarrer depuis ne doit pas être déclaré libre. L'epoch ne suffit
+// pas : changer de discussion le bumpe SANS arrêter le bench (loadFrom).
 func (c *Conversation) benchLease(cancel context.CancelFunc) (func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -42,15 +44,12 @@ func (c *Conversation) benchLease(cancel context.CancelFunc) (func(), error) {
 		return nil, ErrBusy
 	}
 	c.Generating, c.benching, c.cancel = true, true, cancel
-	epoch := c.epoch
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			c.mu.Lock()
-			c.benching = false
-			if c.epoch == epoch {
-				c.Generating = false
-				c.cancel = nil
+			if c.benching {
+				c.Generating, c.benching, c.cancel = false, false, nil
 			}
 			c.mu.Unlock()
 		})
@@ -115,7 +114,6 @@ func benchStart(opts benchOpts) (id string, code int, err error) {
 	benchJob.cancel, benchJob.result, benchJob.err, benchJob.canceled = cancel, nil, "", false
 	go func() {
 		defer cancel()
-		defer release()
 		res, err := benchRunner(ctx, opts, func(phase string, step, steps int) {
 			benchJob.mu.Lock()
 			if benchJob.id == id {
@@ -123,6 +121,11 @@ func benchStart(opts benchOpts) (id string, code int, err error) {
 			}
 			benchJob.mu.Unlock()
 		})
+		canceled := ctx.Err() != nil
+		// Le verrou du chat est rendu AVANT d'annoncer la fin : l'interface qui
+		// lit « terminé » et envoie aussitôt un message ne doit pas se voir
+		// refuser « benchmark en cours ».
+		release()
 		benchJob.mu.Lock()
 		defer benchJob.mu.Unlock()
 		if benchJob.id != id {
@@ -131,9 +134,9 @@ func benchStart(opts benchOpts) (id string, code int, err error) {
 		benchJob.running, benchJob.finished, benchJob.cancel = false, time.Now(), nil
 		benchJob.result = res
 		if err != nil {
-			benchJob.canceled = ctx.Err() != nil
+			benchJob.canceled = canceled
 			benchJob.err = err.Error()
-			if benchJob.canceled {
+			if canceled {
 				benchJob.err = "benchmark annulé"
 			}
 		}
