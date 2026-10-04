@@ -832,3 +832,68 @@ func TestTuneUndoInterruptedApply(t *testing.T) {
 		t.Error("configuration modifiée hors phase d'application")
 	}
 }
+
+// Reprise dans le processus web : un « loki tune » tué sans ses defers ne
+// laisse plus le moteur arrêté jusqu'au prochain démarrage de l'interface. Le
+// tic suivant écarte le verrou périmé et relance le moteur — une fois, et
+// seulement s'il tournait avant. Sans verrou, ni lecture ni relance.
+func TestTuneRecoverWatch(t *testing.T) {
+	testHome(t)
+	alive := true
+	prevAlive, prevStart := tuneProcAlive, tuneRecoverStart
+	tuneProcAlive = func(p tuneProc) bool { return alive && p.PID == os.Getpid() }
+	starts := 0
+	tuneRecoverStart = func() { starts++ }
+	t.Cleanup(func() { tuneProcAlive, tuneRecoverStart = prevAlive, prevStart })
+
+	tick := make(chan time.Time)
+	done := make(chan struct{})
+	go func() { tuneRecoverWatch(tick); close(done) }()
+	// Un envoi est reçu quand le tic précédent a fini : deux de suite, et le
+	// premier est traité en entier.
+	step := func() { tick <- time.Now() }
+	step()
+	step()
+	if starts != 0 {
+		t.Fatal("relance sans verrou")
+	}
+	l, err := tuneLockAcquire("cli", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	step()
+	step()
+	if starts != 0 {
+		t.Fatal("relance pendant une optimisation vivante")
+	}
+	if _, err := os.Stat(tuneLockPath()); err != nil {
+		t.Fatal("verrou vivant retiré")
+	}
+	alive = false // kill -9 : le verrou reste, son propriétaire est mort
+	step()
+	step()
+	if starts != 1 {
+		t.Fatalf("relances : %d, attendu 1", starts)
+	}
+	if _, err := os.Stat(tuneLockPath()); !os.IsNotExist(err) {
+		t.Error("verrou périmé non retiré")
+	}
+	l.release()
+
+	// Le moteur ne tournait pas avant : verrou retiré, pas de relance.
+	alive = true
+	if _, err := tuneLockAcquire("cli", false); err != nil {
+		t.Fatal(err)
+	}
+	alive = false
+	step()
+	step()
+	close(tick)
+	<-done
+	if starts != 1 {
+		t.Errorf("relance d'un moteur qui ne tournait pas : %d", starts)
+	}
+	if _, err := os.Stat(tuneLockPath()); !os.IsNotExist(err) {
+		t.Error("verrou périmé non retiré")
+	}
+}

@@ -679,8 +679,10 @@ Ajoutées par ce fork :
   claire ; les tâches planifiées attendent. Un verrou dont le propriétaire est
   mort (Loki tué en plein essai) est écarté avant tout démarrage du moteur :
   l'essai orphelin n'est arrêté que si PID, instant de démarrage ET binaire
-  concordent (`taskkill /T` sous Windows), et le moteur est relancé au
-  démarrage de l'interface s'il tournait avant. **Refus d'entrée** : preset
+  concordent (`taskkill /T` sous Windows), et le moteur est relancé s'il
+  tournait avant — au démarrage de l'interface, puis toutes les 30 s par le
+  processus web (un `stat` tant qu'aucun verrou n'existe) : un `loki tune` tué
+  par `kill -9` ne laisse plus le moteur arrêté. **Refus d'entrée** : preset
   externe, aucun preset actif, génération, tâche, bench ou job `bash_bg` en
   cours, moteur occupé (`/slots`) — en ligne de commande, seul ce dernier
   contrôle voit le processus web : préférer le bouton. **Essais** (descente étape par étape depuis

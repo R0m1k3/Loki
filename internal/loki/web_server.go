@@ -139,9 +139,10 @@ func newWebMux() *http.ServeMux {
 	// Jeton de tentative du décodage spéculatif automatique : effacé dès que le
 	// moteur répond, sans dépendre d'une page ouverte (voir backend_serve_spec.go).
 	startSpecAttemptWatch()
-	// Optimisation interrompue (Loki tué en plein essai) : essai orphelin arrêté,
-	// moteur relancé s'il tournait avant (backend_tune_lock.go).
-	go tuneRecoverAtBoot()
+	// Optimisation interrompue (Loki ou « loki tune » tué en plein essai) : essai
+	// orphelin arrêté, moteur relancé s'il tournait avant (backend_tune_lock.go)
+	// — au démarrage, puis toutes les 30 s (un stat sans verrou).
+	go tuneRecoverWatch(time.NewTicker(tuneRecoverEvery).C)
 	mux := http.NewServeMux()
 	// Pages publiques : le HTML et le JS ne contiennent aucun secret. Toute la
 	// donnée et toutes les actions passent par /api/* qui, lui, exige la clé.

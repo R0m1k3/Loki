@@ -332,15 +332,25 @@ func tuneUndoApply(o tuneOwner) {
 	fmt.Fprintf(os.Stderr, "[loki tune] application interrompue avant sa vérification : ancienne version du preset rétablie\n")
 }
 
-// tuneRecoverAtBoot : au démarrage du processus web, une optimisation
-// interrompue (Loki tué en plein essai) a laissé le vrai moteur arrêté et peut-
+// tuneRecoverStale : une optimisation interrompue (Loki redémarré en plein
+// essai, « loki tune » tué par kill -9) a laissé le vrai moteur arrêté et peut-
 // être un essai en VRAM. On arrête l'essai, puis on relance le moteur s'il
-// tournait avant — ce que l'optimisation aurait fait en finissant.
-func tuneRecoverAtBoot() {
+// tournait avant — ce que l'optimisation aurait fait en finissant. Sans
+// verrou, un simple stat : rien d'autre n'est lu.
+func tuneRecoverStale() {
 	if _, err := os.Stat(tuneLockPath()); err != nil {
 		return
 	}
-	if !tuneReapStale() || externalActive() || serviceIsActive() {
+	if tuneReapStale() {
+		tuneRecoverStart()
+	}
+}
+
+// tuneRecoverStart relance le moteur après une optimisation interrompue, sauf
+// preset externe, moteur déjà reparti ou configuration incomplète. Variable
+// pour les tests.
+var tuneRecoverStart = func() {
+	if externalActive() || serviceIsActive() {
 		return
 	}
 	if err := preflightEngine(); err != nil {
@@ -348,4 +358,20 @@ func tuneRecoverAtBoot() {
 	}
 	fmt.Println(dim("[loki tune] optimisation interrompue : relance du moteur"))
 	_ = serviceActionOS("start")
+}
+
+// tuneRecoverEvery : la période de la reprise dans le processus web.
+const tuneRecoverEvery = 30 * time.Second
+
+// tuneRecoverWatch : au démarrage du processus web, puis à chaque tic. Le
+// démarrage seul ne suffisait pas : un « loki tune » en ligne de commande tué
+// sans ses defers (kill -9, terminal perdu) laissait le moteur arrêté jusqu'au
+// prochain redémarrage de l'interface. Le tic ne coûte qu'un stat tant
+// qu'aucun verrou n'existe ; pendant une optimisation vivante, une lecture du
+// verrou et de l'identité de son propriétaire.
+func tuneRecoverWatch(tick <-chan time.Time) {
+	tuneRecoverStale()
+	for range tick {
+		tuneRecoverStale()
+	}
 }
