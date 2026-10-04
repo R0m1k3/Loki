@@ -181,7 +181,9 @@ func firstNonEmpty(vals ...string) string {
 }
 
 // loadArgEnv : les variables qui règlent le chargement sans drapeau.
-var loadArgEnv = []string{"LLAMA_ARG_LOAD_MODE", "LLAMA_ARG_MLOCK", "LLAMA_ARG_NO_MMAP"}
+// LLAMA_ARG_RPC n'en est pas une, mais dit que des poids partent sur des
+// machines distantes (loadModeRisk).
+var loadArgEnv = []string{"LLAMA_ARG_LOAD_MODE", "LLAMA_ARG_MLOCK", "LLAMA_ARG_NO_MMAP", "LLAMA_ARG_RPC"}
 
 // probeLoadEnv relève ces variables. Appelée après probeServeGPUs, qui
 // remet ArgEnv à zéro.
@@ -227,6 +229,10 @@ func residentLoadMode(args []string, argEnv map[string]string) string {
 	return ""
 }
 
+// loadGuardMarker : la fin du message de refus, que l'interface reconnaît
+// dans le journal du service (modelLoadError).
+const loadGuardMarker = "LOAD_GUARD=off pour lancer quand même"
+
 // loadGuardOff : LOAD_GUARD=off, la clé d'échappement du refus.
 func loadGuardOff(cfg map[string]string) bool {
 	switch strings.ToLower(strings.TrimSpace(cfg["LOAD_GUARD"])) {
@@ -256,13 +262,24 @@ func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, 
 	if isExternalConfig(cfg) {
 		return "", ""
 	}
-	mode := residentLoadMode(args, si.ArgEnv)
+	// Un moteur qui connaît --load-mode n'a plus LLAMA_ARG_MLOCK ni
+	// LLAMA_ARG_NO_MMAP : restées dans l'environnement, elles n'ont aucun effet
+	// et ne doivent pas faire refuser un lancement en mmap.
+	env := si.ArgEnv
+	if helpSupportsLoadMode(si.Help) && (env["LLAMA_ARG_MLOCK"] != "" || env["LLAMA_ARG_NO_MMAP"] != "") {
+		env = map[string]string{"LLAMA_ARG_LOAD_MODE": si.ArgEnv["LLAMA_ARG_LOAD_MODE"]}
+	}
+	mode := residentLoadMode(args, env)
 	modelMiB := si.ModelBytes >> 20
 	if mode == "" || modelMiB <= 0 || si.RAMMiB <= 0 {
 		return "", ""
 	}
+	// Serveurs RPC : une part des poids part sur d'autres machines, la VRAM
+	// locale ne borne plus rien — inconnu, donc un avis au plus, jamais un refus.
+	remote := hasAnyFlag(args, "--rpc") || strings.TrimSpace(si.ArgEnv["LLAMA_ARG_RPC"]) != ""
 	low, est, upTo := int64(0), modelMiB, true
 	switch {
+	case remote:
 	case si.UnifiedMem:
 		low, est, upTo = modelMiB, modelMiB, false
 	case si.VRAMMiB > 0:
@@ -281,7 +298,7 @@ func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, 
 		if loadGuardOff(cfg) {
 			return msg + " ; LOAD_GUARD=off : lancé quand même", ""
 		}
-		return "", msg + " ; LOAD_GUARD=off pour lancer quand même"
+		return "", msg + " ; " + loadGuardMarker
 	}
 	if est*10 > ram*8 {
 		return fmt.Sprintf("%s : %s%s de poids en RAM pour %s — au-delà, swap (décodage de 25 à 7,5 t/s dans "+

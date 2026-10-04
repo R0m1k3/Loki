@@ -128,6 +128,15 @@ func TestLoadModeRisk(t *testing.T) {
 		{name: "LLAMA_ARG_NO_MMAP dans l'environnement",
 			si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10,
 				ArgEnv: map[string]string{"LLAMA_ARG_NO_MMAP": "1"}}, refuse: true},
+		// Corrections de relecture du lot 2 : pas de refus sur une borne fausse.
+		{name: "LLAMA_ARG_NO_MMAP sans effet sur un moteur à --load-mode : rien",
+			si: serveSysInfo{Help: "--load-mode", ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10,
+				ArgEnv: map[string]string{"LLAMA_ARG_NO_MMAP": "1"}}},
+		{name: "--rpc : une part des poids part ailleurs, avis seulement",
+			args: "--load-mode none --rpc 10.0.0.2:50052", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
+		{name: "LLAMA_ARG_RPC : de même",
+			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10,
+				ArgEnv: map[string]string{"LLAMA_ARG_RPC": "10.0.0.2:50052"}}, warn: true},
 		{name: "limite du conteneur (RAM effective) : refus",
 			args: "--load-mode none", si: serveSysInfo{ModelBytes: 40 * gib, VRAMMiB: 16 << 10, RAMMiB: 16 << 10}, refuse: true},
 		{name: "taille inconnue : rien",
@@ -256,5 +265,21 @@ func TestJoinArgsRoundTrip(t *testing.T) {
 	args := []string{"--jinja", "--chat-template-file", "/mes modèles/tpl.jinja", "-ot", `blk\.(1|2)\.ffn=CPU`, "", "it's here"}
 	if got := splitArgs(joinArgs(args)); !reflect.DeepEqual(got, args) {
 		t.Errorf("aller-retour : %q", got)
+	}
+}
+
+// Le refus de LOAD_GUARD s'arrête avant tout chargement : l'interface doit le
+// dire plutôt qu'un « chargement… » sans fin, même après un chargement réussi
+// plus haut dans le journal.
+func TestModelLoadErrorLoadGuard(t *testing.T) {
+	_, refuse := loadModeRisk(map[string]string{}, splitArgs("--load-mode none"),
+		serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10})
+	log := "llama_model_load: loading model\nmain: model loaded\nserver is listening\n[ERREUR] " + refuse + "\n"
+	if got := modelLoadErrorFrom(log); !strings.Contains(got, "LOAD_GUARD=off") {
+		t.Errorf("refus non signalé : %q", got)
+	}
+	// Une tentative suivante qui charge efface le refus.
+	if got := modelLoadErrorFrom(log + "loading model\nmodel loaded\n"); got != "" {
+		t.Errorf("refus ancien encore signalé : %q", got)
 	}
 }

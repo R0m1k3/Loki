@@ -634,13 +634,16 @@ Ajoutées par ce fork :
   le preset) : `--load-mode none`, `mlock`, `dio`, `mmap+mlock` (ou
   `--no-mmap`, `--mlock` sur un moteur ancien, ou leurs `LLAMA_ARG_*`) gardent
   en RAM tous les poids laissés au CPU. Loki en estime la part — modèle
-  (toutes tranches) moins VRAM totale, tout le modèle sur macOS — face à la
+  (toutes tranches) moins VRAM totale, tout le modèle sur un Mac Apple Silicon — face à la
   RAM effective (limite du conteneur cgroup comprise) : avertissement au-delà
   de 80 % (llama.cpp #26110 : swap, décodage de 25 à 7,5 t/s ; mlock : processus
   tué) ; **refus** au lancement seulement quand la borne basse dépasse 90 %
-  (échec certain), avec la raison en clair. VRAM inconnue : avertissement, jamais
-  de refus. `mmap` et `auto` ne sont jamais concernés. Rien ne change dans la
-  ligne de commande.
+  (échec certain), avec la raison en clair, aussi affichée par l'interface.
+  VRAM inconnue (Mac Intel, AMD, Vulkan, `--device`) ou serveurs `--rpc` :
+  avertissement, jamais de refus. `mmap` et `auto` ne sont jamais concernés ;
+  `LLAMA_ARG_NO_MMAP`/`LLAMA_ARG_MLOCK` ne comptent que sur un moteur ancien
+  (un moteur à `--load-mode` les ignore). Rien ne change dans la ligne de
+  commande.
 - **Optimiseur sans perte** (`loki tune`, bouton **« Optimiser… »** dans
   l'éditeur du preset en service ; rien ne tourne de soi-même, aucune clé de
   config). Cherche, pour cette machine et ce build du moteur, les réglages

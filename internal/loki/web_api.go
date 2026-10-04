@@ -96,8 +96,10 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 // qui exige un fork de llama.cpp. Renvoie "" quand le dernier chargement a
 // réussi ou qu'aucune tentative n'est visible (évite les faux positifs sur un
 // service simplement arrêté).
-func modelLoadError() string {
-	log := serviceLogTail(200)
+func modelLoadError() string { return modelLoadErrorFrom(serviceLogTail(200)) }
+
+// modelLoadErrorFrom : modelLoadError sur un journal donné (tests).
+func modelLoadErrorFrom(log string) string {
 	if log == "" {
 		return ""
 	}
@@ -105,7 +107,9 @@ func modelLoadError() string {
 	// On ne considère que ce qui suit la DERNIÈRE tentative de chargement.
 	start := 0
 	for i, l := range lines {
-		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") {
+		// Un lancement refusé par LOAD_GUARD (backend_serve_moe.go) s'arrête
+		// avant tout chargement : c'est lui, la dernière tentative.
+		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) {
 			start = i
 		}
 	}
@@ -124,6 +128,9 @@ func modelLoadError() string {
 			strings.Contains(low, "split_mode_tensor not implemented"):
 			// Les autres lignes qui citent SPLIT_MODE_TENSOR ne sont que des avis.
 			reason = "le mode tensor (-sm tensor) n'a pas pu démarrer — SPLIT_MODE=off dans le preset"
+		case strings.Contains(l, loadGuardMarker):
+			reason = "lancement refusé : trop de poids resteraient en RAM avec ce mode de chargement — " +
+				"--load-mode mmap dans le preset, ou LOAD_GUARD=off pour passer outre"
 		case strings.Contains(l, "has offset") && strings.Contains(l, "expected"):
 			reason = "format de quantification non reconnu par ce moteur"
 		case strings.Contains(low, "unknown model architecture"),
