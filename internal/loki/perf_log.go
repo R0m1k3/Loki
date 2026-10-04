@@ -472,6 +472,9 @@ type perfSummary struct {
 	DraftN        int                     `json:"draft_n"`
 	DraftAccepted int                     `json:"draft_accepted"`
 	DraftRate     *float64                `json:"draft_rate,omitempty"`
+	// Template : dernier verdict de la sonde de gabarit (chat_tplprobe.go),
+	// absent tant qu'aucune n'a tourné ou sur un preset externe.
+	Template *tplProbeResult `json:"template,omitempty"`
 }
 
 var perfDepthBuckets = []struct {
@@ -580,5 +583,9 @@ func handlePerfSummary(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET seulement"})
 		return
 	}
-	sendJSON(w, http.StatusOK, perfSummarize(perfLog.snapshot()))
+	s := perfSummarize(perfLog.snapshot())
+	if r, ok := tplCapsCurrent(); ok {
+		s.Template = &r
+	}
+	sendJSON(w, http.StatusOK, s)
 }

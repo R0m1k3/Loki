@@ -1869,6 +1869,15 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				s.LostAlert = perfAlert(rec, perfLostAlertAt(chatCfg))
 			}
 			cb(StreamEvent{Stats: &s})
+			// Sonde de gabarit (chat_tplprobe.go), en tâche de fond et après coup :
+			// la complétion est déjà lue, la sonde ne retarde aucun jeton. Fil
+			// principal seulement, sur une requête de forme normale (pas une
+			// relance outils coupés ou neutralisés), pour reproduire exactement
+			// les outils et chat_template_kwargs d'un vrai tour. Rien n'en revient
+			// dans la requête suivante.
+			if !ep.External && ptag.kind == perfMain && !disableTools && !toolChoiceNone {
+				tplProbeKick(tools, reasoningKwargs, reasoningEffort)
+			}
 			if !ep.External {
 				peakGen = max(peakGen, stats.GenTokens)
 				if lastEst > 0 && stats.PromptTokensTotal > 0 {
