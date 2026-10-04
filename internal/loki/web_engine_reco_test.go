@@ -183,6 +183,67 @@ func TestRetourVersionPrecedente(t *testing.T) {
 	if rec.Code != 400 {
 		t.Errorf("rollback sans précédente : HTTP %d, attendu 400", rec.Code)
 	}
+	// Les deux routes nouvelles changent la configuration ou interrogent le
+	// registre : jamais sur un GET.
+	for _, h := range []http.HandlerFunc{handleEngineRollback, handleEnginePlan} {
+		rec = httptest.NewRecorder()
+		h(rec, httptest.NewRequest("GET", "/api/engine/x", nil))
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("GET : HTTP %d, attendu 405", rec.Code)
+		}
+	}
+}
+
+// Une bascule plus récente périme la vérification du rendu encore en attente
+// de son moteur : elle s'arrête sans rien ranger, et son relevé n'écrase pas
+// celui de la bascule suivante.
+func TestVerificationDuRenduPerimee(t *testing.T) {
+	testHome(t)
+	freshTplProbe(t)
+	oldPoll, oldWait := engineRenderPoll, engineRenderWait
+	engineRenderPoll, engineRenderWait = time.Millisecond, 10*time.Second
+	t.Cleanup(func() {
+		engineRenderPoll, engineRenderWait = oldPoll, oldWait
+		engineRenderMu.Lock()
+		engineRenderLast = nil
+		engineRenderMu.Unlock()
+	})
+	f := &fakeTpl{mode: "qwen3", build: "b10678-old"}
+	f.start(t)
+	ref, ok := engineRenderBefore(context.Background())
+	if !ok {
+		t.Fatal("rendu de référence impossible")
+	}
+	// L'ancien moteur répond toujours : la vérification attend.
+	done := make(chan struct{})
+	go func() { engineRenderAfter(ref, "server-cuda-b11351"); close(done) }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if c := engineRenderSnapshot(); c != nil && c.Status == "pending" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("vérification jamais commencée")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	// Retour à la version précédente : vérification périmée, relevé effacé.
+	engineRenderCancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("vérification périmée toujours en attente")
+	}
+	if c := engineRenderSnapshot(); c != nil {
+		t.Errorf("relevé d'une bascule annulée : %+v", c)
+	}
+	// Un relevé d'une génération passée n'écrase rien.
+	gen := engineRenderBegin()
+	engineRenderSet(gen, engineRenderCheck{Status: "same", Tag: "neuf"})
+	engineRenderSet(gen-1, engineRenderCheck{Status: "changed", Tag: "ancien"})
+	if c := engineRenderSnapshot(); c == nil || c.Tag != "neuf" {
+		t.Errorf("relevé écrasé par une vérification périmée : %+v", c)
+	}
 }
 
 // Le verdict « le prompt rendu va changer » : seulement quand c'est établi

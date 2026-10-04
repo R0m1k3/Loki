@@ -194,6 +194,8 @@ func engineRunUpdate(tag string, preserveOff bool) {
 	ref, haveBefore := engineRenderBefore(ctx)
 	cancel()
 
+	// La vérification d'une bascule précédente parlerait du moteur qu'on quitte.
+	engineRenderCancel()
 	if err := engineSwitchTo(bin); err != nil {
 		lcFail(err)
 		return
@@ -280,6 +282,7 @@ func handleEngineUse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	engineRememberPrevious(left, bin)
+	engineRenderCancel()
 	if serviceIsActive() {
 		_ = serviceAction("restart")
 	}

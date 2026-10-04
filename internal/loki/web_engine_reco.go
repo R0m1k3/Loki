@@ -265,6 +265,12 @@ type engineRenderCheck struct {
 var (
 	engineRenderMu   sync.Mutex
 	engineRenderLast *engineRenderCheck
+	// engineRenderGen : la vérification en cours. Une bascule plus récente
+	// (autre mise à jour, retour à la version précédente, autre version
+	// installée) la périme : une vérification d'avant, encore à attendre son
+	// moteur, ne doit ni écraser le relevé suivant ni comparer l'ancien
+	// moteur au moteur d'une autre bascule.
+	engineRenderGen uint64
 	// engineRenderWait : délai laissé au nouveau moteur pour charger le modèle
 	// (un gros MoE en mmap peut demander plusieurs minutes). Variable pour les
 	// tests.
@@ -272,9 +278,40 @@ var (
 	engineRenderPoll = 5 * time.Second
 )
 
-func engineRenderSet(c engineRenderCheck) {
+// engineRenderBegin ouvre une vérification : celles d'avant sont périmées.
+func engineRenderBegin() uint64 {
+	engineRenderMu.Lock()
+	defer engineRenderMu.Unlock()
+	engineRenderGen++
+	return engineRenderGen
+}
+
+// engineRenderCancel : une bascule sans vérification (retour à la version
+// précédente, autre version installée) périme la vérification en cours et
+// efface son relevé, qui parlerait d'un moteur qui ne tourne plus.
+func engineRenderCancel() {
+	engineRenderMu.Lock()
+	defer engineRenderMu.Unlock()
+	engineRenderGen++
+	engineRenderLast = nil
+}
+
+// engineRenderCurrent : la vérification gen est-elle encore la dernière ?
+func engineRenderCurrent(gen uint64) bool {
+	engineRenderMu.Lock()
+	defer engineRenderMu.Unlock()
+	return gen == engineRenderGen
+}
+
+// engineRenderSet range le relevé de la vérification gen — rien si une
+// bascule plus récente l'a périmée.
+func engineRenderSet(gen uint64, c engineRenderCheck) {
 	c.At = time.Now()
 	engineRenderMu.Lock()
+	if gen != engineRenderGen {
+		engineRenderMu.Unlock()
+		return
+	}
 	engineRenderLast = &c
 	engineRenderMu.Unlock()
 	if c.Status != "pending" {
@@ -331,7 +368,8 @@ func engineRenderBefore(ctx context.Context) (engineRenderRef, bool) {
 // avant : un ancien moteur qui aurait survécu à l'arrêt répondrait aussi, et
 // comparer l'ancien à lui-même conclurait à tort « identique ».
 func engineRenderAfter(ref engineRenderRef, tag string) {
-	engineRenderSet(engineRenderCheck{Status: "pending", Tag: tag})
+	gen := engineRenderBegin()
+	engineRenderSet(gen, engineRenderCheck{Status: "pending", Tag: tag})
 	ctx, cancel := context.WithTimeout(context.Background(), engineRenderWait)
 	defer cancel()
 	p := tplLocalProber()
@@ -346,22 +384,25 @@ func engineRenderAfter(ref engineRenderRef, tag string) {
 		return err == nil && props.BuildInfo != ref.build
 	}
 	for !ready() {
+		if !engineRenderCurrent(gen) {
+			return // bascule plus récente : plus rien à comparer
+		}
 		select {
 		case <-ctx.Done():
-			engineRenderSet(engineRenderCheck{Status: "unknown", Tag: tag, Detail: "le nouveau moteur n'a pas répondu à temps : rendu non vérifié"})
+			engineRenderSet(gen, engineRenderCheck{Status: "unknown", Tag: tag, Detail: "le nouveau moteur n'a pas répondu à temps : rendu non vérifié"})
 			return
 		case <-time.After(engineRenderPoll):
 		}
 	}
 	after, err := tplRenderPrint(ctx, p, ref.shape)
 	if err != nil {
-		engineRenderSet(engineRenderCheck{Status: "unknown", Tag: tag, Detail: "rendu impossible sur le nouveau moteur : " + err.Error()})
+		engineRenderSet(gen, engineRenderCheck{Status: "unknown", Tag: tag, Detail: "rendu impossible sur le nouveau moteur : " + err.Error()})
 		return
 	}
 	if same, d := tplRenderDiff(ref.text, after); same {
-		engineRenderSet(engineRenderCheck{Status: "same", Tag: tag})
+		engineRenderSet(gen, engineRenderCheck{Status: "same", Tag: tag})
 	} else {
-		engineRenderSet(engineRenderCheck{Status: "changed", Tag: tag, Detail: d})
+		engineRenderSet(gen, engineRenderCheck{Status: "changed", Tag: tag, Detail: d})
 	}
 }
 
@@ -410,6 +451,11 @@ func enginePrevious(cur string) map[string]any {
 // changerait au prompt. {recommended:true} : la plus récente ≥ b10864
 // réellement publiée ; sinon la dernière publiée. Rien n'est téléchargé.
 func handleEnginePlan(w http.ResponseWriter, r *http.Request) {
+	// Interroge le registre : POST seulement, comme le clic qui l'appelle.
+	if r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "POST requis"})
+		return
+	}
 	if !engineOCISupported() {
 		sendJSON(w, 200, map[string]any{"ok": false, "error": engineUnsupportedWhy()})
 		return
@@ -454,6 +500,11 @@ func handleEnginePlan(w http.ResponseWriter, r *http.Request) {
 // réseau. Le moteur quitté devient à son tour « le précédent » : deux clics
 // ramènent où l'on était.
 func handleEngineRollback(w http.ResponseWriter, r *http.Request) {
+	// Change la configuration et redémarre le moteur : POST seulement.
+	if r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "POST requis"})
+		return
+	}
 	if tuneDenyHTTP(w) {
 		return
 	}
@@ -469,6 +520,7 @@ func handleEngineRollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	engineRememberPrevious(cur, bin)
+	engineRenderCancel()
 	if serviceIsActive() {
 		_ = serviceAction("restart")
 	}
