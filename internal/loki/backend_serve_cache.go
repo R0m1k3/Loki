@@ -450,30 +450,29 @@ func loopbackHost(h string) bool {
 // restore, qui écrivent des Gio sur le disque, à quiconque joint le moteur. On
 // ne le pose donc que si le moteur est fermé aux autres (boucle locale, ou clé
 // d'API exigée), que le dossier existe (le moteur refuse de démarrer sinon), et
-// que l'isolation servira : cache actif, CACHE_ISOLATE pas à off. Les proxys de
-// Loki refusent de leur côté tout /slots qui n'est pas une lecture.
+// qu'il servira : à l'isolation (cache actif, CACHE_ISOLATE pas à off), ou à
+// SLOT_PERSIST accepté (backend_serve_persist.go). Les proxys de Loki refusent
+// de leur côté tout /slots qui n'est pas une lecture.
 func slotSaveArgs(cfg map[string]string, extra []string, si serveSysInfo) []string {
-	if si.SlotDir == "" || !strings.Contains(si.Help, "--slot-save-path") ||
-		hasAnyFlag(extra, "--slot-save-path") || !cacheIsolationOn(cfg) || cacheRAMOff(cfg, extra, si.ArgEnv) {
+	if si.SlotDir == "" || !strings.Contains(si.Help, "--slot-save-path") || hasAnyFlag(extra, "--slot-save-path") {
 		return nil
 	}
-	host := flagValue(extra, "--host")
-	if host == "" {
-		host = cfg["HOST"]
+	persist, _ := slotPersistPlan(cfg, extra, si)
+	if !persist && (!cacheIsolationOn(cfg) || cacheRAMOff(cfg, extra, si.ArgEnv)) {
+		return nil
 	}
-	if host == "" {
-		host = "0.0.0.0"
-	}
-	if !loopbackHost(host) && si.APIKey == "" {
+	if !slotSaveSafe(cfg, extra, si) {
 		return nil
 	}
 	return []string{"--slot-save-path", si.SlotDir}
 }
 
-// prepareSlotDir crée LOKI_HOME/slots (0700) et le vide : Loki n'y sauve jamais
-// rien, un fichier présent ne peut venir que d'un appel qui n'aurait pas dû
-// passer. Vide = dossier indisponible, le drapeau ne sera pas posé.
-func prepareSlotDir(home string) string {
+// prepareSlotDir crée LOKI_HOME/slots (0700) et le vide : un fichier présent ne
+// peut venir que d'un appel qui n'aurait pas dû passer. Seule exception, avec
+// keepPersist (SLOT_PERSIST demandé) : les états que Loki y a lui-même gardés
+// à la bascule de preset, au nom reconnaissable. Vide = dossier indisponible,
+// le drapeau ne sera pas posé.
+func prepareSlotDir(home string, keepPersist bool) string {
 	dir := filepath.Join(home, "slots")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return ""
@@ -483,7 +482,7 @@ func prepareSlotDir(home string) string {
 	}
 	if entries, err := os.ReadDir(dir); err == nil {
 		for _, e := range entries {
-			if e.Type().IsRegular() {
+			if e.Type().IsRegular() && !(keepPersist && slotPersistFileRe.MatchString(e.Name())) {
 				_ = os.Remove(filepath.Join(dir, e.Name()))
 			}
 		}

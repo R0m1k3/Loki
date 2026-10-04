@@ -238,7 +238,7 @@ func TestBuildServeArgsCacheRAM(t *testing.T) {
 
 func TestPrepareSlotDir(t *testing.T) {
 	home := t.TempDir()
-	dir := prepareSlotDir(home)
+	dir := prepareSlotDir(home, false)
 	if dir != filepath.Join(home, "slots") {
 		t.Fatalf("dossier = %q", dir)
 	}
@@ -246,7 +246,7 @@ func TestPrepareSlotDir(t *testing.T) {
 	if err := os.WriteFile(stray, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if prepareSlotDir(home) == "" {
+	if prepareSlotDir(home, false) == "" {
 		t.Fatal("second appel")
 	}
 	if _, err := os.Stat(stray); !os.IsNotExist(err) {
@@ -258,7 +258,7 @@ func TestPrepareSlotDir(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bad, "slots"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := prepareSlotDir(bad); got != "" {
+	if got := prepareSlotDir(bad, false); got != "" {
 		t.Fatalf("slots est un fichier : %q", got)
 	}
 }

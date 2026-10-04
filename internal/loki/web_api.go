@@ -1310,6 +1310,9 @@ func handleSwitch(w http.ResponseWriter, r *http.Request) {
 	// SwitchToPreset bloquait la réponse pendant tout l'arrêt de llama-server plus
 	// les 2 s de vérification de checkStarted : côté UI, le clic paraissait mou et
 	// la sélection ne bougeait qu'au bout de plusieurs secondes, pour rien.
+	// SLOT_PERSIST : relevé avant que la configuration change, gardé juste
+	// avant l'arrêt du moteur (llm_slotpersist.go). Sans la clé : nil.
+	persist := slotPersistPrepare()
 	if err := applyPresetFile(target.Path); err != nil {
 		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -1323,6 +1326,7 @@ func handleSwitch(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(dim("[info] preset externe — arrêt du moteur local"))
 		go func() {
 			if serviceIsActive() {
+				persist.save()
 				if err := serviceAction("stop"); err != nil {
 					fmt.Printf("%s arrêt du moteur après bascule externe : %v\n", red("[ERREUR]"), err)
 				}
@@ -1333,6 +1337,7 @@ func handleSwitch(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println(dim("[info] redémarrage du service..."))
 	go func() {
+		persist.save()
 		if err := serviceAction("restart"); err != nil {
 			fmt.Printf("%s redémarrage après bascule: %v\n", red("[ERREUR]"), err)
 		}

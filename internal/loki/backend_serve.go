@@ -362,12 +362,24 @@ func cmdServe(args []string) error {
 	if spec == "auto" {
 		si.SpecAutoBlocked, specRecord = specAutoPeek(specMark)
 	}
+	probeSlotPersistEnv(cfg, &si)
 	if strings.Contains(si.Help, "--slot-save-path") && !hasAnyFlag(extra, "--slot-save-path") {
-		si.SlotDir = prepareSlotDir(LokiHome())
+		si.SlotDir = prepareSlotDir(LokiHome(), slotPersistOn(cfg))
 	}
 
 	llmArgs, env, notes := buildServeArgs(cfg, extra, bin, si)
 	applyServeEnv(env)
+	// SLOT_PERSIST (backend_serve_persist.go) : la clé de CE lancement, et les
+	// états gardés au-delà de deux retirés. Refusé pour ce preset (brouillon,
+	// poids sur CPU…) : ceux des autres presets restent, pour leur retour.
+	// Clé retirée : plus aucun état gardé sur le disque.
+	persistKey := ""
+	if ok, _ := slotPersistPlan(cfg, extra, si); ok {
+		persistKey = slotPersistKey(llmArgs, env, si, bin)
+		slotPersistPrune(si.SlotDir)
+	} else if !slotPersistOn(cfg) {
+		slotPersistPurge(filepath.Join(LokiHome(), "slots"))
+	}
 	for _, n := range notes {
 		fmt.Fprintln(os.Stderr, "[loki serve] "+n)
 	}
@@ -394,6 +406,10 @@ func cmdServe(args []string) error {
 		_, _, auto := specArgs(cfg, extra, si)
 		specAutoSettle(specMark, si.SpecAutoBlocked, specRecord, auto)
 	}
+
+	// Posée au dernier moment, port libre : l'ancien moteur est parti, la clé
+	// lue par le process web est celle du moteur qui répondra.
+	writeSlotPersistMarker(LokiHome(), persistKey)
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
 		bin, filepath.Base(model), port)
@@ -644,6 +660,9 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	cram, cramNotes := cacheRAMArgs(cfg, extra, si)
 	args = append(append(args, cram...), slotSaveArgs(cfg, extra, si)...)
 	notes = append(notes, cramNotes...)
+	if n := slotPersistNote(slotPersistPlan(cfg, extra, si)); n != "" {
+		notes = append(notes, n)
+	}
 	// Points de reprise des hybrides (voir backend_serve_ckpt.go).
 	ck, ckNotes := ckptArgs(cfg, extra, si)
 	args = append(args, ck...)

@@ -88,6 +88,11 @@ var configTemplate = []struct{ key, help string }{
 		"sous-agents, tâches, bench, résumé sur transcription et clients /v1 passent par le 1 (id_slot) — l'état de la " +
 		"discussion ne bouge plus. Cache KV et état récurrent en double en VRAM : refusé si le compte ne tient pas, si des " +
 		"poids sont sur CPU, ou si PARALLEL≠2, -c, -np, -kvu, --cache-idle-slots… sont réglés à la main. Vide/off (défaut) = un slot"},
+	{"SLOT_PERSIST", "on = garder sur disque (LOKI_HOME/slots, 2 fichiers au plus, 8 Gio chacun au plus) l'état du slot de " +
+		"la discussion à la bascule de preset, et le recharger au retour avant son premier message : moteur, modèle et réglages " +
+		"identiques à l'octet près (empreinte), slot encore vierge, sinon calcul normal. Refusé avec le décodage spéculatif, " +
+		"des poids sur CPU, ou un moteur joignable sans clé d'API hors 127.0.0.1. Jamais à travers une mise à jour du moteur. " +
+		"Réglage de machine, gardé à la bascule. Vide/off (défaut) = rien n'est écrit"},
 	{"CTX_CHECKPOINTS", "points de reprise par slot d'un modèle hybride (--ctx-checkpoints) ; vide = défaut du moteur (32) ; " +
 		"chacun pèse 70 à 200 Mio de RAM hôte : 8 à 16 si le modèle remplit déjà la RAM"},
 	{"CKPT_MIN_STEP", "espacement minimal en jetons entre deux points de reprise (--checkpoint-min-step), > 0 ; " +

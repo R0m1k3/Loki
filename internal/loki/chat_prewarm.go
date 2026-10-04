@@ -398,6 +398,9 @@ func (c *Conversation) prewarm(why string) {
 	if err != nil {
 		return
 	}
+	// SLOT_PERSIST : l'état gardé de la discussion d'abord, s'il y en a un — le
+	// préchauffage le prolonge au lieu de tout recalculer.
+	slotPersistRestore(ep, convActiveID())
 	ctx, cancel := context.WithTimeout(context.Background(), prewarmTimeout)
 	defer cancel()
 	run.cancel, run.done = cancel, make(chan struct{})

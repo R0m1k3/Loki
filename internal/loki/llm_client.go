@@ -1454,6 +1454,12 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 		// s'il prépare exactement le début de CETTE requête d'un tour de chat.
 		endReq := func() {}
 		var reqSeq uint64
+		// SLOT_PERSIST (llm_slotpersist.go) : l'état gardé à la dernière bascule
+		// de preset est rechargé avant la première requête de la discussion,
+		// si tout concorde. Sans la clé, rien.
+		if !ep.External && ptag.kind == perfMain {
+			slotPersistRestore(ep, ptag.conv)
+		}
 		if !ep.External {
 			endReq, reqSeq = engineRequestBeginSide(prewarmKeeper(ptag.kind, sent, payload), payloadOnSideSlot(payload))
 		}
@@ -1645,7 +1651,9 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 			engineServed() // le slot porte désormais cette requête (llm_slots.go)
 			// Étape d'un tour de discussion : une compaction en continuation
 			// pourra la prolonger (chat_compact_cont.go). Sans la clé, rien.
-			if ptag.kind == perfMain && compactContinuationOn(chatCfg) {
+			// SLOT_PERSIST s'en sert aussi : seul un slot qui porte un tour de
+			// discussion est gardé à la bascule de preset.
+			if ptag.kind == perfMain && (compactContinuationOn(chatCfg) || slotPersistOn(chatCfg)) {
 				engineMarkMain(reqSeq, ptag.conv)
 			}
 		}

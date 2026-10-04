@@ -192,7 +192,10 @@ func safePresetPath(name string) (string, error) {
 // CUDA_LAUNCH_QUEUES (files de lancement CUDA, voir launchQueuesEnv) suit la
 // même logique : un « off » posé parce que CETTE machine bloque ne doit pas
 // disparaître à la bascule suivante.
-var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST", "CUDA_LAUNCH_QUEUES"}
+// SLOT_PERSIST (état du slot gardé à la bascule, backend_serve_persist.go) est
+// par nature un réglage de bascule : posé sur A seulement, il disparaîtrait en
+// passant sur B, dont le lancement effacerait l'état gardé de A.
+var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST", "CUDA_LAUNCH_QUEUES", "SLOT_PERSIST"}
 
 // softPreservedKeys : préservées SEULEMENT si le preset d'arrivée ne les définit
 // pas lui-même. CUDA_VISIBLE_DEVICES est dans ce cas : c'est d'ordinaire un
@@ -203,7 +206,7 @@ var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VIS
 // modèle se retrouvait entièrement sur une seule carte et mourait sur
 // « cudaMalloc failed: out of memory ». Le preset explicite gagne.
 // CUDA_LAUNCH_QUEUES aussi : un preset peut l'imposer pour son modèle.
-var softPreservedKeys = map[string]bool{"CUDA_VISIBLE_DEVICES": true, "HOST": true, "CUDA_LAUNCH_QUEUES": true}
+var softPreservedKeys = map[string]bool{"CUDA_VISIBLE_DEVICES": true, "HOST": true, "CUDA_LAUNCH_QUEUES": true, "SLOT_PERSIST": true}
 
 // applyPresetFile installe le preset comme configuration active, en réinjectant
 // les réglages « appareil » par-dessus. Séparé de SwitchToPreset pour être
@@ -264,6 +267,10 @@ func presetImposesEngine(p string) bool {
 // SwitchToPreset installe le preset et redémarre le service. Les réglages
 // « appareil » (preservedKeys) sont conservés à travers la bascule.
 func SwitchToPreset(target string) error {
+	// SLOT_PERSIST : relevé sur la configuration d'avant, gardé juste avant
+	// l'arrêt (llm_slotpersist.go). Sans la clé, ou hors du process web (rien
+	// n'y dit ce que porte le slot) : nil, rien ne se passe.
+	persist := slotPersistPrepare()
 	if err := applyPresetFile(target); err != nil {
 		return err
 	}
@@ -277,9 +284,11 @@ func SwitchToPreset(target string) error {
 		if !serviceIsActive() {
 			return nil
 		}
+		persist.save()
 		return serviceAction("stop")
 	}
 	fmt.Println(dim("[info] redémarrage du service..."))
+	persist.save()
 	return serviceAction("restart")
 }
 

@@ -498,6 +498,39 @@ Ajoutées par ce fork :
   requêtes partent sans `id_slot`, comme avant. Ce que voit le modèle ne
   change pas : deux slots qui calculent en même temps donnent des logits égaux
   au bruit de virgule flottante près, comme un découpage de lots différent.
+  Un « cache KV plein » sans nombre de jetons (le pool, pas le prompt) est
+  rejoué tel quel et ne déclenche jamais de compaction.
+- **État du slot gardé à la bascule de preset** (clé `SLOT_PERSIST`, **off**
+  par défaut, `loki config set SLOT_PERSIST on`) : passer d'un preset A à B
+  puis revenir à A relance le moteur deux fois, et la conversation de A est
+  recalculée en entier au retour. Avec `on`, juste avant une bascule faite
+  depuis l'interface ou par une tâche, Loki demande au moteur d'écrire l'état
+  du slot de la discussion (`/slots/0?action=save`, sous `LOKI_HOME/slots`),
+  et le recharge au retour, avant le premier message de cette discussion.
+  Conditions strictes, sinon rien n'est écrit ou rechargé et le calcul est
+  normal : la dernière requête passée par le slot était bien un tour de
+  cette discussion (pas une vérification, une tâche, un préchauffage ou un
+  client `/v1`), au moins 4096 jetons, au plus 8 Gio estimés et le double
+  de place libre ; au retour, le moteur doit avoir **exactement** la même
+  empreinte — ligne de commande complète (modèle, `CTX`, types KV, `NGL`,
+  lots, gabarit, `EXTRA_ARGS`…), variables `LLAMA_ARG_*`/`GGML_*`/`CUDA_*`,
+  taille et date du modèle, du projecteur, du binaire et de ses bibliothèques
+  — et son slot 0 ne doit encore avoir servi aucune tâche. Une mise à jour du
+  moteur change l'empreinte : jamais de reprise d'un build à l'autre. Une
+  seule tentative par fichier, retiré ensuite ; deux fichiers au plus,
+  supprimés dès que la clé est retirée. Réglage de la machine : il survit aux
+  bascules comme `HOST` (un preset qui le pose l'emporte). Refusé au lancement (note au journal)
+  avec le décodage spéculatif (`SPEC`, brouillon dans `EXTRA_ARGS` : la
+  sauvegarde du moteur ne garde pas l'état du brouillon, et un brouillon MTP
+  détecté sur le slot bloque aussi), des poids sur CPU (MoE déporté), un
+  `--slot-save-path` déjà réglé, ou un moteur joignable par d'autres sans clé
+  d'API (`HOST` autre que `127.0.0.1`). `loki switch` en ligne de commande ne
+  garde rien (seul le process web sait ce que porte le slot). Le gain est
+  réel surtout sur un modèle dense ; sur un hybride (Qwen3.5/3.6), le fichier
+  n'a pas de points de reprise et ne sert que si le message suivant prolonge
+  exactement les jetons gardés (gabarit qui rend le dernier tour à
+  l'identique), sinon recalcul comme avant. Ce que voit le modèle ne change
+  pas : llama.cpp ne reprend un état que sur un préfixe de jetons identique.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes
