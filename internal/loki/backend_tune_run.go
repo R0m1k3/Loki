@@ -351,7 +351,14 @@ func (t *tuneTrialer) load(ctx context.Context, dir string, port int, launch tun
 	stop := func() {
 		before := gpuUsedMB(gpuStats())
 		tuneKillTree(pid, done)
-		t.lock.setTrial(nil)
+		// Noté jusqu'à sa fin constatée : un essai qui survit à l'arrêt reste
+		// désigné dans le verrou, qu'un Loki redémarré pourra encore arrêter.
+		select {
+		case <-done:
+			t.lock.setTrial(nil)
+		default:
+			fmt.Fprintf(os.Stderr, "[loki tune] l'essai (PID %d) ne s'est pas arrêté dans les temps\n", pid)
+		}
 		if before > 0 {
 			gpuUsedSettled(before)
 		} else {
@@ -404,7 +411,7 @@ func tuneBenchSetup(cfg map[string]string, argEnv map[string]string, cpuPlaced b
 
 // runTune déroule une optimisation. L'appelant fournit le suivi ; le verrou,
 // l'arrêt et la relance du vrai moteur sont faits ici.
-func runTune(ctx context.Context, opts tuneOpts, tr *tuneTracker) (*tuneResult, error) {
+func runTune(ctx context.Context, opts tuneOpts, tr *tuneTracker) (out *tuneResult, retErr error) {
 	if opts.Budget <= 0 {
 		opts.Budget = tuneDefaultBudget
 	}
@@ -435,12 +442,23 @@ func runTune(ctx context.Context, opts tuneOpts, tr *tuneTracker) (*tuneResult, 
 		}
 		lock.setPhase("relance")
 		tr.setPhase("relance du moteur principal")
+		// Un échec de relance doit se voir là où l'on regarde (résultat de
+		// l'interface, sortie de « loki tune »), pas seulement au journal.
+		failed := func(msg string) {
+			fmt.Fprintf(os.Stderr, "[loki tune] %s\n", msg)
+			switch {
+			case out != nil:
+				out.Notes = append(out.Notes, "⚠️ "+msg)
+			case retErr != nil:
+				retErr = fmt.Errorf("%w — %s", retErr, msg)
+			}
+		}
 		if err := preflightEngine(); err != nil {
-			fmt.Fprintf(os.Stderr, "[loki tune] relance impossible : %s\n", plainErr(err))
+			failed("relance du moteur principal impossible : " + plainErr(err))
 			return
 		}
 		if err := serviceActionOS("start"); err != nil {
-			fmt.Fprintf(os.Stderr, "[loki tune] relance du moteur : %s\n", plainErr(err))
+			failed("relance du moteur principal : " + plainErr(err))
 		}
 		gpuMonitor.invalidate()
 	}()
@@ -903,6 +921,9 @@ func tuneApply(ctx context.Context, res *tuneResult, target string, say func(str
 	if err := os.WriteFile(backup, []byte(content), 0o600); err != nil {
 		return "", fmt.Errorf("sauvegarde du preset : %w", err)
 	}
+	// Noté dans le verrou AVANT d'écrire : un Loki tué pendant l'application
+	// la défait au redémarrage (tuneUndoApply).
+	lock.setBackup(backup, res.PresetID, res.PresetName)
 	revert := func(why string) (string, error) {
 		say("échec (" + why + ") : retour à l'ancienne version")
 		if _, _, err := SavePresetApplying(res.PresetID, res.PresetName, content); err != nil {

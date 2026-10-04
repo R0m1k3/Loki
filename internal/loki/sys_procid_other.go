@@ -3,6 +3,7 @@
 package loki
 
 import (
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -15,7 +16,13 @@ func procIdentity(pid int) (start, exe string, ok bool) {
 		return "", "", false
 	}
 	p := strconv.Itoa(pid)
-	out, err := exec.Command("ps", "-o", "lstart=", "-p", p).Output()
+	// lstart passe par strftime(%c) dans la langue et le fuseau de l'appelant :
+	// le processus web (launchd, sans LANG) et un terminal en français ne liraient
+	// pas la même chaîne pour le même processus, et un verrou vivant passerait
+	// pour périmé. Langue et fuseau fixés.
+	cmd := exec.Command("ps", "-o", "lstart=", "-p", p)
+	cmd.Env = append(os.Environ(), "LC_ALL=C", "LANG=C", "TZ=UTC")
+	out, err := cmd.Output()
 	if err != nil {
 		return "", "", false
 	}

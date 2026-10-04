@@ -715,3 +715,120 @@ func TestTuneStageWanted(t *testing.T) {
 		}
 	}
 }
+
+// Corrections de relecture du lot 2 : un verrou qui porte NOTRE PID sans que
+// nous en tenions un vient d'un processus mort (PID réattribué après un
+// redémarrage, même instant de démarrage relatif au boot) : il ne bloque rien.
+// Un verrou illisible tout juste créé est en cours d'écriture : ni retiré ni
+// bloquant ; vieux, il est écarté.
+func TestTuneLockStaleSelfAndFresh(t *testing.T) {
+	testHome(t)
+	prev := tuneProcAlive
+	tuneProcAlive = func(tuneProc) bool { return true } // l'identité concorde
+	t.Cleanup(func() { tuneProcAlive = prev })
+	if err := os.MkdirAll(filepath.Dir(tuneLockPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(tuneOwner{Owner: selfProc(), Via: "web", Phase: "essais"})
+	if err := os.WriteFile(tuneLockPath(), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := tuneGuard(); err != nil {
+		t.Fatalf("verrou d'un ancien processus au même PID encore bloquant : %v", err)
+	}
+	l, err := tuneLockAcquire("cli", false)
+	if err != nil {
+		t.Fatalf("verrou périmé non écarté : %v", err)
+	}
+	if !errors.Is(tuneGuard(), errTuneBusy) {
+		t.Error("notre propre verrou ne bloque plus")
+	}
+	l.release()
+	if _, held := tuneHeld.Load(tuneHeldKey(l.owner)); held {
+		t.Error("verrou rendu encore inscrit comme tenu")
+	}
+
+	// Illisible et neuf : laissé en place.
+	if err := os.WriteFile(tuneLockPath(), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tuneReapStale()
+	if _, err := os.Stat(tuneLockPath()); err != nil {
+		t.Fatal("verrou en cours d'écriture retiré")
+	}
+	// Illisible et vieux : écarté.
+	old := time.Now().Add(-2 * tuneLockFreshness)
+	if err := os.Chtimes(tuneLockPath(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	tuneReapStale()
+	if _, err := os.Stat(tuneLockPath()); !os.IsNotExist(err) {
+		t.Fatal("verrou illisible abandonné non retiré")
+	}
+}
+
+// Les binaires remplacés par une mise à jour (« (deleted) » sous Linux) restent
+// le même processus.
+func TestTuneSameExeDeleted(t *testing.T) {
+	if !sameExe("/usr/local/bin/loki", "/usr/local/bin/loki (deleted)") {
+		t.Error("binaire remplacé pris pour un autre")
+	}
+	if sameExe("/usr/local/bin/loki", "/usr/bin/llama-server") {
+		t.Error("binaires différents confondus")
+	}
+}
+
+// Une application interrompue avant sa vérification (Loki tué pendant la
+// sonde) est défaite quand le verrou périmé est écarté : preset ET
+// configuration reviennent à la version sauvegardée.
+func TestTuneUndoInterruptedApply(t *testing.T) {
+	testHome(t)
+	prev := tuneProcAlive
+	tuneProcAlive = func(tuneProc) bool { return false } // propriétaire mort
+	t.Cleanup(func() { tuneProcAlive = prev })
+	old := "# NAME=Dense\nMODEL=m.gguf\nUBATCH=512\n"
+	patched := "# NAME=Dense\nMODEL=m.gguf\nUBATCH=2048\n"
+	if err := os.MkdirAll(presetsDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(presetsDir(), "Dense.env"), []byte(patched), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteConfig(parseEnv(patched)); err != nil {
+		t.Fatal(err)
+	}
+	backup := filepath.Join(t.TempDir(), "Dense.env")
+	if err := os.WriteFile(backup, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(tuneLockPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(tuneOwner{Owner: tuneProc{PID: 999999, Start: "x"}, Via: "apply", Phase: "application",
+		Backup: backup, PresetID: "Dense", PresetName: "Dense", MainWasActive: true})
+	if err := os.WriteFile(tuneLockPath(), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !tuneReapStale() {
+		t.Error("MainWasActive perdu")
+	}
+	if got, _ := ReadPreset("Dense"); got != old {
+		t.Errorf("preset non rétabli : %q", got)
+	}
+	if ReadConfig()["UBATCH"] != "512" {
+		t.Errorf("configuration non rétablie : %v", ReadConfig())
+	}
+	// Hors phase d'application, rien n'est touché.
+	if err := WriteConfig(parseEnv(patched)); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = json.Marshal(tuneOwner{Owner: tuneProc{PID: 999999, Start: "x"}, Via: "cli", Phase: "essais",
+		Backup: backup, PresetID: "Dense", PresetName: "Dense"})
+	if err := os.WriteFile(tuneLockPath(), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tuneReapStale()
+	if ReadConfig()["UBATCH"] != "2048" {
+		t.Error("configuration modifiée hors phase d'application")
+	}
+}

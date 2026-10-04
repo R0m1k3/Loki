@@ -12,6 +12,11 @@ import (
 // 22 de /proc/<pid>/stat) et binaire d'un processus vivant. Un PID recyclé
 // après un redémarrage de Loki a un autre instant de démarrage : l'optimiseur ne
 // tue un essai orphelin que si les deux concordent (backend_tune_lock.go).
+//
+// L'instant est relatif au boot : après une coupure de courant, un service
+// lancé au même moment du démarrage peut retrouver le même PID ET le même top,
+// et un verrou laissé par l'ancien passerait pour vivant — tout serait refusé
+// jusqu'à son retrait à la main. L'identifiant du boot le préfixe donc.
 func procIdentity(pid int) (start, exe string, ok bool) {
 	if pid <= 0 {
 		return "", "", false
@@ -34,5 +39,14 @@ func procIdentity(pid int) (start, exe string, ok bool) {
 		return "", "", false
 	}
 	exe, _ = os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
-	return f[19], exe, true
+	// Binaire remplacé par une mise à jour pendant que le processus tourne : le
+	// lien porte « (deleted) », c'est pourtant bien le même processus.
+	exe = strings.TrimSuffix(exe, " (deleted)")
+	start = f[19]
+	if b, err := os.ReadFile("/proc/sys/kernel/random/boot_id"); err == nil {
+		if id := strings.TrimSpace(string(b)); id != "" {
+			start = id + "/" + start
+		}
+	}
+	return start, exe, true
 }

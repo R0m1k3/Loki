@@ -243,6 +243,13 @@ func cmdUpdate(args []string) error {
 		fmt.Println(containerUpdateNote)
 		return nil
 	}
+	if !checkOnly {
+		// Même règle que l'interface : pas de remplacement de binaire pendant
+		// une optimisation.
+		if err := tuneGuard(); err != nil {
+			return err
+		}
+	}
 	fmt.Println("recherche de la dernière version…")
 	info, err := checkForUpdate()
 	if err != nil {
@@ -456,6 +463,12 @@ func handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 func handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	if containerManaged() {
 		sendJSON(w, 409, map[string]any{"ok": false, "error": containerUpdateNote})
+		return
+	}
+	// Optimisation en cours : la mise à jour relance Loki, ce qui couperait
+	// l'optimisation du processus web — ou ferait passer pour mort le
+	// propriétaire d'une optimisation en ligne de commande.
+	if tuneDenyHTTP(w) {
 		return
 	}
 	newVer, err := applyUpdate()

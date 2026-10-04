@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -202,7 +203,15 @@ func handleTuneApply(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 409, map[string]any{"ok": false, "error": conv.busyReason().Error()})
 		return
 	}
+	// Vérifié et posé d'un seul tenant : deux clics rapprochés passaient tous
+	// deux le test du début, et le perdant remettait applying à faux pendant
+	// que le premier écrivait encore.
 	tuneJob.mu.Lock()
+	if tuneJob.running || tuneJob.applying {
+		tuneJob.mu.Unlock()
+		sendJSON(w, 409, map[string]any{"ok": false, "error": errTuneBusy.Error()})
+		return
+	}
 	tuneJob.applying, tuneJob.applyLog, tuneJob.applyMsg, tuneJob.applyErr = true, nil, "", ""
 	tuneJob.mu.Unlock()
 	go func() {
@@ -282,8 +291,11 @@ func cmdTune(args []string) error {
 	fmt.Println(dim("  Le chat et les tâches attendent pendant la mesure ; Ctrl-C annule (le moteur est relancé)."))
 	fmt.Println()
 	// Ctrl-C annule proprement : l'essai est arrêté, le vrai moteur relancé.
+	// Le terminal fermé (SIGHUP ; CTRL_CLOSE_EVENT, livré en SIGTERM sous
+	// Windows) ou un kill aussi : sans ça, le processus mourait sans ses defers,
+	// le vrai moteur restait arrêté et l'essai gardait la VRAM.
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(sig)
 	go func() {
 		if _, ok := <-sig; ok {
@@ -302,6 +314,8 @@ func cmdTune(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Les essais sont finis : Ctrl-C reprend son sens ordinaire aux questions.
+	signal.Stop(sig)
 	printTuneResult(res)
 	if len(res.Set) == 0 {
 		return nil

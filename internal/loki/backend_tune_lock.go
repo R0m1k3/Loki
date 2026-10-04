@@ -39,6 +39,10 @@ import (
 
 const tuneLockName = "tune.lock"
 
+// tuneLockFreshness : un verrou illisible plus jeune que ça est en cours
+// d'écriture, pas abandonné.
+const tuneLockFreshness = 10 * time.Second
+
 var errTuneBusy = errors.New("optimisation en cours (loki tune) : le moteur est réservé aux essais — " +
 	"attends la fin ou annule-la")
 
@@ -59,6 +63,12 @@ type tuneOwner struct {
 	// MainWasActive : le vrai moteur tournait avant l'optimisation. Un verrou
 	// périmé trouvé au démarrage du processus web le relance.
 	MainWasActive bool `json:"main_was_active"`
+	// Application en cours (phase « application ») : la version d'avant du
+	// preset, sauvée avant toute écriture. Un verrou périmé dans cette phase
+	// veut dire que l'application n'a jamais été vérifiée : elle est défaite.
+	Backup     string `json:"backup,omitempty"`
+	PresetID   string `json:"preset_id,omitempty"`
+	PresetName string `json:"preset_name,omitempty"`
 }
 
 func tuneLockPath() string { return filepath.Join(LokiHome(), tuneLockName) }
@@ -89,7 +99,8 @@ var tuneProcAlive = func(p tuneProc) bool {
 // que le nom.
 func sameExe(a, b string) bool {
 	norm := func(s string) string {
-		s = strings.ToLower(filepath.Base(strings.ReplaceAll(strings.TrimSpace(s), `\`, "/")))
+		s = strings.TrimSuffix(strings.TrimSpace(s), " (deleted)") // binaire remplacé (Linux)
+		s = strings.ToLower(filepath.Base(strings.ReplaceAll(s, `\`, "/")))
 		return strings.TrimSuffix(s, ".exe")
 	}
 	return a != "" && b != "" && norm(a) == norm(b)
@@ -126,7 +137,24 @@ func tuneActive() (tuneOwner, bool) {
 	if !ok {
 		return tuneOwner{}, false
 	}
-	return o, tuneProcAlive(o.Owner)
+	return o, tuneOwnerAlive(o)
+}
+
+// tuneHeld : verrous pris par CE processus et pas encore rendus (tuneHeldKey).
+var tuneHeld sync.Map
+
+func tuneHeldKey(o tuneOwner) string { return fmt.Sprintf("%s|%d", o.Via, o.Since) }
+
+// tuneOwnerAlive : le propriétaire d'un verrou vit-il encore ? Un verrou qui
+// porte NOTRE PID sans être l'un des nôtres vient d'un processus mort dont le
+// PID nous est échu (redémarrage) : périmé, quoi que dise son identité.
+func tuneOwnerAlive(o tuneOwner) bool {
+	if o.Owner.PID == os.Getpid() {
+		if _, ours := tuneHeld.Load(tuneHeldKey(o)); !ours {
+			return false
+		}
+	}
+	return tuneProcAlive(o.Owner)
 }
 
 // tuneGuard : nil si rien ne tient le moteur, errTuneBusy sinon.
@@ -151,6 +179,7 @@ type tuneLock struct {
 	mu    sync.Mutex
 	path  string
 	owner tuneOwner
+	held  bool // inscrit dans tuneHeld, jusqu'à release
 }
 
 // tuneLockAcquire prend le verrou, ou dit qui le tient. Un verrou périmé est
@@ -172,6 +201,8 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 				_ = os.Remove(path)
 				return nil, fmt.Errorf("verrou de l'optimiseur : %v", errors.Join(werr, cerr))
 			}
+			l.held = true
+			tuneHeld.Store(tuneHeldKey(l.owner), true)
 			return l, nil
 		}
 		if !os.IsExist(err) {
@@ -227,10 +258,22 @@ func (l *tuneLock) setPhase(phase string) {
 	_ = l.write()
 }
 
+// setBackup note la sauvegarde du preset avant son écriture (tuneApply).
+func (l *tuneLock) setBackup(backup, id, name string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.owner.Backup, l.owner.PresetID, l.owner.PresetName = backup, id, name
+	_ = l.write()
+}
+
 // release rend le verrou — seulement s'il est encore le nôtre.
 func (l *tuneLock) release() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.held {
+		l.held = false
+		tuneHeld.Delete(tuneHeldKey(l.owner))
+	}
 	if o, ok := readTuneOwner(l.path); ok && o.Owner.PID == l.owner.Owner.PID && o.Owner.Start == l.owner.Owner.Start {
 		_ = os.Remove(l.path)
 	}
@@ -245,13 +288,16 @@ func tuneReapStale() (mainWasActive bool) {
 	path := tuneLockPath()
 	o, ok := readTuneOwner(path)
 	if !ok {
-		// Illisible (écriture interrompue) : périmé lui aussi, s'il est là.
-		if _, err := os.Stat(path); err == nil {
+		// Illisible (écriture interrompue) : périmé lui aussi, s'il est là —
+		// mais pas tout juste créé : entre sa création exclusive et l'écriture de
+		// son contenu, un verrou neuf est vide quelques instants, et le retirer
+		// laisserait passer une seconde optimisation ou un démarrage du moteur.
+		if fi, err := os.Stat(path); err == nil && time.Since(fi.ModTime()) > tuneLockFreshness {
 			_ = os.Remove(path)
 		}
 		return false
 	}
-	if tuneProcAlive(o.Owner) {
+	if tuneOwnerAlive(o) {
 		return false
 	}
 	stale := fmt.Sprintf("%s.stale-%d-%d", path, os.Getpid(), time.Now().UnixNano())
@@ -263,7 +309,27 @@ func tuneReapStale() (mainWasActive bool) {
 		fmt.Fprintf(os.Stderr, "[loki tune] essai orphelin (PID %d) d'une optimisation interrompue : arrêt\n", o.Trial.PID)
 		tuneKillTree(o.Trial.PID, nil)
 	}
+	tuneUndoApply(o)
 	return o.MainWasActive
+}
+
+// tuneUndoApply : une application interrompue avant sa vérification (Loki tué
+// pendant la sonde) remet la version d'avant du preset — c'est ce que la
+// vérification aurait fait en échouant. Sans sauvegarde notée, rien.
+func tuneUndoApply(o tuneOwner) {
+	if o.Phase != "application" || o.Backup == "" || o.PresetID == "" {
+		return
+	}
+	b, err := os.ReadFile(o.Backup)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[loki tune] application interrompue : sauvegarde illisible (%v)\n", err)
+		return
+	}
+	if _, _, err := SavePresetApplying(o.PresetID, o.PresetName, string(b)); err != nil {
+		fmt.Fprintf(os.Stderr, "[loki tune] application interrompue : retour impossible (%v) — l'ancienne version est dans %s\n", err, o.Backup)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[loki tune] application interrompue avant sa vérification : ancienne version du preset rétablie\n")
 }
 
 // tuneRecoverAtBoot : au démarrage du processus web, une optimisation
