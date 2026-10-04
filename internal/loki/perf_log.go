@@ -37,6 +37,7 @@ const (
 	perfCompact  = "compact"  // résumé de compaction
 	perfBench    = "bench"    // mesure du moteur (cache_prompt:false)
 	perfForeign  = "foreign"  // client externe passé par /v1 : vu, pas mesuré
+	perfPrewarm  = "prewarm"  // préchauffage du cache (PREWARM) : réponse jetée
 )
 
 type perfCtxKey struct{}

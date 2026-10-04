@@ -512,20 +512,19 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	if strings.TrimSpace(prompt) == "" {
 		prompt = "Prends-en connaissance."
 	}
+	askedCaps := caps
 	// Mode code : fige le rôle du tour (plan demandé → planner, sinon builder).
 	// La détection de bascule (puce « passer en mode Code ? ») est émise après
 	// la bulle utilisateur, plus bas.
-	if caps.Code && caps.Role == "" {
-		caps.Role = "builder"
-		if wantsPlan(text) {
-			caps.Role = "planner"
-		}
-	}
+	caps = withTurnRole(caps, text)
 	// Content = simple texte d'ordinaire ; format multimodal (texte + images) quand
 	// la vision est active et qu'une pièce jointe est une image (userMessageContent).
 	c.Messages = append(c.Messages, Message{Role: "user", Content: userMessageContent(files, prompt)})
 	epoch := c.epoch
 	c.mu.Unlock()
+	// Capacités demandées pour ce tour, retenues en mémoire (jamais persistées)
+	// pour préchauffer le suivant (PREWARM, chat_prewarm.go).
+	prewarmNoteCaps(convActiveID(), askedCaps)
 
 	// Borne de tour + bulle utilisateur (rejouables). Persistée tout de suite
 	// (sur disque quelques ms plus tard, voir persistAsync) : si le process
@@ -763,8 +762,14 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		// (pas d'extrait de réponse) : la notif transite par Apple/Google. Pas
 		// de notification après un « stop » (retour ci-dessus) : l'utilisateur
 		// est là et a coupé volontairement.
-		if !c.startQueuedIfAny() && hasPushSubs() {
+		started := c.startQueuedIfAny()
+		if !started && hasPushSubs() {
 			go sendPushToAll("Loki", "Réponse prête · "+fmtDurFR(time.Since(turnStart)))
+		}
+		// Plus rien ne suit : le prochain tour peut être préparé pendant que
+		// l'utilisateur lit (PREWARM, off par défaut — sans la clé, rien ne part).
+		if !started {
+			c.prewarmKick(prewarmTurnEnd)
 		}
 	}()
 	// Télémétrie : tout ce que ce tour envoie au moteur (étapes, compaction,

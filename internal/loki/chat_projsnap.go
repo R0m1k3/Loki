@@ -233,7 +233,7 @@ func projSnapKey(caps Caps, cfg map[string]string) string {
 // projSnapIgnoredKeys : réglages changés en cours de discussion sans relancer le
 // moteur ni toucher au bloc. Les compter rafraîchirait pour rien.
 var projSnapIgnoredKeys = map[string]bool{
-	"PROJ_SNAPSHOT": true, "REASONING_ECHO": true, "REASONING_EFFORT": true, "TEMP": true,
+	"PROJ_SNAPSHOT": true, "PREWARM": true, "REASONING_ECHO": true, "REASONING_EFFORT": true, "TEMP": true,
 	"COMPACT": true, "CRAWL4AI_URL": true, "CRAWL4AI_KEY": true, "WEB_ENGINE": true,
 }
 
@@ -515,6 +515,20 @@ func replaceProjectHead(msgs []Message, block []Message) []Message {
 // (sous c.mu, si l'epoch n'a pas changé). pt sert au rafraîchissement en cours
 // de tour (runChatTools) ; nil sans la clé.
 func (c *Conversation) turnView(caps Caps, epoch int, msgs []Message, inject bool) (sent []Message, tools []Tool, pt *projSnapTurn) {
+	return c.assembleTurn(caps, epoch, msgs, inject, false)
+}
+
+// turnViewDry : la séquence que turnView enverrait pour msgs, SANS rien toucher
+// à la conversation — ni instantané pris, ni mise à jour rangée, ni nettoyage.
+// Pour le préchauffage (chat_prewarm.go) : contenu vivant, mêmes décisions que
+// le vrai tour. La mise à jour qu'il poserait en tête du dernier message n'y est
+// pas : ce message-là est la sentinelle, hors du préfixe préchauffé.
+func (c *Conversation) turnViewDry(caps Caps, msgs []Message, inject bool) ([]Message, []Tool) {
+	sent, tools, _ := c.assembleTurn(caps, 0, msgs, inject, true)
+	return sent, tools
+}
+
+func (c *Conversation) assembleTurn(caps Caps, epoch int, msgs []Message, inject, dry bool) (sent []Message, tools []Tool, pt *projSnapTurn) {
 	cfg := ReadConfig()
 	on := projSnapEnabled(cfg)
 	if !inject {
@@ -526,7 +540,7 @@ func (c *Conversation) turnView(caps Caps, epoch int, msgs []Message, inject boo
 	}
 	if !on {
 		c.mu.Lock()
-		if c.epoch == epoch && (c.ProjSnap != nil || hasContextUpdates(c.Messages)) {
+		if !dry && c.epoch == epoch && (c.ProjSnap != nil || hasContextUpdates(c.Messages)) {
 			c.ProjSnap = nil
 			c.Messages = stripContextUpdates(c.Messages)
 		}
@@ -559,6 +573,17 @@ func (c *Conversation) turnView(caps Caps, epoch int, msgs []Message, inject boo
 
 	block := live.msgs
 	c.mu.Lock()
+	if dry {
+		// Même décision que projSnapApplyLocked, appliquée à la seule copie.
+		if refresh, _, _ := projSnapDecide(c.ProjSnap, live, key, sysHash, asOf); refresh {
+			msgs = stripContextUpdates(msgs)
+		} else {
+			block = c.ProjSnap.Msgs
+		}
+		c.mu.Unlock()
+		final := append(append(append([]Message(nil), spMsgs...), block...), msgs...)
+		return InjectSkills(final, caps, tools), tools, nil
+	}
 	if c.epoch == epoch {
 		refresh, delta := c.projSnapApplyLocked(live, key, sysHash, asOf)
 		if refresh {
@@ -586,15 +611,7 @@ func (c *Conversation) turnView(caps Caps, epoch int, msgs []Message, inject boo
 // que l'appelant l'applique à sa propre copie.
 func (c *Conversation) projSnapApplyLocked(live projLive, key, sysHash, asOf string) (refresh bool, delta string) {
 	snap := c.ProjSnap
-	refresh = snap == nil || snap.Key != key || snap.SysHash != sysHash
-	tok := 0
-	if !refresh {
-		delta = projDelta(snap.State, live, asOf)
-		tok = len(delta) / 4
-		if delta != "" && snap.DeltaTok+tok > projSnapDeltaLimit(snap.SnapTok) {
-			refresh = true
-		}
-	}
+	refresh, delta, tok := projSnapDecide(snap, live, key, sysHash, asOf)
 	if refresh {
 		c.Messages = stripContextUpdates(c.Messages)
 		c.ProjSnap = newProjSnapshot(live, key, sysHash)
@@ -617,6 +634,21 @@ func (c *Conversation) projSnapApplyLocked(live projLive, key, sysHash, asOf str
 	snap.State = live.state
 	snap.DeltaTok += tok
 	return false, delta
+}
+
+// projSnapDecide : rafraîchir ou non, et la mise à jour à annoncer sinon (tok :
+// sa taille estimée). Pur : projSnapApplyLocked l'applique, le préchauffage
+// (turnViewDry) s'en sert pour prévoir le tour sans rien toucher.
+func projSnapDecide(snap *projSnapshot, live projLive, key, sysHash, asOf string) (refresh bool, delta string, tok int) {
+	refresh = snap == nil || snap.Key != key || snap.SysHash != sysHash
+	if !refresh {
+		delta = projDelta(snap.State, live, asOf)
+		tok = len(delta) / 4
+		if delta != "" && snap.DeltaTok+tok > projSnapDeltaLimit(snap.SnapTok) {
+			refresh = true
+		}
+	}
+	return refresh, delta, tok
 }
 
 // --- rafraîchissement en cours de tour -------------------------------------

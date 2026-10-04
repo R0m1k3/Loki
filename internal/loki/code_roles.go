@@ -42,3 +42,17 @@ func wantsPlan(text string) bool {
 	}
 	return false
 }
+
+// withTurnRole fige le rôle d'un tour du mode Code d'après son message : plan
+// demandé → planner, sinon builder. Un rôle déjà choisi par le client est gardé.
+// Partagé par StartTurn et le préchauffage (chat_prewarm.go), qui prévoit le
+// rôle le plus probable du prochain message.
+func withTurnRole(caps Caps, text string) Caps {
+	if caps.Code && caps.Role == "" {
+		caps.Role = "builder"
+		if wantsPlan(text) {
+			caps.Role = "planner"
+		}
+	}
+	return caps
+}

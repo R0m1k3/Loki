@@ -1117,6 +1117,101 @@ func toolCallLabel(name string, args map[string]any) string {
 	return label
 }
 
+// turnReasoning : ce que la requête dit du raisonnement, tiré de la
+// configuration. Partagé par runChat et le préchauffage (chat_prewarm.go).
+func turnReasoning(cfg map[string]string) (effortWanted, effort string, thinkOff bool, kwargs map[string]any) {
+	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
+	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
+	effortWanted = reasoningEffortValue(cfg["REASONING_EFFORT"])
+	// …sauf si le gabarit de CE modèle a déjà refusé ce niveau (llm_effort.go) :
+	// on part alors directement sur la traduction apprise, sans repayer le 500.
+	effort = effortResolve(effortWanted)
+	// Le raisonnement est-il interdit pour ce tour ? « aucune » compte comme une
+	// interdiction, y compris quand le repli ci-dessus a retiré le niveau : c'est
+	// `enable_thinking` qui porte alors la consigne, seul.
+	thinkOff = reasoningExplicitlyOff(cfg["REASONING"]) || effortWanted == "none"
+	// Ce que le gabarit du modèle doit savoir, dans SA langue : `reasoning_effort`
+	// ne parle qu'aux gabarits qui le lisent, `enable_thinking` parle aux modèles
+	// hybrides (Qwen3 & co). Sans ça, « aucune » n'avait aucun effet sur eux : le
+	// modèle réfléchissait pendant que l'interface annonçait le contraire.
+	kwargs = reasoningTemplateKwargs(thinkOff, effort)
+	return effortWanted, effort, thinkOff, kwargs
+}
+
+// turnEchoPolicy : la politique de REASONING_ECHO d'une requête ; off = preset
+// externe ou repli en cours, rien ne repart.
+func turnEchoPolicy(off bool) echoPolicy {
+	if off {
+		return echoPolicy{}
+	}
+	return currentEchoPolicy()
+}
+
+// wireMessages : les messages tels qu'ils partent au moteur — un seul système
+// en tête, la consigne de fin si les outils sont neutralisés, le raisonnement
+// renvoyé selon pol — et le nombre de raisonnements renvoyés.
+func wireMessages(messages []Message, toolChoiceNone bool, pol echoPolicy) ([]Message, int) {
+	sent := normalizeSystemMessages(messages)
+	if toolChoiceNone {
+		sent = withTrailingHint(sent, toolsOffHint)
+	}
+	return echoMessages(sent, pol)
+}
+
+// chatPayloadOpts : ce qui, en plus des messages, façonne une requête de chat.
+type chatPayloadOpts struct {
+	tools          []Tool
+	disableTools   bool
+	toolChoiceNone bool
+	effort         string
+	kwargs         map[string]any
+}
+
+// buildChatPayload : le corps d'une requête de complétion de chat, à partir des
+// messages déjà passés par wireMessages. UN seul endroit le construit : le
+// préchauffage (chat_prewarm.go) envoie ce même corps, aux seuls champs de
+// réponse près (stream, max_tokens), et ne peut donc pas en dériver.
+func buildChatPayload(ep chatEndpoint, sent []Message, temperature float64, o chatPayloadOpts) map[string]any {
+	payload := map[string]any{
+		"model": ep.Model,
+		// Les images de l'historique y sont rangées par référence
+		// (chat_images.go) : on remet leurs octets juste avant l'envoi.
+		"messages":    expandImageRefs(sent),
+		"stream":      true,
+		"temperature": temperature,
+		// include_usage → chunk final avec `usage.prompt_tokens` = taille TOTALE
+		// du prompt (préfixe caché compris), contrairement à timings.prompt_n qui
+		// ne compte que les tokens nouvellement traités. Sert au comptage exact du
+		// contexte (sinon le system prompt déjà en cache n'est pas recompté).
+		"stream_options": map[string]any{"include_usage": true},
+	}
+	// Échantillonnage du preset (top_p/top_k/min_p/pénalités, et TEMP qui
+	// l'emporte sur la température ci-dessus). Posé AVANT le raisonnement : les
+	// deux blocs écrivent des clés disjointes, mais l'ordre rend explicite que
+	// c'est bien loki qui a le dernier mot sur `chat_template_kwargs`.
+	applySampling(payload)
+	if o.effort != "" {
+		payload["reasoning_effort"] = o.effort
+	}
+	// chat_template_kwargs est propre à llama.cpp (--jinja) : une API
+	// distante stricte (OpenAI) refuse un argument inconnu (400).
+	if o.kwargs != nil && !ep.External {
+		payload["chat_template_kwargs"] = o.kwargs
+	}
+	if len(o.tools) > 0 && !o.disableTools {
+		payload["tools"] = o.tools
+		// The model sometimes emits parallel tool calls, which this llama.cpp
+		// build serialises as two concatenated JSON objects in one arguments
+		// string ("{...}{...}") and then fails to parse (HTTP 500). Forcing a
+		// single tool call per turn avoids that.
+		payload["parallel_tool_calls"] = false
+		if o.toolChoiceNone {
+			payload["tool_choice"] = "none"
+		}
+	}
+	return payload
+}
+
 // injectQueued (optionnel, variadique pour ne pas toucher aux appels hors chat)
 // est consulté à CHAQUE frontière d'étape de la boucle d'outils : il renvoie les
 // messages utilisateur mis en file PENDANT la génération, pour que le modèle les
@@ -1157,21 +1252,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 	// (perf_log.go) : rien de tout ça ne part dans la requête.
 	ptag, perfIter := perfTagOf(ctx), 0
 	reasoningOn := reasoningActive(chatCfg["REASONING"])
-	// Intensité du raisonnement, passée telle quelle au gabarit du modèle. Vide
-	// = on n'envoie rien. Réglage par preset, donc de fait par modèle.
-	effortWanted := reasoningEffortValue(chatCfg["REASONING_EFFORT"])
-	// …sauf si le gabarit de CE modèle a déjà refusé ce niveau (llm_effort.go) :
-	// on part alors directement sur la traduction apprise, sans repayer le 500.
-	reasoningEffort := effortResolve(effortWanted)
-	// Le raisonnement est-il interdit pour ce tour ? « aucune » compte comme une
-	// interdiction, y compris quand le repli ci-dessus a retiré le niveau : c'est
-	// `enable_thinking` qui porte alors la consigne, seul.
-	thinkOff := reasoningExplicitlyOff(chatCfg["REASONING"]) || effortWanted == "none"
-	// Ce que le gabarit du modèle doit savoir, dans SA langue : `reasoning_effort`
-	// ne parle qu'aux gabarits qui le lisent, `enable_thinking` parle aux modèles
-	// hybrides (Qwen3 & co). Sans ça, « aucune » n'avait aucun effet sur eux : le
-	// modèle réfléchissait pendant que l'interface annonçait le contraire.
-	reasoningKwargs := reasoningTemplateKwargs(thinkOff, reasoningEffort)
+	effortWanted, reasoningEffort, thinkOff, reasoningKwargs := turnReasoning(chatCfg)
 	// When llama.cpp fails to parse a model-generated tool call (HTTP 500), we
 	// retry the same turn once with tools removed so the model answers in plain
 	// text from the tool results already gathered, instead of dying mid-chat.
@@ -1289,55 +1370,17 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		// stricts (Qwen3.x) refusent un système ailleurs qu'en position 0.
 		// Gardé à part : la télémétrie compare ces messages-là d'une requête à
 		// l'autre (perfPrefix).
-		sent := normalizeSystemMessages(messages)
-		if toolChoiceNone {
-			sent = withTrailingHint(sent, toolsOffHint)
-		}
-		// Raisonnement renvoyé : décidé ici, au point de sortie unique, pour
-		// chaque requête. Clé absente (ou preset externe, ou repli en cours) :
+		// Raisonnement renvoyé : décidé au point de sortie unique, pour chaque
+		// requête. Clé absente (ou preset externe, ou repli en cours) :
 		// echoMessages rend la tranche telle quelle, requête inchangée.
-		pol := currentEchoPolicy()
-		if ep.External || echoOffTurn {
-			pol = echoPolicy{}
-		}
-		sent, echoSent := echoMessages(sent, pol)
-		payload := map[string]any{
-			"model": ep.Model,
-			// Les images de l'historique y sont rangées par référence
-			// (chat_images.go) : on remet leurs octets juste avant l'envoi.
-			"messages":    expandImageRefs(sent),
-			"stream":      true,
-			"temperature": temperature,
-			// include_usage → chunk final avec `usage.prompt_tokens` = taille TOTALE
-			// du prompt (préfixe caché compris), contrairement à timings.prompt_n qui
-			// ne compte que les tokens nouvellement traités. Sert au comptage exact du
-			// contexte (sinon le system prompt déjà en cache n'est pas recompté).
-			"stream_options": map[string]any{"include_usage": true},
-		}
-		// Échantillonnage du preset (top_p/top_k/min_p/pénalités, et TEMP qui
-		// l'emporte sur la température ci-dessus). Posé AVANT le raisonnement : les
-		// deux blocs écrivent des clés disjointes, mais l'ordre rend explicite que
-		// c'est bien loki qui a le dernier mot sur `chat_template_kwargs`.
-		applySampling(payload)
-		if reasoningEffort != "" {
-			payload["reasoning_effort"] = reasoningEffort
-		}
-		// chat_template_kwargs est propre à llama.cpp (--jinja) : une API
-		// distante stricte (OpenAI) refuse un argument inconnu (400).
-		if reasoningKwargs != nil && !ep.External {
-			payload["chat_template_kwargs"] = reasoningKwargs
-		}
-		if len(tools) > 0 && !disableTools {
-			payload["tools"] = tools
-			// The model sometimes emits parallel tool calls, which this llama.cpp
-			// build serialises as two concatenated JSON objects in one arguments
-			// string ("{...}{...}") and then fails to parse (HTTP 500). Forcing a
-			// single tool call per turn avoids that.
-			payload["parallel_tool_calls"] = false
-			if toolChoiceNone {
-				payload["tool_choice"] = "none"
-			}
-		}
+		// Assemblage partagé avec le préchauffage (chat_prewarm.go) : les deux ne
+		// peuvent pas diverger.
+		pol := turnEchoPolicy(ep.External || echoOffTurn)
+		sent, echoSent := wireMessages(messages, toolChoiceNone, pol)
+		payload := buildChatPayload(ep, sent, temperature, chatPayloadOpts{
+			tools: tools, disableTools: disableTools, toolChoiceNone: toolChoiceNone,
+			effort: reasoningEffort, kwargs: reasoningKwargs,
+		})
 		body, _ := json.Marshal(payload)
 		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 		if err != nil {
@@ -1352,9 +1395,11 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		// Requête en vol vers le moteur local, jusqu'à la lecture complète du corps :
 		// l'isolation des travaux annexes n'efface jamais le slot pendant ce temps
 		// (llm_slots.go). Rien à compter pour une API externe.
+		// Un préchauffage en vol (PREWARM, chat_prewarm.go) est annulé ici, sauf
+		// s'il prépare exactement le début de CETTE requête d'un tour de chat.
 		endReq := func() {}
 		if !ep.External {
-			endReq = engineRequestStart()
+			endReq = engineRequestStartKeep(prewarmKeeper(ptag.kind, sent, payload))
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

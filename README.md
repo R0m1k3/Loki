@@ -387,6 +387,24 @@ Ajoutées par ce fork :
   tâches planifiées gardent le bloc à jour à chaque tour ; sans agent, rien du
   projet n'est envoyé ; un preset externe (API) n'est jamais concerné. Le titre, l'export JSON, le résumé de compaction et la
   passe de vérification ne voient pas ces blocs.
+- **Préchauffage du prochain tour** (clé `PREWARM`, **off** par défaut,
+  `loki config set PREWARM on`) : certains recalculs sont inévitables — prompt
+  réécrit par une compaction, dernier message rendu autrement au tour suivant,
+  discussion reprise après une tâche planifiée qui a pris le slot — et sans la
+  clé ils retardent le premier mot du message suivant. Avec `on`, dès que le
+  moteur local est libre après un tour ou une tâche, Loki lui envoie la requête
+  du prochain tour, assemblée par les mêmes fonctions que la vraie (contenu
+  vivant, rien de figé), suivie d'un message `.` et limitée à 1 jeton : le
+  moteur calcule le préfixe pendant que tu lis, et le vrai message ne calcule
+  plus que lui-même. Le jeton et le `.` sont jetés, rien n'est enregistré. Toute
+  autre requête de Loki l'annule aussitôt, sauf un message dont la requête
+  prolonge exactement le préfixe préparé (même historique, mêmes outils, mêmes
+  réglages du gabarit). Jamais avec plus d'un slot (`PARALLEL` ou `-np` dans
+  `EXTRA_ARGS`), pendant un tour, une tâche, un bench, ni vers un preset externe.
+  `full` prépare aussi la discussion qu'on ouvre, si on y reste 3 s. Visible dans
+  la télémétrie sous `prewarm`. Ce que voit le modèle ne change pas : au pire, le
+  préchauffage ne sert à rien (moteur sans points de reprise aux messages
+  utilisateur, image juste avant, agent ou web changé avant d'envoyer).
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

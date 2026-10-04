@@ -82,9 +82,20 @@ var sideJobs atomic.Int32
 
 // engineRequestStart marque une requête vers le moteur local ; la fonction
 // rendue la clôt (une seule fois, quel que soit le nombre d'appels), une fois
-// le corps de la réponse lu.
-func engineRequestStart() func() {
+// le corps de la réponse lu. Un préchauffage en vol (PREWARM, chat_prewarm.go)
+// est annulé d'abord : il ne passe jamais devant un vrai travail.
+func engineRequestStart() func() { return engineRequestStartKeep(nil) }
+
+// engineRequestStartKeep : engineRequestStart, sauf pour le préchauffage en vol
+// que keep reconnaît comme le début exact de cette requête — il continue, et la
+// requête le suit dans le même slot sur le préfixe qu'il vient de calculer.
+// Décidé sous le verrou du compteur : aucun préchauffage ne peut démarrer entre
+// la décision et le compte.
+func engineRequestStartKeep(keep func(*prewarmRun) bool) func() {
 	engineGate.mu.Lock()
+	if p := prewarmCur; p != nil && (keep == nil || !keep(p)) {
+		prewarmDropLocked(p)
+	}
 	engineGate.inflight++
 	engineGate.mu.Unlock()
 	var once sync.Once

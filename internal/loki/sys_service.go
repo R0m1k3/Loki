@@ -106,6 +106,10 @@ var configTemplate = []struct{ key, help string }{
 		"ses changements en <context_update> en tête du message suivant : une page créée ou une valeur de tracker ne fait plus " +
 		"recalculer toute la conversation. Repris tout neuf à chaque compaction, redémarrage ou changement de modèle/projet. " +
 		"Vide/off (défaut) = bloc reconstruit à chaque tour ; sans effet sur un preset externe"},
+	{"PREWARM", "on = préparer le prochain tour pendant que tu lis : après un tour (compaction comprise) ou une tâche, " +
+		"Loki envoie au moteur local la requête suivante avec un message « . » et 1 jeton de réponse, jetés ; le vrai message " +
+		"ne calcule plus que lui-même. Annulé dès qu'une autre requête part, sauf si elle prolonge exactement ce préfixe ; " +
+		"jamais avec plus d'un slot. full = aussi au changement de discussion (après 3 s). Vide/off (défaut) = aucune requête de plus"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"TEMP", "température d'échantillonnage ; vide = défaut du moteur"},

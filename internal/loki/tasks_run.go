@@ -175,6 +175,11 @@ func runTask(t Task) {
 	// dans la mémoire du projet ouvert à l'écran au moment du tic. Sûr : une seule
 	// inférence tourne à la fois (verrou de génération), et RunAutonomous a déjà
 	// rendu la main quand on libère.
+	// Préchauffage de la discussion ouverte (PREWARM, off par défaut) une fois
+	// la tâche finie : différé AVANT la levée du projet forcé, donc exécuté
+	// APRÈS elle — le contexte préparé est celui de la discussion, pas de la
+	// tâche. Le slot a déjà été effacé à la fin de RunAutonomous.
+	defer conv.prewarmKick(prewarmAfterTask)
 	setProjectOverride(taskProjectOf(t))
 	defer setProjectOverride("")
 

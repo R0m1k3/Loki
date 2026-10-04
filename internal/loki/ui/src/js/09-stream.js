@@ -263,7 +263,7 @@ function renderStats(el, s){
 }
 // Ce qui s'est intercalé avant une perte de cache (lost_after, perf_log.go),
 // dit en clair : les identifiants internes n'ont rien à faire dans l'interface.
-const PERF_KIND={main:'tour', subagent:'sous-agent', verify:'vérification', task:'tâche', compact:'compaction', bench:'bench', foreign:'client /v1'};
+const PERF_KIND={main:'tour', subagent:'sous-agent', verify:'vérification', task:'tâche', compact:'compaction', bench:'bench', foreign:'client /v1', prewarm:'préchauffage'};
 // Milliers séparés par une espace fine insécable : « 41 230 », pas « 41230 ».
 function nfmt(n){ return String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f'); }
 // --- Compteurs de bulle -----------------------------------------------------

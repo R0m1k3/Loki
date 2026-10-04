@@ -220,6 +220,7 @@ func projectSwitch(slug string) error {
 	}
 	// convIndex rend la plus récemment modifiée en tête.
 	convActivate(list[0].ID, storeBytes(bkChat, convKey(list[0].ID)))
+	prewarmAfterSwitch()
 	return nil
 }
 
@@ -247,6 +248,7 @@ func convSwitch(id string) error {
 	}
 	conv.persist() // fige la discussion qu'on quitte
 	convActivate(id, storeBytes(bkChat, convKey(id)))
+	prewarmAfterSwitch()
 	return nil
 }
 
