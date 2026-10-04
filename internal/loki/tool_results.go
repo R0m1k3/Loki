@@ -89,6 +89,10 @@ func deleteToolResultsFor(sid string) {
 		return
 	}
 	prefix := sid + "."
+	// D'abord l'écrivain (chat_persist.go) : ce qui l'attend est jeté, et ce
+	// qu'il a déjà pris dans son lot est annulé — sans ça, il l'écrirait après
+	// l'effacement ci-dessous et le résultat renaîtrait. Annulé AVANT notre
+	// transaction : l'écrivain vérifie dans la sienne, et bbolt les sérialise.
 	persistQ.dropToolRes(prefix)
 	_ = update(bkToolRes, func(b *bolt.Bucket) error {
 		c := b.Cursor()

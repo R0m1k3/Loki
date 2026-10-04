@@ -74,6 +74,11 @@ type convPersister struct {
 	queued  uint64               // tickets délivrés
 	done    uint64               // tickets traités (écrits, abandonnés ou en échec)
 	running bool
+
+	// Résultats d'outils du lot en cours d'écriture, et ceux d'entre eux qu'une
+	// suppression a annulés depuis : l'écrivain les saute dans sa transaction.
+	inflight  map[string]bool
+	cancelled map[string]bool
 }
 
 var (
@@ -92,6 +97,9 @@ func newConvPersister() *convPersister {
 		mem:     map[string]string{},
 		written: map[string]uint64{},
 		deleted: map[string]bool{},
+
+		inflight:  map[string]bool{},
+		cancelled: map[string]bool{},
 	}
 	p.cond = sync.NewCond(&p.mu)
 	return p
@@ -157,6 +165,7 @@ func (p *convPersister) run() {
 		for _, j := range p.res {
 			if !p.deleted[toolResConv(j.key)] {
 				res = append(res, j)
+				p.inflight[j.key] = true
 			}
 		}
 		p.snaps, p.res = map[string]*convSnap{}, nil
@@ -166,6 +175,10 @@ func (p *convPersister) run() {
 		wrote, err := persistCommitByPath(snaps, res)
 
 		p.mu.Lock()
+		for _, j := range res {
+			delete(p.inflight, j.key)
+			delete(p.cancelled, j.key)
+		}
 		for _, s := range wrote {
 			if s.seq > p.written[s.id] {
 				p.written[s.id] = s.seq
@@ -225,6 +238,13 @@ func (p *convPersister) dropToolRes(prefix string) {
 }
 
 func (p *convPersister) dropToolResLocked(prefix string) {
+	// Déjà pris par l'écrivain : trop tard pour le retirer de la file, pas pour
+	// l'empêcher d'atteindre la base (voir toolResWanted).
+	for k := range p.inflight {
+		if strings.HasPrefix(k, prefix) {
+			p.cancelled[k] = true
+		}
+	}
 	for k := range p.mem {
 		if strings.HasPrefix(k, prefix) {
 			delete(p.mem, k)
@@ -237,6 +257,17 @@ func (p *convPersister) dropToolResLocked(prefix string) {
 		}
 	}
 	p.res = kept
+}
+
+// toolResWanted : ce résultat du lot en cours doit-il encore être écrit ?
+// Appelé par l'écrivain DANS sa transaction. Une suppression annule avant
+// d'ouvrir la sienne (deleteToolResultsFor) : soit l'écrivain voit
+// l'annulation et saute le résultat, soit il l'a déjà écrit et la suppression,
+// sérialisée après lui par bbolt, l'efface. Jamais de résultat qui renaît.
+func (p *convPersister) toolResWanted(key string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return !p.cancelled[key]
 }
 
 // toolResPending relit un résultat pas encore sur disque.
@@ -338,6 +369,9 @@ func commitPersistBatch(path string, snaps []*convSnap, res []toolResJob) ([]*co
 					return err
 				}
 				for _, j := range res {
+					if !persistQ.toolResWanted(j.key) {
+						continue // supprimé avec sa discussion pendant que le lot partait
+					}
 					enc, err := encode([]byte(j.plain))
 					if err != nil {
 						return err

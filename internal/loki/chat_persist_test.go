@@ -187,6 +187,29 @@ func TestToolResultSupprimeAvantEcriture(t *testing.T) {
 	}
 }
 
+// Un résultat que l'écrivain a DÉJÀ pris dans son lot, supprimé avant que ce
+// lot n'atteigne la base, ne renaît pas après la suppression. C'était la cause
+// des échecs intermittents de TestToolResultsSaveLoadDelete : la suppression ne
+// retirait que la file d'attente, et l'écriture en vol passait après elle.
+func TestToolResultSupprimePendantEcriture(t *testing.T) {
+	testHome(t)
+	entered, release := gatePersist(t)
+	id := saveToolResult(strings.Repeat("a", 3000))
+	waitEntered(t, entered) // le lot est pris, pas encore écrit
+	deleteToolResultsFor(toolResConv(id))
+	close(release)
+	persistQ.flush()
+	if _, ok := loadToolResult(id); ok {
+		t.Fatal("un résultat supprimé pendant son écriture a été écrit quand même")
+	}
+	// L'annulation ne vaut que pour ce lot : un nouveau résultat s'écrit.
+	again := saveToolResult(strings.Repeat("b", 3000))
+	persistQ.flush()
+	if _, ok := loadToolResult(again); !ok {
+		t.Fatal("annulation restée collée : le résultat suivant n'a pas été écrit")
+	}
+}
+
 // compactLog rend exactement ce que donne la compaction de fin de tour, sans
 // toucher au journal d'origine.
 func TestCompactLogPurEgalFinDeTour(t *testing.T) {
