@@ -367,10 +367,20 @@ func stripCtxUpdText(s string) (string, bool) {
 
 // withoutCtxUpdate : le message sans son bloc de tête, ok=false s'il n'en avait
 // pas (message rendu tel quel). Contenu texte ou multimodal ([]any, []map).
+// Seulement un message que Loki a marqué (CtxUpd) : sans la clé, aucun ne
+// l'est, et un texte tapé par l'utilisateur n'est jamais retouché.
 func withoutCtxUpdate(m Message) (Message, bool) {
-	if m.Role != "user" {
+	if m.Role != "user" || !m.CtxUpd {
 		return m, false
 	}
+	m, ok := withoutCtxUpdateText(m)
+	if ok {
+		m.CtxUpd = false
+	}
+	return m, ok
+}
+
+func withoutCtxUpdateText(m Message) (Message, bool) {
 	switch c := m.Content.(type) {
 	case string:
 		if s, ok := stripCtxUpdText(c); ok {
@@ -463,6 +473,7 @@ func prependCtxUpdate(m Message, block string) (Message, bool) {
 	default:
 		return m, false
 	}
+	m.CtxUpd = true
 	return m, true
 }
 

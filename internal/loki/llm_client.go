@@ -38,6 +38,11 @@ type Message struct {
 	// relais et non comme une demande (isLokiInjected) ; retiré à l'envoi
 	// (wireMessages). Faux : JSON inchangé.
 	ImgRelay bool `json:"img_relay,omitempty"`
+	// CtxUpd : Loki a posé un bloc <context_update> en tête de ce message
+	// utilisateur (PROJ_SNAPSHOT, chat_projsnap.go) — jamais sans la clé. Seuls
+	// les messages marqués sont nettoyés : un texte TAPÉ qui commencerait par la
+	// même balise reste tel quel. Persisté, retiré à l'envoi (wireMessages).
+	CtxUpd bool `json:"ctx_upd,omitempty"`
 	// imgTokens : coût mesuré par le moteur de l'image d'un relais GARDÉ dans
 	// l'historique (KEEP_TURN_IMAGES) ; 0 = image non gardée, ou déjà retirée.
 	// En mémoire seulement : un fil rechargé a de toute façon perdu ses images

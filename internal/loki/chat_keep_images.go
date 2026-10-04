@@ -117,13 +117,15 @@ func logKeptImagesDropped(phase string, freed int) {
 func stripRelayTags(msgs []Message) []Message {
 	var out []Message
 	for i, m := range msgs {
-		if !m.ImgRelay {
+		// La marque des blocs <context_update> (PROJ_SNAPSHOT) non plus ne
+		// quitte jamais Loki.
+		if !m.ImgRelay && !m.CtxUpd {
 			continue
 		}
 		if out == nil {
 			out = append([]Message(nil), msgs...)
 		}
-		m.ImgRelay = false
+		m.ImgRelay, m.CtxUpd = false, false
 		out[i] = m
 	}
 	if out == nil {

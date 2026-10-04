@@ -247,7 +247,9 @@ func TestProjSnapCompactionRafraichit(t *testing.T) {
 		c.Messages = append(c.Messages, am("étape "+strings.Repeat("détail ", 300)), um("continue "+strings.Repeat("x", 600)))
 	}
 	// Le message avec la mise à jour en dernier : il tombe dans la queue gardée.
-	c.Messages = append(c.Messages, am("vu"), um(ctxUpdOpen+` at="x">`+"\n~ poids — 72.4 kg\n"+ctxUpdClose+"\n\nencore"))
+	upd := um(ctxUpdOpen + ` at="x">` + "\n~ poids — 72.4 kg\n" + ctxUpdClose + "\n\nencore")
+	upd.CtxUpd = true
+	c.Messages = append(c.Messages, am("vu"), upd)
 	if _, changed := c.compactAndPublish(context.Background(), c.epoch, "test", append([]Message(nil), c.Messages...), 50000, caps, compactOpts{}); !changed {
 		t.Fatal("compaction sans effet")
 	}
@@ -511,7 +513,9 @@ func TestProjSnapRetireDesLecteurs(t *testing.T) {
 	testHome(t)
 	blk := ctxUpdOpen + ` at="t">` + "\n+ [A](a.md)\n" + ctxUpdClose + "\n\n"
 	c := newTestConv()
-	c.Messages = []Message{um(blk + "corrige le build"), am("ok")}
+	first := um(blk + "corrige le build")
+	first.CtxUpd = true
+	c.Messages = []Message{first, am("ok")}
 	if got := c.lastUserText(); got != "corrige le build" {
 		t.Fatalf("tâche du vérificateur : %q", got)
 	}
@@ -523,8 +527,8 @@ func TestProjSnapRetireDesLecteurs(t *testing.T) {
 		t.Fatalf("export : %v %s", err, out)
 	}
 	multi := []Message{
-		{Role: "user", Content: []any{map[string]any{"type": "text", "text": blk}, map[string]any{"type": "text", "text": "vois l'image"}}},
-		{Role: "user", Content: []map[string]any{{"type": "text", "text": blk + "suite"}}},
+		{Role: "user", CtxUpd: true, Content: []any{map[string]any{"type": "text", "text": blk}, map[string]any{"type": "text", "text": "vois l'image"}}},
+		{Role: "user", CtxUpd: true, Content: []map[string]any{{"type": "text", "text": blk + "suite"}}},
 	}
 	got := stripContextUpdates(multi)
 	if hasContextUpdates(got) || len(got[0].Content.([]any)) != 1 || got[1].Content.([]map[string]any)[0]["text"] != "suite" {
@@ -534,7 +538,7 @@ func TestProjSnapRetireDesLecteurs(t *testing.T) {
 		t.Fatal("l'original ne doit pas être modifié")
 	}
 	// Un texte qui en parle plus loin n'est pas touché.
-	plain := []Message{um("explique " + blk)}
+	plain := []Message{{Role: "user", CtxUpd: true, Content: "explique " + blk}}
 	if s := stripContextUpdates(plain); msgText(s[0]) != msgText(plain[0]) {
 		t.Fatal("bloc hors tête retiré")
 	}
@@ -586,5 +590,38 @@ func TestReplaceProjectHead(t *testing.T) {
 	out = replaceProjectHead([]Message{{Role: "system", Content: "base"}, um("q")}, block)
 	if msgText(out[1]) != memIndexPrefix+" neuf" || msgText(out[2]) != "q" {
 		t.Fatalf("%+v", out)
+	}
+}
+
+// Corrections de relecture du lot 2 : seul un bloc posé par Loki (marqué) est
+// retiré. Sans la clé, un message TAPÉ qui commence par la même balise reste
+// tel quel partout — historique, envoi, titre — et la marque ne part jamais
+// au moteur.
+func TestProjSnapTexteTapeIntact(t *testing.T) {
+	testHome(t)
+	typed := um(ctxUpdOpen + ` at="x">` + "\ncollé depuis un journal\n" + ctxUpdClose + "\n\nqu'est-ce que c'est ?")
+	c := newTestConv()
+	c.Messages = []Message{typed}
+	if got := stripContextUpdates(c.Messages); msgText(got[0]) != msgText(typed) {
+		t.Fatal("texte tapé retouché")
+	}
+	sent, _, _ := c.turnView(Caps{Agent: true}, c.epoch, append([]Message(nil), c.Messages...), true)
+	if msgText(sent[len(sent)-1]) != msgText(typed) || msgText(c.Messages[0]) != msgText(typed) {
+		t.Fatalf("texte tapé retouché à l'envoi ou dans l'historique : %q", msgText(sent[len(sent)-1]))
+	}
+	if got := convSummary(c.Messages); !strings.Contains(got, "collé depuis un journal") {
+		t.Fatalf("titre : %q", got)
+	}
+	marked, ok := prependCtxUpdate(um("suite"), ctxUpdOpen+` at="t">`+"\n+ x\n"+ctxUpdClose+"\n\n")
+	if !ok || !marked.CtxUpd {
+		t.Fatal("bloc posé sans marque")
+	}
+	wire, _ := wireMessages([]Message{marked}, false, echoPolicy{})
+	b, _ := json.Marshal(wire)
+	if strings.Contains(string(b), "ctx_upd") {
+		t.Fatalf("marque envoyée au moteur : %s", b)
+	}
+	if s, ok := withoutCtxUpdate(marked); !ok || s.CtxUpd || msgText(s) != "suite" {
+		t.Fatalf("bloc marqué non retiré : %+v", s)
 	}
 }
