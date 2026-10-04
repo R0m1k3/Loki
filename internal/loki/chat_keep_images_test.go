@@ -526,3 +526,18 @@ func TestKeepImagesRetireesEnCoursDeTour(t *testing.T) {
 		t.Fatalf("extra après publication : %+v", extra)
 	}
 }
+
+// Budget déjà plein : l'image suivante reste éphémère sans même être rangée.
+func TestKeepImagesBudgetPleinAvantRangement(t *testing.T) {
+	testHome(t)
+	k := &keepImages{}
+	msgs := []Message{um("q"), keptRelay(keepImgBudget())}
+	img := seeImageMessage("x.png", imageURLPart([]byte("png"), "image/png"))
+	got, extra := k.relay(msgs, nil, img, 1)
+	if len(got) != 3 || len(extra) != 0 || !k.stopped || len(k.pend) != 0 || !got[2].ImgRelay {
+		t.Fatalf("relais au budget plein : %+v / %+v", got, k)
+	}
+	if ents, _ := os.ReadDir(chatImgDir()); len(ents) != 0 {
+		t.Fatal("image rangée alors que le budget était plein")
+	}
+}

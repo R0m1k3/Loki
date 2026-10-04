@@ -228,19 +228,25 @@ func (k *keepImages) relay(messages, extra []Message, m Message, from int) ([]Me
 		return append(messages, m), extra
 	}
 	m.ImgRelay = true
-	if !k.stopped {
-		if r, w, ok := refRelayImage(m); ok && keptImageTokens(messages) < keepImgBudget() {
-			if len(k.pend) == 0 {
-				k.pendReq, k.pendBase, k.pendFrom = k.reqN+1, k.lastAfter, from
-			}
-			messages = append(messages, r)
-			extra = append(extra, r)
-			k.pend = append(k.pend, keepPend{msgIdx: len(messages) - 1, extraIdx: len(extra) - 1, weight: w})
-			return messages, extra
-		}
-		k.stopped = true
+	if k.stopped {
+		return append(messages, m), extra
 	}
-	return append(messages, m), extra
+	// Budget déjà plein : inutile de ranger le fichier.
+	r, w, ok := Message{}, 0, false
+	if keptImageTokens(messages) < keepImgBudget() {
+		r, w, ok = refRelayImage(m)
+	}
+	if !ok {
+		k.stopped = true
+		return append(messages, m), extra
+	}
+	if len(k.pend) == 0 {
+		k.pendReq, k.pendBase, k.pendFrom = k.reqN+1, k.lastAfter, from
+	}
+	messages = append(messages, r)
+	extra = append(extra, r)
+	k.pend = append(k.pend, keepPend{msgIdx: len(messages) - 1, extraIdx: len(extra) - 1, weight: w})
+	return messages, extra
 }
 
 // sending : une requête part avec n messages.

@@ -452,8 +452,11 @@ Ajoutées par ce fork :
   encore nécessaire ; rouvrir la discussion les retire aussi, comme les pièces
   jointes. Discussion seulement (ni tâche, ni sous-agent, ni vérification). Un
   preset externe n'est concerné que si sa vision est déclarée, et l'API
-  refacture alors ces images à chaque tour. Sans la clé, la requête est
-  identique à l'octet près.
+  refacture alors ces images à chaque tour. Le gain suppose que le moteur
+  reprenne son cache au-delà d'une image ; sur un modèle hybride (Qwen3.5/3.6),
+  dont les points de reprise ne suivent pas toujours une image, à vérifier dans
+  la télémétrie (`lost` du tour suivant) avant de l'adopter. Sans la clé, la
+  requête est identique à l'octet près.
 - **Rappel de budget dans le résultat d'outil** (clé `NUDGE_IN_TOOL`, **off**
   par défaut, **zone grise**, `loki config set NUDGE_IN_TOOL on`) : après un
   grand nombre d'appels d'outils dans un même tour, Loki rappelle au modèle de
