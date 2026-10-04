@@ -233,6 +233,11 @@ type Caps struct {
 	// ComputerUse = pilotage du navigateur du conteneur (outils browser_*).
 	// Requiert aussi Agent (mêmes actions réelles que bash). Voir computer_use.go.
 	ComputerUse bool
+	// envInCtx : la date et le dossier de travail partent dans le bloc projet
+	// figé (PROJ_SNAPSHOT, chat_envctx.go), pas dans le système. Posé par le seul
+	// assemblage d'un tour de discussion avec la clé ; jamais pour une tâche, un
+	// sous-agent ou la vérification, qui gardent le système d'avant.
+	envInCtx bool
 }
 
 // globalCaps reads the machine-wide config — the default when a request doesn't
@@ -384,9 +389,9 @@ func normalizeSystemMessages(msgs []Message) []Message {
 
 // isProjectSystem : message système propre au projet actif (description, index
 // mémoire, trackers) ou à la conversation (rappel des pages mémoire lues, posé
-// au compactage), à sortir du bloc système commun (voir
-// normalizeSystemMessages) : ce bloc doit rester identique partout pour rester
-// en cache.
+// au compactage ; date et dossier de travail avec PROJ_SNAPSHOT), à sortir
+// du bloc système commun (voir normalizeSystemMessages) : ce bloc doit rester
+// identique partout pour rester en cache.
 func isProjectSystem(m Message) bool {
 	s, ok := m.Content.(string)
 	if !ok || m.Role != "system" {
@@ -396,7 +401,8 @@ func isProjectSystem(m Message) bool {
 		strings.HasPrefix(s, memIndexPrefix) ||
 		strings.HasPrefix(s, trackerIndexPrefix) ||
 		strings.HasPrefix(s, memReminderPrefix) ||
-		strings.HasPrefix(s, codeInstructionsPrefix)
+		strings.HasPrefix(s, codeInstructionsPrefix) ||
+		strings.HasPrefix(s, envContextPrefix)
 }
 
 // prependToFirstUser place ctx en tête du premier message user de msgs (modifié

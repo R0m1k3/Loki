@@ -379,12 +379,19 @@ Ajoutées par ce fork :
   tracker, et le texte **complet** d'une description ou d'un `AGENTS.md` modifié
   — rien n'est perdu, seul ce petit bloc est à calculer. Une ligne du prompt
   système (présente seulement avec la clé) dit au modèle que ces blocs viennent
-  de Loki et que le plus récent l'emporte. Le bloc est repris tout neuf, et les
+  de Loki et que le plus récent l'emporte. La date du jour et le dossier de
+  travail de la discussion (ou, pour un poste distant ciblé, son nom, son
+  dossier et s'il est hors ligne) quittent aussi le prompt système pour ce
+  bloc, les consignes restant dans le système : système et outils deviennent
+  les mêmes d'une discussion à l'autre, et passer minuit n'ajoute qu'une ligne
+  de mise à jour au lieu de tout recalculer. Le bloc est repris tout neuf, et les
   anciens `<context_update>` retirés, quand le début du prompt change de toute
-  façon : compaction, système ou outils modifiés (date, réglages), redémarrage de
+  façon : compaction, système ou outils modifiés (réglages, mode), redémarrage de
   Loki, changement de modèle, de preset, de projet, de mode mémoire ou de mode
   Code — et dès que les mises à jour accumulées deviennent trop longues. Les
-  tâches planifiées gardent le bloc à jour à chaque tour ; sans agent, rien du
+  tâches planifiées gardent le bloc à jour à chaque tour et, comme les
+  sous-agents, la vérification et le terminal, leur système d'avant, date et
+  dossier compris ; sans agent, rien du
   projet n'est envoyé ; un preset externe (API) n'est jamais concerné. Le titre, l'export JSON, le résumé de compaction et la
   passe de vérification ne voient pas ces blocs.
 - **Préchauffage du prochain tour** (clé `PREWARM`, **off** par défaut,

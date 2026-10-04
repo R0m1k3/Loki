@@ -22,12 +22,14 @@ package loki
 //   - rien n'est perdu : lignes ajoutées, modifiées, retirées pour les données
 //     faites de lignes (pages, trackers), texte COMPLET pour la prose
 //     (description, AGENTS.md). Une ligne fixe du système dit que ces blocs
-//     viennent de Loki et que le plus récent l'emporte.
+//     viennent de Loki et que le plus récent l'emporte ;
+//   - la date du jour et le dossier de travail quittent le système pour ce bloc
+//     (chat_envctx.go) : un changement de jour devient une ligne de mise à jour.
 //
 // Le bloc est rafraîchi — copie neuve, blocs <context_update> retirés de tout
 // l'historique — seulement quand le début du prompt change de toute façon :
 // compaction (début, fin de tour, manuelle, en cours de tour, réduction forcée),
-// système ou outils modifiés (date du jour, réglages, mode), cache froid
+// système ou outils modifiés (réglages, mode, cible), cache froid
 // (redémarrage de Loki, changement de modèle, de preset ou de réglage moteur),
 // projet, nom, mode mémoire, mode Code ou dépôt changés, textes des en-têtes
 // changés. Et quand les mises à jour accumulées dépassent un seuil : au-delà, le
@@ -66,7 +68,7 @@ func projSnapEnabled(cfg map[string]string) bool {
 // Textes propres au bloc figé. Leur empreinte entre dans la clé de validité :
 // une mise à jour de Loki qui les reformule rafraîchit les instantanés persistés.
 const (
-	projSnapFormat     = "1"
+	projSnapFormat     = "2"
 	memIndexFrozenTail = " Later <context_update> blocks from Loki update it."
 	trackerFrozenHead  = " — your trackers, each with its latest point at that time; later <context_update> blocks from Loki replace these lines. " +
 		"To say which trackers exist or give a latest value, use this list with those updates — do NOT call tracker with no arguments to list them. " +
@@ -89,6 +91,8 @@ func projSnapNow() string { return time.Now().Format("2006-01-02 15:04") }
 // simple hash : c'est contre lui qu'on calcule la mise à jour suivante, y
 // compris après un redémarrage.
 type projState struct {
+	Day      string            `json:"day,omitempty"`       // date annoncée (chat_envctx.go)
+	Env      string            `json:"env,omitempty"`       // valeurs machine annoncées
 	Code     string            `json:"code,omitempty"`      // consignes du dépôt, message complet
 	Desc     string            `json:"desc,omitempty"`      // description du projet
 	MemOn    bool              `json:"mem_on,omitempty"`    // index mémoire présent
@@ -122,9 +126,15 @@ type projLive struct {
 
 // projSnapCapture lit le contexte projet UNE fois et en tire le bloc (même
 // ordre que l'assemblage d'un tour : consignes du dépôt, description, index
-// mémoire, trackers) et son état.
+// mémoire, trackers — précédés ici de la date et du dossier de travail, que le
+// système ne porte plus avec la clé) et son état.
 func projSnapCapture(caps Caps, asOf string) projLive {
 	var lv projLive
+	// Date et dossier de travail, sortis du système (chat_envctx.go).
+	lv.state.Day, lv.state.Env = envCapture(caps)
+	if m, ok := envContextMessage(lv.state.Day, lv.state.Env); ok {
+		lv.msgs = append(lv.msgs, m)
+	}
 	if m, ok := codeInstructionsMessage(caps); ok {
 		lv.msgs = append(lv.msgs, m)
 		lv.state.Code, _ = m.Content.(string)
@@ -224,7 +234,7 @@ func projSnapKey(caps Caps, cfg map[string]string) string {
 		w(d)
 		w(agentCwd())
 	}
-	for _, s := range []string{memIndexFrozenTail, trackerFrozenHead, ctxUpdOpen, ctxUpdClose, projSnapSystemLine} {
+	for _, s := range []string{envContextPrefix, nodeOfflineLine, memIndexFrozenTail, trackerFrozenHead, ctxUpdOpen, ctxUpdClose, projSnapSystemLine} {
 		w(s)
 	}
 	return fmt.Sprintf("%016x", h.Sum64())
@@ -268,6 +278,7 @@ func projDelta(old projState, lv projLive, asOf string) string {
 	full := func(m Message) {
 		b.WriteString("Current version, replaces any earlier one — " + msgText(m) + "\n")
 	}
+	b.WriteString(envDelta(old.Day, old.Env, cur.Day, cur.Env))
 	if old.Code != cur.Code {
 		if cur.Code == "" {
 			b.WriteString("Repository instructions: removed.\n")
@@ -569,6 +580,9 @@ func (c *Conversation) assembleTurn(caps Caps, epoch int, msgs []Message, inject
 		return sent, tools, nil
 	}
 
+	// Date et dossier de travail : dans le bloc, plus dans le système
+	// (chat_envctx.go). Cette copie de caps ne sert qu'à ce tour de discussion.
+	caps.envInCtx = true
 	// Lectures (disque, base, git) hors du verrou de la conversation.
 	asOf := projSnapNow()
 	live := projSnapCapture(caps, asOf)

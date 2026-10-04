@@ -117,7 +117,13 @@ func baseSystemPrompt(caps Caps, tools []Tool) string {
 		year := time.Now().Format("2006")
 		b.WriteString("\nWeb: web_open first, then web_read/web_grep on it.\n")
 		b.WriteString("Your training data is stale. For ANY question about recent/latest/current things (releases, versions, news, prices, scores, 'since when') call web_search BEFORE writing any date or version, and match what you actually read.\n")
-		b.WriteString("Today is in " + year + ". If a query needs a year use ONLY " + year + ", never a remembered past year like " + prevYear(year) + " — it biases results toward stale pages; better still, omit the year. Don't hedge ('probably') about a fact a tool can verify — search instead.\n")
+		if caps.envInCtx {
+			// Même consigne, sans la valeur : l'année est dans la ligne de date du
+			// contexte (envContextMessage), qui nomme aussi l'année périmée.
+			b.WriteString("Today's date is in your context. If a query needs a year use ONLY the current year, never a remembered past year — it biases results toward stale pages; better still, omit the year. Don't hedge ('probably') about a fact a tool can verify — search instead.\n")
+		} else {
+			b.WriteString("Today is in " + year + ". If a query needs a year use ONLY " + year + ", never a remembered past year like " + prevYear(year) + " — it biases results toward stale pages; better still, omit the year. Don't hedge ('probably') about a fact a tool can verify — search instead.\n")
+		}
 	}
 	if caps.Agent && caps.ComputerUse {
 		b.WriteString(cuPromptLine())
@@ -133,6 +139,11 @@ func baseSystemPrompt(caps Caps, tools []Tool) string {
 	// moins récents que le bloc.
 	if caps.Agent && projSnapEnabled(ReadConfig()) {
 		b.WriteString(projSnapSystemLine)
+	}
+	// PROJ_SNAPSHOT : la date part dans le bloc projet figé (chat_envctx.go). Ici,
+	// elle changeait le système à minuit — tout le prompt recalculé.
+	if caps.envInCtx {
+		return strings.TrimRight(b.String(), "\n")
 	}
 	b.WriteString("\nDate: " + time.Now().Format("2006-01-02"))
 	return b.String()
@@ -161,23 +172,33 @@ func machineSystemPrompt(caps Caps) string {
 	// l'hôte du serveur et se trompe de machine.
 	if tgt, ok := nodeTargetMetaGet(); ok {
 		var b strings.Builder
-		b.WriteString("Machine: you are operating on a REMOTE node named " + tgt.name)
-		if tgt.os != "" {
-			b.WriteString(" (" + tgt.os + ")")
+		// PROJ_SNAPSHOT (caps.envInCtx) : nom, système, dossier et état du poste
+		// sont dans le bloc projet (envMachineFacts) ; ici, les seules consignes.
+		if caps.envInCtx {
+			b.WriteString("Machine: you are operating on a REMOTE node (name, OS, working folder and status are in your context)")
+		} else {
+			b.WriteString("Machine: you are operating on a REMOTE node named " + tgt.name)
+			if tgt.os != "" {
+				b.WriteString(" (" + tgt.os + ")")
+			}
 		}
 		b.WriteString(". Your bash, write and edit tools run on THAT machine — a different computer than this server.")
 		if strings.HasPrefix(strings.ToLower(tgt.os), "windows") {
 			b.WriteString(" Its shell is cmd.exe: use cmd syntax (never bash idioms like ls, 2>nul, single quotes, or 'cmd //c'). To create a file, use the write tool, never echo/type into it.")
 		}
 		if tgt.root != "" {
-			b.WriteString(" File paths in write/edit resolve inside its working folder " + tgt.root + "; read/write are confined there.")
+			if caps.envInCtx {
+				b.WriteString(" File paths in write/edit resolve inside its working folder; read/write are confined there.")
+			} else {
+				b.WriteString(" File paths in write/edit resolve inside its working folder " + tgt.root + "; read/write are confined there.")
+			}
 		}
 		// Le poste peut tourner en compte de service (Windows: LocalSystem) : les
 		// variables d'environnement personnelles (%USERPROFILE%, $HOME) ne désignent
 		// PAS forcément l'utilisateur interactif. Utiliser des chemins absolus.
 		b.WriteString(" It may run as a background service account, so %USERPROFILE%/$HOME may not point to the interactive user — prefer absolute paths (e.g. C:\\Users\\<name>\\...).")
-		if !tgt.connected {
-			b.WriteString(" ⚠ It is currently OFFLINE: those tools will fail until it reconnects. Tell the user instead of trying repeatedly.")
+		if !tgt.connected && !caps.envInCtx {
+			b.WriteString(" " + nodeOfflineLine)
 		}
 		return b.String()
 	}
@@ -196,7 +217,10 @@ func machineSystemPrompt(caps Caps) string {
 	if who != "" {
 		b.WriteString(", user=" + who)
 	}
-	if cwd != "" {
+	// PROJ_SNAPSHOT (caps.envInCtx) : le chemin, propre à chaque discussion, est
+	// dans le bloc projet (envMachineFacts) ; hôte et compte, les mêmes pour
+	// toutes, restent ici avec les consignes.
+	if cwd != "" && !caps.envInCtx {
 		b.WriteString(", cwd=" + cwd)
 	}
 	b.WriteString(".")
@@ -205,7 +229,12 @@ func machineSystemPrompt(caps Caps) string {
 		// EST (l'endroit par défaut de tout ce que le modèle produit) marche mieux
 		// que d'interdire d'en sortir — et nommer les dossiers système coupe court
 		// aux « installations » en /usr/local/bin qui échouent faute de root.
-		b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder " + scriptsDir() + " instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.")
+		if caps.envInCtx {
+			b.WriteString(" Your working folder (cwd) is given in your context: relative paths in write/edit/bash resolve there")
+		} else {
+			b.WriteString(" This is your working folder: relative paths in write/edit/bash resolve here")
+		}
+		b.WriteString(", and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder " + scriptsDir() + " instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.")
 	}
 	return b.String()
 }
