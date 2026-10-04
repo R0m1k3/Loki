@@ -197,11 +197,74 @@ func tunePreflight(ctx context.Context, inWeb bool) error {
 				bgJobsRunning())
 		}
 	}
+	// En ligne de commande : le moteur qui répond sur le port de CE LOKI_HOME
+	// est-il bien le sien ? (Le processus web, lui, fait foi pour son moteur.)
+	if !inWeb {
+		cfg := ReadConfig()
+		ours, _ := resolveServeModelPath(strings.TrimSpace(cfg["MODEL"]))
+		auth := tuneAuth()
+		if err := tuneForeignEngine(ctx, fmt.Sprintf("http://localhost:%d", LLMPort()), serviceIsActive(),
+			func(r *http.Request) { auth(r.Header.Set) }, ours); err != nil {
+			return err
+		}
+	}
 	if serviceIsActive() {
 		e := benchEngine{base: fmt.Sprintf("http://localhost:%d", LLMPort()), auth: tuneAuth(), client: http.DefaultClient}
 		if err := e.idle(ctx); err != nil {
 			return errors.New("le moteur traite une requête (discussion, tâche ou client /v1) : réessaie une fois libre")
 		}
+	}
+	return nil
+}
+
+// tuneForeignEngine : « loki tune » et le processus web avec des LOKI_HOME
+// différents (sudo qui retire la variable, LOKI_HOME exporté dans un seul
+// shell) ne se voient pas : le verrou de l'optimisation tombe dans un dossier
+// que l'interface ne lit pas, et l'arrêt du « vrai » moteur vise celui d'une
+// autre configuration. L'essai chargeait alors à côté d'un moteur bien vivant
+// — VRAM saturée, mesures fausses — et l'interface pouvait relancer le sien
+// en pleine mesure. On regarde donc ce qui répond sur le port de CE
+// LOKI_HOME :
+//
+//   - un serveur répond alors que ce LOKI_HOME dit son moteur arrêté : un autre
+//     Loki, ou un llama-server orphelin ;
+//   - le moteur refuse la clé d'API de ce LOKI_HOME (401 sur /props), ou sert
+//     un autre fichier que son MODEL : le moteur d'une autre configuration.
+//
+// Tout ce qui ne conclut pas (pas de réponse, /props absent d'un moteur
+// ancien, chemin illisible d'ici) laisse passer : seul un désaccord constaté
+// refuse.
+func tuneForeignEngine(ctx context.Context, base string, active bool, auth func(*http.Request), ourModel string) error {
+	p := tplProber{base: base, auth: auth, client: &http.Client{Timeout: 2 * time.Second}}
+	// /health d'un llama-server : 200, 503 en chargement, 401 derrière une clé
+	// sur certaines versions. Rien n'écoute, ou un autre service (404…) : aucun
+	// moteur à craindre.
+	var he *tplHTTPError
+	if _, err := p.do(ctx, http.MethodGet, "/health", nil); err != nil &&
+		(!errors.As(err, &he) || (he.status != http.StatusServiceUnavailable && he.status != http.StatusUnauthorized)) {
+		return nil
+	}
+	home := LokiHome()
+	foreign := func(why string) error {
+		return fmt.Errorf("%s, alors que LOKI_HOME=%s — un autre Loki tourne sans doute avec un autre LOKI_HOME "+
+			"(sudo retire la variable) : relance avec le sien (LOKI_HOME=… loki tune) ou utilise le bouton "+
+			"« Optimiser… » de l'interface ; un llama-server orphelin, lui, s'arrête à la main", why, home)
+	}
+	if !active {
+		return foreign("un moteur répond sur " + base + " sans que ce dossier le suive")
+	}
+	props, err := p.props(ctx)
+	switch {
+	case errors.As(err, &he) && he.status == http.StatusUnauthorized:
+		return foreign("le moteur de " + base + " refuse la clé d'API de ce dossier")
+	case err != nil || props.ModelPath == "" || ourModel == "":
+		return nil
+	}
+	a, errA := os.Stat(props.ModelPath)
+	b, errB := os.Stat(ourModel)
+	if errA == nil && errB == nil && !os.SameFile(a, b) {
+		return foreign(fmt.Sprintf("le moteur de %s sert %s, pas le MODEL de ce dossier (%s ; config.env modifiée "+
+			"sans redémarrage ? « loki restart »)", base, filepath.Base(props.ModelPath), filepath.Base(ourModel)))
 	}
 	return nil
 }

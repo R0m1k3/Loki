@@ -685,7 +685,11 @@ Ajoutées par ce fork :
   par `kill -9` ne laisse plus le moteur arrêté. **Refus d'entrée** : preset
   externe, aucun preset actif, génération, tâche, bench ou job `bash_bg` en
   cours, moteur occupé (`/slots`) — en ligne de commande, seul ce dernier
-  contrôle voit le processus web : préférer le bouton. **Essais** (descente étape par étape depuis
+  contrôle voit le processus web : préférer le bouton. En ligne de commande
+  aussi, un moteur qui ne serait pas celui de ce `LOKI_HOME` (il répond alors
+  que ce dossier le dit arrêté, refuse sa clé d'API ou sert un autre `MODEL` :
+  typiquement `sudo loki tune`, qui perd un `LOKI_HOME` exporté) fait
+  refuser, avec la marche à suivre. **Essais** (descente étape par étape depuis
   la meilleure configuration du moment, chaque axe seulement si l'aide du
   moteur et la machine le permettent) : placement — seulement avec « inclure
   le placement » / `--placement` : `--fit` à la place des experts placés à la

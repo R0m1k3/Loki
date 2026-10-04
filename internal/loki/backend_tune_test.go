@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -895,5 +897,63 @@ func TestTuneRecoverWatch(t *testing.T) {
 	}
 	if _, err := os.Stat(tuneLockPath()); !os.IsNotExist(err) {
 		t.Error("verrou périmé non retiré")
+	}
+}
+
+// « loki tune » d'un autre LOKI_HOME que le processus web (sudo) : le moteur
+// qui répond sur le port de ce dossier n'est pas le sien — refus en clair.
+// Tout ce qui ne conclut pas laisse passer.
+func TestTuneForeignEngine(t *testing.T) {
+	home := testHome(t)
+	ours := filepath.Join(home, "ours.gguf")
+	other := filepath.Join(home, "other.gguf")
+	for _, p := range []string{ours, other} {
+		if err := os.WriteFile(p, []byte("GGUF"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	engine := func(health, props int, model string) *httptest.Server {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/health":
+				w.WriteHeader(health)
+			case "/props":
+				w.WriteHeader(props)
+				if props == http.StatusOK {
+					_ = json.NewEncoder(w).Encode(map[string]any{"model_path": model})
+				}
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		t.Cleanup(srv.Close)
+		return srv
+	}
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	ctx := context.Background()
+	for _, c := range []struct {
+		name    string
+		base    string
+		active  bool
+		refused bool
+	}{
+		{"rien n'écoute", closed.URL, false, false},
+		{"autre service (404) sur le port, moteur arrêté", engine(404, 404, "").URL, false, false},
+		{"moteur qui répond, ce dossier le dit arrêté", engine(200, 200, ours).URL, false, true},
+		{"moteur en chargement (503), ce dossier le dit arrêté", engine(503, 503, "").URL, false, true},
+		{"notre moteur", engine(200, 200, ours).URL, true, false},
+		{"un autre MODEL", engine(200, 200, other).URL, true, true},
+		{"clé d'API refusée", engine(200, 401, "").URL, true, true},
+		{"/props absent (moteur ancien)", engine(200, 404, "").URL, true, false},
+		{"chemin illisible d'ici", engine(200, 200, filepath.Join(home, "absent.gguf")).URL, true, false},
+	} {
+		err := tuneForeignEngine(ctx, c.base, c.active, nil, ours)
+		if (err != nil) != c.refused {
+			t.Errorf("%s : %v", c.name, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "LOKI_HOME="+home) {
+			t.Errorf("%s : message sans LOKI_HOME : %v", c.name, err)
+		}
 	}
 }
