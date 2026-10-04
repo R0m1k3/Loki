@@ -45,9 +45,14 @@ services:
       # modèle relue depuis le disque (modèle plus gros que la RAM) traverse un
       # démon en espace utilisateur. Loki le signale au démarrage (encart
       # d'information, rien n'est perdu). Deux remèdes, au choix :
-      #   - Recommandé : Shares -> appdata (et le partage des modèles) ->
-      #     « Exclusive access » = Yes (Unraid 6.12+, partage sur un seul
-      #     pool). Le chemin /mnt/user reste le même, FUSE est court-circuité.
+      #   - Recommandé (Unraid 6.12+) : partages en « Exclusive access ».
+      #     Ce n'est pas une case mais un état : Settings -> Global Share
+      #     Settings -> « Permit exclusive shares » = Yes, puis le partage
+      #     appdata (et celui des modèles) entièrement sur UN pool — mover
+      #     d'abord vers le pool, ensuite Secondary storage = None. La page du
+      #     partage affiche alors « Exclusive access : Yes ». Redémarre le
+      #     conteneur : le chemin /mnt/user reste le même, FUSE est
+      #     court-circuité.
       #   - Avancé : mapper /mnt/<ton-pool>/appdata/loki/… (ex. /mnt/cache si
       #     ton pool s'appelle « cache »). Migration MANUELLE obligatoire :
       #     Compose Down, rsync -a de l'ancien dossier vers le nouveau, puis

@@ -64,6 +64,13 @@ func TestShfsPaths(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("shfsPaths = %v, attendu %v", got, want)
 	}
+	// Un sous-dossier du même montage (LOKI_MODEL_DIRS=/data/gguf) n'est pas
+	// répété : un seul chemin par montage fuse.shfs.
+	got = shfsPaths(m, []string{"/data/gguf", "/data", "/mnt/mes modeles/a"})
+	want = []string{"/data/gguf", "/mnt/mes modeles/a"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("shfsPaths (même montage) = %v, attendu %v", got, want)
+	}
 	// Partages en « Exclusive access » : plus de fuse.shfs, plus de conseil.
 	excl := `1 0 0:1 / / rw - overlay overlay rw
 2 1 0:2 /appdata/loki/data /data rw - btrfs /dev/nvme0n1p1 rw
@@ -79,7 +86,7 @@ func TestStorageHintText(t *testing.T) {
 		t.Fatalf("rien à signaler : %q", s)
 	}
 	s := storageHintText([]string{"/data", "/models"})
-	for _, w := range []string{"/data, /models", "fuse.shfs", "Exclusive access"} {
+	for _, w := range []string{"/data, /models", "fuse.shfs", "Permit exclusive shares", "Exclusive access", "Rien n'est perdu"} {
 		if !strings.Contains(s, w) {
 			t.Errorf("conseil sans %q : %s", w, s)
 		}

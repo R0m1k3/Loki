@@ -174,9 +174,13 @@ utilisateur, ce qui ralentit le décodage. Loki le détecte au démarrage
 (`fuse.shfs` dans `/proc/self/mountinfo`) et l'affiche en encart d'information —
 rien n'est perdu ni altéré. Pour l'éviter :
 
-- **recommandé** — passe le partage `appdata` (et celui des modèles) en
-  *Exclusive access* (Unraid 6.12+, partage sur un seul pool) : le chemin
-  `/mnt/user/…` ne change pas, FUSE est court-circuité ;
+- **recommandé** — partages en *Exclusive access* (Unraid 6.12+). Ce n'est
+  pas une case mais un état : *Global Share Settings* → *Permit exclusive
+  shares* = Yes, puis le partage `appdata` (et celui des modèles) entièrement
+  sur **un** pool — mover d'abord vers le pool, ensuite *Secondary storage* =
+  None — jusqu'à lire *Exclusive access : Yes* sur la page du partage.
+  Redémarre le conteneur : le chemin `/mnt/user/…` ne change pas, FUSE est
+  court-circuité ;
 - **avancé** — mappe `/mnt/<ton-pool>/appdata/loki/…` (ex. `/mnt/cache` si ton
   pool s'appelle `cache`), avec une migration manuelle : `Compose Down`,
   `rsync -a` de l'ancien dossier vers le nouveau, puis modification des deux

@@ -14,8 +14,11 @@ package loki
 // donnerait un /data vide et ferait croire à une perte de données (voir le
 // README). Il se contente de le VOIR et de le DIRE, sur un ton d'information —
 // pas le bandeau rouge de sys_datavolume.go, réservé à la perte de données. Le
-// remède sans changement de chemin : passer les partages en « Exclusive
-// access » (Unraid 6.12+), qui court-circuite shfs.
+// remède sans changement de chemin : des partages en « Exclusive access »
+// (Unraid 6.12+). Ce n'est pas une case à cocher mais un état : « Permit
+// exclusive shares » activé, partage tout entier sur un pool, sans stockage
+// secondaire — /mnt/user/<partage> devient alors un lien symbolique vers le
+// pool, que Docker résout au démarrage du conteneur.
 
 import (
 	"bufio"
@@ -93,22 +96,30 @@ func unescapeMountinfo(s string) string {
 // "" quand aucun montage ne couvre le chemin. Chemins Linux : package path, et
 // non filepath, pour que les tests lisent la même chose sous Windows.
 func mountFSType(mounts []mountEntry, target string) string {
+	m, _ := mountOf(mounts, target)
+	return m.fsType
+}
+
+// mountOf renvoie le montage qui porte target (règle de mountFSType) ; false
+// quand aucun ne le couvre.
+func mountOf(mounts []mountEntry, target string) (mountEntry, bool) {
 	p := path.Clean(target)
-	best, fs := -1, ""
+	best, found := -1, mountEntry{}
 	for _, m := range mounts {
 		mp := m.point
 		if mp != "/" && p != mp && !strings.HasPrefix(p, mp+"/") {
 			continue
 		}
 		if len(mp) >= best {
-			best, fs = len(mp), m.fsType
+			best, found = len(mp), m
 		}
 	}
-	return fs
+	return found, best >= 0
 }
 
-// shfsPaths renvoie, parmi paths, ceux qui passent par fuse.shfs (dédoublonnés,
-// dans l'ordre reçu).
+// shfsPaths renvoie, parmi paths, ceux qui passent par fuse.shfs, dans l'ordre
+// reçu et un seul par montage : /data/models, qui vit sur le montage de /data,
+// n'apprendrait rien de plus à l'utilisateur et allongerait le conseil.
 func shfsPaths(mounts []mountEntry, paths []string) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -116,14 +127,12 @@ func shfsPaths(mounts []mountEntry, paths []string) []string {
 		if strings.TrimSpace(p) == "" {
 			continue
 		}
-		p = path.Clean(p)
-		if seen[p] {
+		m, ok := mountOf(mounts, p)
+		if !ok || m.fsType != "fuse.shfs" || seen[m.point] {
 			continue
 		}
-		seen[p] = true
-		if mountFSType(mounts, p) == "fuse.shfs" {
-			out = append(out, p)
-		}
+		seen[m.point] = true
+		out = append(out, path.Clean(p))
 	}
 	return out
 }
@@ -137,8 +146,9 @@ func storageHintText(paths []string) string {
 	return "ℹ️ Stockage via la couche FUSE des partages Unraid (fuse.shfs) : " + strings.Join(paths, ", ") + ". " +
 		"Les écritures de la base et les pages du modèle relues depuis le disque (gros modèle qui ne tient pas en RAM) " +
 		"traversent un démon en espace utilisateur, ce qui ralentit le décodage. Rien n'est perdu. " +
-		"Remède sans changer de chemin : partages appdata/modèles en « Exclusive access » (Unraid 6.12+). " +
-		"Voir docker-compose.unraid.yml."
+		"Remède sans changer de chemin (Unraid 6.12+) : Global Share Settings → « Permit exclusive shares » = Yes, " +
+		"partages appdata/modèles entièrement sur un pool sans stockage secondaire, jusqu'à lire « Exclusive access : Yes », " +
+		"puis redémarrer le conteneur. Voir docker-compose.unraid.yml."
 }
 
 // storageHint mis en cache : /api/status est interrogé en boucle, et la liste

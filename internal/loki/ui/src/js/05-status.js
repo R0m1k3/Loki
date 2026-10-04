@@ -52,9 +52,16 @@ async function loadStatus(){
   }
   // Conseil de performance (stockage Unraid via fuse.shfs) : encart discret,
   // pas le bandeau d'alerte — rien n'est perdu, seul le décodage ralentit.
+  // Il reste affiché tant que la cause dure : masquable, et seulement pour CE
+  // texte — un autre conseil (autre chemin concerné) réapparaît.
   const hb=document.getElementById('app-hint');
   if(hb){
-    if(s.hint){ hb.textContent=s.hint; hb.style.display=''; }
+    let gone='';
+    try{ gone=localStorage.getItem('loki-hint-dismissed')||''; }catch(e){}
+    if(s.hint && s.hint!==gone){
+      document.getElementById('app-hint-text').textContent=s.hint;
+      hb.dataset.hint=s.hint; hb.style.display='';
+    }
     else { hb.style.display='none'; }
   }
   // Modèle qui ne charge pas (souvent un moteur incompatible) : message explicite
@@ -64,6 +71,14 @@ async function loadStatus(){
     if(s.load_error){ me.textContent='⚠ '+s.load_error; me.style.display=''; }
     else { me.style.display='none'; }
   }
+}
+// Masque le conseil de stockage pour ce navigateur (simple confort : sans
+// localStorage, il revient au prochain rafraîchissement, rien de plus).
+function dismissHint(){
+  const hb=document.getElementById('app-hint');
+  if(!hb) return;
+  try{ localStorage.setItem('loki-hint-dismissed', hb.dataset.hint||''); }catch(e){}
+  hb.style.display='none';
 }
 // Journal du moteur — section repliable comme les autres. La pastille d'état
 // reste un raccourci ; le chargement du journal est déclenché par l'événement
