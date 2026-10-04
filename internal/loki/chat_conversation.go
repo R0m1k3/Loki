@@ -797,6 +797,10 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// d'affichage garde le fil complet. Le résumé est un appel modèle non streamé :
 	// il bloque plusieurs secondes AVANT que la vraie réponse commence, d'où la
 	// bannière de progression émise par compactAndPublish.
+	// KEEP_TURN_IMAGES (chat_keep_images.go) : images gardées retirées d'abord
+	// si le contexte le demande ou si elles ne doivent plus partir. Sans la
+	// clé, il n'y en a aucune : rien ne change.
+	msgs, ctxUsed = c.keptImagesTurnStart(epoch, msgs, ctxUsed, peak)
 	// Estimation de début de tour, comparée au premier compte réel du moteur
 	// (journal [ctx], seulement au-delà de 2 % d'écart).
 	startEst := ctxUsed

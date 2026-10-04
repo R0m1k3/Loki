@@ -32,6 +32,17 @@ type Message struct {
 	// raisonnement quand il ne doit pas partir. Vides : JSON inchangé.
 	ReasoningContent string `json:"reasoning_content,omitempty"`
 	ReasoningModel   string `json:"reasoning_model,omitempty"`
+	// ImgRelay : message `user` qui relaie l'image d'un outil (capture,
+	// see_image) sous KEEP_TURN_IMAGES (chat_keep_images.go) — jamais posé sans
+	// la clé. Persisté pour qu'un fil rouvert le reconnaisse encore comme un
+	// relais et non comme une demande (isLokiInjected) ; retiré à l'envoi
+	// (wireMessages). Faux : JSON inchangé.
+	ImgRelay bool `json:"img_relay,omitempty"`
+	// imgTokens : coût mesuré par le moteur de l'image d'un relais GARDÉ dans
+	// l'historique (KEEP_TURN_IMAGES) ; 0 = image non gardée, ou déjà retirée.
+	// En mémoire seulement : un fil rechargé a de toute façon perdu ses images
+	// (stripImageParts).
+	imgTokens int
 }
 
 type ToolCall struct {
@@ -1152,6 +1163,9 @@ func turnEchoPolicy(off bool) echoPolicy {
 // renvoyé selon pol — et le nombre de raisonnements renvoyés.
 func wireMessages(messages []Message, toolChoiceNone bool, pol echoPolicy) ([]Message, int) {
 	sent := normalizeSystemMessages(messages)
+	// Marque de relais d'image (KEEP_TURN_IMAGES) : propre à Loki, jamais au
+	// moteur. Sans la clé, aucune : la tranche repart telle quelle.
+	sent = stripRelayTags(sent)
 	if toolChoiceNone {
 		sent = withTrailingHint(sent, toolsOffHint)
 	}
@@ -1232,6 +1246,16 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 // runChatTools est runChat avec les outils déjà calculés par prepareTurn : ceux
 // que décrit le préambule, à l'octet près.
 func runChatTools(ctx context.Context, messages []Message, tools []Tool, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
+	// KEEP_TURN_IMAGES (chat_keep_images.go) : nil sans la clé, et tout se
+	// passe alors comme avant. En fin de tour, une image gardée à l'essai mais
+	// jamais mesurée redevient éphémère, quelle que soit la sortie de la boucle.
+	kt := newKeepImages(ReadConfig(), perfTagOf(ctx))
+	extra, err := runChatLoop(ctx, kt, messages, tools, temperature, caps, cb, injectQueued...)
+	return kt.finish(extra), err
+}
+
+// runChatLoop : la boucle de runChatTools.
+func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools []Tool, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
 	var extra []Message
 	// Bloc projet figé de la discussion (PROJ_SNAPSHOT, chat_projsnap.go) : nil
 	// hors tour de discussion avec la clé. Masqué pour la suite du contexte —
@@ -1243,11 +1267,19 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 	// newHistory publie l'historique réécrit en cours de tour (compaction,
 	// réduction). Le début du prompt change de toute façon : avec la clé, le
 	// bloc figé y est remplacé par le vivant et les mises à jour retirées.
+	// publishHistory : la même publication, sans rafraîchir le bloc projet —
+	// pour un retrait d'images gardées (KEEP_TURN_IMAGES), qui ne touche pas au
+	// début du prompt. KEEP_TURN_IMAGES : une image non gardée n'entre pas dans
+	// l'historique par ce chemin non plus. Sans la clé, publication telle quelle.
+	publishHistory := func() {
+		kt.rewritten()
+		cb(StreamEvent{NewHistory: kt.publishable(append([]Message(nil), messages...))})
+	}
 	newHistory := func() {
 		if snapTurn != nil {
 			messages = snapTurn.refresh(messages)
 		}
-		cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+		publishHistory()
 	}
 	// Some backends (vanilla llama.cpp builds) don't populate `reasoning_content`
 	// in streaming mode: the model's <think> block (opened by the chat template)
@@ -1369,7 +1401,16 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		if msg := budgetNudge(toolRuns, budget, budgetNudges); msg != "" {
 			budgetNudges++
 			logBudget(toolRuns, budget, budgetNudges)
-			messages, extra = appendNudge(messages, extra, msg)
+			// NUDGE_IN_TOOL (opt-in, gabarits dont le rendu bouge quand un message
+			// user s'ajoute) : au bout du dernier résultat d'outil. Sinon, ou si
+			// la forme ne s'y prête pas, un message à part comme toujours.
+			placed := false
+			if nudgeInToolOn(chatCfg, ep) {
+				messages, extra, placed = nudgeIntoTool(messages, extra, msg)
+			}
+			if !placed {
+				messages, extra = appendNudge(messages, extra, msg)
+			}
 		}
 		// Appels d'outils exécutables pour cette complétion : outils annoncés,
 		// et ni coupés ni neutralisés par tool_choice « none ».
@@ -1394,6 +1435,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		if err != nil {
 			return extra, err
 		}
+		kt.sending(len(messages)) // KEEP_TURN_IMAGES : rien sans la clé
 		req.Header.Set("Content-Type", "application/json")
 		// ⚠️ Surtout pas authHeader : celui-ci pose la clé du serveur LOCAL, et
 		// l'envoyer à api.openai.com serait fuiter un secret chez un tiers en même
@@ -2046,6 +2088,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			}
 			lastEst = 0
 		}
+		// KEEP_TURN_IMAGES : coût des images de l'étape précédente, mesuré sur
+		// cette complétion ; gardées ou rendues éphémères. Rien sans la clé.
+		extra = kt.observe(complete, stats, messages, extra)
 		if finishReason == "length" {
 			logCtx("finish=length prompt=%d généré=%d raisonnement=%d fenêtre=%d", stats.PromptTokensTotal, stats.GenTokens, stats.ReasoningTokens, ctxWindow())
 		}
@@ -2462,10 +2507,14 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				// contexte (vu en production : requêtes de 55 000 tokens pour une
 				// fenêtre de 32 768, plus aucun tour ne passait). Le modèle regarde
 				// l'image MAINTENANT et sa description textuelle, elle, reste.
+				//
+				// KEEP_TURN_IMAGES (opt-in, chat_keep_images.go) : gardée dans
+				// l'historique, par référence, sous un budget mesuré — kt.relay.
+				// Sans la clé, kt est nil et relay fait exactement l'ajout d'avant.
 				if tc.Function.Name == "web_screenshot" {
 					if rel := capturedRelPath(result); rel != "" {
 						if imgMsg, ok := screenshotImageMessage(rel); ok {
-							messages = append(messages, imgMsg)
+							messages, extra = kt.relay(messages, extra, imgMsg, stepStart)
 						}
 					}
 				}
@@ -2476,7 +2525,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				// dépasser la fenêtre pour de bon. Le modèle regarde l'image
 				// maintenant ; ce qu'il en dit, lui, reste.
 				if visionImg != nil {
-					messages = append(messages, seeImageMessage(label, visionImg))
+					messages, extra = kt.relay(messages, extra, seeImageMessage(label, visionImg), stepStart)
 				}
 			}
 			// Compaction EN COURS DE TOUR. Le seuil n'était testé qu'AU DÉBUT du tour :
@@ -2500,6 +2549,21 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			mainConv := ""
 			if ptag.kind == perfMain {
 				mainConv = ptag.conv
+			}
+			// KEEP_TURN_IMAGES : les images gardées partent AVANT tout résumé ;
+			// la compaction ne suit que si elle reste nécessaire. Sans la clé,
+			// aucune image gardée : rien ne change.
+			if hasKeptImages(messages) && compactNeeded(messages, used, peakGen) {
+				if s, freed := dropKeptImages(messages); freed > 0 {
+					logKeptImagesDropped("en-tour", freed)
+					messages = s
+					if used > 0 {
+						used = max(used-freed, 1)
+						lastEst = used
+					}
+					extra = nil
+					publishHistory()
+				}
 			}
 			if compactNeeded(messages, used, peakGen) && !compactRefusedSkip(mainConv, used, messages) {
 				opt := compactOptsMid(chatCfg, ep, mainConv, messages, used, tools, reasoningEffort, reasoningKwargs, pol,

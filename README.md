@@ -433,6 +433,40 @@ Ajoutées par ce fork :
   vidé. Le filet réactif (prompt refusé), le bouton « compacter », les tâches,
   les sous-agents et un preset externe gardent le chemin d'avant. Visible dans la
   télémétrie sous `compact`.
+- **Images d'outils gardées** (clé `KEEP_TURN_IMAGES`, **off** par défaut,
+  **zone grise**, `loki config set KEEP_TURN_IMAGES on`) : sans la clé, une
+  image montrée par un outil (`web_screenshot`, `browser_screenshot`,
+  `see_image`) n'est vue que pendant le tour ; au tour suivant elle manque à
+  l'historique, et toute la boucle d'outils qui la suivait — souvent des
+  dizaines d'étapes de navigation — est recalculée. Avec `on`, elle reste dans
+  l'historique telle qu'envoyée, rangée par référence (`chatimg/`, chiffrée si
+  la mémoire l'est), sous conditions : vision réellement active (projecteur
+  chargé, revérifié à chaque tour — un preset sans vision n'en reçoit jamais) ;
+  coût mesuré par le moteur (écart du nombre de jetons du prompt entre deux
+  requêtes), et une image qu'on ne sait pas mesurer reste éphémère ; toutes les
+  images gardées tiennent dans 10 % de la fenêtre, la première qui dépasse et
+  celles qui la suivent dans le tour restent éphémères. Plus d'images gardées,
+  c'est plus de contexte, donc une compaction (avec perte) plus tôt : toute
+  compaction ou réduction forcée retire ces images **d'abord** (leur légende et
+  une mention « image non gardée » restent) et ne résume ensuite que si c'est
+  encore nécessaire ; rouvrir la discussion les retire aussi, comme les pièces
+  jointes. Discussion seulement (ni tâche, ni sous-agent, ni vérification). Un
+  preset externe n'est concerné que si sa vision est déclarée, et l'API
+  refacture alors ces images à chaque tour. Sans la clé, la requête est
+  identique à l'octet près.
+- **Rappel de budget dans le résultat d'outil** (clé `NUDGE_IN_TOOL`, **off**
+  par défaut, **zone grise**, `loki config set NUDGE_IN_TOOL on`) : après un
+  grand nombre d'appels d'outils dans un même tour, Loki rappelle au modèle de
+  conclure, dans un message à part. Sur un gabarit dont le rendu change dès
+  qu'un message s'ajoute (Qwen3.5 : ce message devient la « dernière question »
+  et tout le tour est rendu autrement), ce rappel fait recalculer toute la
+  boucle d'outils du tour. Avec `on`, le rappel part au bout du dernier résultat
+  d'outil, et seul ce bout est à calculer — sur le moteur local, et seulement
+  si la sonde de gabarit a conclu que le rendu de ce modèle bouge (« inconnu » :
+  message à part, comme sans la clé). Le texte du rappel ne change pas, sa
+  place si : un modèle entraîné à se méfier des consignes lues dans une sortie
+  d'outil peut moins bien le suivre. À comparer (tours qui concluent après le
+  rappel) avant de l'adopter.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

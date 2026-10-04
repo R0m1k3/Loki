@@ -180,7 +180,9 @@ func msgTokens(m Message) int {
 	for _, tc := range m.ToolCalls {
 		n += (len(tc.Function.Name) + len(tc.Function.Arguments)) / 4
 	}
-	return n
+	// Image gardée (KEEP_TURN_IMAGES) : son coût mesuré par le moteur, que le
+	// seul marqueur textuel sous-estimerait de loin. 0 sans la clé.
+	return n + m.imgTokens
 }
 
 // estimateTokens estime la taille de l'historique en tokens, raisonnement
@@ -376,7 +378,25 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 // vue MODÈLE (msgs) dans tous les cas ; la vue d'envoi ne sert qu'à construire
 // la requête de résumé. refused : un résumé a été obtenu, mais la réduction
 // reste sous les 20 % exigés.
+//
+// Images gardées par KEEP_TURN_IMAGES (chat_keep_images.go) : retirées
+// D'ABORD, dans tout l'historique — leur légende et imageLostMarker restent.
+// Leur retrait suffit à changer l'historique, même si le résumé qui suit est
+// refusé. Sans la clé, il n'y en a aucune : chemin d'avant.
 func compactMessagesOpt(ctx context.Context, msgs []Message, caps Caps, opt compactOpts) (out []Message, changed, refused bool) {
+	stripped, freed := dropKeptImages(msgs)
+	if freed == 0 {
+		return compactMessagesCore(ctx, msgs, caps, opt)
+	}
+	logKeptImagesDropped("compaction", freed)
+	if out, changed, _ = compactMessagesCore(ctx, stripped, caps, opt); changed {
+		return out, true, false
+	}
+	return stripped, true, false
+}
+
+// compactMessagesCore : la compaction elle-même (voir compactMessagesOpt).
+func compactMessagesCore(ctx context.Context, msgs []Message, caps Caps, opt compactOpts) (out []Message, changed, refused bool) {
 	// Budget de queue = fraction de la CONVERSATION (pas de la fenêtre). Le lier à
 	// la fenêtre était le bug : une conversation de 25k tokens dans une fenêtre de
 	// 64k gardait 16k (0.25×64k) en queue → torse minuscule → réduction < 20% →
@@ -1027,6 +1047,12 @@ func shrinkToFit(msgs []Message, actual int) ([]Message, bool) {
 	}
 	target := int(float64(ctxWindow()) * 0.6 / ratio)
 	out := append([]Message(nil), msgs...)
+	// Avant tout : les images gardées par KEEP_TURN_IMAGES, retirées en bloc
+	// comme à la compaction (sans la clé, aucune).
+	if s, freed := dropKeptImages(out); freed > 0 {
+		logKeptImagesDropped("réduction", freed)
+		out = s
+	}
 	for i := range out {
 		if out[i].ReasoningContent == "" && out[i].ReasoningModel == "" {
 			continue

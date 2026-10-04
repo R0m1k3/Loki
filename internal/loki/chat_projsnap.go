@@ -235,6 +235,7 @@ func projSnapKey(caps Caps, cfg map[string]string) string {
 var projSnapIgnoredKeys = map[string]bool{
 	"PROJ_SNAPSHOT": true, "PREWARM": true, "REASONING_ECHO": true, "REASONING_EFFORT": true, "TEMP": true,
 	"COMPACT": true, "COMPACT_CONTINUATION": true, "CRAWL4AI_URL": true, "CRAWL4AI_KEY": true, "WEB_ENGINE": true,
+	"KEEP_TURN_IMAGES": true, "NUDGE_IN_TOOL": true,
 }
 
 // projSnapSysHash : empreinte du bloc système commun et des outils. S'ils

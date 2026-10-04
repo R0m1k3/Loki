@@ -55,6 +55,11 @@ func isLokiInjected(m Message) bool {
 	if m.Role != "user" {
 		return false
 	}
+	// Relais d'image d'un outil gardé dans l'historique (KEEP_TURN_IMAGES) :
+	// une image montrée par loki, pas une demande. Jamais posé sans la clé.
+	if m.ImgRelay {
+		return true
+	}
 	s, ok := m.Content.(string)
 	if !ok {
 		return false
@@ -155,4 +160,55 @@ func withTrailingHint(msgs []Message, hint string) []Message {
 	}
 	// Dernier message d'une autre forme (cas théorique) : un message à part.
 	return append(out, Message{Role: "user", Content: lokiNotePrefix + hint})
+}
+
+// nudgeInToolOn : NUDGE_IN_TOOL (opt-in, off par défaut, ZONE GRISE). Sur un
+// gabarit dont le rendu d'un tour d'outil change dès qu'un message `user`
+// s'ajoute (Qwen3.5 : le nouveau message devient la « dernière question », et
+// tous les messages assistant du tour sont rendus autrement), le rappel de
+// budget en message à part fait recalculer toute la boucle d'outils du tour.
+// Posé au bout du dernier résultat d'outil, il ne coûte que lui-même.
+//
+// Le prix : une consigne glissée dans une sortie d'outil, que les modèles
+// entraînés contre l'injection de prompt peuvent suivre moins bien — d'où
+// l'opt-in, à n'activer qu'après avoir comparé l'obéissance aux rappels.
+//
+// Moteur local seulement, et seulement si la sonde de gabarit
+// (chat_tplprobe.go) a conclu « préfixe instable » pour CE modèle : « inconnu »
+// ou un autre modèle laissent le message à part.
+func nudgeInToolOn(cfg map[string]string, ep chatEndpoint) bool {
+	switch strings.ToLower(strings.TrimSpace(cfg["NUDGE_IN_TOOL"])) {
+	case "on", "1", "true", "yes", "oui":
+	default:
+		return false
+	}
+	if ep.External {
+		return false
+	}
+	r, ok := tplCapsCurrent()
+	return ok && r.PrefixStable == tplNo && r.Model != "" && r.Model == reasoningEchoModel(cfg)
+}
+
+// nudgeIntoTool ajoute le rappel au bout du dernier résultat d'outil, dans la
+// vue du modèle ET dans l'historique — le même message, modifié des deux côtés
+// à l'identique, pour que le tour suivant rejoue les mêmes octets. Ce résultat
+// n'est pas encore parti au moteur : rien de ce qu'il a en cache ne bouge.
+// ok=false (dernier message d'une autre forme, historique réécrit entre-temps
+// par une compaction) : l'appelant passe par appendNudge. Copies, jamais de
+// modification en place.
+func nudgeIntoTool(messages, extra []Message, text string) ([]Message, []Message, bool) {
+	n, e := len(messages), len(extra)
+	if n == 0 || e == 0 {
+		return messages, extra, false
+	}
+	last, kept := messages[n-1], extra[e-1]
+	s, ok := last.Content.(string)
+	ks, kok := kept.Content.(string)
+	if !ok || !kok || s != ks || last.Role != "tool" || kept.Role != "tool" || last.ToolCallID != kept.ToolCallID {
+		return messages, extra, false
+	}
+	last.Content = s + "\n\n" + text
+	messages = append(messages[:n-1:n-1], last)
+	extra = append(extra[:e-1:e-1], last)
+	return messages, extra, true
 }

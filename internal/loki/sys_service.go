@@ -110,6 +110,15 @@ var configTemplate = []struct{ key, help string }{
 		"Loki envoie au moteur local la requête suivante avec un message « . » et 1 jeton de réponse, jetés ; le vrai message " +
 		"ne calcule plus que lui-même. Annulé dès qu'une autre requête part, sauf si elle prolonge exactement ce préfixe ; " +
 		"jamais avec plus d'un slot. full = aussi au changement de discussion (après 3 s). Vide/off (défaut) = aucune requête de plus"},
+	{"KEEP_TURN_IMAGES", "zone grise — on = garder dans l'historique les images montrées par les outils (captures, see_image), " +
+		"rangées par référence, au lieu de les oublier en fin de tour : le tour suivant ne recalcule plus la boucle d'outils " +
+		"depuis la première capture. Coût mesuré par le moteur, total borné à 10 % de la fenêtre, retirées d'abord à toute " +
+		"compaction (qui arrive donc plus tôt) ; vision active seulement, preset externe s'il déclare la vision (images " +
+		"refacturées à chaque tour). Vide/off (défaut) = images éphémères, requête inchangée"},
+	{"NUDGE_IN_TOOL", "zone grise — on = le rappel de budget d'outils part au bout du dernier résultat d'outil au lieu d'un " +
+		"message à part, sur le moteur local et seulement si la sonde de gabarit dit que le rendu bouge quand un message " +
+		"s'ajoute (Qwen3.5) : la boucle d'outils du tour n'est plus recalculée. Un modèle peut moins bien suivre une consigne " +
+		"lue dans une sortie d'outil : à comparer avant de l'adopter. Vide/off (défaut) = message à part"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"TEMP", "température d'échantillonnage ; vide = défaut du moteur"},
