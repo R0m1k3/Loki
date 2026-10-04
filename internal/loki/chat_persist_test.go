@@ -423,3 +423,37 @@ func TestConvEnsureActiveConcurrentForgeUnSeulID(t *testing.T) {
 		t.Fatalf("%d entrées d'index, attendu 1", n)
 	}
 }
+
+// Un outil qui finit juste après la suppression de sa discussion : son résultat
+// n'est ni écrit ni gardé en mémoire pour toujours.
+func TestToolResultApresSuppressionNeFuitPas(t *testing.T) {
+	testHome(t)
+	resetConvForTest()
+	a := convEnsureActive()
+	convNew()
+	persistQ.forget(a)
+	key := a + ".deadbeef"
+	persistQ.enqueueToolRes(toolResJob{path: dbPath(), key: key, plain: "orphelin"})
+	persistQ.flush()
+	if _, ok := persistQ.toolResPending(key); ok {
+		t.Fatal("résultat d'une discussion supprimée gardé en mémoire")
+	}
+	if b := getBytes(bkToolRes, key); b != nil {
+		t.Fatal("résultat d'une discussion supprimée écrit sur disque")
+	}
+}
+
+// Base neuve, sans discussion active : un résultat d'outil (tâche de fond) ne
+// forge PAS de discussion vide dans la liste — il va sous « nosession », comme
+// avant le cache.
+func TestSaveToolResultNeCreePasDeDiscussion(t *testing.T) {
+	testHome(t)
+	id := saveToolResult(strings.Repeat("r", 3000))
+	if !strings.HasPrefix(id, "nosession.") {
+		t.Fatalf("id = %q, attendu nosession.*", id)
+	}
+	persistQ.flush()
+	if getStr(bkChat, ckActive) != "" || len(convIndex()) != 0 {
+		t.Fatal("saveToolResult a créé une discussion")
+	}
+}

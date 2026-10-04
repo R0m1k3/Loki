@@ -51,7 +51,7 @@ func toolResID(sid string) string {
 // l'étape suivante. Le résultat est servi depuis la mémoire jusqu'à ce qu'il
 // soit sur disque (loadToolResult).
 func saveToolResult(result string) string {
-	id := toolResID(convEnsureActive())
+	id := toolResID(convActiveID())
 	// Chiffrement actif mais mémoire verrouillée : on refuse d'écrire en clair,
 	// et l'appelant envoie alors le résultat entier dans le flux. Vérifié ICI,
 	// pas à l'écriture : un id rendu doit désigner un résultat qu'on écrira.

@@ -116,8 +116,12 @@ func (p *convPersister) enqueueSnap(s *convSnap) uint64 {
 func (p *convPersister) enqueueToolRes(j toolResJob) uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.mem[j.key] = j.plain
-	p.res = append(p.res, j)
+	// Discussion déjà supprimée (un outil finit juste après la suppression) :
+	// l'écrivain l'écarterait, et la copie en mémoire ne partirait plus jamais.
+	if !p.deleted[toolResConv(j.key)] {
+		p.mem[j.key] = j.plain
+		p.res = append(p.res, j)
+	}
 	return p.kickLocked()
 }
 
@@ -459,6 +463,17 @@ func convActiveRemember(id string) {
 		return
 	}
 	convActiveCache.Store(&convActiveRef{path: dbPath(), id: id})
+}
+
+// convActiveID lit la discussion active SANS jamais en créer une : cache chaud,
+// sinon la clé en base (vide si aucune). Pour les lecteurs qui, avant le cache,
+// lisaient la clé brute — les résultats d'outils d'une tâche de fond sur une base
+// neuve vont sous « nosession » au lieu de forger une discussion vide.
+func convActiveID() string {
+	if id := convActiveCached(); id != "" {
+		return id
+	}
+	return getStr(bkChat, ckActive)
 }
 
 // convActivate fait de id la discussion active et charge b en mémoire, sous

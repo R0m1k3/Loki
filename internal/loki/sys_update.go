@@ -493,6 +493,7 @@ func restartAfterUpdate() (bool, string) {
 	}
 	go func() {
 		time.Sleep(1500 * time.Millisecond) // laisser la réponse HTTP atteindre le client
+		flushPersister(persistExitWait)     // systemd nous arrêtera : écritures différées de la discussion d'abord
 		// Le service tourne souvent en User=nathan (pas root) : systemctl brut
 		// échouerait alors (polkit). On repli sur « sudo -n systemctl » comme
 		// uiServiceCtl, les sudoers /etc/sudoers.d/loki-ui autorisant le restart.

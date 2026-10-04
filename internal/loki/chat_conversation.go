@@ -737,7 +737,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	}()
 	// Télémétrie : tout ce que ce tour envoie au moteur (étapes, compaction,
 	// sous-agents, vérification) est rattaché à la discussion active.
-	ctx = withPerf(ctx, perfMain, convEnsureActive())
+	ctx = withPerf(ctx, perfMain, convActiveID())
 
 	// llama-server local seulement : le preset externe garde le seul seuil, et
 	// ses complétions ne nourrissent pas la garde de marge (compactNeeded).

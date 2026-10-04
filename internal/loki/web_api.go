@@ -792,6 +792,10 @@ func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
 
 // handleMemLock purge la DEK de la RAM (reverrouille sans redémarrer).
 func handleMemLock(w http.ResponseWriter, r *http.Request) {
+	// Écritures différées de la discussion (chat_persist.go) d'abord : clé
+	// purgée, elles seraient sautées et le message tout juste envoyé ne
+	// toucherait le disque qu'au prochain déverrouillage.
+	flushPersister(persistExitWait)
 	clearMemDEK()
 	sendJSON(w, 200, map[string]any{"ok": true, "health": memHealth()})
 }
