@@ -111,10 +111,10 @@ func TestLoadModeRisk(t *testing.T) {
 		{name: "sans drapeau : rien",
 			si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}},
 		{name: "none, 66 Gio certains en RAM pour 60 : refus (#26110)",
-			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, refuse: true},
+			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 60 << 10}, refuse: true},
 		{name: "même chose, LOAD_GUARD=off : avertissement seulement",
 			cfg: map[string]string{"LOAD_GUARD": "off"}, args: "--load-mode none",
-			si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
+			si: serveSysInfo{ModelBytes: 82 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
 		{name: "mlock, 54 Gio en RAM pour 64 : avertissement",
 			args: "--load-mode mlock", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 28 << 10, RAMMiB: 64 << 10}, warn: true},
 		{name: "dense tout en VRAM sur une machine à peu de RAM : rien (pas de faux positif)",
@@ -124,11 +124,11 @@ func TestLoadModeRisk(t *testing.T) {
 		{name: "macOS, mémoire unifiée : tout le modèle compte",
 			args: "--load-mode mmap+mlock", si: serveSysInfo{ModelBytes: 60 * gib, RAMMiB: 64 << 10, UnifiedMem: true}, refuse: true},
 		{name: "moteur ancien : --no-mmap",
-			args: "--no-mmap", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, refuse: true},
+			args: "--no-mmap", si: serveSysInfo{ModelBytes: 82 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 60 << 10}, refuse: true},
 		{name: "moteur ancien : --mlock --no-mmap",
 			args: "--mlock --no-mmap", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 28 << 10, RAMMiB: 64 << 10}, warn: true},
 		{name: "LLAMA_ARG_NO_MMAP dans l'environnement",
-			si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10,
+			si: serveSysInfo{ModelBytes: 82 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 60 << 10,
 				ArgEnv: map[string]string{"LLAMA_ARG_NO_MMAP": "1"}}, refuse: true},
 		// Corrections de relecture du lot 2 : pas de refus sur une borne fausse.
 		{name: "LLAMA_ARG_NO_MMAP sans effet sur un moteur à --load-mode : rien",
@@ -140,7 +140,13 @@ func TestLoadModeRisk(t *testing.T) {
 			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10,
 				ArgEnv: map[string]string{"LLAMA_ARG_RPC": "10.0.0.2:50052"}}, warn: true},
 		{name: "limite du conteneur (RAM effective) : refus",
-			args: "--load-mode none", si: serveSysInfo{ModelBytes: 40 * gib, VRAMMiB: 16 << 10, RAMMiB: 16 << 10}, refuse: true},
+			args: "--load-mode none", si: serveSysInfo{ModelBytes: 40 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 16 << 10}, refuse: true},
+		// Lot 3 : la VRAM comptée est celle des cartes du moteur ; nvidia-smi
+		// seul ne fait jamais refuser.
+		{name: "VRAM NVIDIA seule, cartes du moteur non lues : avertissement, jamais de refus",
+			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
+		{name: "Vulkan, NVIDIA 12 Gio + AMD 16 Gio listées par le moteur : rien (faux refus sur la seule VRAM NVIDIA)",
+			args: "--load-mode none", si: serveSysInfo{ModelBytes: 70 * gib, VRAMMiB: 12 << 10, EngineVRAMMiB: 28 << 10, RAMMiB: 60 << 10}},
 		{name: "taille inconnue : rien",
 			args: "--load-mode none", si: serveSysInfo{VRAMMiB: 16 << 10, RAMMiB: 16 << 10}},
 	}
@@ -275,7 +281,7 @@ func TestJoinArgsRoundTrip(t *testing.T) {
 // plus haut dans le journal.
 func TestModelLoadErrorLoadGuard(t *testing.T) {
 	_, refuse := loadModeRisk(map[string]string{}, splitArgs("--load-mode none"),
-		serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10})
+		serveSysInfo{ModelBytes: 82 * gib, EngineVRAMMiB: 16 << 10, RAMMiB: 60 << 10})
 	log := "llama_model_load: loading model\nmain: model loaded\nserver is listening\n[ERREUR] " + refuse + "\n"
 	if got := modelLoadErrorFrom(log); !strings.Contains(got, "LOAD_GUARD=off") {
 		t.Errorf("refus non signalé : %q", got)
@@ -328,5 +334,50 @@ func TestLoadGuardRefusalExitStatus(t *testing.T) {
 		if got := exitStatusOf(loadGuardRefusal("refus", false)); got != loadGuardExitStatus {
 			t.Errorf("hors superviseur : code %d", got)
 		}
+	}
+}
+
+// Le refus envisagé sur la VRAM NVIDIA attend les cartes du moteur ; rien
+// n'est lu sans refus en vue.
+func TestLoadGuardNeedsDevices(t *testing.T) {
+	none := splitArgs("--load-mode none")
+	base := serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}
+	if !loadGuardNeedsDevices(map[string]string{}, none, base) {
+		t.Error("refus en vue sur nvidia-smi : cartes du moteur non demandées")
+	}
+	confirmed := base
+	confirmed.EngineVRAMMiB = 16 << 10
+	for name, c := range map[string]struct {
+		cfg  map[string]string
+		args []string
+		si   serveSysInfo
+	}{
+		"déjà lues":      {map[string]string{}, none, confirmed},
+		"LOAD_GUARD=off": {map[string]string{"LOAD_GUARD": "off"}, none, base},
+		"mmap":           {map[string]string{}, splitArgs("--load-mode mmap"), base},
+		"VRAM inconnue":  {map[string]string{}, none, serveSysInfo{ModelBytes: 82 * gib, RAMMiB: 60 << 10}},
+		"loin du seuil":  {map[string]string{}, none, serveSysInfo{ModelBytes: 30 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}},
+	} {
+		if loadGuardNeedsDevices(c.cfg, c.args, c.si) {
+			t.Errorf("%s : cartes demandées sans refus en vue", name)
+		}
+	}
+}
+
+// La VRAM des cartes du moteur : toutes additionnées, inconnue dès qu'une
+// carte annonce 0 Mio (déjà pleine) ; devices.json relu en JSON (float64).
+func TestEngineDevsVRAM(t *testing.T) {
+	mixed := splitDevsFrom([]map[string]any{
+		{"id": "Vulkan0", "total_mib": 12288},
+		{"id": "Vulkan1", "total_mib": float64(16368)},
+	})
+	if got := engineDevsVRAM(mixed); got != 12288+16368 {
+		t.Errorf("cartes mixtes : %d", got)
+	}
+	if got := engineDevsVRAM([]splitDev{{"CUDA0", 12288}, {"CUDA1", 0}}); got != 0 {
+		t.Errorf("carte à 0 Mio : %d, attendu inconnu", got)
+	}
+	if got := engineDevsVRAM(nil); got != 0 {
+		t.Errorf("liste vide : %d", got)
 	}
 }

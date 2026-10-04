@@ -361,6 +361,10 @@ func cmdServe(args []string) error {
 	probeSideSlotEnv(cfg, &si)
 	// SPLIT_MODE=tensor seulement : cartes listées par CE moteur, dans son ordre.
 	probeSplit(cfg, bin, &si)
+	// LOAD_GUARD : un refus envisagé sur la VRAM NVIDIA se décide sur les
+	// cartes du moteur (Vulkan sur cartes mixtes, ROCm…). Sinon rien n'est lu.
+	normExtra, _ := normalizeLoadFlags(extra, helpSupportsLoadMode(si.Help))
+	probeLoadDevices(cfg, normExtra, bin, &si)
 	spec := specMode(cfg)
 	if spec != "off" && spec != "" {
 		probeSpec(cfg, &si)
@@ -489,7 +493,11 @@ type serveSysInfo struct {
 	RAMAvailMiB int64     // RAM libre au lancement
 	VRAMMiB     int64     // VRAM NVIDIA des cartes visibles
 	UnifiedMem  bool      // macOS : RAM et VRAM ne font qu'une (voir loadModeRisk)
-	SlotDir     string    // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
+	// VRAM des cartes listées par le moteur lui-même (--list-devices), lue
+	// seulement quand LOAD_GUARD envisage un refus (probeLoadDevices) ; 0 =
+	// non lue : un avis au plus, jamais de refus sur la seule VRAM NVIDIA.
+	EngineVRAMMiB int64
+	SlotDir       string // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
 
 	// Build d'un moteur officiel (engineBuildTrusted), lu seulement pour un
 	// modèle hybride ou SPEC=auto ; 0 = inconnu ou non lu : ni avis ni drapeau

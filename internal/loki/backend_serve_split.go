@@ -98,17 +98,39 @@ func probeSplit(cfg map[string]string, bin string, si *serveSysInfo) {
 	if v := os.Getenv("GGML_CUDA_ALLREDUCE"); v != "" {
 		si.UserEnv["GGML_CUDA_ALLREDUCE"] = v
 	}
+	si.SplitDevs = listEngineDevices(bin)
+}
+
+// listEngineDevices : les cartes que CE moteur voit (--list-devices), dans
+// l'environnement du processus — celui du vrai lancement quand cmdServe
+// appelle. nil si le moteur échoue : sortie tronquée (carte pleine, moteur
+// planté), on ne s'y fie pas.
+func listEngineDevices(bin string) []splitDev {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	out, err := hideCmd(exec.CommandContext(ctx, bin, "--list-devices")).CombinedOutput()
 	if err != nil {
-		return // sortie tronquée (carte pleine, moteur planté) : on ne s'y fie pas
+		return nil
 	}
-	for _, d := range parseListDevices(string(out)) {
+	return splitDevsFrom(parseListDevices(string(out)))
+}
+
+// splitDevsFrom : les cartes de parseListDevices (ou de devices.json, relu en
+// JSON : les nombres y sont des float64).
+func splitDevsFrom(list []map[string]any) []splitDev {
+	var devs []splitDev
+	for _, d := range list {
 		id, _ := d["id"].(string)
-		total, _ := d["total_mib"].(int)
-		si.SplitDevs = append(si.SplitDevs, splitDev{ID: id, TotalMiB: int64(total)})
+		var total int64
+		switch v := d["total_mib"].(type) {
+		case int:
+			total = int64(v)
+		case float64:
+			total = int64(v)
+		}
+		devs = append(devs, splitDev{ID: id, TotalMiB: total})
 	}
+	return devs
 }
 
 // splitPlan décide de SPLIT_MODE=tensor pour ce lancement. Fonction pure.

@@ -325,19 +325,31 @@ func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, 
 	// Serveurs RPC : une part des poids part sur d'autres machines, la VRAM
 	// locale ne borne plus rien — inconnu, donc un avis au plus, jamais un refus.
 	remote := hasAnyFlag(args, "--rpc") || strings.TrimSpace(si.ArgEnv["LLAMA_ARG_RPC"]) != ""
-	low, est, upTo := int64(0), modelMiB, true
+	low, est, upTo, unsure := int64(0), modelMiB, true, false
 	switch {
 	case remote:
 	case si.UnifiedMem:
 		low, est, upTo = modelMiB, modelMiB, false
-	case si.VRAMMiB > 0:
-		low = max(modelMiB-si.VRAMMiB, 0)
+	case si.EngineVRAMMiB > 0:
+		// Les cartes que le moteur liste lui-même : rien au-delà ne peut
+		// recevoir de poids, la borne basse est sûre.
+		low = max(modelMiB-si.EngineVRAMMiB, 0)
 		est, upTo = low, false
+	case si.VRAMMiB > 0:
+		// nvidia-smi seulement : un moteur Vulkan sur cartes mixtes NVIDIA +
+		// AMD en utilise davantage, un moteur ROCm d'autres. Une estimation,
+		// jamais une borne : un avis au plus (voir probeLoadDevices).
+		est, upTo, unsure = max(modelMiB-si.VRAMMiB, 0), false, true
 	}
 	ram := si.RAMMiB
 	what := "environ "
 	if upTo {
 		what = "jusqu'à "
+	}
+	if unsure && est*10 > ram*9 {
+		return fmt.Sprintf("%s : environ %s de poids en RAM (modèle %s, VRAM NVIDIA %s) pour %s — échec probable ; "+
+			"refus seulement si les cartes listées par le moteur le confirment, lancement sinon ; "+
+			"--load-mode mmap est plus sûr", mode, gibText(est), gibText(modelMiB), gibText(si.VRAMMiB), gibText(ram)), ""
 	}
 	if low*10 > ram*9 {
 		msg := fmt.Sprintf("%s : au moins %s de poids restent en RAM (modèle %s) pour %s de RAM, limite du conteneur "+
@@ -353,6 +365,50 @@ func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, 
 			"llama.cpp #26110) ou processus tué ; --load-mode mmap est plus sûr", mode, what, gibText(est), gibText(ram)), ""
 	}
 	return "", ""
+}
+
+// loadGuardNeedsDevices : un refus se profile sur la seule VRAM NVIDIA
+// (nvidia-smi) ? Il ne sera prononcé que sur les cartes du moteur lui-même —
+// à lire d'abord (probeLoadDevices). Fonction pure.
+func loadGuardNeedsDevices(cfg map[string]string, args []string, si serveSysInfo) bool {
+	if si.EngineVRAMMiB > 0 || si.VRAMMiB <= 0 {
+		return false
+	}
+	si.EngineVRAMMiB = si.VRAMMiB
+	_, refuse := loadModeRisk(cfg, args, si)
+	return refuse != ""
+}
+
+// engineDevsVRAM : la VRAM des cartes listées par le moteur, toutes
+// additionnées — sans --device, llama.cpp ne place rien ailleurs, et une carte
+// qu'il listerait sans s'en servir (iGPU) ne fait que rendre le refus plus
+// rare. 0 (inconnu) si la liste est vide ou si une carte annonce 0 Mio (déjà
+// pleine : lecture transitoire, voir handleBackendDevices).
+func engineDevsVRAM(devs []splitDev) int64 {
+	var total int64
+	for _, d := range devs {
+		if d.TotalMiB <= 0 {
+			return 0
+		}
+		total += d.TotalMiB
+	}
+	return total
+}
+
+// probeLoadDevices : seulement quand loadGuardNeedsDevices — un mode de
+// chargement résident qu'on s'apprête à refuser. Les cartes de SPLIT_MODE si
+// elles sont déjà lues, sinon --list-devices dans l'environnement du
+// lancement (sélection GPU comprise). Échec de lecture : EngineVRAMMiB reste
+// à 0, loadModeRisk avertit sans refuser. args : EXTRA_ARGS normalisé.
+func probeLoadDevices(cfg map[string]string, args []string, bin string, si *serveSysInfo) {
+	if !loadGuardNeedsDevices(cfg, args, *si) {
+		return
+	}
+	devs := si.SplitDevs
+	if len(devs) == 0 {
+		devs = listEngineDevices(bin)
+	}
+	si.EngineVRAMMiB = engineDevsVRAM(devs)
 }
 
 // previewServeHelp : l'aide supposée d'un moteur récent, pour les aperçus de
@@ -384,6 +440,14 @@ func moePreview(content string) (notes []string, load string) {
 	extra := splitArgs(cfg["EXTRA_ARGS"])
 	probeCacheRAM(cfg, extra, &si)
 	norm, _ := normalizeLoadFlags(extra, true)
+	// Les cartes du moteur, sans le lancer : la dernière liste complète qu'il a
+	// donnée à l'éditeur (devices.json). Absente : un avis, pas un refus.
+	if loadGuardNeedsDevices(cfg, norm, si) {
+		bin := prebuiltResolveBin(firstNonEmpty(cfg["BIN"], ReadConfig()["BIN"]))
+		if list, ok := devPersistGet(bin + "\x00" + cfg["CUDA_VISIBLE_DEVICES"]); ok {
+			si.EngineVRAMMiB = engineDevsVRAM(splitDevsFrom(list))
+		}
+	}
 	warn, refuse := loadModeRisk(cfg, norm, si)
 	if refuse != "" {
 		warn = "refusé au lancement — " + refuse

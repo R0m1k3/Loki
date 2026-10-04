@@ -651,8 +651,11 @@ Ajoutées par ce fork :
   d'une version précédente (ou launchd) reçoit une sortie sans erreur pour ne
   pas boucler — `sudo systemctl edit loki-engine` (section `[Service]`,
   `RestartPreventExitStatus=78`) met l'unité à jour.
-  VRAM inconnue (Mac Intel, AMD, Vulkan, `--device`) ou serveurs `--rpc` :
-  avertissement, jamais de refus. `mmap` et `auto` ne sont jamais concernés ;
+  La VRAM qui fonde un refus est celle des cartes que le moteur liste
+  lui-même (`--list-devices`, lu seulement quand un refus se profile sur la
+  VRAM NVIDIA) : un moteur Vulkan sur cartes mixtes NVIDIA + AMD compte les
+  deux. Liste illisible, VRAM inconnue (Mac Intel, AMD seule, `--device`) ou
+  serveurs `--rpc` : avertissement, jamais de refus. `mmap` et `auto` ne sont jamais concernés ;
   `LLAMA_ARG_NO_MMAP`/`LLAMA_ARG_MLOCK` ne comptent que sur un moteur ancien
   (un moteur à `--load-mode` les ignore). Rien ne change dans la ligne de
   commande.
