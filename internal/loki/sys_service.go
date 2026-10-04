@@ -94,8 +94,14 @@ var configTemplate = []struct{ key, help string }{
 	{"SPEC_SAMPLING", "tirage du brouillon : greedy (défaut, exact) ; probabilistic seulement avec SPEC=mtp"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_PRESERVE", "on/off = garder ou non la réflexion des tours passés dans le gabarit (--reasoning-preserve) ; " +
-		"vide = défaut du moteur (on depuis b10763). Loki ne renvoie pas cette réflexion : off rend l'ancien historique " +
-		"aux gabarits type Qwen3.6, mais change celui des gabarits qui la gardent d'eux-mêmes (Qwen3.8)"},
+		"vide = défaut du moteur (on depuis b10763). Sans REASONING_ECHO, Loki ne renvoie pas cette réflexion : off rend " +
+		"l'ancien historique aux gabarits type Qwen3.6, mais change celui des gabarits qui la gardent d'eux-mêmes (Qwen3.8). " +
+		"Avec REASONING_ECHO=on, on = préfixe stable d'un message à l'autre (mode entraîné mais optionnel selon la fiche " +
+		"Qwen3.6), au prix de plus de contexte par tour, donc d'une compaction plus tôt"},
+	{"REASONING_ECHO", "on = renvoyer au moteur local le raisonnement du modèle (reasoning_content), au format entraîné : " +
+		"les étapes d'une boucle d'outils se relisent avec leur réflexion au lieu de blocs vides, et le moteur ne recalcule " +
+		"plus le dernier message ; plus de contexte par tour, compaction plus tôt. Vide/off (défaut) = rien n'est renvoyé. " +
+		"Jamais vers une API externe ni vers un autre modèle ; suspendu de lui-même si le gabarit le refuse"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"TEMP", "température d'échantillonnage ; vide = défaut du moteur"},

@@ -45,7 +45,8 @@ func freshTplProbe(t *testing.T) {
 //
 //	qwen3 : le raisonnement n'est rendu qu'après le dernier message utilisateur ;
 //	keep  : il est toujours rendu ;
-//	noagp : comme keep, mais add_generation_prompt est ignoré (vieux moteur).
+//	noagp : comme keep, mais add_generation_prompt est ignoré (vieux moteur) ;
+//	drop  : reasoning_content n'est jamais rendu.
 type fakeTpl struct {
 	mu          sync.Mutex
 	mode        string
@@ -74,7 +75,7 @@ func (f *fakeTpl) render(body map[string]any) (string, int) {
 		m := raw.(map[string]any)
 		role, _ := m["role"].(string)
 		b.WriteString("<|im_start|>" + role + "\n")
-		if r, _ := m["reasoning_content"].(string); r != "" && role == "assistant" && (f.mode != "qwen3" || i > lastUser) {
+		if r, _ := m["reasoning_content"].(string); r != "" && role == "assistant" && f.mode != "drop" && (f.mode != "qwen3" || i > lastUser) {
 			b.WriteString("<think>" + r + "</think>")
 		}
 		c, _ := m["content"].(string)
@@ -182,7 +183,7 @@ func TestSondeGabaritQwen3(t *testing.T) {
 	f.start(t)
 	kw := map[string]any{"enable_thinking": false}
 	r := tplProbeEnsure(context.Background(), newTplShape(probeTools(), kw, ""))
-	if r.PreservesHistory != tplNo || r.PrefixStable != tplNo {
+	if r.PreservesHistory != tplNo || r.PrefixStable != tplNo || r.RendersReasoning != tplYes {
 		t.Fatalf("Qwen3 retire le raisonnement passé : %+v", r)
 	}
 	if r.Build != "b7000-abc" || r.Model != "Qwen3-8B-Q8_0.gguf" || r.Tools != 1 || !r.cacheable {
@@ -239,13 +240,29 @@ func TestSondeGabaritConserveLHistorique(t *testing.T) {
 	f := &fakeTpl{mode: "keep"}
 	f.start(t)
 	r := tplProbeEnsure(context.Background(), newTplShape(nil, nil, ""))
-	if r.PreservesHistory != tplYes || r.PrefixStable != tplYes {
+	if r.PreservesHistory != tplYes || r.PrefixStable != tplYes || r.RendersReasoning != tplYes {
 		t.Fatalf("gabarit qui garde tout : %+v", r)
 	}
 	for _, a := range f.applies {
 		if _, ok := a["tools"]; ok {
 			t.Fatal("outils envoyés alors que la complétion n'en avait pas")
 		}
+	}
+}
+
+// Gabarit (ou moteur) qui ignore reasoning_content partout : « jamais rendu »,
+// ce qui suffit à REASONING_ECHO pour ne rien renvoyer d'inutile.
+func TestSondeGabaritRaisonnementJamaisRendu(t *testing.T) {
+	testHome(t)
+	freshTplProbe(t)
+	f := &fakeTpl{mode: "drop"}
+	f.start(t)
+	r := tplProbeEnsure(context.Background(), newTplShape(probeTools(), nil, ""))
+	if r.RendersReasoning != tplNo || r.PreservesHistory != tplNo || !strings.Contains(r.Note, "jamais rendu") {
+		t.Fatalf("raisonnement jamais rendu : %+v", r)
+	}
+	if !strings.Contains(tplProbeLine(r), "raisonnement_rendu=no") {
+		t.Fatalf("journal : %s", tplProbeLine(r))
 	}
 }
 
@@ -270,7 +287,7 @@ func TestSondeGabarit404(t *testing.T) {
 	f := &fakeTpl{mode: "qwen3", applyStatus: []int{404, 404, 404, 404}, applyBody: "Not Found"}
 	f.start(t)
 	r := tplProbeEnsure(context.Background(), newTplShape(probeTools(), nil, ""))
-	if r.PreservesHistory != tplUnknown || r.PrefixStable != tplUnknown || !r.cacheable {
+	if r.PreservesHistory != tplUnknown || r.PrefixStable != tplUnknown || r.RendersReasoning != tplUnknown || !r.cacheable {
 		t.Fatalf("404 : %+v", r)
 	}
 	f.assertNoCompletion(t)

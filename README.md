@@ -356,6 +356,18 @@ Ajoutées par ce fork :
   → maximale) et rejoue le message sans rien perdre de l'historique — une fois,
   puis la traduction est retenue pour ce modèle. La liste est grisée quand le
   raisonnement est coupé pour ce modèle.
+- **Raisonnement renvoyé au modèle** (clé `REASONING_ECHO`, **off** par défaut,
+  `loki config set REASONING_ECHO on`) : le raisonnement que le moteur local a
+  séparé (`reasoning_content`) est gardé avec chaque message et renvoyé au même
+  modèle. Les gabarits Qwen3.5/3.6 relisent alors les étapes d'une boucle
+  d'outils avec leur réflexion — le format entraîné — au lieu de blocs vides, et
+  le moteur ne recalcule plus le dernier message. Avec `REASONING_PRESERVE=on`
+  (gabarits qui ont ce réglage, Qwen3.6), le préfixe reste stable d'un message
+  utilisateur à l'autre ; Qwen3.5 n'en a pas, le gain y reste interne au tour.
+  Contrepartie : plus de contexte par tour, donc compaction plus tôt. Jamais
+  vers une API externe ni vers un autre modèle ; un prompt trop long est d'abord
+  rejoué sans raisonnement, et un gabarit qui le refuse le suspend pour ce
+  modèle jusqu'au redémarrage.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

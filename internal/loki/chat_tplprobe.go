@@ -29,12 +29,15 @@ import (
 //     le moteur recalcule depuis l'endroit où les deux divergent, quoi que fasse
 //     son cache.
 //
-// PUREMENT DIAGNOSTIQUE. Rien ici ne touche à la construction d'un prompt, et
-// Loki ne renvoie aujourd'hui JAMAIS de reasoning_content au modèle (Message n'a
-// pas ce champ) : preservesHistory décrit le gabarit, pas ce que Loki fait. Une
-// évolution qui s'appuierait sur ces réponses pour ajouter, retirer ou
-// réordonner quoi que ce soit dans l'historique devra passer sa propre revue de
-// fidélité, et traiter « unknown » comme « garder le comportement d'aujourd'hui ».
+// Plus une troisième, déduite des mêmes rendus : rendersReasoning, le gabarit
+// rend-il reasoning_content quelque part ?
+//
+// DIAGNOSTIQUE d'abord. Rien ici ne construit un prompt : preservesHistory
+// décrit le gabarit, pas ce que Loki fait. Seul consommateur : REASONING_ECHO
+// (llm_reasoning_echo.go, opt-in), qui s'abstient de renvoyer un raisonnement
+// que le gabarit ne rend jamais, et ne compte celui d'avant la dernière
+// question que si le gabarit le garde. Jamais pour AJOUTER quoi que ce soit :
+// « unknown » y laisse la décision à la clé, avec ses filets.
 //
 // Règles de conduite, toutes là pour qu'une sonde ne coûte jamais rien au vrai
 // travail :
@@ -69,6 +72,10 @@ const (
 type tplProbeResult struct {
 	PreservesHistory tplTri `json:"preserves_history"`
 	PrefixStable     tplTri `json:"prefix_stable"`
+	// RendersReasoning : reasoning_content apparaît-il dans un rendu, au moins
+	// juste après la dernière question ? « no » = le gabarit (ou le moteur)
+	// l'ignore toujours.
+	RendersReasoning tplTri `json:"renders_reasoning"`
 	Build            string `json:"build,omitempty"`
 	Model            string `json:"model,omitempty"` // nom du fichier, pas le chemin
 	TemplateHash     string `json:"template_hash,omitempty"`
@@ -85,7 +92,7 @@ type tplProbeResult struct {
 }
 
 func tplUnknownResult(note string) tplProbeResult {
-	return tplProbeResult{PreservesHistory: tplUnknown, PrefixStable: tplUnknown, Note: note, At: time.Now()}
+	return tplProbeResult{PreservesHistory: tplUnknown, PrefixStable: tplUnknown, RendersReasoning: tplUnknown, Note: note, At: time.Now()}
 }
 
 // tplShape : la forme de la requête à reproduire. Les outils sont figés en JSON
@@ -282,8 +289,8 @@ func tplProbeStore(key string, r tplProbeResult) {
 }
 
 func tplProbeLine(r tplProbeResult) string {
-	s := fmt.Sprintf("[tplprobe] build=%s modèle=%s gabarit=%s outils=%d historique_raisonnement=%s préfixe_stable=%s",
-		orDash(r.Build), orDash(r.Model), orDash(r.TemplateHash), r.Tools, r.PreservesHistory, r.PrefixStable)
+	s := fmt.Sprintf("[tplprobe] build=%s modèle=%s gabarit=%s outils=%d historique_raisonnement=%s préfixe_stable=%s raisonnement_rendu=%s",
+		orDash(r.Build), orDash(r.Model), orDash(r.TemplateHash), r.Tools, r.PreservesHistory, r.PrefixStable, r.RendersReasoning)
 	if r.Note != "" {
 		s += " (" + r.Note + ")"
 	}
@@ -505,9 +512,13 @@ func (p tplProber) probe(ctx context.Context, shape tplShape) tplProbeResult {
 	default:
 		r.PrefixStable = tplNo
 	}
-	if err1 == nil && !strings.Contains(r1, tplMarkR1) && r.PreservesHistory == tplNo {
+	switch {
+	case r.PreservesHistory == tplYes || (err1 == nil && strings.Contains(r1, tplMarkR1)):
+		r.RendersReasoning = tplYes
+	case err1 == nil && strings.Contains(r1, tplMarkT1) && r.PreservesHistory == tplNo:
 		// Même au dernier tour le raisonnement n'apparaît pas : c'est le moteur
 		// (ou le gabarit) qui ignore reasoning_content, pas un tri par position.
+		r.RendersReasoning = tplNo
 		notes = append(notes, "reasoning_content jamais rendu")
 	}
 	r.Note = strings.Join(notes, " ; ")

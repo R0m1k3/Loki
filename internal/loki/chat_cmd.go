@@ -64,6 +64,8 @@ func cmdChat(args []string) error {
 		full := strings.Builder{}
 		inReason := false
 		var stats *StatsEvent
+		// Raisonnement de la réponse finale (REASONING_ECHO), rangé avec elle.
+		var echo *ReasoningEcho
 		// Print the assistant prefix once; reasoning is shown inline with a tag.
 		fmt.Print(cyan("loki") + " > ")
 		caps := globalCaps()
@@ -90,6 +92,8 @@ func cmdChat(args []string) error {
 				fmt.Println(dim("\n[contexte compacté pour tenir dans la fenêtre]"))
 			case ev.Stats != nil:
 				stats = ev.Stats
+			case ev.Echo != nil:
+				echo = ev.Echo
 			case ev.DropReasoning:
 				// Le tour a « pensé sans agir » : on relance. Impossible d'effacer le
 				// texte déjà imprimé en terminal — on referme juste la ligne reasoning.
@@ -155,7 +159,7 @@ func cmdChat(args []string) error {
 			// answer, so next turn the model remembers it already did them instead
 			// of re-invoking the same skill/command from scratch.
 			msgs = append(msgs, extra...)
-			msgs = append(msgs, Message{Role: "assistant", Content: full.String()})
+			msgs = append(msgs, withEcho(Message{Role: "assistant", Content: full.String()}, echo))
 		}
 	}
 }

@@ -171,6 +171,9 @@ func msgText(m Message) string {
 // par token, plus un forfait par message pour le rôle et les délimiteurs). C'est
 // volontairement approximatif : le comptage EXACT vient de llama.cpp
 // (PromptTokensTotal) ; ici on veut juste décider quand compacter.
+// Sans le raisonnement renvoyé (REASONING_ECHO) : celui-ci dépend de la
+// position du message et de la politique d'envoi, il s'ajoute par echoTokens
+// (estimateTokens, compactBounds).
 func msgTokens(m Message) int {
 	n := 4
 	n += len(msgText(m)) / 4
@@ -180,11 +183,16 @@ func msgTokens(m Message) int {
 	return n
 }
 
-// estimateTokens estime la taille de l'historique en tokens.
+// estimateTokens estime la taille de l'historique en tokens, raisonnement
+// renvoyé compris quand il part réellement (echoTokens : rien sans
+// REASONING_ECHO).
 func estimateTokens(msgs []Message) int {
 	total := 0
 	for _, m := range msgs {
 		total += msgTokens(m)
+	}
+	for _, n := range echoTokens(msgs) {
+		total += n
 	}
 	return total
 }
@@ -331,8 +339,14 @@ func compactBounds(msgs []Message, tailBudget int) (head, tailStart int) {
 	}
 	tailStart = len(msgs)
 	acc := 0
+	// Même compte que estimateTokens, qui fixe le budget : raisonnement renvoyé
+	// compris, sinon la queue avalait plus que sa part.
+	echo := echoTokens(msgs)
 	for i := len(msgs) - 1; i >= head; i-- {
 		acc += msgTokens(msgs[i])
+		if echo != nil {
+			acc += echo[i]
+		}
 		tailStart = i
 		if acc >= tailBudget {
 			break
@@ -403,6 +417,10 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	pruned := make([]Message, len(torso))
 	for i, m := range torso {
 		pruned[i] = m
+		// Le raisonnement renvoyé (REASONING_ECHO) d'un tour compacté ne repart
+		// pas : comme le résumé, qui ne l'a jamais vu (renderTranscript), le torse
+		// revient à ce que Loki envoyait sans la clé.
+		pruned[i].ReasoningContent, pruned[i].ReasoningModel = "", ""
 		if e := archived[i]; e != nil {
 			pruned[i].Content = recallMarker(e.id, e.label)
 			continue
@@ -888,6 +906,10 @@ const shrinkTruncMarker = "\n[…tronqué : contexte plein. Relance l'outil de f
 // typiquement un tour qui a lu beaucoup de gros fichiers d'un coup, tout est
 // dans la queue protégée). Avant, l'erreur 400 remontait telle quelle et la
 // conversation restait bloquée. Ici on réduit pour de bon :
+//  0. le raisonnement renvoyé (REASONING_ECHO), du plus ancien au plus récent :
+//     c'est ce que Loki n'envoyait pas sans la clé, à retirer avant tout le reste
+//     — y compris dans un seul long tour sans frontière `user`, que l'étape 2
+//     ne sait pas couper ;
 //  1. les gros résultats d'outils (du plus ancien au plus récent) sont tronqués ;
 //  2. si ça ne suffit pas, on retire les plus vieux échanges, par tour entier
 //     (frontière `user`), en gardant les messages système de tête.
@@ -905,6 +927,15 @@ func shrinkToFit(msgs []Message, actual int) ([]Message, bool) {
 	}
 	target := int(float64(ctxWindow()) * 0.6 / ratio)
 	out := append([]Message(nil), msgs...)
+	for i := range out {
+		if out[i].ReasoningContent == "" && out[i].ReasoningModel == "" {
+			continue
+		}
+		if estimateTokens(out) <= target {
+			break
+		}
+		out[i].ReasoningContent, out[i].ReasoningModel = "", ""
+	}
 	for i := range out {
 		if estimateTokens(out) <= target {
 			break

@@ -166,10 +166,28 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	}
 	var content strings.Builder
 	sawUsage := false
+	// newBase / echo : comme generate — vue modèle publiée par une compaction
+	// survenue pendant la passe (elle REMPLACE l'historique, tour compris), et
+	// raisonnement de la réponse finale (REASONING_ECHO).
+	var newBase []Message
+	var echo *ReasoningEcho
 	sent, tools := prepareTurn(final, caps)
 	extra, _ := runChatTools(ctx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		if ev.Stats != nil && ev.Stats.PromptTokensTotal > 0 {
 			sawUsage = true
+		}
+		if ev.NewHistory != nil {
+			// Préfixe système injecté retiré, comme dans generate : il n'appartient
+			// pas à l'historique persisté. Ignorer cet événement laissait la
+			// compaction perdue et c.Messages incohérent (fil complet + tour).
+			base := ev.NewHistory
+			for len(base) > 0 && base[0].Role == "system" {
+				base = base[1:]
+			}
+			newBase = append([]Message(nil), base...)
+		}
+		if ev.Echo != nil {
+			echo = ev.Echo
 		}
 		if ev.Content != "" {
 			content.WriteString(ev.Content)
@@ -185,9 +203,12 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	})
 	c.mu.Lock()
 	if c.epoch == epoch {
+		if newBase != nil {
+			c.Messages = newBase
+		}
 		c.Messages = append(c.Messages, extra...)
 		if s := content.String(); strings.TrimSpace(s) != "" {
-			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
+			c.Messages = append(c.Messages, withEcho(Message{Role: "assistant", Content: s}, echo))
 		}
 		c.Messages = dropStrayNudges(c.Messages) // même règle que generate
 		if sawUsage {
@@ -202,8 +223,10 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 }
 
 // forwardStream relaie les événements d'un runChat secondaire (vérification,
-// correction) vers le journal d'affichage — même mapping que generate(), sans
-// la gestion de compaction (ces passes n'en déclenchent pas : contexte court).
+// correction) vers le journal d'affichage — même mapping que generate(). Ce
+// qui touche à l'HISTORIQUE (NewHistory, Echo) n'a rien à afficher : c'est
+// l'appelant qui le range (runBuilderTurn), ou l'ignore pour une passe isolée
+// sur sa propre trace (vérificateur).
 //
 // isolated : la passe tourne sur sa propre trace (vérificateur), PAS sur
 // l'historique de la discussion. Ses comptes ne disent rien du contexte de
@@ -212,6 +235,14 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 // chiffre-là. La jauge de l'UI ne doit pas bouger non plus (ctx_isolated).
 func (c *Conversation) forwardStream(ev StreamEvent, epoch int, isolated bool) {
 	switch {
+	case ev.NewHistory != nil, ev.Echo != nil:
+		// Rangés par l'appelant, voir plus haut.
+	case ev.Compacting != nil:
+		// Même bannière que generate. Pas pour une passe isolée : ce n'est pas
+		// la discussion qu'elle compacte.
+		if !isolated {
+			c.appendDelta(epoch, map[string]any{"compacting": *ev.Compacting})
+		}
 	case ev.Err != nil:
 		c.appendDelta(epoch, map[string]any{"error": ev.Err.Error()})
 	case ev.ToolUsed != nil:

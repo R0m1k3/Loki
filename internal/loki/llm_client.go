@@ -25,6 +25,13 @@ type Message struct {
 	Content    any        `json:"content,omitempty"`
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"`
+	// ReasoningContent : raisonnement que le moteur a séparé pour ce message
+	// assistant, gardé seulement avec REASONING_ECHO=on (llm_reasoning_echo.go).
+	// ReasoningModel : le modèle qui l'a produit. Les deux sont persistés avec la
+	// discussion ; à l'envoi, echoMessages retire toujours l'étiquette, et le
+	// raisonnement quand il ne doit pas partir. Vides : JSON inchangé.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+	ReasoningModel   string `json:"reasoning_model,omitempty"`
 }
 
 type ToolCall struct {
@@ -506,8 +513,8 @@ func EnabledTools(caps Caps) []Tool {
 }
 
 // StreamEvent is what a ChatCallback receives for each piece of streamed output.
-// Exactly one of {Content, Reasoning, ToolUsed, Stats, Err, DropReasoning} is set
-// per call.
+// Exactly one of {Content, Reasoning, ToolUsed, Stats, Err, DropReasoning, Echo}
+// is set per call.
 type StreamEvent struct {
 	Content   string
 	Reasoning string
@@ -532,6 +539,11 @@ type StreamEvent struct {
 	// REMPLACER son historique par elle (préfixe système injecté retiré), pas l'y
 	// ajouter.
 	NewHistory []Message
+	// Echo : raisonnement séparé de la complétion qui porte la réponse finale,
+	// à ranger avec elle (withEcho). Émis une fois, en fin de tour, et seulement
+	// avec REASONING_ECHO=on sur le moteur local : les autres tours n'en voient
+	// jamais. Les messages tool_calls du tour portent déjà le leur (extra).
+	Echo *ReasoningEcho
 }
 
 // AskEvent : l'outil ask — question structurée posée à l'utilisateur, rendue
@@ -902,12 +914,15 @@ type StatsEvent struct {
 	// `usage.prompt_tokens`. 0 si le backend ne renvoie pas d'usage.
 	PromptTokensTotal int `json:"prompt_tokens_total,omitempty"`
 	// Morceaux de raisonnement reçus SÉPARÉS par le moteur (reasoning_content),
-	// llama-server local seulement. Loki ne renvoie jamais ce raisonnement au
-	// modèle (Message n'a pas de champ pour lui) : ces jetons font partie de
-	// GenTokens mais pas de la requête suivante. Un morceau vaut au plus un
-	// jeton, donc ce compte ne peut que sous-estimer — le sens sans danger : on
-	// compacte au pire comme avant, jamais trop tard. Voir ctxAfter.
+	// llama-server local seulement. Sans REASONING_ECHO, Loki ne renvoie jamais
+	// ce raisonnement au modèle : ces jetons font partie de GenTokens mais pas de
+	// la requête suivante. Un morceau vaut au plus un jeton, donc ce compte ne
+	// peut que sous-estimer — le sens sans danger : on compacte au pire comme
+	// avant, jamais trop tard. Voir ctxAfter.
 	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
+	// echoed : ce raisonnement-là repart dans la requête suivante
+	// (REASONING_ECHO) — ctxAfter ne le retire alors pas. Jamais sérialisé.
+	echoed bool
 	// Conseil ponctuel quand le cache de prompts n'a pas tenu après un travail
 	// annexe (voir noteEnginePrompt). Vide la plupart du temps.
 	CacheHint string `json:"cache_hint,omitempty"`
@@ -932,7 +947,12 @@ type StatsEvent struct {
 // raisonnement, jamais renvoyé. Compter ce raisonnement gonflait le contexte de
 // 1 à 8 k jetons par étape, et la compaction (avec perte) partait trop tôt.
 // Borné par GenTokens : le compte de morceaux ne retire jamais plus que généré.
+// Raisonnement renvoyé (echoed) : il fait partie de la requête suivante, il
+// reste compté.
 func (s StatsEvent) ctxAfter() int {
+	if s.echoed {
+		return s.PromptTokensTotal + s.GenTokens
+	}
 	return s.PromptTokensTotal + s.GenTokens - min(s.GenTokens, s.ReasoningTokens)
 }
 
@@ -1199,6 +1219,12 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 	// entier.
 	const maxStreamRetries = 5
 	streamRetries := 0
+	// REASONING_ECHO (llm_reasoning_echo.go). echoOffTurn : plus aucun
+	// raisonnement ne part de ce tour (prompt trop long, ou gabarit qui l'a
+	// refusé) — retour exact à la requête d'avant la clé. echoTplRetry : relance
+	// en cours après une erreur de gabarit ; si elle passe, c'était bien le
+	// raisonnement, et le refus est retenu pour ce modèle.
+	echoOffTurn, echoTplRetry := false, false
 	// Destination des complétions : llama-server local, ou une API OpenAI-compatible
 	// externe si le preset actif en est un (backend_external.go). Résolu UNE FOIS
 	// par tour — une bascule de preset en plein tour est rare, et se rejoue de
@@ -1251,6 +1277,14 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		if toolChoiceNone {
 			sent = withTrailingHint(sent, toolsOffHint)
 		}
+		// Raisonnement renvoyé : décidé ici, au point de sortie unique, pour
+		// chaque requête. Clé absente (ou preset externe, ou repli en cours) :
+		// echoMessages rend la tranche telle quelle, requête inchangée.
+		pol := currentEchoPolicy()
+		if ep.External || echoOffTurn {
+			pol = echoPolicy{}
+		}
+		sent, echoSent := echoMessages(sent, pol)
 		payload := map[string]any{
 			"model": ep.Model,
 			// Les images de l'historique y sont rangées par référence
@@ -1336,6 +1370,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			if msg == "" {
 				msg = resp.Status
 			}
+			// La relance sans raisonnement est refusée à son tour : il n'y était
+			// pour rien, aucun refus à retenir pour ce modèle.
+			echoTplRetry = false
 			// Refus du niveau de raisonnement par le gabarit du modèle (Qwen3.8 ne
 			// connaît pas « high », gpt-oss ne connaît pas « xhigh »…). C'est un
 			// refus DÉFINITIF, pas une question de taille de prompt : à traiter
@@ -1352,12 +1389,36 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					continue
 				}
 			}
+			// Gabarit qui refuse le raisonnement renvoyé (gpt-oss : « Cannot pass
+			// both content and thinking », message assistant jugé invalide…) :
+			// rejoué UNE fois sans lui, AVANT la coupure des outils et la consigne
+			// système, qui casseraient le tour et tout le cache de prompt.
+			if echoSent > 0 && echoTemplateError(resp.StatusCode, msg) {
+				echoOffTurn, echoTplRetry = true, true
+				logCtx("erreur de gabarit avec le raisonnement renvoyé (%d) : relance sans lui", resp.StatusCode)
+				continue
+			}
+			// Prompt trop long alors que du raisonnement est parti : on retente
+			// d'abord sans lui — exactement la requête d'avant REASONING_ECHO —,
+			// avant toute compaction ou réduction, qui perdent de l'information.
+			if echoSent > 0 && contextOverflow(msg, messages) {
+				echoOffTurn = true
+				logCtx("prompt trop long avec le raisonnement renvoyé : relance sans lui avant toute compaction")
+				continue
+			}
 			// Le prompt a peut-être dépassé la fenêtre de contexte : on tente une
 			// compaction en vol et on rejoue le tour (une seule fois) avant tout le
 			// reste. C'est le filet de secours à la Hermes.
 			// ⚠️ Seulement si l'erreur est VRAIMENT un débordement de contexte : avant,
 			// n'importe quel refus (appel d'outil mal formé, modèle en chargement,
 			// erreur de template…) résumait ~75 % de la conversation, même courte.
+			// Raisonnement déjà retiré de ce tour (repli ci-dessus) : la réduction
+			// travaille sur ce qui part vraiment. Sinon elle compterait — puis
+			// « retirerait » — du raisonnement qui ne partait plus, et gâcherait
+			// une relance sur une requête identique.
+			if echoOffTurn {
+				messages = stripReasoning(messages)
+			}
 			if compactEnabled() && !compactedRetry && contextOverflow(msg, messages) {
 				if c, changed := compactMessages(ctx, messages, caps); changed {
 					compactedRetry = true
@@ -1439,6 +1500,12 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		// Une réponse est arrivée : le budget de reprise réseau repart à neuf pour
 		// la suite de la boucle d'outils.
 		netRetries = 0
+		// La relance sans raisonnement passe : c'était bien lui que le gabarit
+		// refusait. Retenu pour ce modèle, plus de 500 à repayer à chaque tour.
+		if echoTplRetry {
+			echoTplRetry = false
+			echoRefuse(reasoningEchoModel(ReadConfig()))
+		}
 		if !ep.External {
 			engineServed() // le slot porte désormais cette requête (llm_slots.go)
 		}
@@ -1492,6 +1559,10 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		}
 		// Per-completion reasoning-split state (see reasoningOn comment above).
 		sawReasoningField := false
+		// Raisonnement séparé PAR LE SERVEUR, gardé pour être renvoyé
+		// (REASONING_ECHO). Jamais celui découpé chez nous sur « </think> » : il
+		// reste dans le contenu, où le gabarit le redécoupe lui-même.
+		var echoBuf strings.Builder
 		thinkOpen := reasoningOn
 		var thinkTail strings.Builder
 		// Scanner à gros tampon : un chunk peut porter un gros JSON d'arguments
@@ -1719,6 +1790,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				if !ep.External {
 					stats.ReasoningTokens++
 				}
+				if pol.on {
+					echoBuf.WriteString(ch.Delta.ReasoningContent)
+				}
 				if !scb(StreamEvent{Reasoning: ch.Delta.ReasoningContent}) {
 					aborted = true
 					break
@@ -1824,6 +1898,17 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		scanErr := sc.Err()
 		resp.Body.Close()
 		endReq()
+		// Raisonnement de cette complétion à renvoyer, s'il y a lieu. Il repart
+		// dans la requête suivante quand elle continue ce tour (appel d'outil),
+		// ou au tour suivant si le gabarit garde le passé : ctxAfter le compte —
+		// posé avant toute émission de stats de cette complétion.
+		echoText := ""
+		if pol.on && sawReasoningField {
+			echoText = echoBuf.String()
+		}
+		if echoText != "" && (len(toolCalls) > 0 || pol.keepsPast) {
+			stats.echoed = true
+		}
 		// Premier jeton, de quelque nature qu'il soit (raisonnement, texte ou
 		// appel d'outil). tReq est repris à chaque tentative.
 		if !tFirst.IsZero() {
@@ -1971,6 +2056,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			if s := assistantContent.String(); s != "" {
 				assistant.Content = s
 			}
+			if echoText != "" {
+				assistant.ReasoningContent, assistant.ReasoningModel = echoText, pol.model
+			}
 			result := preflight.msg + " (écriture interrompue avant la fin : rien n'a été modifié)"
 			cb(StreamEvent{ToolUsed: &ToolUsedEvent{Name: preflight.name, Label: preflight.file, Done: true, Result: result}})
 			toolMsg := Message{Role: "tool", ToolCallID: id, Content: result}
@@ -2024,6 +2112,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			assistant := Message{Role: "assistant", ToolCalls: tcs}
 			if s := assistantContent.String(); s != "" {
 				assistant.Content = s
+			}
+			if echoText != "" {
+				assistant.ReasoningContent, assistant.ReasoningModel = echoText, pol.model
 			}
 			messages = append(messages, assistant)
 			extra = append(extra, assistant)
@@ -2355,7 +2446,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		if snippet := textualToolCallSnippet(assistantContent.String()); snippet != "" &&
 			patternRetries < maxPatternRetries && callsOn {
 			patternRetries++
-			bad := Message{Role: "assistant", Content: assistantContent.String()}
+			bad := withEcho(Message{Role: "assistant", Content: assistantContent.String()}, &ReasoningEcho{Text: echoText, Model: pol.model})
 			fix := Message{Role: "user", Content: retryCorrective(snippet)}
 			messages = append(messages, bad, fix)
 			extra = append(extra, bad, fix)
@@ -2411,6 +2502,12 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				continue
 			}
 			cb(StreamEvent{Content: "_(le modèle n'a pas produit de réponse — finish: " + finishReason + ")_"})
+		}
+		// Raisonnement de la réponse finale : l'appelant le range avec elle.
+		// Jamais sans texte (un message assistant de pur raisonnement serait
+		// refusé par llama.cpp).
+		if echoText != "" && strings.TrimSpace(assistantContent.String()) != "" {
+			cb(StreamEvent{Echo: &ReasoningEcho{Text: echoText, Model: pol.model}})
 		}
 		return extra, nil
 	}

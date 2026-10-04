@@ -812,6 +812,8 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Non-nil = elle remplace l'historique (elle contient déjà le tour en cours).
 	var newBase []Message
 	var content strings.Builder
+	// echo : raisonnement de la réponse finale (REASONING_ECHO), rangé avec elle.
+	var echo *ReasoningEcho
 	// Le comptage EXACT du contexte vient de `usage.prompt_tokens` (option
 	// include_usage). Tous les moteurs ne le renvoient pas — un llama-server
 	// récent a cessé de le faire, et la jauge est restée bloquée à zéro sur des
@@ -876,6 +878,8 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 				base = base[1:]
 			}
 			newBase = append([]Message(nil), base...)
+		case ev.Echo != nil:
+			echo = ev.Echo
 		case ev.Compacting != nil:
 			// Compaction déclenchée pendant la boucle d'outils : même bannière que la
 			// compaction de début de tour.
@@ -925,7 +929,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 		}
 		c.Messages = append(c.Messages, extra...)
 		if s := content.String(); strings.TrimSpace(s) != "" {
-			c.Messages = append(c.Messages, Message{Role: "assistant", Content: s})
+			c.Messages = append(c.Messages, withEcho(Message{Role: "assistant", Content: s}, echo))
 		}
 		// Rappel de loki resté sans réponse (stop, erreur) ou collé à un autre
 		// user : retiré, sinon deux `user` d'affilée au tour suivant.

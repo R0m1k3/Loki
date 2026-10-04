@@ -289,12 +289,19 @@ func ckptArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 //
 // Le compromis, qui explique pourquoi Loki ne choisit pas : depuis b10763 le
 // moteur active preserve_reasoning par défaut, et le gabarit garde alors la
-// réflexion de TOUS les tours passés. Mais Loki ne renvoie pas le raisonnement
-// des tours passés : un gabarit qui ne conserve rien de lui-même (Qwen3.6) rend
-// alors des blocs de réflexion vides, là où « off » rend l'historique des
-// anciens moteurs. À l'inverse, un gabarit qui conserve déjà de lui-même
-// (Qwen3.8) changerait de rendu avec « off ». Aucun choix global n'est neutre
-// pour tous les modèles : vide = défaut du moteur, inchangé.
+// réflexion de TOUS les tours passés. Mais sans REASONING_ECHO, Loki ne renvoie
+// pas le raisonnement des tours passés : un gabarit qui ne conserve rien de
+// lui-même (Qwen3.6) rend alors des blocs de réflexion vides, là où « off » rend
+// l'historique des anciens moteurs. À l'inverse, un gabarit qui conserve déjà de
+// lui-même (Qwen3.8) changerait de rendu avec « off ». Aucun choix global n'est
+// neutre pour tous les modèles : vide = défaut du moteur, inchangé.
+//
+// Avec REASONING_ECHO=on (llm_reasoning_echo.go), les deux clés se complètent
+// sans se recouvrir : l'écho fournit le raisonnement, cette clé décide si le
+// gabarit le garde au-delà du tour en cours. « on » donne alors un préfixe
+// stable d'un message utilisateur à l'autre, au prix de plus de contexte ; le
+// comptage de Loki suit le verdict de la sonde de gabarit (preservesHistory),
+// pas cette clé, car un gabarit sans le réglage (Qwen3.5) l'ignore.
 func reasoningPreserveArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, notes []string) {
 	v := strings.ToLower(strings.TrimSpace(cfg["REASONING_PRESERVE"]))
 	if v == "" {
