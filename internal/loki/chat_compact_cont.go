@@ -48,8 +48,9 @@ package loki
 //     garantie de réduction (compactHopeless, borne exacte) ;
 //   - une compaction refusée parce que le résumé obtenu était trop long n'est
 //     retentée, en début ou fin de tour et entre deux étapes, qu'une fois le
-//     contexte grossi de 10 % — jamais pour le filet réactif, le bouton
-//     « compacter », une fenêtre pleine à 90 % ou plus.
+//     contexte grossi de 10 % sur le même fil (un historique réécrit retente)
+//     — jamais pour le filet réactif, le bouton « compacter », une fenêtre
+//     pleine à 90 % ou plus.
 //
 // Réactif (prompt refusé par le moteur), fenêtre pleine en pleine génération,
 // bouton manuel, tâches, sous-agents, terminal : chemin d'avant, toujours.
@@ -159,7 +160,7 @@ func compactMessagesNoted(ctx context.Context, msgs []Message, caps Caps, opt co
 		if changed {
 			compactRefusedClear(opt.conv)
 		} else if refused {
-			compactRefusedNote(opt.conv, opt.used)
+			compactRefusedNote(opt.conv, opt.used, msgs)
 		}
 	}
 	return out, changed
@@ -168,10 +169,22 @@ func compactMessagesNoted(ctx context.Context, msgs []Message, caps Caps, opt co
 // --- refus mémorisés --------------------------------------------------------
 
 // compactRefusal : une compaction refusée faute de réduction, à at jetons de
-// contexte. En mémoire seulement : un redémarrage retente.
+// contexte, sur un historique de n messages d'empreinte hash. En mémoire
+// seulement : un redémarrage retente.
 type compactRefusal struct {
 	at, window int
 	model      string
+	n          int
+	hash       uint64
+}
+
+// historyHash : empreinte d'un historique (celle de perfPrefix).
+func historyHash(msgs []Message) uint64 {
+	if len(msgs) == 0 {
+		return 0
+	}
+	p := perfPrefix(msgs)
+	return p[len(p)-1]
 }
 
 var compactRefused struct {
@@ -181,23 +194,25 @@ var compactRefused struct {
 
 const compactRefusedMax = 64
 
-// compactRefusedSkip : la dernière compaction de conv a été refusée et le
-// contexte n'a pas grossi de 10 % depuis. Jamais à 90 % de la fenêtre ou plus ;
-// oublié dès que le contexte baisse (compaction, réécriture, nouvelle
-// discussion) ou que le modèle ou la fenêtre changent.
-func compactRefusedSkip(conv string, used int) bool {
+// compactRefusedSkip : la dernière compaction de conv a été refusée, msgs ne
+// fait que prolonger l'historique d'alors, et le contexte n'a pas grossi de
+// 10 % depuis. Jamais à 90 % de la fenêtre ou plus ; oublié dès que
+// l'historique a été réécrit (compaction, édition, régénération, discussion
+// vidée), que le contexte baisse, ou que le modèle ou la fenêtre changent.
+func compactRefusedSkip(conv string, used int, msgs []Message) bool {
 	if conv == "" || used <= 0 || !compactContinuationOn(ReadConfig()) {
 		return false
 	}
 	model, window := engineMainNow()
 	compactRefused.mu.Lock()
-	defer compactRefused.mu.Unlock()
 	r, ok := compactRefused.m[conv]
+	compactRefused.mu.Unlock()
 	if !ok {
 		return false
 	}
-	if r.model != model || r.window != window || used < r.at || used >= r.at+r.at/10 {
-		delete(compactRefused.m, conv)
+	if r.model != model || r.window != window || used < r.at || used >= r.at+r.at/10 ||
+		len(msgs) < r.n || historyHash(msgs[:r.n]) != r.hash {
+		compactRefusedClear(conv)
 		return false
 	}
 	if used*10 >= window*9 {
@@ -207,11 +222,12 @@ func compactRefusedSkip(conv string, used int) bool {
 	return true
 }
 
-func compactRefusedNote(conv string, used int) {
+func compactRefusedNote(conv string, used int, msgs []Message) {
 	if conv == "" || used <= 0 {
 		return
 	}
 	model, window := engineMainNow()
+	hash := historyHash(msgs)
 	compactRefused.mu.Lock()
 	defer compactRefused.mu.Unlock()
 	if compactRefused.m == nil {
@@ -223,7 +239,7 @@ func compactRefusedNote(conv string, used int) {
 			break
 		}
 	}
-	compactRefused.m[conv] = compactRefusal{at: used, window: window, model: model}
+	compactRefused.m[conv] = compactRefusal{at: used, window: window, model: model, n: len(msgs), hash: hash}
 }
 
 func compactRefusedClear(conv string) {

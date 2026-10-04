@@ -2501,7 +2501,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 			if ptag.kind == perfMain {
 				mainConv = ptag.conv
 			}
-			if compactNeeded(messages, used, peakGen) && !compactRefusedSkip(mainConv, used) {
+			if compactNeeded(messages, used, peakGen) && !compactRefusedSkip(mainConv, used, messages) {
 				opt := compactOptsMid(chatCfg, ep, mainConv, messages, used, tools, reasoningEffort, reasoningKwargs, pol,
 					disableTools || toolChoiceNone)
 				yes, no := true, false

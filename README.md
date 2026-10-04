@@ -428,8 +428,9 @@ Ajoutées par ce fork :
   modèle jusqu'au redémarrage (gpt-oss à intensité haute peut épuiser le budget
   en réflexion : repli). La clé évite aussi un résumé voué au refus (même vide,
   il ne réduirait pas le contexte de 20 %) et, après un refus faute de réduction,
-  n'en redemande pas avant que le contexte ait grossi de 10 % — sauf à 90 % de la
-  fenêtre. Le filet réactif (prompt refusé), le bouton « compacter », les tâches,
+  n'en redemande pas avant que le contexte ait grossi de 10 % sur le même fil —
+  sauf à 90 % de la fenêtre ou après une édition, une régénération ou un fil
+  vidé. Le filet réactif (prompt refusé), le bouton « compacter », les tâches,
   les sous-agents et un preset externe gardent le chemin d'avant. Visible dans la
   télémétrie sous `compact`.
 - **Discussions multiples** : historique complet dans la barre latérale, titre

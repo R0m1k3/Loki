@@ -219,7 +219,7 @@ func TestCompactContDefautIdentique(t *testing.T) {
 	if stamp.seq != 0 {
 		t.Fatal("tampon de slot posé sans la clé")
 	}
-	if compactContinuationOn(ReadConfig()) || compactRefusedSkip(convActiveID(), 7000) {
+	if compactContinuationOn(ReadConfig()) || compactRefusedSkip(convActiveID(), 7000, nil) {
 		t.Fatal("continuation ou mémoire des refus active sans la clé")
 	}
 }
@@ -538,6 +538,25 @@ func TestCompactHopeless(t *testing.T) {
 	if changed || !refused || len(m.all()) != 1 {
 		t.Fatalf("sans pré-contrôle : changed=%v refused=%v requêtes=%d", changed, refused, len(m.all()))
 	}
+	// Un refus après résumé est noté ; il n'arrête ni le filet réactif ni le
+	// bouton manuel (compactMessages, sans options), qui redemandent un résumé.
+	if _, changed := compactMessagesNoted(context.Background(), msgs, Caps{}, compactOpts{conv: "c9", used: 7000}); changed {
+		t.Fatal("compaction acceptée")
+	}
+	compactRefused.mu.Lock()
+	_, noted := compactRefused.m["c9"]
+	compactRefused.mu.Unlock()
+	if !noted {
+		t.Fatal("refus non noté")
+	}
+	if err := SetConfigKey("COMPACT_CONTINUATION", "on"); err != nil {
+		t.Fatal(err)
+	}
+	before := len(m.all())
+	compactMessages(context.Background(), msgs, Caps{})
+	if len(m.all()) != before+1 {
+		t.Fatal("le chemin réactif ne doit pas tenir compte des refus mémorisés")
+	}
 	// Un cas qui réussit n'est jamais déclaré sans issue.
 	h := contHistory()
 	head, tailStart = compactBounds(h, int(float64(estimateTokens(h))*compactTailFrac))
@@ -547,40 +566,55 @@ func TestCompactHopeless(t *testing.T) {
 }
 
 // Mémoire des refus : pas de nouvel essai avant +10 % de contexte, jamais à
-// 90 % de la fenêtre, oubliée quand le contexte baisse ; rien sans la clé.
+// 90 % de la fenêtre, oubliée quand le contexte baisse ou que l'historique est
+// réécrit ; rien sans la clé.
 func TestCompactRefusedSkip(t *testing.T) {
 	testHome(t)
 	contReset(t)
 	if err := SetConfigKey("CTX", "65536"); err != nil {
 		t.Fatal(err)
 	}
-	compactRefusedNote("c1", 50000)
-	if compactRefusedSkip("c1", 52000) {
+	h := contHistory()
+	grown := append(append([]Message(nil), h...), um("suite"))
+	compactRefusedNote("c1", 50000, h)
+	if compactRefusedSkip("c1", 52000, grown) {
 		t.Fatal("sans la clé, aucun essai ne doit être sauté")
 	}
 	if err := SetConfigKey("COMPACT_CONTINUATION", "on"); err != nil {
 		t.Fatal(err)
 	}
-	if !compactRefusedSkip("c1", 52000) || compactRefusedSkip("c2", 52000) {
+	if !compactRefusedSkip("c1", 52000, grown) || compactRefusedSkip("c2", 52000, grown) {
 		t.Fatal("refus mal appliqué")
 	}
-	if compactRefusedSkip("c1", 59000) {
+	if compactRefusedSkip("c1", 59000, grown) {
 		t.Fatal("essai sauté à 90 % de la fenêtre")
 	}
-	if compactRefusedSkip("c1", 55000) {
+	if compactRefusedSkip("c1", 55000, grown) {
 		t.Fatal("essai sauté après +10 %")
 	}
-	if compactRefusedSkip("c1", 52000) {
+	if compactRefusedSkip("c1", 52000, grown) {
 		t.Fatal("refus non oublié après +10 %")
 	}
-	compactRefusedNote("c1", 50000)
-	if compactRefusedSkip("c1", 30000) || compactRefusedSkip("c1", 50000) {
+	compactRefusedNote("c1", 50000, h)
+	if compactRefusedSkip("c1", 30000, grown) || compactRefusedSkip("c1", 50000, grown) {
 		t.Fatal("refus non oublié quand le contexte baisse")
 	}
-	// Une compaction refusée note le refus ; réussie, elle l'efface.
-	compactRefusedNote("c1", 50000)
+	// Historique réécrit (édition, régénération, discussion vidée puis
+	// regarnie) : même taille de contexte, autre fil — on retente.
+	compactRefusedNote("c1", 50000, h)
+	edited := append([]Message(nil), grown...)
+	edited[3] = um("message modifié")
+	if compactRefusedSkip("c1", 51000, edited) || compactRefusedSkip("c1", 51000, grown) {
+		t.Fatal("refus gardé pour un historique réécrit")
+	}
+	compactRefusedNote("c1", 50000, h)
+	if compactRefusedSkip("c1", 51000, h[:5]) {
+		t.Fatal("refus gardé pour un historique raccourci")
+	}
+	// Une compaction réussie l'efface.
+	compactRefusedNote("c1", 50000, h)
 	compactRefusedClear("c1")
-	if compactRefusedSkip("c1", 51000) {
+	if compactRefusedSkip("c1", 51000, grown) {
 		t.Fatal("refus non effacé")
 	}
 }

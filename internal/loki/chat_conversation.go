@@ -804,7 +804,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// tout de suite, et le résumé peut prolonger le prompt en cache. Sans la
 	// clé, ni l'un ni l'autre.
 	conv := perfTagOf(ctx).conv
-	if compactNeeded(msgs, ctxUsed, peak) && !compactRefusedSkip(conv, ctxUsed) {
+	if compactNeeded(msgs, ctxUsed, peak) && !compactRefusedSkip(conv, ctxUsed, msgs) {
 		opt := c.compactOptsFor(caps, msgs, ctxUsed, conv)
 		if out, changed := c.compactAndPublish(ctx, epoch, "début-tour", msgs, ctxUsed, caps, opt); changed {
 			msgs = out
@@ -1017,7 +1017,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// retombe tout de suite et le tour suivant démarre avec de la marge.
 	// Sauf si un Reset est passé (rien à compacter) ou si le tour a été annulé
 	// (bouton stop) : on n'enchaîne pas plusieurs secondes de résumé sur un stop.
-	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) || compactRefusedSkip(conv, ctxUsed) {
+	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) || compactRefusedSkip(conv, ctxUsed, msgs) {
 		return
 	}
 	// context.Background() et non ctx : le tour est terminé, son contexte peut
