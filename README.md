@@ -473,8 +473,10 @@ Ajoutées par ce fork :
   et tout le tour est rendu autrement), ce rappel fait recalculer toute la
   boucle d'outils du tour. Avec `on`, le rappel part au bout du dernier résultat
   d'outil, et seul ce bout est à calculer — sur le moteur local, et seulement
-  si la sonde de gabarit a conclu que le rendu de ce modèle bouge (« inconnu » :
-  message à part, comme sans la clé). Le texte du rappel ne change pas, sa
+  si la sonde de gabarit a conclu que le rendu de ce modèle bouge pour la forme
+  de cette requête — mêmes outils, `chat_template_kwargs` et niveau de
+  raisonnement (« inconnu » ou forme jamais sondée : message à part, comme
+  sans la clé). Le texte du rappel ne change pas, sa
   place si : un modèle entraîné à se méfier des consignes lues dans une sortie
   d'outil peut moins bien le suivre. À comparer (tours qui concluent après le
   rappel) avant de l'adopter.

@@ -165,9 +165,14 @@ var (
 	// Attente entre deux essais sur un 503 (modèle en chargement).
 	tplProbeBackoff = time.Second
 
-	tplProbeMu      sync.Mutex
-	tplProbeCache   = map[string]tplProbeResult{}
-	tplProbeLast    *tplProbeResult
+	tplProbeMu    sync.Mutex
+	tplProbeCache = map[string]tplProbeResult{}
+	tplProbeLast  *tplProbeResult
+	// tplProbeByShape : le dernier verdict de chaque forme de requête
+	// (tplShape.hash). tplProbeLast est celui de la dernière forme sondée,
+	// quelle qu'elle soit : bon pour l'affichage, pas pour décider d'une
+	// requête d'une autre forme (tplCapsFor).
+	tplProbeByShape = map[string]tplProbeResult{}
 	tplProbeRunning bool
 	tplProbeTried   time.Time
 	tplProbeLogged  string
@@ -215,6 +220,20 @@ func tplCapsCurrent() (tplProbeResult, bool) {
 	return *tplProbeLast, true
 }
 
+// tplCapsFor : le dernier verdict pour CETTE forme de requête (mêmes outils,
+// mêmes chat_template_kwargs, même reasoning_effort). Pas de verdict pour elle
+// — jamais sondée, ou sortie du cache — : rien, et l'appelant se replie comme
+// sur « inconnu ». Rien non plus pour un preset externe.
+func tplCapsFor(shape tplShape) (tplProbeResult, bool) {
+	if externalActive() {
+		return tplProbeResult{}, false
+	}
+	tplProbeMu.Lock()
+	defer tplProbeMu.Unlock()
+	r, ok := tplProbeByShape[shape.hash()]
+	return r, ok
+}
+
 // tplProbeEnsure : verdict pour la forme donnée, depuis le cache ou une sonde.
 func tplProbeEnsure(ctx context.Context, shape tplShape) tplProbeResult {
 	if resolveChatEndpoint().External {
@@ -232,7 +251,7 @@ func tplProbeEnsure(ctx context.Context, shape tplShape) tplProbeResult {
 	props, err := p.props(ctx)
 	if err != nil {
 		r := tplUnknownResult("/props illisible : " + err.Error())
-		tplProbeStore("", r)
+		tplProbeStore("", shape.hash(), r)
 		return r
 	}
 	h := fnv.New64a()
@@ -245,6 +264,7 @@ func tplProbeEnsure(ctx context.Context, shape tplShape) tplProbeResult {
 	tplProbeMu.Lock()
 	if r, ok := tplProbeCache[key]; ok {
 		tplProbeLast = &r
+		tplProbeKeepShape(shape.hash(), r)
 		tplProbeMu.Unlock()
 		return r
 	}
@@ -265,14 +285,30 @@ func tplProbeEnsure(ctx context.Context, shape tplShape) tplProbeResult {
 	if fresh {
 		fmt.Fprintln(os.Stderr, line)
 	}
-	tplProbeStore(key, r)
+	tplProbeStore(key, shape.hash(), r)
 	return r
 }
 
-func tplProbeStore(key string, r tplProbeResult) {
+// tplProbeKeepShape note le verdict d'une forme (tplProbeMu tenu). Au plus
+// tplProbeCacheMax formes : la plus ancienne cède sa place.
+func tplProbeKeepShape(shape string, r tplProbeResult) {
+	if _, ok := tplProbeByShape[shape]; !ok && len(tplProbeByShape) >= tplProbeCacheMax {
+		oldest := ""
+		for k, v := range tplProbeByShape {
+			if oldest == "" || v.At.Before(tplProbeByShape[oldest].At) {
+				oldest = k
+			}
+		}
+		delete(tplProbeByShape, oldest)
+	}
+	tplProbeByShape[shape] = r
+}
+
+func tplProbeStore(key, shape string, r tplProbeResult) {
 	tplProbeMu.Lock()
 	defer tplProbeMu.Unlock()
 	tplProbeLast = &r
+	tplProbeKeepShape(shape, r)
 	if key == "" || !r.cacheable {
 		return
 	}

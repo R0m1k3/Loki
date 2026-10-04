@@ -407,25 +407,42 @@ func TestKeptImagesDebutDeTour(t *testing.T) {
 }
 
 // NUDGE_IN_TOOL : seulement avec la clé, sur le moteur local, si la sonde a dit
-// « instable » pour CE modèle.
+// « instable » pour CE modèle et pour la forme de CETTE requête.
 func TestNudgeInToolOn(t *testing.T) {
 	freshTplProbe(t)
 	cfg := map[string]string{"MODEL": "/models/qwen35.gguf"}
+	tools := []Tool{readTool(), grepTool()}
+	kwargs := map[string]any{"enable_thinking": true}
 	set := func(r tplProbeResult) {
 		tplProbeMu.Lock()
 		tplProbeLast = &r
+		tplProbeKeepShape(newTplShape(tools, kwargs, "").hash(), r)
 		tplProbeMu.Unlock()
 	}
+	on := func(cfg map[string]string, ep chatEndpoint) bool { return nudgeInToolOn(cfg, ep, tools, kwargs, "") }
 	set(tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplNo})
-	if nudgeInToolOn(cfg, chatEndpoint{}) {
+	if on(cfg, chatEndpoint{}) {
 		t.Fatal("actif sans la clé")
 	}
 	cfg["NUDGE_IN_TOOL"] = "on"
-	if !nudgeInToolOn(cfg, chatEndpoint{}) {
+	if !on(cfg, chatEndpoint{}) {
 		t.Fatal("inactif avec la clé sur un gabarit instable")
 	}
-	if nudgeInToolOn(cfg, chatEndpoint{External: true}) {
+	if on(cfg, chatEndpoint{External: true}) {
 		t.Fatal("actif sur un preset externe")
+	}
+	// Le verdict « instable » d'une forme ne vaut pas pour une autre : autres
+	// outils, autres kwargs ou autre niveau de raisonnement — inconnu, repli.
+	for name, other := range map[string]func() bool{
+		"autres outils": func() bool { return nudgeInToolOn(cfg, chatEndpoint{}, []Tool{readTool()}, kwargs, "") },
+		"autres kwargs": func() bool {
+			return nudgeInToolOn(cfg, chatEndpoint{}, tools, map[string]any{"enable_thinking": false}, "")
+		},
+		"autre effort": func() bool { return nudgeInToolOn(cfg, chatEndpoint{}, tools, kwargs, "high") },
+	} {
+		if other() {
+			t.Errorf("%s : actif sur le verdict d'une autre forme", name)
+		}
 	}
 	for _, r := range []tplProbeResult{
 		{Model: "qwen35.gguf", PrefixStable: tplUnknown},
@@ -433,9 +450,21 @@ func TestNudgeInToolOn(t *testing.T) {
 		{Model: "autre.gguf", PrefixStable: tplNo},
 	} {
 		set(r)
-		if nudgeInToolOn(cfg, chatEndpoint{}) {
+		if on(cfg, chatEndpoint{}) {
 			t.Fatalf("actif pour %+v", r)
 		}
+	}
+	// La dernière forme sondée (tplProbeLast) ne décide plus : une autre forme
+	// sondée « stable » ensuite ne change rien au verdict de la nôtre, et
+	// inversement.
+	set(tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplNo})
+	tplProbeMu.Lock()
+	last := tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplYes}
+	tplProbeLast = &last
+	tplProbeKeepShape(newTplShape(nil, kwargs, "").hash(), last)
+	tplProbeMu.Unlock()
+	if !on(cfg, chatEndpoint{}) {
+		t.Error("verdict de notre forme écrasé par la dernière forme sondée")
 	}
 }
 
@@ -468,11 +497,17 @@ func TestRappelDeBudgetDansLeResultat(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// Le verdict de la sonde pour la forme exacte de la requête du tour : mêmes
+	// outils, mêmes chat_template_kwargs, même niveau de raisonnement.
+	caps := Caps{Agent: true}
+	_, effort, _, kwargs := turnReasoning(ReadConfig())
 	tplProbeMu.Lock()
-	tplProbeLast = &tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplNo}
+	r := tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplNo}
+	tplProbeLast = &r
+	tplProbeKeepShape(newTplShape(EnabledTools(caps), kwargs, effort).hash(), r)
 	tplProbeMu.Unlock()
 	reqs := scriptedServer(t, sseGlobCall, sseChunk("fini")+sseStop)
-	extra, err := runChat(t.Context(), []Message{um("cherche")}, 0.7, Caps{Agent: true}, func(StreamEvent) bool { return true })
+	extra, err := runChat(t.Context(), []Message{um("cherche")}, 0.7, caps, func(StreamEvent) bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,6 +518,32 @@ func TestRappelDeBudgetDansLeResultat(t *testing.T) {
 	}
 	if len(extra) != 2 || !reflect.DeepEqual(extra[1], last) {
 		t.Fatalf("historique %+v : le résultat doit y être tel qu'envoyé", extra)
+	}
+}
+
+// Le verdict « instable » d'une AUTRE forme (dernière sondée, ici sans
+// outils) ne décide pas pour ce tour : rappel à part, comme sans la clé.
+func TestRappelDeBudgetVerdictDUneAutreForme(t *testing.T) {
+	withWorkspace(t)
+	freshTplProbe(t)
+	for k, v := range map[string]string{"AGENT_BUDGET": "1", "NUDGE_IN_TOOL": "on", "MODEL": "/models/qwen35.gguf"} {
+		if err := SetConfigKey(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, effort, _, kwargs := turnReasoning(ReadConfig())
+	tplProbeMu.Lock()
+	r := tplProbeResult{Model: "qwen35.gguf", PrefixStable: tplNo}
+	tplProbeLast = &r
+	tplProbeKeepShape(newTplShape(nil, kwargs, effort).hash(), r)
+	tplProbeMu.Unlock()
+	reqs := scriptedServer(t, sseGlobCall, sseChunk("fini")+sseStop)
+	if _, err := runChat(t.Context(), []Message{um("cherche")}, 0.7, Caps{Agent: true}, func(StreamEvent) bool { return true }); err != nil {
+		t.Fatal(err)
+	}
+	sent := reqMessages(t, reqs()[1])
+	if last := sent[len(sent)-1]; last.Role != "user" {
+		t.Fatalf("rappel glissé dans le résultat sur le verdict d'une autre forme : %+v", last)
 	}
 }
 

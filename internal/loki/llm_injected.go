@@ -174,9 +174,11 @@ func withTrailingHint(msgs []Message, hint string) []Message {
 // l'opt-in, à n'activer qu'après avoir comparé l'obéissance aux rappels.
 //
 // Moteur local seulement, et seulement si la sonde de gabarit
-// (chat_tplprobe.go) a conclu « préfixe instable » pour CE modèle : « inconnu »
-// ou un autre modèle laissent le message à part.
-func nudgeInToolOn(cfg map[string]string, ep chatEndpoint) bool {
+// (chat_tplprobe.go) a conclu « préfixe instable » pour CE modèle et pour la
+// forme de CETTE requête (outils, chat_template_kwargs, reasoning_effort : le
+// rendu en dépend). « inconnu », un autre modèle ou une forme jamais sondée
+// laissent le message à part.
+func nudgeInToolOn(cfg map[string]string, ep chatEndpoint, tools []Tool, kwargs map[string]any, effort string) bool {
 	switch strings.ToLower(strings.TrimSpace(cfg["NUDGE_IN_TOOL"])) {
 	case "on", "1", "true", "yes", "oui":
 	default:
@@ -185,7 +187,7 @@ func nudgeInToolOn(cfg map[string]string, ep chatEndpoint) bool {
 	if ep.External {
 		return false
 	}
-	r, ok := tplCapsCurrent()
+	r, ok := tplCapsFor(newTplShape(tools, kwargs, effort))
 	return ok && r.PrefixStable == tplNo && r.Model != "" && r.Model == reasoningEchoModel(cfg)
 }
 

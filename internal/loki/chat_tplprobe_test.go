@@ -29,6 +29,7 @@ func freshTplProbe(t *testing.T) {
 		tplProbeMu.Lock()
 		tplProbeCache = map[string]tplProbeResult{}
 		tplProbeLast = nil
+		tplProbeByShape = map[string]tplProbeResult{}
 		tplProbeRunning = false
 		tplProbeTried = time.Time{}
 		tplProbeLogged = ""
@@ -445,5 +446,35 @@ func TestSondeGabaritDeclencheeParRunChat(t *testing.T) {
 		if strings.Contains(k, "template") && k != "chat_template_kwargs" || k == "add_generation_prompt" {
 			t.Fatalf("clé %q ajoutée à la complétion", k)
 		}
+	}
+}
+
+// Le verdict est rangé par forme de requête : la dernière forme sondée ne
+// décide pas pour une autre (NUDGE_IN_TOOL), et une forme jamais sondée n'a
+// pas de verdict.
+func TestSondeGabaritVerdictParForme(t *testing.T) {
+	testHome(t)
+	freshTplProbe(t)
+	f := &fakeTpl{mode: "qwen3"}
+	f.start(t)
+	a := newTplShape(probeTools(), nil, "")
+	b := newTplShape(nil, nil, "")
+	if r := tplProbeEnsure(context.Background(), a); r.PrefixStable != tplNo {
+		t.Fatalf("forme A : %+v", r)
+	}
+	f.mu.Lock()
+	f.mode = "keep"
+	f.mu.Unlock()
+	if r := tplProbeEnsure(context.Background(), b); r.PrefixStable != tplYes {
+		t.Fatalf("forme B : %+v", r)
+	}
+	if r, ok := tplCapsCurrent(); !ok || r.PrefixStable != tplYes {
+		t.Errorf("affichage : la dernière sondée, B : %+v", r)
+	}
+	if r, ok := tplCapsFor(a); !ok || r.PrefixStable != tplNo {
+		t.Errorf("forme A écrasée par B : %+v %v", r, ok)
+	}
+	if _, ok := tplCapsFor(newTplShape(probeTools(), map[string]any{"enable_thinking": false}, "")); ok {
+		t.Error("verdict pour une forme jamais sondée")
 	}
 }

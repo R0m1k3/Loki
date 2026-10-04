@@ -1417,8 +1417,10 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 			// NUDGE_IN_TOOL (opt-in, gabarits dont le rendu bouge quand un message
 			// user s'ajoute) : au bout du dernier résultat d'outil. Sinon, ou si
 			// la forme ne s'y prête pas, un message à part comme toujours.
+			// La sonde ne connaît que la forme normale (outils annoncés, ni coupés
+			// ni neutralisés) : une relance d'une autre forme se replie.
 			placed := false
-			if nudgeInToolOn(chatCfg, ep) {
+			if !disableTools && !toolChoiceNone && nudgeInToolOn(chatCfg, ep, tools, reasoningKwargs, reasoningEffort) {
 				messages, extra, placed = nudgeIntoTool(messages, extra, msg)
 			}
 			if !placed {
