@@ -498,23 +498,48 @@ const trackerIndexPrefix = "Trackers (tracker tool)"
 // la dernière valeur — SANS appeler l'outil : elle ne l'appelle que pour fouiller
 // l'historique ou pour modifier. Quelques lignes, jamais le contenu.
 func trackerIndexMessage() (Message, bool) {
-	if memMode() != MemAlways {
+	list, ok := trackerIndexList()
+	if !ok {
 		return Message{}, false
+	}
+	return renderTrackerIndex(list, ""), true
+}
+
+// trackerIndexList : les trackers à annoncer, ok=false hors mode mémoire
+// proactif ou s'il n'y en a aucun. Séparé du rendu pour le bloc figé
+// (chat_projsnap.go), qui en tire aussi son état ligne à ligne.
+func trackerIndexList() ([]trackerMeta, bool) {
+	if memMode() != MemAlways {
+		return nil, false
 	}
 	list := trackerList()
-	if len(list) == 0 {
-		return Message{}, false
+	return list, len(list) > 0
+}
+
+// trackerIndexLine : la ligne d'un tracker, « nom — dernière valeur (date) ».
+func trackerIndexLine(m trackerMeta) string {
+	last := ""
+	if m.last != nil {
+		last = " — " + m.last.Text + " (" + fmtEvent(*m.last) + ")"
 	}
+	return m.Name + last
+}
+
+// renderTrackerIndex : le message d'index des trackers. asOf vide = la forme
+// vivante (texte d'avant PROJ_SNAPSHOT, à l'octet près). Sinon la copie figée :
+// datée, et sans « réponds directement d'ici », puisque des <context_update>
+// plus récents peuvent en remplacer des lignes.
+func renderTrackerIndex(list []trackerMeta, asOf string) Message {
 	var b strings.Builder
-	b.WriteString(trackerIndexPrefix + " — this is the COMPLETE list of your trackers, each with its LATEST point. To say which trackers exist or give a latest value, answer straight from this — do NOT call tracker with no arguments to list them, it would only repeat this. Call tracker(name[, when]) only to look further back in history, or with action \"add\"/\"edit\"/\"delete\" to change data.\n")
-	for _, m := range list {
-		last := ""
-		if m.last != nil {
-			last = " — " + m.last.Text + " (" + fmtEvent(*m.last) + ")"
-		}
-		fmt.Fprintf(&b, "- %s%s\n", m.Name, last)
+	if asOf == "" {
+		b.WriteString(trackerIndexPrefix + " — this is the COMPLETE list of your trackers, each with its LATEST point. To say which trackers exist or give a latest value, answer straight from this — do NOT call tracker with no arguments to list them, it would only repeat this. Call tracker(name[, when]) only to look further back in history, or with action \"add\"/\"edit\"/\"delete\" to change data.\n")
+	} else {
+		b.WriteString(trackerIndexPrefix + " as of " + asOf + trackerFrozenHead)
 	}
-	return Message{Role: "system", Content: strings.TrimRight(b.String(), "\n")}, true
+	for _, m := range list {
+		fmt.Fprintf(&b, "- %s\n", trackerIndexLine(m))
+	}
+	return Message{Role: "system", Content: strings.TrimRight(b.String(), "\n")}
 }
 
 // --- outil modèle -------------------------------------------------------------

@@ -1130,6 +1130,22 @@ func runChat(ctx context.Context, messages []Message, temperature float64, caps 
 // que décrit le préambule, à l'octet près.
 func runChatTools(ctx context.Context, messages []Message, tools []Tool, temperature float64, caps Caps, cb ChatCallback, injectQueued ...func() []Message) ([]Message, error) {
 	var extra []Message
+	// Bloc projet figé de la discussion (PROJ_SNAPSHOT, chat_projsnap.go) : nil
+	// hors tour de discussion avec la clé. Masqué pour la suite du contexte —
+	// un sous-agent lancé par un outil a son propre fil, pas ce bloc.
+	snapTurn := projSnapTurnFrom(ctx)
+	if snapTurn != nil {
+		ctx = withProjSnapTurn(ctx, nil)
+	}
+	// newHistory publie l'historique réécrit en cours de tour (compaction,
+	// réduction). Le début du prompt change de toute façon : avec la clé, le
+	// bloc figé y est remplacé par le vivant et les mises à jour retirées.
+	newHistory := func() {
+		if snapTurn != nil {
+			messages = snapTurn.refresh(messages)
+		}
+		cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+	}
 	// Some backends (vanilla llama.cpp builds) don't populate `reasoning_content`
 	// in streaming mode: the model's <think> block (opened by the chat template)
 	// arrives inline in `content`, terminated by a literal </think>. When
@@ -1431,7 +1447,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					// secours ne survit pas à la fin du tour et le prompt re-déborde au
 					// message suivant.
 					extra = nil
-					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					newHistory()
 					continue
 				}
 			}
@@ -1444,7 +1460,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					logCompact("réduction", overflowTokens(msg), messages, c, changed)
 					messages = c
 					extra = nil
-					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					newHistory()
 					continue
 				}
 			}
@@ -2433,7 +2449,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					// repart d'un `extra` vide, sinon l'appelant la ré-empilerait avec
 					// les messages du tour et dupliquerait tout.
 					extra = nil
-					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					newHistory()
 				}
 			}
 			continue
@@ -2477,7 +2493,7 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 					cb(StreamEvent{DropReasoning: true})
 					messages = c
 					extra = nil
-					cb(StreamEvent{NewHistory: append([]Message(nil), messages...)})
+					newHistory()
 					continue
 				}
 			}

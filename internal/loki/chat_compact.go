@@ -468,6 +468,10 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 			}
 		}
 	}
+	// Sans les mises à jour du projet (PROJ_SNAPSHOT) : ce sont des données de
+	// Loki, pas la conversation, et le bloc projet est repris tout neuf après la
+	// compaction. Sans la clé, rien à retirer.
+	forSummary = stripContextUpdates(forSummary)
 	summary, err := summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
 	var mid []Message
 	if err != nil || summaryLooksEmpty(summary) {

@@ -102,6 +102,10 @@ var configTemplate = []struct{ key, help string }{
 		"les étapes d'une boucle d'outils se relisent avec leur réflexion au lieu de blocs vides, et le moteur ne recalcule " +
 		"plus le dernier message ; plus de contexte par tour, compaction plus tôt. Vide/off (défaut) = rien n'est renvoyé. " +
 		"Jamais vers une API externe ni vers un autre modèle ; suspendu de lui-même si le gabarit le refuse"},
+	{"PROJ_SNAPSHOT", "on = figer le bloc projet (description, index mémoire, trackers, AGENTS.md) par discussion et livrer " +
+		"ses changements en <context_update> en tête du message suivant : une page créée ou une valeur de tracker ne fait plus " +
+		"recalculer toute la conversation. Repris tout neuf à chaque compaction, redémarrage ou changement de modèle/projet. " +
+		"Vide/off (défaut) = bloc reconstruit à chaque tour ; sans effet sur un preset externe"},
 	{"REASONING_BUDGET", "plafond de tokens de réflexion ; -1 = illimité"},
 	{"REASONING_EFFORT", "intensité du raisonnement : vide (auto) / none / low / medium / high / xhigh"},
 	{"TEMP", "température d'échantillonnage ; vide = défaut du moteur"},

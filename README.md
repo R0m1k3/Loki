@@ -368,6 +368,25 @@ Ajoutées par ce fork :
   vers une API externe ni vers un autre modèle ; un prompt trop long est d'abord
   rejoué sans raisonnement, et un gabarit qui le refuse le suspend pour ce
   modèle jusqu'au redémarrage.
+- **Bloc projet figé** (clé `PROJ_SNAPSHOT`, **off** par défaut,
+  `loki config set PROJ_SNAPSHOT on`) : le contexte du projet (description,
+  index mémoire, trackers, `AGENTS.md`) part en tête du premier message ; sans
+  la clé il est reconstruit à chaque tour, et une page créée ou une valeur de
+  tracker notée fait recalculer toute la conversation derrière lui. Avec la clé,
+  chaque discussion garde une copie datée du bloc, envoyée à l'identique, et les
+  changements arrivent en tête du message suivant dans un bloc
+  `<context_update>` : pages ajoutées, modifiées, retirées, nouvelle ligne d'un
+  tracker, et le texte **complet** d'une description ou d'un `AGENTS.md` modifié
+  — rien n'est perdu, seul ce petit bloc est à calculer. Une ligne du prompt
+  système (présente seulement avec la clé) dit au modèle que ces blocs viennent
+  de Loki et que le plus récent l'emporte. Le bloc est repris tout neuf, et les
+  anciens `<context_update>` retirés, quand le début du prompt change de toute
+  façon : compaction, système ou outils modifiés (date, réglages), redémarrage de
+  Loki, changement de modèle, de preset, de projet, de mode mémoire ou de mode
+  Code — et dès que les mises à jour accumulées deviennent trop longues. Les
+  tâches planifiées gardent le bloc à jour à chaque tour ; sans agent, rien du
+  projet n'est envoyé ; un preset externe (API) n'est jamais concerné. Le titre, l'export JSON, le résumé de compaction et la
+  passe de vérification ne voient pas ces blocs.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

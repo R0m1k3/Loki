@@ -156,13 +156,13 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 
 	// Même contexte que le tour de build : projet (description, index mémoire,
 	// trackers) et consignes du dépôt. Sans eux, la reprise changeait le début
-	// du premier message utilisateur — tout le cache de prompt à refaire.
-	final := append(projectSystemMessages(), msgs...)
-	if m, ok := codeInstructionsMessage(caps); ok {
-		final = append([]Message{m}, final...)
-	}
-	if sp := readSysPrompt(); sp != "" {
-		final = append([]Message{{Role: "system", Content: sp}}, final...)
+	// du premier message utilisateur — tout le cache de prompt à refaire. Même
+	// assemblage aussi (turnView) : avec PROJ_SNAPSHOT, le bloc figé de la
+	// discussion, et ses changements en tête de la consigne.
+	sent, tools, snapTurn := c.turnView(caps, epoch, msgs, true)
+	runCtx := ctx
+	if snapTurn != nil {
+		runCtx = withProjSnapTurn(ctx, snapTurn)
 	}
 	var content strings.Builder
 	sawUsage := false
@@ -171,8 +171,7 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	// raisonnement de la réponse finale (REASONING_ECHO).
 	var newBase []Message
 	var echo *ReasoningEcho
-	sent, tools := prepareTurn(final, caps)
-	extra, _ := runChatTools(ctx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
+	extra, _ := runChatTools(runCtx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		if ev.Stats != nil && ev.Stats.PromptTokensTotal > 0 {
 			sawUsage = true
 		}
@@ -205,6 +204,9 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 	if c.epoch == epoch {
 		if newBase != nil {
 			c.Messages = newBase
+		}
+		if s := snapTurn.takeRefreshed(); s != nil {
+			c.ProjSnap = s // même règle que generate
 		}
 		c.Messages = append(c.Messages, extra...)
 		if s := content.String(); strings.TrimSpace(s) != "" {
@@ -300,7 +302,9 @@ func (c *Conversation) forwardStream(ev StreamEvent, epoch int, isolated bool) {
 	}
 }
 
-// lastUserText retrouve le dernier message utilisateur du fil (la tâche).
+// lastUserText retrouve le dernier message utilisateur du fil (la tâche), sans
+// la mise à jour du projet que Loki a pu poser en tête (PROJ_SNAPSHOT) : le
+// vérificateur la prendrait pour une partie de la demande.
 func (c *Conversation) lastUserText() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -309,7 +313,8 @@ func (c *Conversation) lastUserText() string {
 		if c.Messages[i].Role != "user" || isLokiInjected(c.Messages[i]) {
 			continue
 		}
-		if s, ok := c.Messages[i].Content.(string); ok {
+		m, _ := withoutCtxUpdate(c.Messages[i])
+		if s, ok := m.Content.(string); ok {
 			return s
 		}
 	}

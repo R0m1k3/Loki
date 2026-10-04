@@ -33,8 +33,19 @@ const memIndexPrefix = "Project memory index"
 // proactif ou si l'index est vide. On n'injecte que l'INDEX (titres + accroches),
 // jamais le contenu des pages — l'IA fait mem_read pour lire une page.
 func memIndexMessage() (Message, bool) {
-	if memMode() != MemAlways {
+	idx, ok := memIndexText()
+	if !ok {
 		return Message{}, false
+	}
+	return renderMemIndex(idx, ""), true
+}
+
+// memIndexText lit l'index à injecter : ok=false hors mode mémoire proactif ou
+// sans aucune page. Séparé du rendu pour que le bloc figé (chat_projsnap.go)
+// déduise son état de la MÊME lecture que le texte qu'il envoie.
+func memIndexText() (string, bool) {
+	if memMode() != MemAlways {
+		return "", false
 	}
 	idx := strings.TrimSpace(MemContent(memIndexFile))
 	// Un index qui n'a que son en-tête ne dit rien au modèle et coûte du contexte
@@ -42,11 +53,22 @@ func memIndexMessage() (Message, bool) {
 	// sur le début de ligne, parce que l'en-tête cite le format `- [titre](…)` en
 	// exemple — une simple recherche du motif le prendrait pour une page.
 	if idx == "" || !hasIndexedPage(idx) {
-		return Message{}, false
+		return "", false
 	}
-	content := memIndexPrefix + " for project \"" + projectName(activeProjectSlug()) +
-		"\" — the pages you can open with mem_read (only titles/hooks here, not their content). Auto-maintained.\n\n" + idx
-	return Message{Role: "system", Content: content}, true
+	return idx, true
+}
+
+// renderMemIndex : le message d'index. asOf vide = la forme vivante, à jour à
+// chaque tour (texte d'avant PROJ_SNAPSHOT, à l'octet près) ; sinon la copie
+// figée, datée, que les <context_update> de Loki complètent ensuite.
+func renderMemIndex(idx, asOf string) Message {
+	head := memIndexPrefix + " for project \"" + projectName(activeProjectSlug()) + "\""
+	tail := " — the pages you can open with mem_read (only titles/hooks here, not their content). Auto-maintained."
+	if asOf != "" {
+		head += " as of " + asOf
+		tail += memIndexFrozenTail
+	}
+	return Message{Role: "system", Content: head + tail + "\n\n" + idx}
 }
 
 // projectContextPrefix marque le message de contexte projet injecté (description),
@@ -59,14 +81,18 @@ const projectContextPrefix = "Project context"
 // dans quel projet elle est via l'index mémoire, sans laïus. Indépendant du mode
 // mémoire — une description reste utile même mémoire coupée.
 func projectContextMessage() (Message, bool) {
-	slug := activeProjectSlug()
-	desc := strings.TrimSpace(projectDesc(slug))
+	desc := strings.TrimSpace(projectDesc(activeProjectSlug()))
 	if desc == "" {
 		return Message{}, false
 	}
+	return renderProjectContext(desc), true
+}
+
+// renderProjectContext : le message de description, pour une description non vide.
+func renderProjectContext(desc string) Message {
 	content := projectContextPrefix + " — you are working within the project \"" +
-		projectName(slug) + "\". What this project is about (set by the user):\n\n" + desc
-	return Message{Role: "system", Content: content}, true
+		projectName(activeProjectSlug()) + "\". What this project is about (set by the user):\n\n" + desc
+	return Message{Role: "system", Content: content}
 }
 
 // projectSystemMessages renvoie, dans l'ordre, tout ce qui situe l'IA dans son
@@ -82,7 +108,8 @@ func projectContextMessage() (Message, bool) {
 //
 // Le prix est une invalidation du cache de prompt quand l'index change, c'est-à-
 // dire quand une page est créée ou supprimée : exactement les moments où le
-// modèle DOIT voir la nouvelle liste.
+// modèle DOIT voir la nouvelle liste. PROJ_SNAPSHOT=on (chat_projsnap.go) évite
+// ce prix pour la discussion : bloc figé, changements livrés en <context_update>.
 func projectSystemMessages() []Message {
 	var out []Message
 	if m, ok := projectContextMessage(); ok {

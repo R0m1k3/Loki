@@ -127,6 +127,13 @@ func baseSystemPrompt(caps Caps, tools []Tool) string {
 	if caps.Agent {
 		b.WriteString(mcpPromptLine(tools))
 	}
+	// PROJ_SNAPSHOT (chat_projsnap.go) : le bloc projet est figé, ses changements
+	// arrivent en tête des messages suivants. Une ligne fixe, seulement avec la
+	// clé, pour qu'ils ne passent ni pour la parole de l'utilisateur ni pour
+	// moins récents que le bloc.
+	if caps.Agent && projSnapEnabled(ReadConfig()) {
+		b.WriteString(projSnapSystemLine)
+	}
 	b.WriteString("\nDate: " + time.Now().Format("2006-01-02"))
 	return b.String()
 }

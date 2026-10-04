@@ -171,6 +171,9 @@ func convSummary(msgs []Message) string {
 		if m.Role != "user" || isLokiInjected(m) {
 			continue
 		}
+		// Le titre vient de ce qu'a écrit l'utilisateur, pas d'une mise à jour
+		// du projet posée en tête par Loki (PROJ_SNAPSHOT).
+		m, _ = withoutCtxUpdate(m)
 		s, _ := m.Content.(string)
 		s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
 		if s == "" {

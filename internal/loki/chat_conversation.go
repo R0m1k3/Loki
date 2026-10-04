@@ -67,6 +67,10 @@ type Conversation struct {
 	// persisté : un rechargement repart du seul CtxUsed, comme avant.
 	ctxUsedLen int
 	genPeak    int
+	// ProjSnap : bloc projet figé de la discussion et dernier état annoncé au
+	// modèle (PROJ_SNAPSHOT, chat_projsnap.go). nil = pas d'instantané : le
+	// prochain tour en prend un. Toujours nil sans la clé (JSON inchangé).
+	ProjSnap *projSnapshot `json:"proj_snap,omitempty"`
 
 	Generating bool               `json:"-"`
 	cancel     context.CancelFunc // annule la génération en cours (/stop)
@@ -182,6 +186,8 @@ func LoadConversation() {
 	}
 	conv.mu.Lock()
 	defer conv.mu.Unlock()
+	// Unmarshal ne remet pas à zéro un champ absent du JSON.
+	conv.ProjSnap = nil
 	_ = json.Unmarshal(b, conv)
 	// Guérit les conversations d'avant le passage des captures en éphémère : un
 	// base64 d'image persisté était rejoué à chaque tour et dépassait le contexte.
@@ -212,6 +218,10 @@ func (c *Conversation) loadFrom(id string, b []byte) {
 	}
 	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
 	c.ctxUsedLen, c.genPeak = 0, 0
+	// Bloc figé de l'ancienne discussion : json.Unmarshal ne remet pas à zéro un
+	// champ absent, une discussion neuve (ou enregistrée sans lui) l'aurait hérité
+	// — avec la description et l'index d'un autre projet.
+	c.ProjSnap = nil
 	c.queued = nil // file de l'ancienne discussion : elle ne suit pas la bascule
 	if len(b) > 0 {
 		_ = json.Unmarshal(b, c)
@@ -397,6 +407,12 @@ func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase s
 	if caps.Agent {
 		compacted = remindReadMemPages(compacted, msgs)
 	}
+	// PROJ_SNAPSHOT : le début du prompt est réécrit, le bloc projet sera donc
+	// repris tout neuf au prochain tour (ProjSnap = nil). Les mises à jour déjà
+	// livrées le suivraient dans la queue gardée telle quelle, une vieille valeur
+	// après la fraîche : retirées ici, elles n'apprennent rien que le bloc neuf
+	// ne dise. Sans la clé, rien à retirer.
+	compacted = stripContextUpdates(compacted)
 	overhead := ctxUsed - estimateTokens(msgs)
 	if overhead < 0 {
 		overhead = 0
@@ -405,6 +421,7 @@ func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase s
 	c.mu.Lock()
 	if c.epoch == epoch {
 		c.Messages = compacted
+		c.ProjSnap = nil
 		c.CtxUsed = est // le vrai compte reviendra avec les stats du prochain tour
 		c.ctxUsedLen = len(compacted)
 	}
@@ -797,15 +814,14 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// agent, on veut parler au modèle nu, comme à un llama-server direct. Le
 	// prompt du preset et l'index mémoire décrivent des outils que ce mode n'a
 	// pas : le modèle se mettait à écrire des <tool_call> en clair.
-	final := msgs
-	if caps.Agent {
-		final = append(projectSystemMessages(), msgs...)
-		if m, ok := codeInstructionsMessage(caps); ok {
-			final = append([]Message{m}, final...)
-		}
-		if sp := readSysPrompt(); sp != "" {
-			final = append([]Message{{Role: "system", Content: sp}}, final...)
-		}
+	//
+	// Assemblage dans turnView (chat_projsnap.go) : avec PROJ_SNAPSHOT, le bloc
+	// projet est celui, figé, de la discussion, et ses changements partent en
+	// tête de ce message — après la compaction de début de tour, sous c.mu.
+	sent, tools, snapTurn := c.turnView(caps, epoch, msgs, caps.Agent)
+	runCtx := ctx
+	if snapTurn != nil {
+		runCtx = withProjSnapTurn(ctx, snapTurn)
 	}
 
 	// newBase : vue modèle publiée par une compaction survenue PENDANT le tour.
@@ -825,8 +841,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// asked : le tour s'est terminé sur une question à l'utilisateur (outil ask) —
 	// pas de vérification du mode Code avant sa réponse.
 	asked := false
-	sent, tools := prepareTurn(final, caps)
-	extra, _ := runChatTools(ctx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
+	extra, _ := runChatTools(runCtx, sent, tools, temperature, caps, func(ev StreamEvent) bool {
 		switch {
 		case ev.Err != nil:
 			c.appendDelta(epoch, map[string]any{"error": ev.Err.Error()})
@@ -926,6 +941,11 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	if c.epoch == epoch {
 		if newBase != nil {
 			c.Messages = newBase
+		}
+		// Bloc projet rafraîchi par une compaction en cours de tour
+		// (PROJ_SNAPSHOT) : c'est lui que le tour suivant renvoie.
+		if s := snapTurn.takeRefreshed(); s != nil {
+			c.ProjSnap = s
 		}
 		c.Messages = append(c.Messages, extra...)
 		if s := content.String(); strings.TrimSpace(s) != "" {
@@ -1080,6 +1100,7 @@ func (c *Conversation) Reset() {
 	c.Seq = 0
 	c.CtxUsed = 0
 	c.ctxUsedLen, c.genPeak = 0, 0
+	c.ProjSnap = nil
 	c.epoch++
 	c.Generating = false
 	c.benching = false // Stop a annulé le bench : le verrou est rendu ici

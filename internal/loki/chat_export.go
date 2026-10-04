@@ -103,8 +103,10 @@ func (c *Conversation) ExportJSON(o exportOpts) ([]byte, error) {
 		Version:    Version,
 		ExportedAt: time.Now().Format(time.RFC3339),
 		CtxUsed:    ctxUsed,
-		Messages:   stripInlineImages(msgs),
-		Log:        filterLog(log, o),
+		// Sans les mises à jour du projet (PROJ_SNAPSHOT) : l'export rend la
+		// conversation, pas les données que Loki y a glissées.
+		Messages: stripInlineImages(stripContextUpdates(msgs)),
+		Log:      filterLog(log, o),
 	}
 	return json.MarshalIndent(p, "", "  ")
 }
