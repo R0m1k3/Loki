@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -955,5 +956,47 @@ func TestTuneForeignEngine(t *testing.T) {
 		if err != nil && !strings.Contains(err.Error(), "LOKI_HOME="+home) {
 			t.Errorf("%s : message sans LOKI_HOME : %v", c.name, err)
 		}
+	}
+}
+
+// La reprise du processus web tourne toutes les 30 s, pendant que ce même
+// processus prend et rend ses propres verrous (bouton « Optimiser… »,
+// application d'un résultat). Elle ne doit jamais tenir l'un d'eux pour
+// périmé : entre la création du fichier et l'inscription, ou entre
+// l'inscription retirée et le fichier retiré, elle aurait défait un preset
+// tout juste vérifié (phase « application ») et relancé le moteur.
+func TestTuneRecoverNeverReapsOwnLock(t *testing.T) {
+	testHome(t)
+	prevAlive, prevStart := tuneProcAlive, tuneRecoverStart
+	tuneProcAlive = func(p tuneProc) bool { return p.PID == os.Getpid() }
+	var starts atomic.Int32
+	tuneRecoverStart = func() { starts.Add(1) }
+	t.Cleanup(func() { tuneProcAlive, tuneRecoverStart = prevAlive, prevStart })
+
+	stop := make(chan struct{})
+	reaped := make(chan struct{})
+	go func() {
+		defer close(reaped)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				tuneRecoverStale()
+			}
+		}
+	}()
+	for i := 0; i < 60; i++ {
+		l, err := tuneLockAcquire("apply", true)
+		if err != nil {
+			t.Fatalf("tour %d : %v", i, err)
+		}
+		l.setPhase("application")
+		l.release()
+	}
+	close(stop)
+	<-reaped
+	if n := starts.Load(); n != 0 {
+		t.Errorf("verrou vivant de ce processus écarté %d fois", n)
 	}
 }

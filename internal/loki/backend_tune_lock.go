@@ -55,10 +55,13 @@ type tuneProc struct {
 
 // tuneOwner : le contenu du verrou.
 type tuneOwner struct {
-	Owner tuneProc  `json:"owner"`
-	Via   string    `json:"via"`   // « web » ou « cli »
-	Phase string    `json:"phase"` // « essais » ou « application »
-	Since int64     `json:"since"`
+	Owner tuneProc `json:"owner"`
+	Via   string   `json:"via"`   // « web » ou « cli »
+	Phase string   `json:"phase"` // « essais » ou « application »
+	Since int64    `json:"since"`
+	// Nonce : distingue deux verrous pris par le même processus dans la même
+	// seconde (tuneHeldKey). Absent des verrous d'une version d'avant : 0.
+	Nonce int64     `json:"nonce,omitempty"`
 	Trial *tuneProc `json:"trial,omitempty"`
 	// MainWasActive : le vrai moteur tournait avant l'optimisation. Un verrou
 	// périmé trouvé au démarrage du processus web le relance.
@@ -143,7 +146,7 @@ func tuneActive() (tuneOwner, bool) {
 // tuneHeld : verrous pris par CE processus et pas encore rendus (tuneHeldKey).
 var tuneHeld sync.Map
 
-func tuneHeldKey(o tuneOwner) string { return fmt.Sprintf("%s|%d", o.Via, o.Since) }
+func tuneHeldKey(o tuneOwner) string { return fmt.Sprintf("%s|%d|%d", o.Via, o.Since, o.Nonce) }
 
 // tuneOwnerAlive : le propriétaire d'un verrou vit-il encore ? Un verrou qui
 // porte NOTRE PID sans être l'un des nôtres vient d'un processus mort dont le
@@ -190,7 +193,13 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 		return nil, err
 	}
 	l := &tuneLock{path: path, owner: tuneOwner{Owner: selfProc(), Via: via, Phase: "essais",
-		Since: time.Now().Unix(), MainWasActive: mainActive}}
+		Since: time.Now().Unix(), Nonce: time.Now().UnixNano(), MainWasActive: mainActive}}
+	// Inscrit comme nôtre AVANT que le fichier n'existe : la reprise du
+	// processus web (tuneRecoverWatch, toutes les 30 s) tient pour mort un
+	// verrou qui porte notre PID sans être inscrit, et l'écarterait entre la
+	// création et l'inscription.
+	key := tuneHeldKey(l.owner)
+	tuneHeld.Store(key, true)
 	for attempt := 0; attempt < 3; attempt++ {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
@@ -199,21 +208,24 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 			cerr := f.Close()
 			if werr != nil || cerr != nil {
 				_ = os.Remove(path)
+				tuneHeld.Delete(key)
 				return nil, fmt.Errorf("verrou de l'optimiseur : %v", errors.Join(werr, cerr))
 			}
 			l.held = true
-			tuneHeld.Store(tuneHeldKey(l.owner), true)
 			return l, nil
 		}
 		if !os.IsExist(err) {
+			tuneHeld.Delete(key)
 			return nil, err
 		}
 		if o, busy := tuneActive(); busy {
+			tuneHeld.Delete(key)
 			return nil, fmt.Errorf("une optimisation tourne déjà (%s, PID %d, depuis %s)", o.Via, o.Owner.PID,
 				time.Unix(o.Since, 0).Format("15:04"))
 		}
 		tuneReapStale()
 	}
+	tuneHeld.Delete(key)
 	return nil, errors.New("verrou de l'optimiseur indisponible : réessaie")
 }
 
@@ -267,14 +279,45 @@ func (l *tuneLock) setBackup(backup, id, name string) {
 }
 
 // release rend le verrou — seulement s'il est encore le nôtre.
+//
+// La reprise du processus web (tuneRecoverWatch) tourne toutes les 30 s,
+// pendant que ce même processus prend et rend ses verrous. Elle tient pour
+// mort un verrou à notre PID qui n'est plus inscrit (tuneHeld) : si le fichier
+// survivait à l'inscription — sous Windows, un fichier qu'un autre lit à cet
+// instant ne se supprime pas —, elle l'écarterait, et en phase « application »
+// défairait le preset tout juste vérifié (tuneUndoApply), ou relancerait le
+// moteur. Le verrou est donc d'abord réécrit NEUTRE (rien à défaire, rien à
+// relancer, aucun essai), puis retiré, et l'inscription ne part qu'après.
 func (l *tuneLock) release() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.held {
+		// Un fichier absent un instant (renommé par un ménage qui le remet en
+		// place, voir tuneReapStale) n'est pas un fichier rendu : on relit.
+		ours := false
+		for i := 0; i < 5; i++ {
+			if o, ok := readTuneOwner(l.path); ok {
+				ours = sameTuneLock(o, l.owner)
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if ours {
+			l.owner.Phase, l.owner.Trial, l.owner.MainWasActive = "rendu", nil, false
+			l.owner.Backup, l.owner.PresetID, l.owner.PresetName = "", "", ""
+			_ = l.write()
+			for i := 0; i < 5; i++ {
+				if err := os.Remove(l.path); err == nil || os.IsNotExist(err) {
+					break
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+		}
 		l.held = false
 		tuneHeld.Delete(tuneHeldKey(l.owner))
+		return
 	}
-	if o, ok := readTuneOwner(l.path); ok && o.Owner.PID == l.owner.Owner.PID && o.Owner.Start == l.owner.Owner.Start {
+	if o, ok := readTuneOwner(l.path); ok && sameTuneLock(o, l.owner) {
 		_ = os.Remove(l.path)
 	}
 }
@@ -305,12 +348,30 @@ func tuneReapStale() (mainWasActive bool) {
 		return false
 	}
 	defer os.Remove(stale)
+	// Entre la lecture et le renommage, le verrou lu a pu être rendu et un
+	// neuf, vivant, pris à sa place : c'est alors CELUI-LÀ qu'on vient de
+	// déplacer. La reprise du processus web tournant toutes les 30 s, pendant
+	// que ce même processus prend et rend ses verrous, ce n'est plus un cas
+	// d'école. On relit donc ce qu'on a déplacé ; un autre verrou est remis en
+	// place (un lien : jamais par-dessus un verrou posé entre-temps).
+	if got, ok := readTuneOwner(stale); !ok || !sameTuneLock(got, o) || tuneOwnerAlive(got) {
+		if err := os.Link(stale, path); err != nil {
+			fmt.Fprintf(os.Stderr, "[loki tune] verrou vivant déplacé par erreur, remise en place impossible : %v\n", err)
+		}
+		return false
+	}
 	if o.Trial != nil && tuneProcAlive(*o.Trial) {
 		fmt.Fprintf(os.Stderr, "[loki tune] essai orphelin (PID %d) d'une optimisation interrompue : arrêt\n", o.Trial.PID)
 		tuneKillTree(o.Trial.PID, nil)
 	}
 	tuneUndoApply(o)
 	return o.MainWasActive
+}
+
+// sameTuneLock : a et b désignent-ils la même prise de verrou (propriétaire et
+// instant de la prise), quelle que soit sa phase ?
+func sameTuneLock(a, b tuneOwner) bool {
+	return a.Owner.PID == b.Owner.PID && a.Owner.Start == b.Owner.Start && tuneHeldKey(a) == tuneHeldKey(b)
 }
 
 // tuneUndoApply : une application interrompue avant sa vérification (Loki tué
@@ -357,7 +418,11 @@ var tuneRecoverStart = func() {
 		return
 	}
 	fmt.Println(dim("[loki tune] optimisation interrompue : relance du moteur"))
-	_ = serviceActionOS("start")
+	// serviceAction, pas serviceActionOS : la reprise tourne désormais toutes
+	// les 30 s, et une optimisation neuve a pu prendre le verrou entre le
+	// ménage et ce démarrage — tuneGuard le voit, et le moteur reste arrêté
+	// pour elle.
+	_ = serviceAction("start")
 }
 
 // tuneRecoverEvery : la période de la reprise dans le processus web.
