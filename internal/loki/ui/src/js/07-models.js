@@ -1263,7 +1263,9 @@ function setSpecType(v){
   v = String(v || '').trim();
   if(v && ![...sel.options].some(o => o.value === v)){
     const opt = document.createElement('option');
-    opt.value = v; opt.textContent = v + ' (dans la configuration)';
+    // ngram-mod n'est plus une option : un ancien preset qui le porte en
+    // drapeau brut le montre sous son nom, et syncSpecRow propose SPEC=ngram.
+    opt.value = v; opt.textContent = v === 'ngram-mod' ? 'n-grammes (mod) · réglé à la main dans EXTRA_ARGS' : v + ' (dans la configuration)';
     sel.appendChild(opt);
   }
   sel.value = v;
@@ -1282,7 +1284,44 @@ function syncSpecRow(){
   // visible pour qu'on puisse le retirer.
   const dr = document.getElementById('s-draft-row');
   if(dr) dr.style.display = (sel.value === 'auto' || sel.value === 'draft-mtp' || sel.value === 'mtp+ngram' || cfgReadKey('MODEL_DRAFT')) ? '' : 'none';
+  // Ancien --spec-type ngram-mod brut : migration proposée, ce qu'elle retire
+  // affiché avant le clic.
+  const mr = document.getElementById('s-spec-migrate-row');
+  if(mr){
+    const legacy = sel.value === 'ngram-mod';
+    mr.style.display = legacy ? '' : 'none';
+    const sub = document.getElementById('s-spec-migrate-sub');
+    if(legacy && sub) sub.textContent = '« n-grammes du contexte » (SPEC=ngram) fait la même chose, bornes explicites et garde-fous de Loki en plus (refus si des poids restent en RAM). Retirerait : ' + specManualSplit().removed.join(', ');
+  }
   return on;
+}
+// Drapeaux d'un réglage spéculatif à la main que SPEC=ngram remplace. Restés
+// dans EXTRA_ARGS, ils feraient ignorer SPEC (--spec-type, --spec-ngram-*) ou
+// refuser les n-grammes (--spec-draft-*) au lancement.
+function specManualSplit(){
+  const t = eaTokens(), keep = [], removed = [];
+  for(let i = 0; i < t.length; i++){
+    const f = t[i];
+    if(f === '--spec-type' || f.startsWith('--spec-ngram-') || f.startsWith('--spec-draft-')){
+      const hasVal = i+1 < t.length && !t[i+1].startsWith('-');
+      removed.push(hasVal ? f + ' ' + t[i+1] : f);
+      if(hasVal) i++;
+      continue;
+    }
+    keep.push(f);
+  }
+  return {keep, removed};
+}
+// Migration d'un ancien --spec-type ngram-mod vers SPEC=ngram, sur clic
+// seulement : rien n'est écrit à l'ouverture du preset, qui tourne comme avant
+// tant qu'on ne l'a pas enregistré après ce clic.
+function migrateSpecNgram(){
+  eaSetTokens(specManualSplit().keep);
+  const n = document.getElementById('s-spec-n');
+  if(n) n.value = '';
+  cfgWriteKey('SPEC', 'ngram');
+  setSpecType('ngram');
+  toast("n-grammes : SPEC=ngram — enregistre le preset pour l'appliquer");
 }
 function onSpecType(){
   const v = document.getElementById('s-spec').value;

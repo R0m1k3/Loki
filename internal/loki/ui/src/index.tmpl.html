@@ -1274,7 +1274,11 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
                « MTP + n-grammes » écrivent la clé SPEC,
                que Loki traduit au lancement (tête MTP détectée dans le fichier,
                garde-fous VRAM) ; les autres types vont tels quels dans
-               --spec-type. « non » écrit SPEC=off. Le nombre de jetons anticipés
+               --spec-type. « non » écrit SPEC=off. ngram-mod n'y est plus en
+               type brut : c'est « n-grammes du contexte » (SPEC=ngram). Un
+               preset qui le porte encore dans EXTRA_ARGS l'affiche tel quel
+               (setSpecType) avec une migration proposée, jamais faite
+               d'office. Le nombre de jetons anticipés
                (--spec-draft-n-max) n'a de sens qu'une fois un type choisi, donc
                sa ligne n'apparaît qu'à ce moment. -->
           <div class="pe-row">
@@ -1293,12 +1297,15 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               </optgroup>
               <optgroup label="N-grammes (sans modèle brouillon)">
                 <option value="ngram-simple">n-grammes</option>
-                <option value="ngram-mod">n-grammes (mod)</option>
                 <option value="ngram-cache">n-grammes (cache)</option>
                 <option value="ngram-map-k">n-grammes (map-k)</option>
                 <option value="ngram-map-k4v">n-grammes (map-k4v)</option>
               </optgroup>
             </select></span></span>
+          </div>
+          <div class="pe-row" id="s-spec-migrate-row" style="display:none">
+            <span class="pe-row-l">N-grammes réglés à la main<span class="pe-sub" id="s-spec-migrate-sub"></span></span>
+            <span class="pe-row-c"><button class="pe-link" onclick="migrateSpecNgram()">Passer à SPEC=ngram</button></span>
           </div>
           <div class="pe-row" id="s-spec-n-row" style="display:none">
             <span class="pe-row-l">Jetons anticipés<span class="pe-sub">par étape — défaut 3</span></span>
