@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -121,17 +122,54 @@ func cgroupMemMiB(fsys fs.FS) (limit, current int64) {
 // nvidiaVRAMMiB : VRAM totale des cartes que llama-server verra. Borné dans le
 // temps comme nvidiaGPUCount ; au moindre doute, 0.
 func nvidiaVRAMMiB(cvd string, pciOrder bool, timeout time.Duration) int64 {
-	if !hasTool("nvidia-smi") {
+	out, ok := smiTotals.get(time.Now, timeout)
+	if !ok {
 		return 0
+	}
+	return vramFromSMI(out, cvd, pciOrder)
+}
+
+// nvidiaTotalsQuery : la lecture brute des mémoires totales. Variable pour
+// les tests.
+var nvidiaTotalsQuery = func(timeout time.Duration) (string, error) {
+	if !hasTool("nvidia-smi") {
+		return "", exec.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	out, err := hideCmd(exec.CommandContext(ctx, "nvidia-smi", "--query-gpu=index,memory.total",
 		"--format=csv,noheader,nounits")).Output()
-	if err != nil {
-		return 0
+	return string(out), err
+}
+
+// smiTotalsCache : la lecture des mémoires totales, partagée quelques
+// secondes. L'éditeur de preset demande à l'ouverture la taille du cache de
+// prompts (et celle du second slot) et les avis MoE, en parallèle : chacun
+// lançait SON nvidia-smi pour une réponse identique — la mémoire totale d'une
+// carte ne bouge pas. Le verrou tenu pendant la lecture fait attendre les
+// appels simultanés sur la même ; la sélection des cartes (CUDA_VISIBLE_DEVICES)
+// s'applique après, sur la sortie brute. Un échec est gardé aussi, le temps du
+// délai : la même salve ne relance pas trois lectures qui échoueront.
+type smiTotalsCache struct {
+	mu  sync.Mutex
+	exp time.Time
+	out string
+	ok  bool
+}
+
+const smiTotalsTTL = 10 * time.Second
+
+var smiTotals smiTotalsCache
+
+func (c *smiTotalsCache) get(now func() time.Time, timeout time.Duration) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if now().Before(c.exp) {
+		return c.out, c.ok
 	}
-	return vramFromSMI(string(out), cvd, pciOrder)
+	out, err := nvidiaTotalsQuery(timeout)
+	c.out, c.ok, c.exp = out, err == nil, now().Add(smiTotalsTTL)
+	return c.out, c.ok
 }
 
 // vramFromSMI additionne la VRAM des cartes sélectionnées par

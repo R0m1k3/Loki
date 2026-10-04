@@ -1,12 +1,16 @@
 package loki
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 const helpCacheRAM = helpRecent + `-cram,  --cache-ram N                   set the maximum cache size in MiB (default: 8192, -1 - no limit, 0 - disable)
@@ -260,5 +264,56 @@ func TestPrepareSlotDir(t *testing.T) {
 	}
 	if got := prepareSlotDir(bad, false); got != "" {
 		t.Fatalf("slots est un fichier : %q", got)
+	}
+}
+
+// L'éditeur demande en parallèle le cache de prompts, le second slot et les
+// avis MoE : une seule lecture nvidia-smi pour tous, la sélection des cartes
+// appliquée ensuite. Après le délai, une lecture neuve ; un échec n'est pas
+// relancé dans la même salve.
+func TestNvidiaVRAMShared(t *testing.T) {
+	var calls atomic.Int32
+	fail := false
+	prevQ := nvidiaTotalsQuery
+	nvidiaTotalsQuery = func(time.Duration) (string, error) {
+		calls.Add(1)
+		time.Sleep(20 * time.Millisecond) // les appels simultanés attendent la même lecture
+		if fail {
+			return "", errors.New("exit status 9")
+		}
+		return "0, 16311\n1, 12288\n", nil
+	}
+	t.Cleanup(func() {
+		nvidiaTotalsQuery = prevQ
+		smiTotals.mu.Lock()
+		smiTotals.exp = time.Time{} // les tests suivants relisent nvidia-smi
+		smiTotals.mu.Unlock()
+	})
+	expire := func() {
+		smiTotals.mu.Lock()
+		smiTotals.exp = time.Time{}
+		smiTotals.mu.Unlock()
+	}
+	expire()
+	var wg sync.WaitGroup
+	got := make([]int64, 3)
+	for i, cvd := range []string{"", "0", "1"} {
+		wg.Add(1)
+		go func() { defer wg.Done(); got[i] = nvidiaVRAMMiB(cvd, true, time.Second) }()
+	}
+	wg.Wait()
+	if n := calls.Load(); n != 1 {
+		t.Errorf("%d lectures nvidia-smi pour trois demandes simultanées", n)
+	}
+	if !reflect.DeepEqual(got, []int64{16311 + 12288, 16311, 12288}) {
+		t.Errorf("sélection des cartes : %v", got)
+	}
+	expire()
+	fail = true
+	if v := nvidiaVRAMMiB("", true, time.Second); v != 0 {
+		t.Errorf("échec : %d, attendu 0", v)
+	}
+	if v := nvidiaVRAMMiB("", true, time.Second); v != 0 || calls.Load() != 2 {
+		t.Errorf("échec relancé dans la même salve : %d lectures", calls.Load())
 	}
 }
