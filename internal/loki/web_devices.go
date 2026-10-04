@@ -115,50 +115,56 @@ func devPersistPut(key string, devs []map[string]any) {
 	}
 }
 
-// fillMissingMemory complète les mémoires que le moteur n'a pas su lire. Quand
-// une carte est déjà saturée par le modèle en cours, llama.cpp annonce 0 Mio —
-// l'UI n'avait alors rien à afficher pour elle, ce qui donnait une liste
-// incohérente (une carte avec sa taille, l'autre sans).
+// annotateDevices complète les cartes listées par le moteur avec ce que
+// nvidia-smi sait d'elles (UNE lecture, detectGPUs). Fonction pure.
 //
-// On complète depuis nvidia-smi PAR CORRESPONDANCE DE NOM, et uniquement pour
-// ça : la mémoire totale est une donnée matérielle fixe, indépendante du
-// backend. L'ordre et les identifiants des devices, eux, appartiennent au
-// moteur (CUDA0 et Vulkan0 ne désignent pas la même carte) et ne doivent jamais
-// venir de nvidia-smi. Un nom en double (deux cartes identiques) rend la
-// correspondance ambiguë : on préfère alors ne rien dire.
-func fillMissingMemory(devs []map[string]any) {
-	missing := false
-	for _, d := range devs {
-		if n, _ := d["total_mib"].(int); n <= 0 {
-			missing = true
-		}
-	}
-	if !missing {
-		return
-	}
-	gpus, err := detectGPUs()
-	if err != nil {
-		return
-	}
-	totals := map[string]int{}
+// Mémoire totale manquante : quand une carte est déjà saturée par le modèle en
+// cours, llama.cpp annonce 0 Mio — l'UI n'avait alors rien à afficher pour
+// elle, ce qui donnait une liste incohérente (une carte avec sa taille, l'autre
+// sans). Liaison PCIe et horloge mémoire (clé « link ») : de quoi choisir
+// l'ordre des cartes en connaissance de cause (voir le guide de placement de
+// l'éditeur), jamais appliqué d'office.
+//
+// Tout passe PAR CORRESPONDANCE DE NOM : ce sont des données matérielles fixes,
+// indépendantes du backend. L'ordre et les identifiants des devices, eux,
+// appartiennent au moteur (CUDA0 et Vulkan0 ne désignent pas la même carte) et
+// ne doivent jamais venir de nvidia-smi. Un nom en double (deux cartes
+// identiques) rend la correspondance ambiguë : on préfère alors ne rien dire.
+// La liaison ne s'attache qu'aux cartes CUDA : un moteur Vulkan énumère dans
+// son propre ordre, et le conseil qui l'accompagne parle de CUDA.
+func annotateDevices(devs []map[string]any, gpus []gpuInfo) {
+	byName := map[string]gpuInfo{}
 	dup := map[string]bool{}
 	for _, g := range gpus {
 		name := strings.TrimSpace(g.Name)
-		if _, seen := totals[name]; seen {
+		if _, seen := byName[name]; seen {
 			dup[name] = true
 			continue
 		}
-		if mb, err := strconv.Atoi(strings.TrimSpace(g.MemTotal)); err == nil {
-			totals[name] = mb
-		}
+		byName[name] = g
 	}
 	for _, d := range devs {
-		if n, _ := d["total_mib"].(int); n > 0 {
+		name, _ := d["name"].(string)
+		name = strings.TrimSpace(name)
+		g, ok := byName[name]
+		if !ok || dup[name] {
 			continue
 		}
-		name, _ := d["name"].(string)
-		if mb, ok := totals[strings.TrimSpace(name)]; ok && !dup[strings.TrimSpace(name)] {
-			d["total_mib"] = mb
+		if n, _ := d["total_mib"].(int); n <= 0 {
+			if mb, err := strconv.Atoi(strings.TrimSpace(g.MemTotal)); err == nil {
+				d["total_mib"] = mb
+			}
+		}
+		if id, _ := d["id"].(string); !strings.HasPrefix(id, "CUDA") {
+			continue
+		}
+		if g.LinkGenMax == 0 && g.LinkWidthMax == 0 && g.MemClockMax == 0 {
+			continue
+		}
+		d["link"] = map[string]any{
+			"gen": g.LinkGen, "gen_max": g.LinkGenMax,
+			"width": g.LinkWidth, "width_max": g.LinkWidthMax,
+			"mem_clock_mhz": g.MemClockMax,
 		}
 	}
 }
@@ -238,7 +244,12 @@ func handleBackendDevices(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"ok": true, "devices": devs, "stale": true})
 		return
 	}
-	fillMissingMemory(devs)
+	// Une seule lecture nvidia-smi par énumération (et l'énumération est en
+	// cache dix minutes) : mémoire manquante et liaison PCIe ensemble. Sans
+	// nvidia-smi (Mac, AMD), rien n'est ajouté.
+	if gpus, gerr := detectGPUs(); gerr == nil {
+		annotateDevices(devs, gpus)
+	}
 	// Quand une carte est déjà saturée par le modèle en cours, le moteur peut
 	// annoncer 0 Mio de mémoire : c'est une lecture transitoire, on ne la fige
 	// pas dans le cache (sinon l'UI affiche « 0 Go » pendant dix minutes).

@@ -44,31 +44,52 @@ warning: something else entirely
 }
 
 // Mémoire complétée : un device dont le moteur n'a pas su lire la taille (0 Mio,
-// carte saturée) récupère celle de nvidia-smi par correspondance de nom. Deux
-// cartes homonymes rendent la correspondance ambiguë : on ne complète pas.
-func TestFillMissingMemoryParNom(t *testing.T) {
+// carte saturée) récupère celle de nvidia-smi par correspondance de nom ; la
+// liaison PCIe s'y ajoute, pour les cartes CUDA seulement.
+func TestAnnotateDevicesParNom(t *testing.T) {
 	devs := []map[string]any{
 		{"id": "CUDA0", "name": "NVIDIA GeForce RTX 5060 Ti", "total_mib": 0, "free_mib": 0},
 		{"id": "CUDA1", "name": "NVIDIA GeForce GTX 1650", "total_mib": 3715, "free_mib": 3659},
 	}
-	// La table de correspondance est celle que construit fillMissingMemory ; on
-	// vérifie ici la règle métier sans dépendre d'un nvidia-smi présent.
-	totals := map[string]int{"NVIDIA GeForce RTX 5060 Ti": 16311}
-	dup := map[string]bool{}
-	for _, d := range devs {
-		if n, _ := d["total_mib"].(int); n > 0 {
-			continue
-		}
-		name, _ := d["name"].(string)
-		if mb, ok := totals[name]; ok && !dup[name] {
-			d["total_mib"] = mb
-		}
+	gpus := []gpuInfo{
+		{Name: "NVIDIA GeForce GTX 1650", MemTotal: "4096", LinkGen: 1, LinkGenMax: 3, LinkWidth: 16, LinkWidthMax: 16},
+		{Name: "NVIDIA GeForce RTX 5060 Ti", MemTotal: "16311", LinkGen: 5, LinkGenMax: 5, LinkWidth: 8, LinkWidthMax: 8, MemClockMax: 14001},
 	}
+	annotateDevices(devs, gpus)
 	if devs[0]["total_mib"] != 16311 {
 		t.Errorf("mémoire non complétée : %v", devs[0])
 	}
 	if devs[1]["total_mib"] != 3715 {
 		t.Errorf("mémoire déjà connue écrasée : %v", devs[1])
+	}
+	l, _ := devs[0]["link"].(map[string]any)
+	if l == nil || l["gen_max"] != 5 || l["width_max"] != 8 || l["mem_clock_mhz"] != 14001 {
+		t.Errorf("liaison absente ou fausse : %v", devs[0]["link"])
+	}
+	if l, _ := devs[1]["link"].(map[string]any); l == nil || l["width"] != 16 {
+		t.Errorf("liaison de la seconde carte : %v", devs[1]["link"])
+	}
+}
+
+// Deux cartes homonymes : correspondance ambiguë, rien n'est ajouté. Une carte
+// Vulkan garde sa mémoire complétée mais pas de liaison.
+func TestAnnotateDevicesAmbiguEtVulkan(t *testing.T) {
+	devs := []map[string]any{
+		{"id": "CUDA0", "name": "NVIDIA GeForce RTX 3060", "total_mib": 0},
+		{"id": "CUDA1", "name": "NVIDIA GeForce RTX 3060", "total_mib": 12288},
+	}
+	twins := []gpuInfo{
+		{Name: "NVIDIA GeForce RTX 3060", MemTotal: "12288", LinkGenMax: 4, LinkWidthMax: 16},
+		{Name: "NVIDIA GeForce RTX 3060", MemTotal: "12288", LinkGenMax: 3, LinkWidthMax: 4},
+	}
+	annotateDevices(devs, twins)
+	if devs[0]["total_mib"] != 0 || devs[0]["link"] != nil || devs[1]["link"] != nil {
+		t.Errorf("cartes homonymes annotées quand même : %v", devs)
+	}
+	vk := []map[string]any{{"id": "Vulkan0", "name": "NVIDIA GeForce RTX 3060", "total_mib": 0}}
+	annotateDevices(vk, twins[:1])
+	if vk[0]["total_mib"] != 12288 || vk[0]["link"] != nil {
+		t.Errorf("carte Vulkan : %v", vk[0])
 	}
 }
 

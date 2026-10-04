@@ -3428,6 +3428,9 @@ html[data-files="1"] #files-btn{color:var(--accent)}
           <div class="pe-gh">Cartes graphiques</div>
           <div class="pe-list" id="m-gpu-list"></div>
           <div class="pe-note" id="m-gpu-note"></div>
+          <!-- Guide de placement (placementGuideHtml) : ordre des cartes, liaison
+               PCIe, marges FIT_TARGET. Un conseil, jamais appliqué d'office. -->
+          <div class="pe-note" id="m-gpu-guide" hidden></div>
         </div>
       </div>
 
@@ -5703,9 +5706,11 @@ function renderGpu(){
     // Mémoire à 0 = le moteur n'a pas pu la lire (carte déjà saturée par le
     // modèle en cours) : on n'affiche pas « 0,0 Go », qui serait un mensonge.
     const gb = d.total_mib > 0 ? ' · ' + (d.total_mib/1024).toFixed(1).replace('.', ',') + ' Go' : '';
+    const link = gpuLinkText(d);
     return '<div class="pe-row">'
       + '<span class="pe-row-l">' + gpuEsc(gpuLabel(d))
-      + '<span class="pe-sub">' + gpuEsc(d.id) + gb + '</span></span>'
+      + '<span class="pe-sub" title="' + gpuEsc(gpuLinkTip(d)) + '">' + gpuEsc(d.id) + gb
+      + (link ? ' · ' + gpuEsc(link) : '') + '</span></span>'
       + '<span class="pe-row-c"><label class="pe-switch"><input type="checkbox" value="' + gpuEsc(d.id) + '"'
       + (sel.includes(d.id) ? ' checked' : '') + ' onchange="onGpuPick()"><span class="pe-sl"></span></label></span>'
       + '</div>';
@@ -5715,8 +5720,81 @@ function renderGpu(){
   document.getElementById('m-gpu-note').textContent = sel.length === gpuDevices.length
     ? 'Toutes les cartes sont utilisées.'
     : 'Ce modèle n\'utilisera que : ' + sel.map(id => gpuLabel(gpuById(id))).join(', ') + '.';
+  const guide = document.getElementById('m-gpu-guide');
+  if(guide){ guide.innerHTML = sel.length > 1 ? placementGuideHtml(sel) : ''; guide.hidden = sel.length < 2; }
   group.hidden = false;
   if(sel.length > 1) paintSplit();
+}
+
+// Liaison PCIe d'une carte (nvidia-smi, joint par nom côté serveur, CUDA
+// seulement) : le MAXIMUM, seul parlant — l'actuel descend au repos.
+function gpuLinkText(d){
+  const l = d && d.link;
+  if(!l || !(l.gen_max || l.width_max)) return '';
+  return 'PCIe' + (l.gen_max ? ' ' + l.gen_max : '') + (l.width_max ? ' ×' + l.width_max : '');
+}
+function gpuLinkTip(d){
+  const l = d && d.link;
+  if(!l) return '';
+  const t = [];
+  if(l.gen || l.width) t.push('liaison actuelle : PCIe ' + (l.gen||'?') + ' ×' + (l.width||'?') + ' (réduite au repos, normale sous charge)');
+  if(l.mem_clock_mhz) t.push('horloge mémoire max : ' + l.mem_clock_mhz + ' MHz');
+  return t.join('\n');
+}
+
+// Guide de placement entre cartes inégales. CONSEIL seulement : rien n'est
+// écrit dans le preset sans un clic, et Loki ne change jamais l'ordre ni les
+// marges d'office. Deux règles du moteur, qui peuvent s'opposer :
+//   - --fit (placement auto) remplit les cartes en partant de la DERNIÈRE, qui
+//     porte aussi la couche de sortie : un modèle dense décode plus vite si la
+//     carte rapide est en dernier, ou si la lente garde une marge plus large ;
+//   - les experts MoE restés en RAM sont recopiés, au prefill, vers la PREMIÈRE
+//     carte : à elle la liaison PCIe la plus large.
+// « Première » et « dernière » s'entendent dans l'ordre du moteur, --device
+// compris — pas « CUDA0 ».
+function placementGuideHtml(sel){
+  const name = id => gpuEsc(gpuLabel(gpuById(id)));
+  const order = sel.map((id, i) => (i+1) + '. ' + name(id)
+    + (gpuLinkText(gpuById(id)) ? ' (' + gpuEsc(gpuLinkText(gpuById(id))) + ')' : '')).join(' → ');
+  const parts = ['<b>Ordre vu par le moteur</b> : ' + order
+    + (sel.length === 2 ? ' · <button class="pe-link" onclick="reverseGpuOrder()">inverser l\'ordre</button>' : '')];
+  parts.push('• Modèle dense en placement auto : --fit remplit d\'abord la <b>dernière</b> carte, qui porte aussi '
+    + 'la couche de sortie — la plus rapide en dernier, ou une marge FIT_TARGET plus large sur la lente '
+    + '(ex. FIT_TARGET=1024,3072 quand la lente est seconde ; 1024 au minimum).');
+  parts.push('• Experts MoE sur CPU : le prefill les recopie vers la <b>première</b> carte — à elle la liaison PCIe la plus large.');
+  const ft = cfgReadKey('FIT_TARGET');
+  if(ft){
+    const v = ft.split(/[,/]/).map(s => s.trim());
+    parts.push('FIT_TARGET : ' + (v.length === 1 ? gpuEsc(v[0]) + ' Mio sur chaque carte'
+      : sel.map((id, i) => name(id) + ' ' + gpuEsc(v[i] || '1024') + ' Mio').join(' · ')));
+  }
+  if(eaGetValued('--tensor-split'))
+    parts.push('--tensor-split fixe la répartition : --fit et FIT_TARGET ne jouent pas.');
+  const cvd = cfgReadKey('CUDA_VISIBLE_DEVICES');
+  if(cvd) parts.push('CUDA_VISIBLE_DEVICES=' + gpuEsc(cvd) + ' dans ce preset : l\'ordre réel peut différer de cette '
+    + 'liste, établie avec la sélection de la machine — et les marges FIT_TARGET suivent l\'ordre réel.');
+  parts.push('Les deux règles peuvent s\'opposer : à départager par la mesure, preset par preset. Loki ne bascule pas '
+    + 'le moteur tout seul pour comparer (deux rechargements complets, et un ordre inversé peut manquer de VRAM sur la '
+    + 'petite carte) : duplique le preset, inverse l\'ordre dans la copie, puis « bench complet » sur chacun. '
+    + 'Vérifie « offloaded N/N layers » au journal.');
+  return parts.join('<br>');
+}
+
+// Inverse l'ordre des deux cartes (--device), et la répartition avec elles.
+// Geste explicite de l'utilisateur, écrit dans le preset édité seulement.
+function reverseGpuOrder(){
+  const sel = selectedGpuIds();
+  if(sel.length !== 2) return;
+  const rev = sel.slice().reverse();
+  eaSetValued('--device', gpuNaturalOrder(rev) ? '' : rev.join(','));
+  const ts = eaGetValued('--tensor-split');
+  if(ts) eaSetValued('--tensor-split', ts.split(',').reverse().join(','));
+  renderGpu();
+  toast('ordre : ' + rev.map(id => gpuLabel(gpuById(id))).join(' → '));
+}
+// Toutes les cartes, dans l'ordre du moteur : aucune contrainte à écrire.
+function gpuNaturalOrder(ids){
+  return ids.length === gpuDevices.length && ids.every((id, i) => id === gpuDevices[i].id);
 }
 
 function gpuById(id){ return gpuDevices.find(d => d.id === id) || {id}; }
@@ -5836,9 +5914,13 @@ function resetSplit(){
 function onGpuPick(){
   const ids = [...document.querySelectorAll('#m-gpu-list input[type=checkbox]:checked')].map(c => c.value);
   if(!ids.length){ toast('gardez au moins une carte'); renderGpu(); return; }
-  // Toutes cochées = pas de contrainte : on retire le flag plutôt que de figer
-  // des noms de device qui changeraient avec le moteur.
-  eaSetValued('--device', ids.length === gpuDevices.length ? '' : ids.join(','));
+  // L'ordre déjà choisi (« inverser l'ordre ») est gardé pour les cartes restées
+  // cochées ; les nouvelles viennent à la suite, dans l'ordre du moteur.
+  const prev = eaGetValued('--device').split(',').filter(id => ids.includes(id));
+  const order = prev.concat(ids.filter(id => !prev.includes(id)));
+  // Toutes cochées dans l'ordre du moteur = pas de contrainte : on retire le
+  // flag plutôt que de figer des noms de device qui changeraient avec le moteur.
+  eaSetValued('--device', gpuNaturalOrder(order) ? '' : order.join(','));
   // Une répartition écrite pour N cartes n'a plus de sens pour N-1.
   if(ids.length < 2) eaSetValued('--tensor-split', '');
   renderGpu();

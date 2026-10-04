@@ -584,6 +584,26 @@ Ajoutées par ce fork :
   `SPEC`, `SIDE_SLOT`, `CTX` non chiffré, une seule carte ou une carte non
   CUDA, une architecture que llama.cpp exclut (et `qwen4exp`), un preset
   externe ; `SLOT_PERSIST` est refusé avec la clé.
+- **Guide de placement entre cartes inégales** (éditeur de preset, groupe
+  « Cartes graphiques », dès deux cartes ; un conseil, rien n'est appliqué
+  d'office) : chaque carte CUDA affiche sa liaison PCIe maximale (génération,
+  largeur), l'actuelle et l'horloge mémoire en info-bulle — lues par
+  `nvidia-smi` en une requête, jointes par nom de carte (rien pour deux
+  cartes homonymes ni pour un moteur Vulkan), avec repli sur la requête
+  historique si un vieux pilote refuse un champ. `loki gpu` les affiche aussi.
+  Le guide rappelle les deux règles du moteur, dans l'ordre qu'il voit
+  (`--device` compris) : en placement auto, `--fit` remplit d'abord la
+  **dernière** carte, qui porte la couche de sortie (modèle dense : la plus
+  rapide en dernier, ou une marge `FIT_TARGET` plus large sur la lente) ; les
+  experts MoE en RAM sont recopiés au prefill vers la **première** (à elle la
+  liaison la plus large). Les marges `FIT_TARGET` du preset sont montrées carte
+  par carte ; un `--tensor-split` (qui désactive `--fit`) ou un
+  `CUDA_VISIBLE_DEVICES` propre au preset (ordre réel différent) est signalé.
+  Un lien « inverser l'ordre » écrit `--device` (et retourne `--tensor-split`)
+  dans le preset édité. Pas de bouton de mesure automatique : comparer deux
+  ordres demande deux rechargements du moteur et un ordre inversé peut manquer
+  de VRAM sur la petite carte — dupliquer le preset, inverser l'ordre dans la
+  copie, « bench complet » sur chacun, et vérifier `offloaded N/N layers`.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

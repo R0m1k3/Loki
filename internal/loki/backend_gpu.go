@@ -2,11 +2,14 @@ package loki
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // backend_gpu.go — sélection du/des GPU utilisés par llama-server.
@@ -26,6 +29,39 @@ type gpuInfo struct {
 	MemTotal string // en MiB
 	MemUsed  string
 	Cap      string // compute capability
+
+	// Liaison PCIe et horloge mémoire, pour guider le placement entre cartes
+	// inégales (voir annotateDevices). Zéro = inconnu : pilote trop ancien,
+	// « [N/A] », ou requête retombée sur les seuls champs historiques.
+	BusID        string
+	LinkGen      int // génération PCIe ACTUELLE — elle descend au repos (économie d'énergie)
+	LinkGenMax   int // génération maximale négociable carte + carte mère
+	LinkWidth    int // largeur actuelle (×N), elle aussi réduite au repos sur certaines cartes
+	LinkWidthMax int
+	MemClockMax  int // horloge mémoire maximale, MHz
+}
+
+// gpuBaseFields : la requête historique de detectGPUs, que tout pilote connaît.
+// gpuLinkFields : les champs de liaison, ajoutés en fin de ligne. nvidia-smi
+// refuse TOUTE la requête au moindre champ inconnu (« is not a valid field to
+// query ») : la largeur du bus mémoire, qui n'existe pas, n'y figure donc pas,
+// et un refus fait retomber sur la requête historique — jamais de GPU perdu
+// pour une information de confort.
+const (
+	gpuBaseFields = "index,name,memory.total,memory.used,compute_cap"
+	gpuLinkFields = "pci.bus_id,pcie.link.gen.current,pcie.link.gen.max,pcie.link.width.current,pcie.link.width.max,clocks.max.memory"
+)
+
+// nvidiaSmiGPUQuery lance « nvidia-smi --query-gpu=<fields> ». Variable pour
+// que les tests substituent un faux nvidia-smi. Borné dans le temps comme la
+// lecture des jauges (nvidiaSmiTimeout) : un pilote coincé ne doit pas figer
+// « loki gpu » ni l'éditeur de preset.
+var nvidiaSmiGPUQuery = func(fields string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), nvidiaSmiTimeout)
+	defer cancel()
+	cmd := hideCmd(exec.CommandContext(ctx, "nvidia-smi", "--query-gpu="+fields, "--format=csv,noheader,nounits"))
+	cmd.WaitDelay = time.Second
+	return cmd.Output()
 }
 
 func cmdGPU(args []string) error {
@@ -83,6 +119,9 @@ func gpuList() error {
 	for _, g := range gpus {
 		mark := "  "
 		line := fmt.Sprintf("[%d] %s  —  %s/%s MiB  (cc %s)", g.Index, g.Name, g.MemUsed, g.MemTotal, g.Cap)
+		if l := g.linkSummary(); l != "" {
+			line += "  " + l
+		}
 		active := sel == "" || selected[g.Index]
 		if sel != "" && selected[g.Index] {
 			mark = green("● ")
@@ -131,14 +170,46 @@ func detectGPUs() ([]gpuInfo, error) {
 	if !hasTool("nvidia-smi") {
 		return nil, fmt.Errorf("nvidia-smi introuvable — sélection GPU disponible uniquement sur NVIDIA")
 	}
-	out, err := hideCmd(exec.Command("nvidia-smi",
-		"--query-gpu=index,name,memory.total,memory.used,compute_cap",
-		"--format=csv,noheader,nounits")).Output()
+	return queryGPUs(nvidiaSmiGPUQuery)
+}
+
+// queryGPUs : le cœur de detectGPUs, la requête passée en paramètre pour être
+// testée sans nvidia-smi. UNE invocation d'ordinaire : champs historiques et
+// liaison ensemble. La seconde n'a lieu que si nvidia-smi refuse un champ de
+// liaison (pilote ancien) — pas sur un délai dépassé, qu'une relance ne ferait
+// que doubler.
+func queryGPUs(query func(fields string) ([]byte, error)) ([]gpuInfo, error) {
+	out, err := query(gpuBaseFields + "," + gpuLinkFields)
+	if err != nil && smiFieldRefused(out, err) {
+		out, err = query(gpuBaseFields)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("nvidia-smi a échoué: %w", err)
 	}
+	gpus := parseGPUQuery(string(out))
+	if len(gpus) == 0 {
+		return nil, fmt.Errorf("aucun GPU NVIDIA détecté")
+	}
+	return gpus, nil
+}
+
+// smiFieldRefused : nvidia-smi a-t-il rejeté un champ de la requête ? Il
+// l'écrit sur sa sortie standard et sort en code 2 (argument invalide).
+func smiFieldRefused(out []byte, err error) bool {
+	if strings.Contains(string(out), "valid field") {
+		return true
+	}
+	var ee *exec.ExitError
+	return errors.As(err, &ee) && ee.ExitCode() == 2
+}
+
+// parseGPUQuery lit la sortie CSV de detectGPUs, avec ou sans les champs de
+// liaison. Fonction pure. Une ligne de moins de cinq colonnes est ignorée,
+// comme avant ; une valeur de liaison illisible (« [N/A] », « [Not
+// Supported] ») vaut zéro, sans faire tomber la carte.
+func parseGPUQuery(out string) []gpuInfo {
 	var gpus []gpuInfo
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
 		parts := strings.Split(line, ",")
 		if len(parts) < 5 {
 			continue
@@ -147,12 +218,51 @@ func detectGPUs() ([]gpuInfo, error) {
 			parts[i] = strings.TrimSpace(parts[i])
 		}
 		idx, _ := strconv.Atoi(parts[0])
-		gpus = append(gpus, gpuInfo{
-			Index: idx, Name: parts[1], MemTotal: parts[2], MemUsed: parts[3], Cap: parts[4],
-		})
+		g := gpuInfo{Index: idx, Name: parts[1], MemTotal: parts[2], MemUsed: parts[3], Cap: parts[4]}
+		if len(parts) >= 11 {
+			if b := parts[5]; b != "" && b != "N/A" && !strings.HasPrefix(b, "[") {
+				g.BusID = b
+			}
+			g.LinkGen, g.LinkGenMax = smiNum(parts[6]), smiNum(parts[7])
+			g.LinkWidth, g.LinkWidthMax = smiNum(parts[8]), smiNum(parts[9])
+			g.MemClockMax = smiNum(parts[10])
+		}
+		gpus = append(gpus, g)
 	}
-	if len(gpus) == 0 {
-		return nil, fmt.Errorf("aucun GPU NVIDIA détecté")
+	return gpus
+}
+
+// smiNum lit un entier de nvidia-smi ; « [N/A] », vide ou autre chose = 0.
+func smiNum(s string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || n < 0 {
+		return 0
 	}
-	return gpus, nil
+	return n
+}
+
+// linkSummary : la liaison PCIe en clair, « PCIe 4 ×16 », maximum d'abord —
+// l'actuel descend au repos et ne dit rien de la carte sous charge. Vide =
+// inconnue.
+func (g gpuInfo) linkSummary() string {
+	if g.LinkGenMax == 0 && g.LinkWidthMax == 0 {
+		return ""
+	}
+	s := "PCIe"
+	if g.LinkGenMax > 0 {
+		s += " " + strconv.Itoa(g.LinkGenMax)
+	}
+	if g.LinkWidthMax > 0 {
+		s += " ×" + strconv.Itoa(g.LinkWidthMax)
+	}
+	if (g.LinkGen > 0 && g.LinkGen < g.LinkGenMax) || (g.LinkWidth > 0 && g.LinkWidth < g.LinkWidthMax) {
+		known := func(n int) string {
+			if n <= 0 {
+				return "?"
+			}
+			return strconv.Itoa(n)
+		}
+		s += " (actuellement " + known(g.LinkGen) + " ×" + known(g.LinkWidth) + ", réduit au repos)"
+	}
+	return s
 }
