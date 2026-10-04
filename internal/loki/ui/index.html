@@ -3451,7 +3451,14 @@ html[data-files="1"] #files-btn{color:var(--accent)}
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Experts MoE sur CPU<span class="pe-sub">vide = non · sur 2 GPU, coupe le pipeline entre cartes (prompt plus lent)</span></span>
-            <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value)"></span>
+            <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value); refreshMoeSoon()"></span>
+          </div>
+          <!-- Avis MoE (refreshMoe) : experts placés à la main, UBATCH conseillé,
+               et l'assistant « Dupliquer en placement auto » — une COPIE du
+               preset, l'original reste tel quel. Masqué tant qu'il n'y a rien à dire. -->
+          <div class="pe-row stack" id="m-moe-row" style="display:none">
+            <div class="pe-note" id="m-moe-note"></div>
+            <button class="pe-link" id="m-moe-dup" onclick="dupAutoPlacement()" hidden>Dupliquer en placement auto…</button>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Threads CPU<span class="pe-sub">vide ou 0 = cœurs physiques</span></span>
@@ -3467,7 +3474,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
           </div>
           <div class="pe-row">
             <span class="pe-row-l">UBATCH</span>
-            <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value)"></span>
+            <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value); refreshMoeSoon()"></span>
           </div>
           <div class="pe-row">
             <!-- Cache de prompts en RAM hôte (--cache-ram, Mio) : copie exacte de
@@ -3555,7 +3562,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
                (normalizeLoadFlags). -->
           <div class="pe-row">
             <span class="pe-row-l">Chargement<span class="pe-sub" id="s-loadmode-sub"></span></span>
-            <span class="pe-row-c"><span class="pe-selc"><select id="s-loadmode" onchange="eaSetLoadMode(this.value)">
+            <span class="pe-row-c"><span class="pe-selc"><select id="s-loadmode" onchange="eaSetLoadMode(this.value); refreshMoeSoon()">
               <option value="">auto</option>
               <option value="mmap">mmap</option>
               <option value="none">none</option>
@@ -3563,6 +3570,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
               <option value="mmap+mlock">mmap+mlock</option>
               <option value="dio">dio</option>
             </select></span></span>
+          </div>
+          <!-- Mode résident (none, mlock, dio, mmap+mlock) avec trop de poids en
+               RAM : l'avertissement du lancement (loadModeRisk), ou son refus. -->
+          <div class="pe-row stack" id="s-loadmode-warn-row" style="display:none">
+            <div class="pe-note" id="s-loadmode-warn" style="color:var(--warn)"></div>
           </div>
         </div>
       </div>
@@ -5992,6 +6004,7 @@ function populateSettings(){
   set('s-ubatch', cfgReadKey('UBATCH'));
   set('s-cram', cfgReadKey('CACHE_RAM'));
   refreshCacheRAM();
+  refreshMoe();
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
   syncKVSub();
@@ -6088,6 +6101,55 @@ async function refreshCacheRAM(){
                                    : ' · SIDE_SLOT refusé : ' + r.side.why) : '';
   if(sub) sub.textContent = 'RAM hôte, copie exacte du contexte · jamais la VRAM' +
     (r.why ? ' · ' + r.why : '') + (r.mib > 0 || fixed ? '' : ' · défaut du moteur') + side;
+}
+// Avis MoE et mode de chargement, calculés côté serveur comme au lancement
+// (backend_serve_moe.go) : experts placés à la main, UBATCH conseillé, moteur
+// sans --fit, chargement résident trop gros pour la RAM. Des avis seulement :
+// rien n'est écrit dans le preset. Une demande en vol ; la dernière gagne.
+let moeSeq = 0, moeTimer = null, moeChanges = null;
+function refreshMoeSoon(){ clearTimeout(moeTimer); moeTimer = setTimeout(refreshMoe, 400); }
+async function refreshMoe(){
+  const row = document.getElementById('m-moe-row'), note = document.getElementById('m-moe-note');
+  const dup = document.getElementById('m-moe-dup');
+  const lrow = document.getElementById('s-loadmode-warn-row'), lw = document.getElementById('s-loadmode-warn');
+  if(!row) return;
+  const seq = ++moeSeq;
+  let r = {};
+  try{ r = await jpost('/api/preset/moe', {content: document.getElementById('m-content').value}); }
+  catch(_){ r = {}; }
+  if(seq !== moeSeq) return;
+  const ap = r.ok ? r.autoplace : null;
+  const parts = (r.ok && r.notes) ? r.notes.slice() : [];
+  if(ap && !ap.ok) parts.push('placement auto impossible : ' + ap.why);
+  note.textContent = parts.join(' · ');
+  moeChanges = (ap && ap.ok) ? (ap.changes || []) : null;
+  dup.hidden = !moeChanges;
+  row.style.display = (parts.length || moeChanges) ? '' : 'none';
+  if(lrow && lw){
+    lw.textContent = (r.ok && r.load) || '';
+    lrow.style.display = lw.textContent ? '' : 'none';
+  }
+}
+// « Dupliquer en placement auto » : une COPIE du preset tel qu'affiché, sans
+// les experts placés à la main (--fit les répartit carte par carte), UBATCH
+// 2048 / BATCH 4096, NGL auto, chargement mmap, CTX et cache KV intacts. Le
+// preset d'origine ne bouge pas : c'est le repli si --fit échoue.
+async function dupAutoPlacement(){
+  if(!moeChanges) return;
+  const msg = 'Créer une COPIE de ce preset en placement automatique (--fit place les experts carte par carte) :\n\n'
+    + moeChanges.map(c => '• ' + c).join('\n')
+    + '\n\nLe preset d\'origine reste tel quel : c\'est le repli. Après la bascule sur la copie, le journal doit dire '
+    + '« successfully fit params » — « failed to fit » met tous les experts sur GPU : revenir à l\'original. '
+    + 'Puis comparer les deux au « bench complet ».';
+  if(!await askConfirm(msg, {title:'Placement auto', okText:'Créer la copie'})) return;
+  let r = {};
+  try{
+    r = await jpost('/api/preset/autoplace', {id: editingKey || '', name: document.getElementById('m-name').value.trim(),
+                                              content: document.getElementById('m-content').value});
+  }catch(e){ r = {ok:false, error:e.message}; }
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('copie créée : ' + r.name);
+  KINDS.preset.reload();
 }
 function syncKVSub(){
   const el = document.getElementById('s-kv-sub');

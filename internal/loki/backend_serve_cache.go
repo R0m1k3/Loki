@@ -74,9 +74,10 @@ func probeCacheRAM(cfg map[string]string, extra []string, si *serveSysInfo) {
 			}
 		}
 	}
+	si.UnifiedMem = runtime.GOOS == "darwin"
 	// Mémoire unifiée (macOS), AMD, Vulkan, --device choisi à la main : pas de
 	// total VRAM fiable, donc pas d'agrandissement.
-	if runtime.GOOS == "darwin" || hasAnyFlag(extra, "-dev", "--device") || si.ArgEnv["LLAMA_ARG_DEVICE"] != "" {
+	if si.UnifiedMem || hasAnyFlag(extra, "-dev", "--device") || si.ArgEnv["LLAMA_ARG_DEVICE"] != "" {
 		return
 	}
 	// La sélection du preset d'abord (cudaDeviceEnv l'accompagne toujours de

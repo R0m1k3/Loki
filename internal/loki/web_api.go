@@ -508,6 +508,62 @@ func handlePresetCacheRAM(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, out)
 }
 
+// handlePresetMoE : avis MoE et mode de chargement pour le preset en cours
+// d'édition (voir backend_serve_moe.go), et ce que ferait « Dupliquer en
+// placement auto » — sans rien écrire.
+func handlePresetMoE(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	notes, load := moePreview(req.Content)
+	out := map[string]any{"ok": true, "notes": notes, "load": load}
+	// L'assistant n'est proposé qu'à un preset qui place des experts à la
+	// main ; « rien à migrer » ne s'affiche pas.
+	if cfg := parseEnv(req.Content); !isExternalConfig(cfg) && cpuExperts(splitArgs(cfg["EXTRA_ARGS"]), nil) != "" {
+		if _, changes, err := autoPlacementPreset(req.Content); err != nil {
+			out["autoplace"] = map[string]any{"ok": false, "why": err.Error()}
+		} else {
+			out["autoplace"] = map[string]any{"ok": true, "changes": changes}
+		}
+	}
+	sendJSON(w, 200, out)
+}
+
+// handlePresetAutoPlace crée la copie en placement auto du preset édité (son
+// contenu tel qu'affiché), sous un nouveau nom. Le preset d'origine n'est pas
+// touché, et la copie n'est pas activée : c'est à l'utilisateur de basculer,
+// puis de comparer (bench complet).
+func handlePresetAutoPlace(w http.ResponseWriter, r *http.Request) {
+	if !postOnly(w, r) {
+		return
+	}
+	var req struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	out, changes, err := autoPlacementPreset(req.Content)
+	if err != nil {
+		sendJSON(w, 200, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	name := firstNonEmpty(strings.TrimSpace(req.Name), presetDisplayName(req.Content, req.ID), "preset") + " (placement auto)"
+	newID, err := SavePreset("", name, out)
+	if err != nil {
+		sendJSON(w, 200, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "id": newID, "name": name, "changes": changes})
+}
+
 func handlePresetSave(w http.ResponseWriter, r *http.Request) {
 	var req presetSaveReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

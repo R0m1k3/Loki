@@ -1018,6 +1018,7 @@ function populateSettings(){
   set('s-ubatch', cfgReadKey('UBATCH'));
   set('s-cram', cfgReadKey('CACHE_RAM'));
   refreshCacheRAM();
+  refreshMoe();
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
   syncKVSub();
@@ -1114,6 +1115,55 @@ async function refreshCacheRAM(){
                                    : ' · SIDE_SLOT refusé : ' + r.side.why) : '';
   if(sub) sub.textContent = 'RAM hôte, copie exacte du contexte · jamais la VRAM' +
     (r.why ? ' · ' + r.why : '') + (r.mib > 0 || fixed ? '' : ' · défaut du moteur') + side;
+}
+// Avis MoE et mode de chargement, calculés côté serveur comme au lancement
+// (backend_serve_moe.go) : experts placés à la main, UBATCH conseillé, moteur
+// sans --fit, chargement résident trop gros pour la RAM. Des avis seulement :
+// rien n'est écrit dans le preset. Une demande en vol ; la dernière gagne.
+let moeSeq = 0, moeTimer = null, moeChanges = null;
+function refreshMoeSoon(){ clearTimeout(moeTimer); moeTimer = setTimeout(refreshMoe, 400); }
+async function refreshMoe(){
+  const row = document.getElementById('m-moe-row'), note = document.getElementById('m-moe-note');
+  const dup = document.getElementById('m-moe-dup');
+  const lrow = document.getElementById('s-loadmode-warn-row'), lw = document.getElementById('s-loadmode-warn');
+  if(!row) return;
+  const seq = ++moeSeq;
+  let r = {};
+  try{ r = await jpost('/api/preset/moe', {content: document.getElementById('m-content').value}); }
+  catch(_){ r = {}; }
+  if(seq !== moeSeq) return;
+  const ap = r.ok ? r.autoplace : null;
+  const parts = (r.ok && r.notes) ? r.notes.slice() : [];
+  if(ap && !ap.ok) parts.push('placement auto impossible : ' + ap.why);
+  note.textContent = parts.join(' · ');
+  moeChanges = (ap && ap.ok) ? (ap.changes || []) : null;
+  dup.hidden = !moeChanges;
+  row.style.display = (parts.length || moeChanges) ? '' : 'none';
+  if(lrow && lw){
+    lw.textContent = (r.ok && r.load) || '';
+    lrow.style.display = lw.textContent ? '' : 'none';
+  }
+}
+// « Dupliquer en placement auto » : une COPIE du preset tel qu'affiché, sans
+// les experts placés à la main (--fit les répartit carte par carte), UBATCH
+// 2048 / BATCH 4096, NGL auto, chargement mmap, CTX et cache KV intacts. Le
+// preset d'origine ne bouge pas : c'est le repli si --fit échoue.
+async function dupAutoPlacement(){
+  if(!moeChanges) return;
+  const msg = 'Créer une COPIE de ce preset en placement automatique (--fit place les experts carte par carte) :\n\n'
+    + moeChanges.map(c => '• ' + c).join('\n')
+    + '\n\nLe preset d\'origine reste tel quel : c\'est le repli. Après la bascule sur la copie, le journal doit dire '
+    + '« successfully fit params » — « failed to fit » met tous les experts sur GPU : revenir à l\'original. '
+    + 'Puis comparer les deux au « bench complet ».';
+  if(!await askConfirm(msg, {title:'Placement auto', okText:'Créer la copie'})) return;
+  let r = {};
+  try{
+    r = await jpost('/api/preset/autoplace', {id: editingKey || '', name: document.getElementById('m-name').value.trim(),
+                                              content: document.getElementById('m-content').value});
+  }catch(e){ r = {ok:false, error:e.message}; }
+  if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }
+  toast('copie créée : ' + r.name);
+  KINDS.preset.reload();
 }
 function syncKVSub(){
   const el = document.getElementById('s-kv-sub');

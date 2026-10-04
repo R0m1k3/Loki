@@ -604,6 +604,40 @@ Ajoutées par ce fork :
   ordres demande deux rechargements du moteur et un ordre inversé peut manquer
   de VRAM sur la petite carte — dupliquer le preset, inverser l'ordre dans la
   copie, « bench complet » sur chacun, et vérifier `offloaded N/N layers`.
+- **MoE aux experts sur CPU : avis et copie en placement auto** (jamais de
+  réécriture du preset). Au lancement (journal) et dans l'éditeur, sous
+  « Experts MoE sur CPU », pour un modèle dont le GGUF annonce des experts :
+  experts placés à la main (`-ot` visant `…exps…` vers le CPU, `--n-cpu-moe`,
+  `--cpu-moe` — un `-ot` de la seule couche d'entrée `per_layer_token_embd` ne
+  compte pas) → `--fit` ne les place pas, et monter `UBATCH` seul grossirait
+  le tampon de calcul de chaque carte sans personne pour rééquilibrer (monter
+  `--n-cpu-moe` d'abord) ; placement auto avec un modèle plus gros que la VRAM
+  et `UBATCH` ≤ 512 → « UBATCH 2048+ recommandé » (les experts restés en RAM
+  sont recopiés vers le GPU à chaque micro-lot du prefill) ; moteur sans
+  `--fit` → « garde `--n-cpu-moe` » ; `--fit` coupé par un autre `-ot` → rien
+  ne sort les experts du GPU. Le bouton **« Dupliquer en placement auto… »**
+  crée une **copie** du preset affiché, sous « (placement auto) », sans la
+  bascule : `-ot` des experts (et celui de `per_layer_token_embd`, redondant :
+  llama.cpp garde toujours la couche d'entrée au CPU), `--n-cpu-moe`,
+  `--cpu-moe`, `-ngl`, `--tensor-split`, `--fit off`, `-b`/`-ub` et drapeaux
+  de chargement retirés ; `NGL` retiré (`-ngl auto`), `UBATCH=2048`,
+  `BATCH=4096`, `--load-mode mmap` ; `CTX`, cache KV (quantifié ou non : à
+  garder identique pour comparer), échantillonnage intacts. Refusé si la copie
+  ne tournerait pas en `--fit` (autre `-ot`, `-sm row/tensor`, `SPLIT_MODE`,
+  `--n-cpu-ffn`) ou si `CTX` vaut 0. Après bascule : `successfully fit params`
+  au journal (`failed to fit` = tous les experts sur GPU, revenir à
+  l'original), puis bench complet des deux.
+- **Garde du mode de chargement** (clé d'échappement `LOAD_GUARD=off`, dans
+  le preset) : `--load-mode none`, `mlock`, `dio`, `mmap+mlock` (ou
+  `--no-mmap`, `--mlock` sur un moteur ancien, ou leurs `LLAMA_ARG_*`) gardent
+  en RAM tous les poids laissés au CPU. Loki en estime la part — modèle
+  (toutes tranches) moins VRAM totale, tout le modèle sur macOS — face à la
+  RAM effective (limite du conteneur cgroup comprise) : avertissement au-delà
+  de 80 % (llama.cpp #26110 : swap, décodage de 25 à 7,5 t/s ; mlock : processus
+  tué) ; **refus** au lancement seulement quand la borne basse dépasse 90 %
+  (échec certain), avec la raison en clair. VRAM inconnue : avertissement, jamais
+  de refus. `mmap` et `auto` ne sont jamais concernés. Rien ne change dans la
+  ligne de commande.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

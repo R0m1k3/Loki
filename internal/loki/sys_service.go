@@ -74,6 +74,9 @@ var configTemplate = []struct{ key, help string }{
 	{"THREADS_BATCH", "threads CPU du prefill et de la vérification spéculative (MTP) ; vide ou 0 = comme THREADS"},
 	{"FIT_TARGET", "Mio laissés libres par carte par le placement auto (--fit-target), ex. 1024,3072 dans l'ordre des cartes ; " +
 		"vide = 1024, minimum 1024 ; sans effet si NGL chiffré, --tensor-split, -ot ou --n-cpu-moe"},
+	{"LOAD_GUARD", "off = lancer quand même un --load-mode none/mlock/dio/mmap+mlock (ou --no-mmap, --mlock) dont les poids " +
+		"restés en RAM dépassent à coup sûr 90 % de la RAM (limite du conteneur comprise) ; vide (défaut) = refus clair au " +
+		"lancement dans ce cas, simple avertissement au-delà de 80 % estimés"},
 	{"OP_OFFLOAD_MIN_BATCH", "experts MoE sur CPU : taille de lot à partir de laquelle ils sont recopiés vers le GPU ; " +
 		"vide = défaut du moteur (32) ; plus haut = lots courts sur CPU, à mesurer"},
 	{"SPLIT_MODE", "tensor = parallélisme de tenseurs entre cartes CUDA (-sm tensor, expérimental) : décodage plus rapide, " +

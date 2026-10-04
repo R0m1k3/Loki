@@ -1225,7 +1225,14 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Experts MoE sur CPU<span class="pe-sub">vide = non · sur 2 GPU, coupe le pipeline entre cartes (prompt plus lent)</span></span>
-            <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value)"></span>
+            <span class="pe-row-c"><input id="s-moe" class="pe-val" type="number" min="0" step="1" placeholder="—" oninput="eaSetValued('--n-cpu-moe', this.value); refreshMoeSoon()"></span>
+          </div>
+          <!-- Avis MoE (refreshMoe) : experts placés à la main, UBATCH conseillé,
+               et l'assistant « Dupliquer en placement auto » — une COPIE du
+               preset, l'original reste tel quel. Masqué tant qu'il n'y a rien à dire. -->
+          <div class="pe-row stack" id="m-moe-row" style="display:none">
+            <div class="pe-note" id="m-moe-note"></div>
+            <button class="pe-link" id="m-moe-dup" onclick="dupAutoPlacement()" hidden>Dupliquer en placement auto…</button>
           </div>
           <div class="pe-row">
             <span class="pe-row-l">Threads CPU<span class="pe-sub">vide ou 0 = cœurs physiques</span></span>
@@ -1241,7 +1248,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           </div>
           <div class="pe-row">
             <span class="pe-row-l">UBATCH</span>
-            <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value)"></span>
+            <span class="pe-row-c"><input id="s-ubatch" class="pe-val" type="number" min="0" step="128" placeholder="512" oninput="cfgWriteKey('UBATCH', this.value); refreshMoeSoon()"></span>
           </div>
           <div class="pe-row">
             <!-- Cache de prompts en RAM hôte (--cache-ram, Mio) : copie exacte de
@@ -1329,7 +1336,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
                (normalizeLoadFlags). -->
           <div class="pe-row">
             <span class="pe-row-l">Chargement<span class="pe-sub" id="s-loadmode-sub"></span></span>
-            <span class="pe-row-c"><span class="pe-selc"><select id="s-loadmode" onchange="eaSetLoadMode(this.value)">
+            <span class="pe-row-c"><span class="pe-selc"><select id="s-loadmode" onchange="eaSetLoadMode(this.value); refreshMoeSoon()">
               <option value="">auto</option>
               <option value="mmap">mmap</option>
               <option value="none">none</option>
@@ -1337,6 +1344,11 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               <option value="mmap+mlock">mmap+mlock</option>
               <option value="dio">dio</option>
             </select></span></span>
+          </div>
+          <!-- Mode résident (none, mlock, dio, mmap+mlock) avec trop de poids en
+               RAM : l'avertissement du lancement (loadModeRisk), ou son refus. -->
+          <div class="pe-row stack" id="s-loadmode-warn-row" style="display:none">
+            <div class="pe-note" id="s-loadmode-warn" style="color:var(--warn)"></div>
           </div>
         </div>
       </div>

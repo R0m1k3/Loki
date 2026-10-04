@@ -342,6 +342,7 @@ func cmdServe(args []string) error {
 	// launchQueuesEnv). Après la sélection GPU, qui fait partie de la réponse.
 	probeServeGPUs(cfg, extra, &si)
 	probeExpertEnv(&si)
+	probeLoadEnv(&si)
 	probeFidelityEnv(&si)
 	probeCacheRAM(cfg, extra, &si)
 	probeCkptEnv(&si)
@@ -384,6 +385,11 @@ func cmdServe(args []string) error {
 	}
 	for _, n := range notes {
 		fmt.Fprintln(os.Stderr, "[loki serve] "+n)
+	}
+	// Chargement résident avec plus de poids en RAM que la machine n'en a :
+	// échec certain (voir loadModeRisk), LOAD_GUARD=off pour passer outre.
+	if _, refuse := loadModeRisk(cfg, llmArgs, si); refuse != "" {
+		return fmt.Errorf("%s", refuse)
 	}
 
 	// Working dir = LOKI_HOME so relative paths in EXTRA_ARGS (e.g. --mmproj
@@ -444,6 +450,7 @@ type serveSysInfo struct {
 	RAMMiB      int64     // RAM de la machine, limite du conteneur comprise
 	RAMAvailMiB int64     // RAM libre au lancement
 	VRAMMiB     int64     // VRAM NVIDIA des cartes visibles
+	UnifiedMem  bool      // macOS : RAM et VRAM ne font qu'une (voir loadModeRisk)
 	SlotDir     string    // dossier de --slot-save-path, créé et vérifié ; vide = pas de drapeau
 
 	// Build d'un moteur officiel (engineBuildTrusted), lu seulement pour un
@@ -704,6 +711,13 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		notes = append(notes, n)
 	}
 	notes = append(notes, lossyCacheNotes(extra, si)...)
+	// Experts MoE et mode de chargement (voir backend_serve_moe.go) : des notes
+	// seulement, la ligne ne bouge pas. Le refus d'un chargement voué à l'échec
+	// se décide dans cmdServe, sur cette même ligne.
+	notes = append(notes, moeNotes(cfg, extra, si)...)
+	if w, _ := loadModeRisk(cfg, args, si); w != "" {
+		notes = append(notes, w)
+	}
 	return args, env, notes
 }
 
