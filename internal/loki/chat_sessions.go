@@ -86,6 +86,8 @@ func convIndexForProject(slug string) []convMeta {
 // tagOrphanConversations rattache au projet donné les discussions qui n'en ont
 // pas encore (migration, une seule fois : ensuite il n'y a plus d'orphelines).
 func tagOrphanConversations(slug string) {
+	convIndexMu.Lock()
+	defer convIndexMu.Unlock()
 	idx := convIndex()
 	changed := false
 	for i := range idx {
@@ -123,8 +125,22 @@ func convIndexSave(idx []convMeta) {
 
 // convEnsureActive garantit qu'une discussion active existe, et reprend le fil
 // unique de l'amont s'il y en a un (migration silencieuse, une seule fois).
+//
+// L'identifiant est gardé en RAM (chat_persist.go) : seule la première lecture
+// ouvre la base. Le test, la lecture et la création se font sous convActiveMu —
+// deux appelants simultanés sur une base neuve forgeaient sinon chacun leur
+// identifiant, et le second rendait orpheline la discussion du premier.
 func convEnsureActive() string {
+	if id := convActiveCached(); id != "" {
+		return id
+	}
+	convActiveMu.Lock()
+	defer convActiveMu.Unlock()
+	if id := convActiveCached(); id != "" {
+		return id
+	}
 	if id := getStr(bkChat, ckActive); id != "" {
+		convActiveRemember(id)
 		return id
 	}
 	id := newConvID()
@@ -135,34 +151,17 @@ func convEnsureActive() string {
 	}
 	_ = putStr(bkChat, ckActive, id)
 	now := time.Now().Unix()
-	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: activeProjectSlug()}))
+	project := activeProjectSlug()
+	convIndexMu.Lock()
+	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: project}))
+	convIndexMu.Unlock()
+	convActiveRemember(id)
 	return id
 }
 
 // newConvID : horodatage en nanosecondes — monotone, lisible au tri, et sans
 // dépendance à un générateur aléatoire.
 func newConvID() string { return fmt.Sprintf("c%d", time.Now().UnixNano()) }
-
-// convTouchMeta rafraîchit les métadonnées de la discussion active après un
-// enregistrement : titre (déduit du premier message si l'utilisateur n'en a pas
-// choisi), date de modification et nombre d'échanges.
-func convTouchMeta(id string, title string, turns int) {
-	idx := convIndex()
-	now := time.Now().Unix()
-	for i := range idx {
-		if idx[i].ID != id {
-			continue
-		}
-		idx[i].Updated = now
-		idx[i].Turns = turns
-		if idx[i].Title == "" {
-			idx[i].Title = title
-		}
-		convIndexSave(idx)
-		return
-	}
-	convIndexSave(append(idx, convMeta{ID: id, Title: title, Created: now, Updated: now, Turns: turns, Project: activeProjectSlug()}))
-}
 
 // convSummary lit le premier message utilisateur pour en faire un titre. Sans
 // message, on laisse vide : l'UI affiche « Nouvelle discussion » et le titre se
@@ -217,8 +216,7 @@ func projectSwitch(slug string) error {
 		return nil
 	}
 	// convIndex rend la plus récemment modifiée en tête.
-	_ = putStr(bkChat, ckActive, list[0].ID)
-	conv.loadFrom(storeBytes(bkChat, convKey(list[0].ID)))
+	convActivate(list[0].ID, storeBytes(bkChat, convKey(list[0].ID)))
 	return nil
 }
 
@@ -241,12 +239,11 @@ func convSwitch(id string) error {
 	if !found {
 		return fmt.Errorf("discussion introuvable")
 	}
-	if id == getStr(bkChat, ckActive) {
+	if id == convEnsureActive() {
 		return nil
 	}
 	conv.persist() // fige la discussion qu'on quitte
-	_ = putStr(bkChat, ckActive, id)
-	conv.loadFrom(storeBytes(bkChat, convKey(id)))
+	convActivate(id, storeBytes(bkChat, convKey(id)))
 	return nil
 }
 
@@ -256,9 +253,11 @@ func convSwitch(id string) error {
 func convCreate() string {
 	id := newConvID()
 	now := time.Now().Unix()
-	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: activeProjectSlug()}))
-	_ = putStr(bkChat, ckActive, id)
-	conv.loadFrom(nil)
+	project := activeProjectSlug()
+	convIndexMu.Lock()
+	convIndexSave(append(convIndex(), convMeta{ID: id, Created: now, Updated: now, Project: project}))
+	convIndexMu.Unlock()
+	convActivate(id, nil)
 	return id
 }
 
@@ -277,6 +276,8 @@ func convRename(id, title string) error {
 	if id == "" || title == "" {
 		return fmt.Errorf("identifiant ou titre manquant")
 	}
+	convIndexMu.Lock()
+	defer convIndexMu.Unlock()
 	idx := convIndex()
 	for i := range idx {
 		if idx[i].ID == id {
@@ -294,6 +295,7 @@ func convRename(id, title string) error {
 func convDelete(id string) error {
 	convOpMu.Lock()
 	defer convOpMu.Unlock()
+	convIndexMu.Lock()
 	idx := convIndex()
 	next := make([]convMeta, 0, len(idx))
 	found := false
@@ -304,10 +306,24 @@ func convDelete(id string) error {
 		}
 		next = append(next, m)
 	}
+	convIndexMu.Unlock()
 	if !found {
 		return fmt.Errorf("discussion introuvable")
 	}
+	// Écritures différées (chat_persist.go) : on écarte d'abord tout ce qui
+	// viserait encore cette discussion, puis on attend l'écriture déjà en vol —
+	// sinon elle la ferait renaître, contenu et entrée d'index, juste après.
+	persistQ.forget(id)
+	persistQ.flush()
+	convIndexMu.Lock()
+	next = next[:0]
+	for _, m := range convIndex() {
+		if m.ID != id {
+			next = append(next, m)
+		}
+	}
 	convIndexSave(next)
+	convIndexMu.Unlock()
 	_ = putBytes(bkChat, convKey(id), nil)
 	// Mode code : les jobs d'arrière-plan de la discussion s'arrêtent avec
 	// elle, et ses critères/mode/puce partent avec ses messages.
@@ -319,14 +335,13 @@ func convDelete(id string) error {
 	// pour toujours, et plus aucun écran ne permettrait de les retrouver.
 	dropConvFiles(id)
 	deleteToolResultsFor(id) // ses résultats « voir plus » partent avec elle
-	if id != getStr(bkChat, ckActive) {
+	if id != convEnsureActive() {
 		return nil
 	}
 	if len(next) == 0 {
 		convCreate() // surtout pas convNew : il réenregistrerait la supprimée
 		return nil
 	}
-	_ = putStr(bkChat, ckActive, next[0].ID)
-	conv.loadFrom(storeBytes(bkChat, convKey(next[0].ID)))
+	convActivate(next[0].ID, storeBytes(bkChat, convKey(next[0].ID)))
 	return nil
 }

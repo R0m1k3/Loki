@@ -50,6 +50,7 @@ func runTray(url string) {
 		// que seul root peut piloter. Fermer une interface n'a pas à arrêter un
 		// service système. Sous Windows, où l'app est propriétaire du moteur,
 		// « Quitter » l'arrête bel et bien (voir sys_tray_windows.go).
+		flushPersister(persistExitWait) // écritures différées de la discussion
 		os.Exit(0)
 	})
 }

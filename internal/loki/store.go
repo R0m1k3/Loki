@@ -62,8 +62,14 @@ func dbPath() string { return filepath.Join(LokiHome(), "loki.db") }
 
 // withDB ouvre la base, exécute fn, puis referme — toujours, même en erreur.
 func withDB(fn func(*bolt.DB) error) error {
-	path := dbPath()
+	return withDBAt(dbPath(), fn)
+}
 
+// withDBAt : withDB sur une base désignée. Sert à l'écrivain de la discussion
+// (chat_persist.go), qui écrit APRÈS coup et doit viser la base de l'instant où
+// l'instantané a été pris — pas celle que désignerait LOKI_HOME au moment de
+// l'écriture (les tests en changent d'un test à l'autre).
+func withDBAt(path string, fn func(*bolt.DB) error) error {
 	dbMu.Lock()
 	defer dbMu.Unlock()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

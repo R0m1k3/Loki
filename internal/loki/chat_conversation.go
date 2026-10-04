@@ -191,11 +191,15 @@ func LoadConversation() {
 
 // loadFrom remplace l'état en mémoire par une autre discussion (b vide = fil
 // neuf) et invalide les abonnés : l'epoch incrémenté leur fait vider l'écran et
-// rejouer depuis zéro, exactement comme un reset. L'appelant NE doit PAS
-// détenir mu.
-func (c *Conversation) loadFrom(b []byte) {
+// rejouer depuis zéro, exactement comme un reset. id = discussion chargée : le
+// cache de la discussion active change sous mu, avec le contenu (voir
+// convActivate). L'appelant NE doit PAS détenir mu.
+func (c *Conversation) loadFrom(id string, b []byte) {
 	c.Stop()
 	c.mu.Lock()
+	if c == conv {
+		convActiveRemember(id)
+	}
 	c.Messages, c.Log, c.Seq, c.CtxUsed = nil, nil, 0, 0
 	c.ctxUsedLen, c.genPeak = 0, 0
 	c.queued = nil // file de l'ancienne discussion : elle ne suit pas la bascule
@@ -222,34 +226,6 @@ func reloadEncryptedStores() {
 	if empty {
 		LoadConversation()
 	}
-}
-
-// persist enregistre l'état (appelé en fin de tour et sur reset, pas à chaque
-// delta) sous la discussion active, et rafraîchit ses métadonnées (titre déduit
-// du premier message, date, nombre d'échanges). L'appelant NE doit PAS détenir mu.
-func (c *Conversation) persist() {
-	c.mu.Lock()
-	// Images en base64 → références (chat_images.go) avant d'écrire : une photo
-	// jointe pesait des Mo, réécrits en entier à CHAQUE fin de tour.
-	refImagesInMessages(c.Messages)
-	b, err := json.Marshal(c)
-	title := convSummary(c.Messages)
-	turns := 0
-	for _, ev := range c.Log {
-		if _, ok := ev.Delta["user"]; ok {
-			turns++
-		}
-	}
-	c.mu.Unlock()
-	if err != nil {
-		return
-	}
-	id := convEnsureActive()
-	// Chiffré si la mémoire l'est et qu'elle est déverrouillée. Verrouillée,
-	// l'écriture est REFUSÉE plutôt que de remplacer un blob chiffré par du
-	// clair — le fil de ce tour reste en RAM, rien n'est perdu sur disque.
-	_ = putStoreBytes(bkChat, convKey(id), b)
-	convTouchMeta(id, title, turns)
 }
 
 // appendDelta journalise un événement d'affichage et réveille les abonnés.
@@ -303,8 +279,16 @@ func evTS0(d map[string]any, fallback int64) int64 {
 // On préserve `toks` (somme) et `ts0` (premier) pour que le compteur de vitesse
 // (tok/s) reste correct au replay. Verrou détenu par l'appelant.
 func (c *Conversation) compactLogLocked() {
-	if len(c.Log) < 2 {
-		return
+	c.Log = compactLog(c.Log)
+}
+
+// compactLog est la compaction de compactLogLocked sous forme PURE : elle rend
+// un nouveau journal sans toucher à celui qu'on lui passe (les événements non
+// fusionnés sont partagés, pas recopiés). snapshot s'en sert pour écrire, en
+// plein tour, la forme qu'aura le journal à la fin du tour.
+func compactLog(log []LogEvent) []LogEvent {
+	if len(log) < 2 {
+		return log
 	}
 	textKey := func(d map[string]any) string {
 		if _, ok := d["content"].(string); ok {
@@ -315,7 +299,7 @@ func (c *Conversation) compactLogLocked() {
 		}
 		return ""
 	}
-	out := make([]LogEvent, 0, len(c.Log))
+	out := make([]LogEvent, 0, len(log))
 	var buf strings.Builder
 	bufKey := ""
 	var cur LogEvent
@@ -332,7 +316,7 @@ func (c *Conversation) compactLogLocked() {
 		buf.Reset()
 		bufKey, toks, ts0, seq0 = "", 0, 0, 0
 	}
-	for _, ev := range c.Log {
+	for _, ev := range log {
 		// Outils : un appel s'écrit en de nombreux événements (annonce done=false,
 		// frappe du corps, streaming des arguments) jusqu'au done=true, qui porte
 		// déjà l'état FINAL (résultat + diff). Les intermédiaires ne servent qu'à
@@ -368,7 +352,7 @@ func (c *Conversation) compactLogLocked() {
 		toks += evToks(ev.Delta)
 	}
 	flush()
-	c.Log = out
+	return out
 }
 
 // compactAndPublish exécute UNE compaction et en publie tout le cycle de vie :
@@ -511,9 +495,10 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	epoch := c.epoch
 	c.mu.Unlock()
 
-	// Borne de tour + bulle utilisateur (rejouables). Persistée tout de suite :
-	// si le process meurt en pleine génération (crash, restart après MAJ), le
-	// message de l'utilisateur survit au lieu de disparaître avec le tour.
+	// Borne de tour + bulle utilisateur (rejouables). Persistée tout de suite
+	// (sur disque quelques ms plus tard, voir persistAsync) : si le process
+	// meurt en pleine génération (crash, restart après MAJ), le message de
+	// l'utilisateur survit au lieu de disparaître avec le tour.
 	delta := map[string]any{"user": text}
 	// Nom du modèle qui va produire la réponse : journalisé avec la borne de
 	// tour, donc rejoué au chargement — la carte de réponse garde son modèle
@@ -531,7 +516,9 @@ func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, tem
 	if !caps.Code {
 		maybeCodeHint(c, epoch, text)
 	}
-	c.persist()
+	// Instantané pris ici, écriture laissée à l'écrivain (chat_persist.go) : le
+	// fsync ne retarde plus le départ de la requête vers le modèle.
+	c.persistAsync()
 	if temperature == 0 {
 		temperature = 0.7
 	}
@@ -750,7 +737,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	}()
 	// Télémétrie : tout ce que ce tour envoie au moteur (étapes, compaction,
 	// sous-agents, vérification) est rattaché à la discussion active.
-	ctx = withPerf(ctx, perfMain, getStr(bkChat, ckActive))
+	ctx = withPerf(ctx, perfMain, convEnsureActive())
 
 	// llama-server local seulement : le preset externe garde le seul seuil, et
 	// ses complétions ne nourrissent pas la garde de marge (compactNeeded).

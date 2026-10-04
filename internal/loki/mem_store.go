@@ -174,6 +174,9 @@ var encryptedBuckets = []string{bkChat, bkRecall, bkTracker, bkToolRes}
 
 // reencryptChatStores (re)chiffre les buckets de conversation. Exige la DEK.
 func reencryptChatStores() error {
+	// Écritures différées (chat_persist.go) d'abord : écrites pendant le
+	// passage, elles pourraient être écrasées par la relecture d'avant.
+	persistQ.flush()
 	healPlainStoreKeys()
 	for _, b := range encryptedBuckets {
 		if err := reencryptBucket(b); err != nil {
@@ -185,6 +188,7 @@ func reencryptChatStores() error {
 
 // decryptChatStores remet en clair les buckets de conversation. Exige la DEK.
 func decryptChatStores() error {
+	persistQ.flush() // même raison que reencryptChatStores
 	for _, b := range encryptedBuckets {
 		if err := decryptBucket(b); err != nil {
 			return err

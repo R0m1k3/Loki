@@ -254,6 +254,9 @@ func refreshToolPath() {}
 // supervises llama-server directly, as the old start.sh did with `exec`).
 // args[0] must be the binary path.
 func execServer(bin string, args []string) error {
+	// exec remplace le process sans rien exécuter après : ce qui attendait
+	// l'écrivain de la discussion (chat_persist.go) serait perdu.
+	flushPersister(persistExitWait)
 	return syscall.Exec(bin, args, os.Environ())
 }
 

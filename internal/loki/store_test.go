@@ -11,6 +11,9 @@ func testHome(t *testing.T) string {
 	t.Setenv("LOKI_HOME", home)
 	firewallInert = true
 	t.Cleanup(func() { firewallInert = false })
+	// Écritures différées (chat_persist.go) : vidées AVANT que TempDir ne
+	// supprime la base — les cleanups passent dans l'ordre inverse.
+	t.Cleanup(persistQ.flush)
 	return home
 }
 

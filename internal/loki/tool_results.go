@@ -45,13 +45,23 @@ func toolResID(sid string) string {
 // saveToolResult enregistre un résultat complet de la discussion ACTIVE et
 // renvoie son id ("" en cas d'échec : l'appelant envoie alors le résultat
 // entier dans le flux).
+//
+// L'écriture est confiée à l'écrivain de la discussion (chat_persist.go) : un
+// tour d'agent qui coupe vingt résultats payait vingt fsync entre l'outil et
+// l'étape suivante. Le résultat est servi depuis la mémoire jusqu'à ce qu'il
+// soit sur disque (loadToolResult).
 func saveToolResult(result string) string {
-	id := toolResID(getStr(bkChat, ckActive))
-	// Chiffrement actif mais mémoire verrouillée : putStoreBytes refuse d'écrire
-	// en clair, et l'appelant envoie alors le résultat entier dans le flux.
-	if id == "" || putStoreBytes(bkToolRes, id, []byte(result)) != nil {
+	id := toolResID(convEnsureActive())
+	// Chiffrement actif mais mémoire verrouillée : on refuse d'écrire en clair,
+	// et l'appelant envoie alors le résultat entier dans le flux. Vérifié ICI,
+	// pas à l'écriture : un id rendu doit désigner un résultat qu'on écrira.
+	if id == "" {
 		return ""
 	}
+	if _, err := memEncoderNow(); err != nil {
+		return ""
+	}
+	persistQ.enqueueToolRes(toolResJob{path: dbPath(), key: id, plain: result})
 	if toolResWrites.Add(1)%toolResPruneGap == 0 {
 		go pruneToolResults()
 	}
@@ -62,6 +72,9 @@ func saveToolResult(result string) string {
 func loadToolResult(id string) (string, bool) {
 	if strings.ContainsAny(id, "/\\") {
 		return "", false
+	}
+	if s, ok := persistQ.toolResPending(id); ok {
+		return s, true
 	}
 	b, err := getStoreBytesErr(bkToolRes, id)
 	if err != nil || b == nil {
@@ -76,6 +89,7 @@ func deleteToolResultsFor(sid string) {
 		return
 	}
 	prefix := sid + "."
+	persistQ.dropToolRes(prefix)
 	_ = update(bkToolRes, func(b *bolt.Bucket) error {
 		c := b.Cursor()
 		var keys [][]byte

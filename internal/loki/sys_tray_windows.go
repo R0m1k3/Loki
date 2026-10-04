@@ -53,6 +53,7 @@ func runTray(url string) {
 		// Linux et macOS c'est systemd ou launchd, et fermer une interface n'a
 		// pas à arrêter un service système.
 		_ = svcStop(false)
+		flushPersister(persistExitWait) // écritures différées de la discussion
 		os.Exit(0)
 	})
 }

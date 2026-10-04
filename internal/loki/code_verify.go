@@ -195,7 +195,9 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		}
 	}
 	c.mu.Unlock()
-	c.persist()
+	// En plein tour : l'étape suivante part vers le modèle juste après, le fsync
+	// ne doit pas l'attendre (chat_persist.go).
+	c.persistAsync()
 	return asked
 }
 

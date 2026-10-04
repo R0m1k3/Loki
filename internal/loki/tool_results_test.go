@@ -55,6 +55,7 @@ func TestToolResultsChiffres(t *testing.T) {
 	if id == "" {
 		t.Fatal("résultat non enregistré")
 	}
+	persistQ.flush() // l'écriture est différée (chat_persist.go)
 	if !looksEncrypted(getBytes(bkToolRes, id)) {
 		t.Fatal("résultat en clair alors que la mémoire est chiffrée")
 	}
