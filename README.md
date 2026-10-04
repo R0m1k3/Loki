@@ -356,6 +356,242 @@ Ajoutées par ce fork :
   → maximale) et rejoue le message sans rien perdre de l'historique — une fois,
   puis la traduction est retenue pour ce modèle. La liste est grisée quand le
   raisonnement est coupé pour ce modèle.
+- **Performance** : cache de prompts, slots, décodage spéculatif, placement
+  MoE et multi-GPU, optimiseur — tout est rassemblé dans la section
+  [Performance](#performance), avec la table des clés et leur défaut.
+- **Discussions multiples** : historique complet dans la barre latérale, titre
+  repris du premier message (renommable), suppression. **Chaque discussion a son
+  dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes
+  déposées, les captures et ce que l'agent écrit y atterrissent, le shell et les
+  chemins relatifs du modèle y sont résolus. Changer de discussion change donc
+  les fichiers ; supprimer (ou vider) une discussion emporte les siens, pour que
+  le disque ne se remplisse pas en silence.
+- **Recherche Hugging Face** intégrée avec verdict mémoire et installation liée
+  du projecteur vision (voir [Installer un modèle](#installer-un-modèle)).
+- **Captures de pages web** : l'agent dispose de l'outil `web_screenshot`
+  (Chromium via Playwright, inclus dans l'image). Les captures partent en JPEG
+  et sont plafonnées à 20 fichiers / 40 Mo par discussion. La description de
+  l'outil suit la capacité **réelle** du moteur, sondée sur `/props` : sans
+  vision effective, elle dit au modèle « tu ne vois pas l'image » plutôt que de
+  lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
+  la montrer, sans prétendre la décrire. L'image relayée au moteur reste
+  éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
+- **Panneau Fichiers** (bouton dossier de la barre de saisie) : les fichiers de la
+  discussion ouverte — dépôts, captures, ce que l'agent y a écrit — avec
+  navigation dans les sous-dossiers, téléchargement et suppression. Un dossier
+  affiche la taille de **tout** son contenu, c'est ce qu'on libère en le
+  supprimant, et le pied donne l'occupation disque de la discussion. Les chemins
+  sont bornés à son dossier, liens symboliques résolus des deux côtés : ni le
+  reste du disque ni les autres discussions ne sont atteignables. Les fichiers
+  d'avant ce rangement que la migration n'a pas su rattacher restent joignables
+  par le bouton **hors discussion**, qui disparaît une fois le ménage fait.
+- **Interface « Sober Tech »** : ardoise et sauge, typographie Inter (interface)
+  et JetBrains Mono (code, chiffres, chemins) — embarquées dans le binaire, donc
+  aucune requête vers un service de polices. Deux variantes : claire par défaut,
+  **Deep Dark** (fond `#0F172A`, cartes `#1E293B`) d'un clic depuis l'en-tête.
+  L'en-tête porte le titre de la discussion et le **sélecteur de modèle** (le
+  changement de preset ne demande plus d'ouvrir les réglages) ; la barre
+  latérale s'escamote pour rendre toute la largeur au fil ; les discussions s'y
+  cherchent au clavier et les jauges **GPU / VRAM / mémoire vive** restent
+  visibles en pied de colonne.
+- **Libérer la VRAM d'un clic** : sur les jauges du moniteur, un bouton décharge
+  le modèle et arrête le moteur (ainsi que le serveur de dictée, qui occupe la
+  carte lui aussi) pour rendre la mémoire vidéo à une autre application — jeu,
+  encodage, autre serveur d'inférence. Le bilan est annoncé en Gio réellement
+  rendus, et le même bouton devient **Recharger le modèle** pour reprendre la
+  main. Routes : `POST /api/vram/unload` et `POST /api/vram/reload`.
+- **API OpenAI servie par Loki** : `/v1/*` est exposé **sur le port de
+  l'interface** (8090) et relayé vers llama-server, au lieu d'annoncer l'adresse
+  du moteur. Conséquence directe : l'API est joignable partout où l'interface
+  l'est — par l'IP du réseau local comme par un nom de domaine — sans publier de
+  second port ni ouvrir le moteur. L'amont annonçait `http://<ip>:8080/v1`, une
+  adresse injoignable en conteneur (le port 8080 n'y est pas publié, et l'IP
+  détectée est celle du bridge Docker).
+  - Authentification par la **clé API** du panneau (`Authorization: Bearer …`),
+    vérifiée par Loki **et** par le moteur. Sans clé, l'endpoint est ouvert et
+    l'interface le dit en rouge.
+  - **Adresse publique** : un champ où saisir son domaine, pour le cas du
+    reverse proxy où Loki ne voit qu'un appel interne. Laissé vide, l'adresse
+    affichée suit celle du navigateur.
+  - **TLS** : mettre un reverse proxy devant (Caddy, Nginx, Traefik). Loki
+    honore `X-Forwarded-Proto` pour annoncer une adresse en `https`.
+  - L'ancienne exposition publique via le relais de l'amont
+    (`<machine>.oai.ajean.link`) est retirée de l'interface : elle exigeait un
+    jeton de relais que ce fork ne permet plus d'obtenir, l'interrupteur ne
+    pouvait donc qu'échouer.
+- **Budget d'appels d'outils** : un tour d'agent n'a aucun plafond — couper une
+  recherche légitime est pire que la laisser durer — mais au-delà de 24 appels
+  sur un même tour, Loki rappelle au modèle combien il en a déjà faits et lui
+  demande de conclure. Le rappel revient tous les 24 appels, en durcissant le
+  ton ; il ne coupe jamais le tour, c'est de la pression, pas une barrière.
+  Sans lui, un petit modèle qui tourne en rond n'avait rien en face de lui sauf
+  le bouton stop (vu en production : 50 appels, 55 minutes, à relire cinq fois
+  les mêmes fichiers). Réglable par `AGENT_BUDGET` dans `config.env` —
+  `AGENT_BUDGET=off` le désactive complètement.
+- **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
+  dans le fil.
+- **Réglages en modale** : tous les réglages vivent dans une fenêtre à deux
+  volets — la nav des sections à gauche (IA, moteur, application), le panneau
+  choisi à droite. La barre latérale ne garde que les discussions (les plus
+  récentes en tête) et le moniteur machine.
+- **Nom du modèle sur chaque réponse** : une pastille à côté de « Loki » dit
+  quel modèle a produit la réponse. Elle est journalisée avec le tour : elle
+  survit au rechargement, et un vieux tour garde le modèle de l'époque.
+- **Dictée vocale** : un bouton micro dans la carte de saisie enregistre,
+  transcrit **en local** (whisper.cpp, compilé dans l'image ; modèle
+  `small-q5_1` multilingue ~190 Mo téléchargé au premier usage dans
+  `/data/whisper/`) et pose le texte dans le champ. ⚠️ le navigateur n'autorise
+  le micro qu'en **HTTPS** (ou sur `localhost`) — derrière un reverse proxy
+  TLS, rien à faire ; en `http://IP:8090`, le bouton l'explique.
+- **Cartes raisonnement/outils à hauteur bornée** : un long raisonnement ne
+  fait plus grandir la page de plusieurs écrans — la carte reste à taille fixe
+  et défile toute seule pendant la génération. Sur un raisonnement géant, seul
+  le bas du bloc est re-rendu en direct (le texte complet est posé à la fin) :
+  l'affichage ne se fige plus.
+
+Retirées par ce fork :
+
+- **Accès distant via [ajean.link](https://ajean.link)** : la section de
+  l'interface et son module JS sont supprimés — un conteneur derrière son
+  propre réseau n'en a pas l'usage. Le code serveur du relais reste en place
+  mais **inerte** (aucun jeton, aucune section pour en fournir un) : le retirer
+  créerait un conflit à chaque reprise de l'amont.
+- **Postes distants** (faire agir l'agent sur un autre PC appairé) : bouton du
+  composeur, modales d'appairage et module JS supprimés. Même traitement que
+  ci-dessus — les routes `/api/node/*` subsistent mais plus rien ne peut
+  générer de code d'appairage, donc aucun poste ne peut se connecter.
+- **Catalogue de modèles distant** : il interrogeait `ajean.link/models.json`,
+  sa route n'avait aucun consommateur et son repli embarqué datait de 2024. La
+  recherche Hugging Face le remplace.
+
+## Performance
+
+Le but : des tours plus courts **sans dénaturer le modèle**. Rien ici ne
+touche à la quantification des poids, à l'échantillonnage, à la température, au
+budget de raisonnement ni au contenu du contexte. Tout ce qui changerait ce
+qu'envoie Loki au modèle, le placement des poids ou les slots du moteur est
+**désactivé par défaut**, derrière une clé ; sans clé, la requête et la ligne de
+commande restent celles d'avant. Les clés se posent dans le preset (éditeur) ou
+par `loki config set CLÉ valeur` ; celles marquées « moteur relancé » demandent
+un redémarrage du moteur.
+
+### Actif par défaut, sans perte
+
+- **Cache de prompts dimensionné** (`--cache-ram`) : agrandi pour un modèle
+  tout-GPU d'après l'état mesuré dans le GGUF, jamais sous le défaut du moteur ;
+  et le slot est effacé après un sous-agent, une vérification, une tâche ou un
+  bench, pour que la conversation revienne du cache RAM au lieu d'être
+  recalculée.
+- **Préfixe stable** : rappels de Loki gardés dans l'historique tels
+  qu'envoyés, relance après un 500 sans toucher aux outils ni au système, ligne
+  MCP présente dès le premier tour, ordre des trackers fixe.
+- **Comptage du contexte** sans le raisonnement jamais renvoyé : la compaction
+  (avec perte) part moins tôt, et son résumé n'est plus amputé de l'état
+  d'avancement.
+- **Threads CPU** : sans `THREADS`, le moteur prend ses cœurs physiques (plus
+  tous les threads logiques) ; conteneur à l'étroit (cpuset, quota) borné.
+- **Deux GPU** : `CUDA_SCALE_LAUNCH_QUEUES=4x` quand le pipeline entre cartes
+  est possible (même calcul, seul le prompt peut gagner).
+- **Points de reprise des hybrides** sur un moteur officiel antérieur à
+  `b10864` : `--checkpoint-min-step 2048` d'office si la RAM le permet, et un
+  avis « moteur trop ancien » ; l'encart « version recommandée » propose la mise
+  à jour (sur clic seulement, voir [Mettre à jour llama.cpp](#mettre-à-jour-llamacpp-sans-reconstruire-limage)).
+- **Côté Go** : écriture d'un gros fichier en temps linéaire, persistance de la
+  discussion hors du chemin du premier jeton, un seul `nvidia-smi` partagé
+  (moniteur et éditeur de preset), stockage Unraid servi par FUSE signalé.
+- **Mesure** : télémétrie par complétion (cache repris, recalculé, brouillon
+  accepté) dans l'interface et `GET /api/perf/summary`, sonde du gabarit de
+  chat (lecture seule, `/apply-template`), bench honnête en tâche de fond.
+- **Garde-fous** : un cache KV quantifié, `--context-shift` ou `--cache-reuse`
+  posés à la main sont signalés ; un mode de chargement résident voué à
+  l'échec est refusé (`LOAD_GUARD`) ; avis de placement MoE dans l'éditeur.
+
+### Les clés
+
+| Clé | Défaut | Effet | Prix, zone grise |
+|---|---|---|---|
+| `CACHE_RAM` | auto | cache de prompts en RAM hôte (`--cache-ram`, Mio), copie exacte des conversations quittées | `-1` = RAM non bornée (déconseillé avec un MoE mmappé), `0` = coupé |
+| `CACHE_ISOLATE` | actif | efface le slot après un travail annexe (sous-agent, vérification, tâche, bench) | `off` pour couper ; sans objet avec `SIDE_SLOT` |
+| `THREADS` / `THREADS_BATCH` | vide = cœurs physiques | `-t` / `-tb` | — |
+| `CUDA_LAUNCH_QUEUES` | auto (4x sur ≥ 2 GPU si pipeline) | file de lancements CUDA | `off`, ou `0.25x`…`4x` imposé ; réglage de machine |
+| `CTX_CHECKPOINTS` | moteur (32) | points de reprise par slot d'un hybride | 70 à 200 Mio de RAM hôte chacun |
+| `CKPT_MIN_STEP` | moteur (2048 d'office : hybride, moteur officiel < `b10864`) | espacement minimal des points de reprise | — |
+| `LOAD_GUARD` | actif | refuse un `--load-mode` résident qui ne tient pas en RAM | `off` = lancer quand même |
+| `REASONING_ECHO` | off | renvoie au moteur local la réflexion du modèle, au format entraîné | plus de contexte par tour, compaction plus tôt |
+| `REASONING_PRESERVE` | vide = défaut du moteur | `--reasoning-preserve` / `--no-reasoning-preserve` | change le rendu : `off` rend l'ancien historique à Qwen3.6, mais change celui de Qwen3.8 |
+| `PROJ_SNAPSHOT` | off | bloc projet figé par discussion, changements en `<context_update>` ; date et dossier sortent du système | le modèle lit les changements en tête du message suivant |
+| `PREWARM` | off | `on` : prépare le prochain tour pendant que tu lis ; `full` : aussi la discussion qu'on ouvre | une requête de plus au moteur au repos (1 jeton, jeté) |
+| `COMPACT_CONTINUATION` | off | le résumé de compaction prolonge le prompt en cache au lieu d'une transcription à froid | repli sur l'ancien chemin au moindre écart |
+| `KEEP_TURN_IMAGES` | off | garde dans l'historique les images montrées par les outils | **zone grise** : plus de contexte, compaction plus tôt ; une API externe refacture les images |
+| `NUDGE_IN_TOOL` | off | le rappel de budget d'outils part au bout du dernier résultat d'outil | **zone grise** : un modèle peut moins bien suivre une consigne lue dans un outil |
+| `SIDE_SLOT` | off (moteur relancé) | second slot pour les travaux annexes, la discussion garde le sien | cache KV et état récurrent en double en VRAM |
+| `SLOT_PERSIST` | off | état du slot gardé sur disque à la bascule de preset, rechargé au retour | 2 fichiers de 8 Gio au plus ; refusé avec `SPEC` |
+| `SPEC` | off (moteur relancé) | décodage spéculatif : `auto`, `mtp`, `ngram`, `mtp+ngram` | même distribution, pas le même texte au bit près ; MTP : 1 à 2 Go de VRAM |
+| `MODEL_DRAFT` | — | tête MTP publiée à part ou petit modèle brouillon | VRAM |
+| `SPEC_N_MAX` | moteur (3) | jetons anticipés par étape | — |
+| `SPEC_SAMPLING` | greedy (exact) | `probabilistic` seulement avec `SPEC=mtp` ou `mtp+ngram` | — |
+| `SPLIT_MODE` | couches | `tensor` : parallélisme de tenseurs entre cartes CUDA | expérimental : décodage plus rapide, prefill plus lent |
+| `FIT_TARGET` | 1024 Mio par carte | marge laissée libre par le placement auto (`--fit-target`) | — |
+| `OP_OFFLOAD_MIN_BATCH` | moteur (32) | lot à partir duquel les experts MoE sur CPU sont recopiés vers le GPU | à mesurer |
+| `CUDA_GRAPH_OPT` | off | branches Q/K/V en parallèle au décodage | expérimental ; `off` puis redémarrage s'il plante |
+| `KV_TYPE` (`_K`, `_V`) | f16 | quantification du cache KV | **zone grise** : `q8_0` modifie légèrement les sorties, `q4_0` perte mesurable — jamais posé par Loki |
+| `BATCH` / `UBATCH` | 2048 / 512 | lots du prefill | MoE aux experts en RAM : `UBATCH` 2048+ |
+| `LOKI_PERF_LOG` (environnement) | absent | une ligne `[perf]` par complétion sur stderr | — |
+
+Outils sans clé, qui ne font rien d'eux-mêmes :
+
+| Outil | Ce qu'il fait |
+|---|---|
+| **Bench** (bouton, `loki bench`, `--full`) | mesure en tâche de fond, à profondeur réelle avec le mode complet (prefill à froid, tours qui reprennent le cache, decode) |
+| **Optimiseur** (`loki tune`, bouton « Optimiser… ») | cherche lots, threads, marges, placement (`--placement`) et options opt-in (`--opt-in`) sur un moteur d'essai ; rien n'est écrit sans un clic |
+| **Dupliquer en placement auto…** (éditeur, MoE) | copie du preset où `--fit` place les experts au lieu de `-ot` / `--n-cpu-moe` |
+| **Version recommandée** (panneau Moteur) | met à jour llama.cpp vers un build ≥ `b10864`, sur clic, avec retour à la version précédente |
+
+### Ordre de test conseillé
+
+Une étape à la fois, mesurée avant la suivante :
+
+1. **Bench complet** du preset tel quel : la référence.
+2. **`PREWARM=on` et `COMPACT_CONTINUATION=on`**, puis une vraie session de
+   travail ; `GET /api/perf/summary` dit, par nature de requête
+   (`kinds.main`…), combien de fois et de jetons le cache a été perdu
+   (`lost_events`, `lost_tokens`) et le prefill par tour.
+3. **Optimiseur** (« Optimiser… ») sur le preset en service : lots, threads,
+   marges.
+4. **MoE aux experts en RAM** : « Dupliquer en placement auto… », bascule sur
+   la copie, `successfully fit params` au journal, bench complet des deux.
+5. **Mise à jour du moteur** vers la version recommandée si l'encart s'affiche
+   (points de reprise des hybrides, MTP rapide) ; vérifier le rendu du gabarit
+   dans le panneau.
+6. **`SPEC=auto`** (ou `mtp`) si le modèle a une tête MTP : bench, puis
+   `draft_rate` dans `/api/perf/summary`.
+
+### Ce qui a été écarté, et pourquoi
+
+- **`--cache-reuse`** : réutilise des morceaux de cache calculés sous un autre
+  contexte, donc change les sorties ; llama.cpp le coupe d'ailleurs pour les
+  hybrides et le multimodal. Signalé s'il est posé à la main.
+- **`--context-shift`** à la place de la compaction : retire des jetons du
+  contexte (perte), et ne marche pas sur les hybrides. Signalé lui aussi.
+- **Cache KV quantifié par défaut** : `q8_0` n'est pas exact, `q4_0` perd
+  mesurablement, pour un gain d'environ 2 Gio sur un 27B hybride (16 couches
+  sur 64 portent du KV). Reste un choix explicite et étiqueté (`KV_TYPE`).
+- Aussi : `-sm tensor` par défaut (prefill plus lent, expérimental), plus de
+  slots par défaut (OOM : états récurrents par slot), `--cache-ram -1` (RAM
+  non bornée), et tout réglage d'échantillonnage ou de quantification « pour
+  aller plus vite ».
+
+### Détail des clés et des outils
+
+- **Bench** (bouton du preset, `loki bench`, `--full` pour le mode complet) :
+  en tâche de fond (`POST /api/bench`, progression et annulation), chat,
+  tâches et compaction refusés le temps de la mesure. Le mode rapide mesure une
+  ligne courte avec le gabarit, le raisonnement et l'échantillonnage du preset ;
+  le mode complet ajoute un prefill à froid à profondeur réelle (jusqu'à 32 k
+  jetons, 16 k si des poids tournent sur CPU) et trois tours qui reprennent le
+  cache — reprise lue dans `cache_n`, jamais supposée. Rien n'est enregistré
+  sans réponses valides et timings réels ; l'empreinte du preset accompagne
+  chaque mesure.
 - **Raisonnement renvoyé au modèle** (clé `REASONING_ECHO`, **off** par défaut,
   `loki config set REASONING_ECHO on`) : le raisonnement que le moteur local a
   séparé (`reasoning_content`) est gardé avec chaque message et renvoyé au même
@@ -747,110 +983,6 @@ Ajoutées par ce fork :
   decode) — sinon l'ancienne version est rétablie et le moteur relancé. Pendant
   la mesure, le chat est indisponible : prévoir 10 à 40 minutes selon la taille
   du modèle (un modèle relu depuis un disque lent recharge à chaque essai).
-- **Discussions multiples** : historique complet dans la barre latérale, titre
-  repris du premier message (renommable), suppression. **Chaque discussion a son
-  dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes
-  déposées, les captures et ce que l'agent écrit y atterrissent, le shell et les
-  chemins relatifs du modèle y sont résolus. Changer de discussion change donc
-  les fichiers ; supprimer (ou vider) une discussion emporte les siens, pour que
-  le disque ne se remplisse pas en silence.
-- **Recherche Hugging Face** intégrée avec verdict mémoire et installation liée
-  du projecteur vision (voir [Installer un modèle](#installer-un-modèle)).
-- **Captures de pages web** : l'agent dispose de l'outil `web_screenshot`
-  (Chromium via Playwright, inclus dans l'image). Les captures partent en JPEG
-  et sont plafonnées à 20 fichiers / 40 Mo par discussion. La description de
-  l'outil suit la capacité **réelle** du moteur, sondée sur `/props` : sans
-  vision effective, elle dit au modèle « tu ne vois pas l'image » plutôt que de
-  lui promettre des yeux qu'il n'a pas — il peut toujours prendre la capture et
-  la montrer, sans prétendre la décrire. L'image relayée au moteur reste
-  éphémère : la persister gonflait le contexte jusqu'à le faire déborder.
-- **Panneau Fichiers** (bouton dossier de la barre de saisie) : les fichiers de la
-  discussion ouverte — dépôts, captures, ce que l'agent y a écrit — avec
-  navigation dans les sous-dossiers, téléchargement et suppression. Un dossier
-  affiche la taille de **tout** son contenu, c'est ce qu'on libère en le
-  supprimant, et le pied donne l'occupation disque de la discussion. Les chemins
-  sont bornés à son dossier, liens symboliques résolus des deux côtés : ni le
-  reste du disque ni les autres discussions ne sont atteignables. Les fichiers
-  d'avant ce rangement que la migration n'a pas su rattacher restent joignables
-  par le bouton **hors discussion**, qui disparaît une fois le ménage fait.
-- **Interface « Sober Tech »** : ardoise et sauge, typographie Inter (interface)
-  et JetBrains Mono (code, chiffres, chemins) — embarquées dans le binaire, donc
-  aucune requête vers un service de polices. Deux variantes : claire par défaut,
-  **Deep Dark** (fond `#0F172A`, cartes `#1E293B`) d'un clic depuis l'en-tête.
-  L'en-tête porte le titre de la discussion et le **sélecteur de modèle** (le
-  changement de preset ne demande plus d'ouvrir les réglages) ; la barre
-  latérale s'escamote pour rendre toute la largeur au fil ; les discussions s'y
-  cherchent au clavier et les jauges **GPU / VRAM / mémoire vive** restent
-  visibles en pied de colonne.
-- **Libérer la VRAM d'un clic** : sur les jauges du moniteur, un bouton décharge
-  le modèle et arrête le moteur (ainsi que le serveur de dictée, qui occupe la
-  carte lui aussi) pour rendre la mémoire vidéo à une autre application — jeu,
-  encodage, autre serveur d'inférence. Le bilan est annoncé en Gio réellement
-  rendus, et le même bouton devient **Recharger le modèle** pour reprendre la
-  main. Routes : `POST /api/vram/unload` et `POST /api/vram/reload`.
-- **API OpenAI servie par Loki** : `/v1/*` est exposé **sur le port de
-  l'interface** (8090) et relayé vers llama-server, au lieu d'annoncer l'adresse
-  du moteur. Conséquence directe : l'API est joignable partout où l'interface
-  l'est — par l'IP du réseau local comme par un nom de domaine — sans publier de
-  second port ni ouvrir le moteur. L'amont annonçait `http://<ip>:8080/v1`, une
-  adresse injoignable en conteneur (le port 8080 n'y est pas publié, et l'IP
-  détectée est celle du bridge Docker).
-  - Authentification par la **clé API** du panneau (`Authorization: Bearer …`),
-    vérifiée par Loki **et** par le moteur. Sans clé, l'endpoint est ouvert et
-    l'interface le dit en rouge.
-  - **Adresse publique** : un champ où saisir son domaine, pour le cas du
-    reverse proxy où Loki ne voit qu'un appel interne. Laissé vide, l'adresse
-    affichée suit celle du navigateur.
-  - **TLS** : mettre un reverse proxy devant (Caddy, Nginx, Traefik). Loki
-    honore `X-Forwarded-Proto` pour annoncer une adresse en `https`.
-  - L'ancienne exposition publique via le relais de l'amont
-    (`<machine>.oai.ajean.link`) est retirée de l'interface : elle exigeait un
-    jeton de relais que ce fork ne permet plus d'obtenir, l'interrupteur ne
-    pouvait donc qu'échouer.
-- **Budget d'appels d'outils** : un tour d'agent n'a aucun plafond — couper une
-  recherche légitime est pire que la laisser durer — mais au-delà de 24 appels
-  sur un même tour, Loki rappelle au modèle combien il en a déjà faits et lui
-  demande de conclure. Le rappel revient tous les 24 appels, en durcissant le
-  ton ; il ne coupe jamais le tour, c'est de la pression, pas une barrière.
-  Sans lui, un petit modèle qui tourne en rond n'avait rien en face de lui sauf
-  le bouton stop (vu en production : 50 appels, 55 minutes, à relire cinq fois
-  les mêmes fichiers). Réglable par `AGENT_BUDGET` dans `config.env` —
-  `AGENT_BUDGET=off` le désactive complètement.
-- **Identité** : ton prénom et un avatar emoji pour toi et pour Loki, affichés
-  dans le fil.
-- **Réglages en modale** : tous les réglages vivent dans une fenêtre à deux
-  volets — la nav des sections à gauche (IA, moteur, application), le panneau
-  choisi à droite. La barre latérale ne garde que les discussions (les plus
-  récentes en tête) et le moniteur machine.
-- **Nom du modèle sur chaque réponse** : une pastille à côté de « Loki » dit
-  quel modèle a produit la réponse. Elle est journalisée avec le tour : elle
-  survit au rechargement, et un vieux tour garde le modèle de l'époque.
-- **Dictée vocale** : un bouton micro dans la carte de saisie enregistre,
-  transcrit **en local** (whisper.cpp, compilé dans l'image ; modèle
-  `small-q5_1` multilingue ~190 Mo téléchargé au premier usage dans
-  `/data/whisper/`) et pose le texte dans le champ. ⚠️ le navigateur n'autorise
-  le micro qu'en **HTTPS** (ou sur `localhost`) — derrière un reverse proxy
-  TLS, rien à faire ; en `http://IP:8090`, le bouton l'explique.
-- **Cartes raisonnement/outils à hauteur bornée** : un long raisonnement ne
-  fait plus grandir la page de plusieurs écrans — la carte reste à taille fixe
-  et défile toute seule pendant la génération. Sur un raisonnement géant, seul
-  le bas du bloc est re-rendu en direct (le texte complet est posé à la fin) :
-  l'affichage ne se fige plus.
-
-Retirées par ce fork :
-
-- **Accès distant via [ajean.link](https://ajean.link)** : la section de
-  l'interface et son module JS sont supprimés — un conteneur derrière son
-  propre réseau n'en a pas l'usage. Le code serveur du relais reste en place
-  mais **inerte** (aucun jeton, aucune section pour en fournir un) : le retirer
-  créerait un conflit à chaque reprise de l'amont.
-- **Postes distants** (faire agir l'agent sur un autre PC appairé) : bouton du
-  composeur, modales d'appairage et module JS supprimés. Même traitement que
-  ci-dessus — les routes `/api/node/*` subsistent mais plus rien ne peut
-  générer de code d'appairage, donc aucun poste ne peut se connecter.
-- **Catalogue de modèles distant** : il interrogeait `ajean.link/models.json`,
-  sa route n'avait aucun consommateur et son repli embarqué datait de 2024. La
-  recherche Hugging Face le remplace.
 
 ## Différences avec l'amont
 
