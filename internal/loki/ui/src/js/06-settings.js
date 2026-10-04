@@ -34,8 +34,12 @@ let pendingPreset = 0;
 // redessin et la puce semblait clignoter en boucle. On ne les rejoue que quand la
 // sélection CHANGE vraiment.
 let paintedSel = '';
+// Dernière liste lue : l'éditeur y voit si le preset ouvert est celui en
+// service (ligne « Optimiser », qui ne mesure que lui).
+let presetsLast = [];
 async function loadPresets(){
   const p=await jget('/api/presets');
+  presetsLast = Array.isArray(p) ? p : [];
   // Bascule terminée : le preset visé est devenu l'actif, on éteint l'attente.
   if(pendingPreset && p[pendingPreset-1] && p[pendingPreset-1].active) pendingPreset = 0;
   const act = p.find(x=>x.active);

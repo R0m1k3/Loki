@@ -1019,6 +1019,13 @@ function populateSettings(){
   set('s-cram', cfgReadKey('CACHE_RAM'));
   refreshCacheRAM();
   refreshMoe();
+  // L'optimiseur mesure le preset EN SERVICE (local) : sa ligne n'apparaît que
+  // dans l'éditeur de celui-ci, pas d'un autre preset ni d'un preset neuf.
+  const tuneRow = document.getElementById('m-tune-row');
+  if(tuneRow){
+    const act = (typeof presetsLast !== 'undefined' ? presetsLast : []).find(x => x.active);
+    tuneRow.style.display = (act && !act.external && editingKey && act.id === editingKey) ? '' : 'none';
+  }
   set('s-tbatch', cfgReadKey('THREADS_BATCH'));
   set('s-kv', cfgReadKey('KV_TYPE'));
   syncKVSub();
