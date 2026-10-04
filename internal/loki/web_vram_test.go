@@ -170,3 +170,14 @@ func TestGpuSettleSampleFrais(t *testing.T) {
 		t.Errorf("jauges : %d, attendu la lecture en cache 19000", g[0].Used)
 	}
 }
+
+// Le cache ne mémorise une minute que l'ABSENCE de nvidia-smi : il faut donc que
+// la vraie requête (bornée dans le temps) rende toujours exec.ErrNotFound quand
+// le binaire n'est pas dans le PATH — sinon Mac et CPU seul relanceraient une
+// recherche toutes les deux secondes.
+func TestNvidiaSmiQueryAbsent(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if _, err := nvidiaSmiQuery(); !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("erreur %v, attendu exec.ErrNotFound", err)
+	}
+}

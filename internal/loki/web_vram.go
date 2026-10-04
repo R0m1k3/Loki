@@ -13,6 +13,7 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -36,11 +37,24 @@ type gpuStat struct {
 
 // nvidiaSmiQuery lance la requête nvidia-smi. Variable pour que les tests
 // substituent un faux exécutable et comptent les lancements.
+//
+// Bornée dans le temps, comme nvidiaGPUCount : un pilote coincé peut faire
+// pendre nvidia-smi, et gpuStatsCached tient son verrou pendant la requête. Sans
+// borne, un seul nvidia-smi pendu figeait les jauges de TOUS les onglets
+// jusqu'au redémarrage de Loki, même une fois le pilote revenu. Dix secondes :
+// large pour une première lecture lente (pilote sans mode persistant, plusieurs
+// cartes), une erreur ordinaire au-delà — retentée au délai normal.
 var nvidiaSmiQuery = func() ([]byte, error) {
-	return hideCmd(exec.Command("nvidia-smi",
+	ctx, cancel := context.WithTimeout(context.Background(), nvidiaSmiTimeout)
+	defer cancel()
+	cmd := hideCmd(exec.CommandContext(ctx, "nvidia-smi",
 		"--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu",
-		"--format=csv,noheader,nounits")).Output()
+		"--format=csv,noheader,nounits"))
+	cmd.WaitDelay = time.Second // un descendant qui garderait la sortie ouverte ne retient pas Wait
+	return cmd.Output()
 }
+
+const nvidiaSmiTimeout = 10 * time.Second
 
 // gpuStats interroge nvidia-smi. Renvoie nil quand il est absent (machine sans
 // GPU NVIDIA, Mac, CPU seul) : l'absence de mesure n'est pas une erreur, elle
