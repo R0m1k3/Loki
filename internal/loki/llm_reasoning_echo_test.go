@@ -594,3 +594,25 @@ func TestBuilderAppliqueNewHistory(t *testing.T) {
 		t.Fatalf("consigne présente %d fois, dernier message %q", fix, msgText(c.Messages[len(c.Messages)-1]))
 	}
 }
+
+// Corrections de relecture du lot 2 : un refus de gabarit est reconnu, une
+// erreur d'analyse d'appel d'outil qui cite le mot « thinking » ne l'est pas.
+func TestEchoTemplateErrorEtroit(t *testing.T) {
+	cases := []struct {
+		status int
+		body   string
+		want   bool
+	}{
+		{500, `{"error":{"message":"Jinja Exception: raise_exception('Cannot pass both content and thinking')"}}`, true},
+		{500, `{"error":{"message":"Error in template: thinking blocks not allowed here"}}`, true},
+		{400, `{"error":{"message":"Expected 'content' or 'tool_calls'"}}`, true},
+		{500, `{"error":{"message":"Failed to parse input at pos 12: <tool_call>{\"thinking\": 1}"}}`, false},
+		{500, `{"error":{"message":"the model kept thinking forever"}}`, false},
+		{502, `{"error":{"message":"raise_exception"}}`, false},
+	}
+	for _, c := range cases {
+		if got := echoTemplateError(c.status, c.body); got != c.want {
+			t.Errorf("%d %s : %v", c.status, c.body, got)
+		}
+	}
+}

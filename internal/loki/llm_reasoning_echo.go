@@ -244,12 +244,20 @@ func echoTemplateError(status int, body string) bool {
 		return false
 	}
 	low := strings.ToLower(body)
-	for _, k := range []string{"raise_exception", "thinking", "expected 'content' or 'tool_calls'", "failed to parse messages"} {
+	// Appel d'outil mal formé (« Failed to parse input at pos N: … ») : le
+	// texte du modèle y est cité, il peut dire « thinking » sans que le gabarit
+	// y soit pour rien. Le filet des outils s'en charge, pas celui-ci — sinon
+	// une relance chanceuse ferait couper la clé pour ce modèle à tort.
+	if strings.Contains(low, "failed to parse input") {
+		return false
+	}
+	for _, k := range []string{"raise_exception", "expected 'content' or 'tool_calls'", "failed to parse messages"} {
 		if strings.Contains(low, k) {
 			return true
 		}
 	}
-	return false
+	// « thinking » seul ne dit rien : seulement dans une erreur du gabarit.
+	return strings.Contains(low, "thinking") && (strings.Contains(low, "jinja") || strings.Contains(low, "template"))
 }
 
 // ReasoningEcho : raisonnement séparé de la complétion qui porte la réponse
