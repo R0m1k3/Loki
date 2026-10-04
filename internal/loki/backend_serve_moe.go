@@ -242,6 +242,53 @@ func loadGuardOff(cfg map[string]string) bool {
 	return false
 }
 
+// loadGuardExitStatus : le code de sortie de « loki serve » quand LOAD_GUARD
+// refuse. Le refus est certain et ne dépend que du preset et de la machine :
+// relancer ne changerait rien. Sous systemd, Restart=on-failure relançait
+// pourtant toutes les trois secondes, sans fin ; l'unité écrite par
+// « loki install » porte donc RestartPreventExitStatus pour ce code-là
+// (EX_CONFIG de sysexits.h : erreur de configuration). Le conteneur, lui, ne
+// relance jamais le moteur de lui-même.
+const loadGuardExitStatus = 78
+
+// unitPreventsRefusalRestart : l'unité systemd (son texte) s'abstient-elle de
+// relancer sur loadGuardExitStatus ? Une unité écrite par une version
+// d'avant ne le fait pas.
+func unitPreventsRefusalRestart(unit string) bool {
+	for _, line := range strings.Split(unit, "\n") {
+		k, v, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if !ok || strings.TrimSpace(k) != "RestartPreventExitStatus" {
+			continue
+		}
+		for _, f := range strings.Fields(v) {
+			if f == strconv.Itoa(loadGuardExitStatus) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// loadGuardRefusal : l'erreur rendue par cmdServe pour un refus, avec son code
+// de sortie. Un superviseur qui relancerait quand même sur ce code (unité
+// systemd d'une version d'avant, launchd, qui relance toute sortie non nulle)
+// reçoit 0 : une sortie « propre » n'est pas relancée, et la raison reste en
+// clair dans le journal, où l'interface la reconnaît (modelLoadError). Le
+// moteur d'essai de l'optimiseur garde le vrai code : c'est lui qui dit
+// l'échec à « loki tune ».
+func loadGuardRefusal(refuse string, trial bool) error {
+	code := loadGuardExitStatus
+	if !trial {
+		if restarts, hint := supervisorRestartsRefusal(); restarts {
+			code = 0
+			if hint != "" {
+				fmt.Fprintln(os.Stderr, "[loki serve] "+hint)
+			}
+		}
+	}
+	return &exitStatusError{code: code, err: fmt.Errorf("%s", refuse)}
+}
+
 // loadModeRisk : un mode de chargement résident avec trop de poids en RAM.
 // Fonction pure ; args est la ligne finale (ou EXTRA_ARGS normalisé).
 //
@@ -257,7 +304,8 @@ func loadGuardOff(cfg map[string]string) bool {
 //   - warn   : l'estimation dépasse 80 % — on prévient, on lance.
 //
 // Un refus fait sortir « loki serve » en erreur, comme un modèle introuvable :
-// mieux vaut la raison en clair qu'un moteur tué en boucle par le noyau.
+// mieux vaut la raison en clair qu'un moteur tué en boucle par le noyau. Le code
+// de sortie (loadGuardRefusal) empêche le superviseur de relancer en boucle.
 func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, refuse string) {
 	if isExternalConfig(cfg) {
 		return "", ""

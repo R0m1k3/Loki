@@ -646,6 +646,11 @@ Ajoutées par ce fork :
   de 80 % (llama.cpp #26110 : swap, décodage de 25 à 7,5 t/s ; mlock : processus
   tué) ; **refus** au lancement seulement quand la borne basse dépasse 90 %
   (échec certain), avec la raison en clair, aussi affichée par l'interface.
+  Le refus sort avec le code 78, que l'unité systemd écrite par
+  `loki install` ne relance pas (`RestartPreventExitStatus=78`) ; une unité
+  d'une version précédente (ou launchd) reçoit une sortie sans erreur pour ne
+  pas boucler — `sudo systemctl edit loki-engine` (section `[Service]`,
+  `RestartPreventExitStatus=78`) met l'unité à jour.
   VRAM inconnue (Mac Intel, AMD, Vulkan, `--device`) ou serveurs `--rpc` :
   avertissement, jamais de refus. `mmap` et `auto` ne sont jamais concernés ;
   `LLAMA_ARG_NO_MMAP`/`LLAMA_ARG_MLOCK` ne comptent que sur un moteur ancien

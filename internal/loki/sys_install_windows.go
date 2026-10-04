@@ -16,6 +16,10 @@ import (
 // service itself is managed by the PID-file supervisor in sys_service_windows.go
 // (loki start / stop / status), which needs no admin rights.
 
+// supervisorRestartsRefusal : aucun superviseur ne relance le moteur sous
+// Windows (fichier PID, voir sys_service_windows.go) — code de sortie normal.
+func supervisorRestartsRefusal() (bool, string) { return false, "" }
+
 func cmdInstall(args []string) error {
 	lokiHome := LokiHome()
 

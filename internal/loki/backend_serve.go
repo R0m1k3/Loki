@@ -410,7 +410,7 @@ func cmdServe(args []string) error {
 	// Chargement résident avec plus de poids en RAM que la machine n'en a :
 	// échec certain (voir loadModeRisk), LOAD_GUARD=off pour passer outre.
 	if _, refuse := loadModeRisk(cfg, llmArgs, si); refuse != "" {
-		return fmt.Errorf("%s", refuse)
+		return loadGuardRefusal(refuse, trialDir != "")
 	}
 
 	// Essai : écoute sur 127.0.0.1 et le port libre choisi par l'optimiseur,

@@ -1,6 +1,8 @@
 package loki
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -281,5 +283,50 @@ func TestModelLoadErrorLoadGuard(t *testing.T) {
 	// Une tentative suivante qui charge efface le refus.
 	if got := modelLoadErrorFrom(log + "loading model\nmodel loaded\n"); got != "" {
 		t.Errorf("refus ancien encore signalé : %q", got)
+	}
+}
+
+// Un refus de LOAD_GUARD ne doit pas être relancé en boucle : l'unité systemd
+// écrite par « loki install » exclut son code de sortie, une unité d'avant ne
+// le fait pas.
+func TestUnitPreventsRefusalRestart(t *testing.T) {
+	for _, c := range []struct {
+		unit string
+		want bool
+	}{
+		{"[Service]\nRestart=on-failure\nRestartSec=3\n", false},
+		{"[Service]\nRestart=on-failure\nRestartPreventExitStatus=78\n", true},
+		{"[Service]\n  RestartPreventExitStatus = 1 78 SIGKILL\n", true},
+		{"[Service]\nRestartPreventExitStatus=178\n", false},
+		{"[Service]\n# RestartPreventExitStatus=78\n", false},
+	} {
+		if got := unitPreventsRefusalRestart(c.unit); got != c.want {
+			t.Errorf("%q : %v, attendu %v", c.unit, got, c.want)
+		}
+	}
+}
+
+// Le refus sort avec son propre code (pas 1), y compris enveloppé ; une erreur
+// ordinaire garde 1. Le moteur d'essai garde toujours le vrai code.
+func TestLoadGuardRefusalExitStatus(t *testing.T) {
+	err := loadGuardRefusal("refus ; "+loadGuardMarker, true)
+	if got := exitStatusOf(err); got != loadGuardExitStatus {
+		t.Errorf("essai : code %d, attendu %d", got, loadGuardExitStatus)
+	}
+	if !strings.Contains(err.Error(), loadGuardMarker) {
+		t.Errorf("raison perdue : %q", err)
+	}
+	if got := exitStatusOf(fmt.Errorf("enveloppé : %w", err)); got != loadGuardExitStatus {
+		t.Errorf("enveloppé : code %d", got)
+	}
+	if got := exitStatusOf(errors.New("modèle introuvable")); got != 1 {
+		t.Errorf("erreur ordinaire : code %d, attendu 1", got)
+	}
+	// Hors superviseur (les tests ne tournent ni sous systemd ni sous launchd) :
+	// le vrai code aussi.
+	if restarts, _ := supervisorRestartsRefusal(); !restarts {
+		if got := exitStatusOf(loadGuardRefusal("refus", false)); got != loadGuardExitStatus {
+			t.Errorf("hors superviseur : code %d", got)
+		}
 	}
 }

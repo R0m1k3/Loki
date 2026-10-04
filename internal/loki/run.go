@@ -4,6 +4,7 @@
 package loki
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -202,8 +203,28 @@ Env:
 func mustExit(err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "[err]", err)
-		os.Exit(1)
+		os.Exit(exitStatusOf(err))
 	}
+}
+
+// exitStatusError : une erreur qui choisit son code de sortie. Seul usage :
+// le refus de LOAD_GUARD, que le superviseur du moteur ne doit pas relancer
+// (voir loadGuardExitStatus).
+type exitStatusError struct {
+	code int
+	err  error
+}
+
+func (e *exitStatusError) Error() string { return e.err.Error() }
+func (e *exitStatusError) Unwrap() error { return e.err }
+
+// exitStatusOf : le code choisi par l'erreur, 1 sinon — comme toujours.
+func exitStatusOf(err error) int {
+	var es *exitStatusError
+	if errors.As(err, &es) {
+		return es.code
+	}
+	return 1
 }
 
 // LokiHome resolves the Loki data directory.

@@ -48,6 +48,15 @@ func unitArgs() map[string]string {
 	return map[string]string{serviceName(): "serve", uiUnitName: "web"}
 }
 
+// supervisorRestartsRefusal : sous launchd (le LaunchDaemon du moteur, que
+// launchd désigne par XPC_SERVICE_NAME), KeepAlive/SuccessfulExit=false relance
+// TOUTE sortie non nulle — aucune exception par code n'existe. Un refus de
+// LOAD_GUARD y sort donc sans erreur (voir loadGuardRefusal). L'app de bureau
+// lance le moteur elle-même et ne le relance pas : code normal.
+func supervisorRestartsRefusal() (bool, string) {
+	return os.Getenv("XPC_SERVICE_NAME") == "com.loki."+serviceName(), ""
+}
+
 func installServices(targetUser, lokiHome string) error {
 	exe := installedExePath()
 	for name, arg := range unitArgs() {
