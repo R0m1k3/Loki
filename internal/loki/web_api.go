@@ -495,7 +495,13 @@ func handlePresetCacheRAM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mib, why := cacheRAMPreview(req.Content)
-	sendJSON(w, 200, map[string]any{"ok": true, "mib": mib, "default": engineCacheRAMDefault, "why": why})
+	out := map[string]any{"ok": true, "mib": mib, "default": engineCacheRAMDefault, "why": why}
+	// Second slot (SIDE_SLOT) : la VRAM qu'il coûterait, ou pourquoi il sera
+	// refusé. Absent sans la clé.
+	if on, extra, swhy := sideSlotPreview(req.Content); on || swhy != "" {
+		out["side"] = map[string]any{"on": on, "vramMiB": extra, "why": swhy}
+	}
+	sendJSON(w, 200, out)
 }
 
 func handlePresetSave(w http.ResponseWriter, r *http.Request) {

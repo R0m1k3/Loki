@@ -47,6 +47,12 @@ import (
 //     repos d'après /slots ;
 //   - appel synchrone, borné à 2 s, sous le verrou du compteur : aucune
 //     requête de Loki ne peut partir entre la vérification et l'effacement.
+//
+// Avec SIDE_SLOT (deux slots, llm_sideslot.go), rien n'est jamais effacé : le
+// garde-fou du slot unique s'abstient, et les travaux annexes ne passent de
+// toute façon plus par le slot de la discussion. Pour la même raison, leurs
+// requêtes n'avancent pas le numéro qui dit si le slot 0 porte encore le tour
+// (engineSlotHolds) : COMPACT_CONTINUATION reste possible après eux.
 
 // slotEraseMinBuild : premier build de llama.cpp qui recharge un slot vide
 // depuis le cache de prompts (PR #20993, 50e0ad08fb).
@@ -151,12 +157,22 @@ func engineRequestStartKeep(keep func(*prewarmRun) bool) func() {
 // engineRequestBegin : engineRequestStartKeep, avec le numéro de la requête
 // (engineMarkMain).
 func engineRequestBegin(keep func(*prewarmRun) bool) (func(), uint64) {
+	return engineRequestBeginSide(keep, false)
+}
+
+// engineRequestBeginSide : engineRequestBegin pour une requête qui part, si
+// side, sur le second slot de SIDE_SLOT (id_slot 1). Elle ne touche pas au slot
+// de la discussion : le numéro n'avance pas, et engineSlotHolds dit toujours
+// vrai après elle. Comptée en vol comme les autres.
+func engineRequestBeginSide(keep func(*prewarmRun) bool, side bool) (func(), uint64) {
 	engineGate.mu.Lock()
 	if p := prewarmCur; p != nil && (keep == nil || !keep(p)) {
 		prewarmDropLocked(p)
 	}
 	engineGate.inflight++
-	engineGate.seq++
+	if !side {
+		engineGate.seq++
+	}
 	seq := engineGate.seq
 	engineGate.mu.Unlock()
 	var once sync.Once

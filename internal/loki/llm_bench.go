@@ -228,7 +228,14 @@ func (e benchEngine) do(ctx context.Context, method, path string, payload any) (
 	}
 	// Requête en vol jusqu'à la lecture complète du corps : l'isolation des
 	// travaux annexes n'efface jamais le slot pendant ce temps (llm_slots.go).
-	defer engineRequestStart()()
+	// Une requête du second slot (SIDE_SLOT) ne touche pas au slot de la
+	// discussion.
+	side := false
+	if m, ok := payload.(map[string]any); ok {
+		side = payloadOnSideSlot(m)
+	}
+	end, _ := engineRequestBeginSide(nil, side)
+	defer end()
 	resp, err := e.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -422,6 +429,9 @@ type benchSetup struct {
 	kv        string
 	kvQuant   bool
 	gpus      string
+	// sideSlot : SIDE_SLOT en service, le bench passe par le second slot
+	// (id_slot 1) et laisse la conversation en place (llm_sideslot.go).
+	sideSlot bool
 }
 
 func benchSetupFrom(cfg map[string]string, argEnv map[string]string) benchSetup {
@@ -491,6 +501,9 @@ func (s benchSetup) payload(msgs []Message, maxTokens int, cache bool) map[strin
 	}
 	if s.kwargs != nil {
 		p["chat_template_kwargs"] = s.kwargs
+	}
+	if s.sideSlot {
+		setEngineSlot(p, 1)
 	}
 	return p
 }
@@ -825,6 +838,7 @@ func runBench(ctx context.Context, opts benchOpts, progress benchProgress) (*ben
 		effortRemember(want, got)
 		logEffortFallback(want, got)
 	}
+	setup.sideSlot = engineSlotFor(resolveChatEndpoint(), false) == 1
 	eng := benchEngine{base: fmt.Sprintf("http://localhost:%d", port), auth: resolveChatEndpoint().auth, client: http.DefaultClient}
 	// Le bench prend le slot de la conversation : une fois fini (erreur et
 	// annulation comprises), on l'efface si c'est sans risque, pour que son état

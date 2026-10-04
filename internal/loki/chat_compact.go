@@ -72,6 +72,9 @@ func compactEnabled() bool {
 
 // ctxWindow renvoie la fenêtre de contexte configurée (config.env CTX), 32768
 // par défaut — la même valeur que celle passée à llama-server au lancement.
+// Avec SIDE_SLOT, le moteur reçoit -c 2×CTX, mais chacun de ses deux slots
+// fait CTX jetons : la fenêtre d'une conversation, comme d'un travail annexe,
+// reste CTX (backend_serve_side.go).
 func ctxWindow() int {
 	if v := ReadConfig()["CTX"]; v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -839,6 +842,10 @@ func summarizeTranscriptFor(ctx context.Context, transcript string, code bool) (
 		// argument inconnu par un 400, et la compaction échouait à chaque fois.
 		delete(payload, "chat_template_kwargs")
 	}
+	// SIDE_SLOT : la transcription est un prompt neuf, calculé à froid — sur le
+	// second slot, qui fait CTX jetons comme le premier, elle laisse intact le
+	// slot de la discussion. Sans second slot en service, aucun id_slot.
+	setEngineSlot(payload, engineSlotFor(ep, false))
 	ch, err := postSummary(ctx, ep, payload, perfTag{kind: perfCompact, conv: perfTagOf(ctx).conv})
 	if err != nil {
 		return "", err
@@ -882,7 +889,8 @@ func postSummary(ctx context.Context, ep chatEndpoint, payload map[string]any, t
 	req.Header.Set("Content-Type", "application/json")
 	ep.auth(req.Header.Set)
 	if !ep.External {
-		defer engineRequestStart()() // voir llm_slots.go
+		end, _ := engineRequestBeginSide(nil, payloadOnSideSlot(payload)) // voir llm_slots.go
+		defer end()
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

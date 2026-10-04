@@ -1312,6 +1312,8 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 	compactedRetry := false
 	// Réductions forcées (shrinkToFit) quand le compactage n'a pas suffi.
 	shrinkRetries := 0
+	// Rejeux à l'identique après un cache KV plein en plein calcul (SIDE_SLOT).
+	poolRetries := 0
 	// Repli d'intensité de raisonnement (llm_effort.go) : une seule tentative par
 	// tour, comme les autres filets.
 	effortRetried := false
@@ -1430,6 +1432,9 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 			tools: tools, disableTools: disableTools, toolChoiceNone: toolChoiceNone,
 			effort: reasoningEffort, kwargs: reasoningKwargs,
 		})
+		// SIDE_SLOT (llm_sideslot.go) : le fil de la discussion sur le slot 0,
+		// le reste sur le 1. Sans second slot en service, aucun id_slot.
+		setEngineSlot(payload, engineSlotFor(ep, slotIsMain(ptag.kind)))
 		body, _ := json.Marshal(payload)
 		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 		if err != nil {
@@ -1450,7 +1455,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 		endReq := func() {}
 		var reqSeq uint64
 		if !ep.External {
-			endReq, reqSeq = engineRequestBegin(prewarmKeeper(ptag.kind, sent, payload))
+			endReq, reqSeq = engineRequestBeginSide(prewarmKeeper(ptag.kind, sent, payload), payloadOnSideSlot(payload))
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -1500,6 +1505,24 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					reasoningKwargs = reasoningTemplateKwargs(thinkOff, fixed)
 					continue
 				}
+			}
+			// SIDE_SLOT : un cache KV à court de place en plein calcul n'est pas un
+			// prompt trop long (llm_sideslot.go). Rejouée telle quelle, sans
+			// compaction ni réduction — deux fois au plus, le temps que l'autre
+			// slot finisse, puis l'erreur telle quelle : la conversation tenait
+			// dans sa fenêtre, rien ne justifie d'en perdre un morceau. Sans
+			// second slot en service, ce filet ne joue pas.
+			if !ep.External && sideSlotPoolError(msg) && sideSlotLive(ep) {
+				if poolRetries < 2 {
+					poolRetries++
+					logCtx("cache KV plein pendant le calcul (deux slots) : requête rejouée telle quelle, sans compaction")
+					if werr := llmNetBackoff(ctx, poolRetries-1); werr == nil {
+						continue
+					}
+				}
+				err := fmt.Errorf("llama-server a renvoyé %d : %s", resp.StatusCode, msg)
+				cb(StreamEvent{Err: err})
+				return extra, err
 			}
 			// Gabarit qui refuse le raisonnement renvoyé (gpt-oss : « Cannot pass
 			// both content and thinking », message assistant jugé invalide…) :

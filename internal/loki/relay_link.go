@@ -525,7 +525,13 @@ func newLinkHandler(mux *http.ServeMux) http.Handler {
 				http.Error(w, "/slots est en lecture seule via le relais", http.StatusMethodNotAllowed)
 				return
 			}
-			defer engineRequestStart()() // voir oaiHandler
+			side, status, msg := sideSlotProxyRewrite(r) // voir oaiHandler
+			if status != 0 {
+				http.Error(w, msg, status)
+				return
+			}
+			end, _ := engineRequestBeginSide(nil, side) // voir oaiHandler
+			defer end()
 			lp.ServeHTTP(w, r)
 			return
 		}

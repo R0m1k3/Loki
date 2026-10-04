@@ -112,10 +112,19 @@ func oaiHandler() http.Handler {
 			return
 		}
 		if strings.HasPrefix(p, "/v1") || p == "/health" || p == "/props" || p == "/metrics" || strings.HasPrefix(p, "/slots") {
+			// SIDE_SLOT : la complétion d'un client passe par le second slot,
+			// jamais par celui de la discussion (llm_sideslot.go). Sans second
+			// slot en service, le corps n'est pas lu.
+			side, status, msg := sideSlotProxyRewrite(r)
+			if status != 0 {
+				sendOAIError(w, status, msg, "invalid_request_error", "side_slot")
+				return
+			}
 			// Requête en vol vers le moteur : l'isolation des travaux annexes
 			// n'efface pas le slot pendant ce temps. Différé : ReverseProxy panique
 			// (ErrAbortHandler) quand le client coupe en plein flux.
-			defer engineRequestStart()()
+			end, _ := engineRequestBeginSide(nil, side)
+			defer end()
 			// Complétion d'un client externe : elle prend le slot sous le nez de
 			// la conversation. Notée pour nommer la perte de cache qui suit.
 			if r.Method == http.MethodPost && strings.HasPrefix(p, "/v1/") {

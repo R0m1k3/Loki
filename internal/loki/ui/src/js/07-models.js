@@ -1030,8 +1030,11 @@ async function refreshCacheRAM(){
   const fixed = /^fixé/.test(r.why || '');
   el.placeholder = fixed ? (r.mib < 0 ? 'sans limite' : r.mib === 0 ? 'coupé' : String(r.mib))
                          : 'auto · ' + (r.mib > 0 ? r.mib : r.default);
+  // SIDE_SLOT : la VRAM du second slot, ou la raison du refus au lancement.
+  const side = r.side ? (r.side.on ? ' · SIDE_SLOT : +' + r.side.vramMiB + ' Mio de VRAM'
+                                   : ' · SIDE_SLOT refusé : ' + r.side.why) : '';
   if(sub) sub.textContent = 'RAM hôte, copie exacte du contexte · jamais la VRAM' +
-    (r.why ? ' · ' + r.why : '') + (r.mib > 0 || fixed ? '' : ' · défaut du moteur');
+    (r.why ? ' · ' + r.why : '') + (r.mib > 0 || fixed ? '' : ' · défaut du moteur') + side;
 }
 function syncKVSub(){
   const el = document.getElementById('s-kv-sub');

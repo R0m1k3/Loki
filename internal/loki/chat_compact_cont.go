@@ -441,6 +441,8 @@ func summarizeContinuation(ctx context.Context, msgs []Message, tailStart int, v
 	payload["stream"] = false
 	delete(payload, "stream_options")
 	payload["max_tokens"] = compactSummaryBudget()
+	// SIDE_SLOT : elle prolonge le prompt du slot de la discussion, elle y va.
+	setEngineSlot(payload, engineSlotFor(ep, true))
 	ch, err := postSummary(ctx, ep, payload, perfTag{kind: perfCompact, conv: view.conv})
 	if err != nil {
 		// Refus de la requête elle-même (gabarit à alternance stricte, champ

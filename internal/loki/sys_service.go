@@ -83,6 +83,11 @@ var configTemplate = []struct{ key, help string }{
 	{"CACHE_RAM", "cache de prompts en RAM hôte (--cache-ram, Mio), copie exacte des conversations quittées, jamais la VRAM ; " +
 		"vide = auto (agrandi seulement pour un modèle tout-GPU), -1 = sans limite, 0 = coupé"},
 	{"CACHE_ISOLATE", "off = ne plus effacer le slot après un sous-agent, une vérification, une tâche ou un bench"},
+	{"SIDE_SLOT", "on = second slot pour les travaux annexes : le moteur ouvre 2 slots de CTX jetons chacun (-c 2×CTX, " +
+		"--parallel 2, cache KV non unifié : aucun slot ne déborde sur l'autre), la discussion garde le slot 0, vérification, " +
+		"sous-agents, tâches, bench, résumé sur transcription et clients /v1 passent par le 1 (id_slot) — l'état de la " +
+		"discussion ne bouge plus. Cache KV et état récurrent en double en VRAM : refusé si le compte ne tient pas, si des " +
+		"poids sont sur CPU, ou si PARALLEL≠2, -c, -np, -kvu, --cache-idle-slots… sont réglés à la main. Vide/off (défaut) = un slot"},
 	{"CTX_CHECKPOINTS", "points de reprise par slot d'un modèle hybride (--ctx-checkpoints) ; vide = défaut du moteur (32) ; " +
 		"chacun pèse 70 à 200 Mio de RAM hôte : 8 à 16 si le modèle remplit déjà la RAM"},
 	{"CKPT_MIN_STEP", "espacement minimal en jetons entre deux points de reprise (--checkpoint-min-step), > 0 ; " +
@@ -109,7 +114,8 @@ var configTemplate = []struct{ key, help string }{
 	{"PREWARM", "on = préparer le prochain tour pendant que tu lis : après un tour (compaction comprise) ou une tâche, " +
 		"Loki envoie au moteur local la requête suivante avec un message « . » et 1 jeton de réponse, jetés ; le vrai message " +
 		"ne calcule plus que lui-même. Annulé dès qu'une autre requête part, sauf si elle prolonge exactement ce préfixe ; " +
-		"jamais avec plus d'un slot. full = aussi au changement de discussion (après 3 s). Vide/off (défaut) = aucune requête de plus"},
+		"jamais avec plus d'un slot (sauf les deux de SIDE_SLOT : slot de la discussion). full = aussi au changement de discussion " +
+		"(après 3 s). Vide/off (défaut) = aucune requête de plus"},
 	{"KEEP_TURN_IMAGES", "zone grise — on = garder dans l'historique les images montrées par les outils (captures, see_image), " +
 		"rangées par référence, au lieu de les oublier en fin de tour : le tour suivant ne recalcule plus la boucle d'outils " +
 		"depuis la première capture. Coût mesuré par le moteur, total borné à 10 % de la fenêtre, retirées d'abord à toute " +

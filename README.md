@@ -400,7 +400,8 @@ Ajoutées par ce fork :
   autre requête de Loki l'annule aussitôt, sauf un message dont la requête
   prolonge exactement le préfixe préparé (même historique, mêmes outils, mêmes
   réglages du gabarit). Jamais avec plus d'un slot (`PARALLEL` ou `-np` dans
-  `EXTRA_ARGS`), pendant un tour, une tâche, un bench, ni vers un preset externe.
+  `EXTRA_ARGS`) — sauf les deux de `SIDE_SLOT`, où il prépare le slot de la
+  discussion —, pendant un tour, une tâche, un bench, ni vers un preset externe.
   `full` prépare aussi la discussion qu'on ouvre, si on y reste 3 s. Visible dans
   la télémétrie sous `prewarm`. Ce que voit le modèle ne change pas : au pire, le
   préchauffage ne sert à rien (moteur sans points de reprise aux messages
@@ -470,6 +471,33 @@ Ajoutées par ce fork :
   place si : un modèle entraîné à se méfier des consignes lues dans une sortie
   d'outil peut moins bien le suivre. À comparer (tours qui concluent après le
   rappel) avant de l'adopter.
+- **Second slot pour les travaux annexes** (clé `SIDE_SLOT`, **off** par
+  défaut, `loki config set SIDE_SLOT on`, moteur relancé) : avec un seul slot,
+  une vérification du mode Code, un sous-agent, une tâche planifiée ou un bench
+  prennent la place de la discussion ; son état part dans le cache RAM et en
+  revient — ou est recalculé s'il n'y tient plus. Avec `on`, le moteur ouvre
+  deux slots de `CTX` jetons **chacun** (`-c` 2×`CTX`, `--parallel 2`,
+  `--no-kv-unified`) : deux flux de cache KV séparés, si bien qu'un slot ne
+  peut jamais manquer de place à cause de l'autre, et que les travaux annexes
+  gardent toute la fenêtre. Chaque requête de Loki porte alors son `id_slot` :
+  le tour, ses étapes, le préchauffage et le résumé en continuation sur le
+  slot 0 ; vérification, sous-agents, tâches, bench, résumé sur transcription
+  et clients `/v1` (forcés, quel que soit l'`id_slot` demandé) sur le slot 1.
+  L'état de la discussion ne bouge plus ; l'effacement de slot après un
+  travail annexe (`CACHE_ISOLATE`) n'a plus lieu d'être et s'abstient. Le prix :
+  le cache KV et l'état récurrent d'un hybride en double en VRAM (le
+  brouillon MTP et les points de reprise en RAM hôte aussi) — l'éditeur de
+  preset affiche ce surcoût sous le cache de prompts, et le lancement refuse la
+  clé (un slot, comme sans elle, avec une note dans le journal) si modèle et
+  deux états dépassent 90 % de la VRAM, si la VRAM est inconnue (macOS, AMD),
+  si des poids sont sur CPU (`--n-cpu-moe`, `-ot …=CPU`, `NGL` partiel), si le
+  moteur ne connaît pas `--no-kv-unified`, ou si `PARALLEL`≠2, `-c`, `-np`,
+  `-kvu`, `--kv-unified-per-slot`, `--cache-idle-slots` (ou leurs
+  `LLAMA_ARG_*`) sont réglés à la main. Le routage ne s'active que si le moteur
+  annonce bien deux slots d'au moins `CTX` jetons (`/props`) ; sinon les
+  requêtes partent sans `id_slot`, comme avant. Ce que voit le modèle ne
+  change pas : deux slots qui calculent en même temps donnent des logits égaux
+  au bruit de virgule flottante près, comme un découpage de lots différent.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

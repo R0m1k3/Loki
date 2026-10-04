@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -344,6 +345,7 @@ func cmdServe(args []string) error {
 	probeFidelityEnv(&si)
 	probeCacheRAM(cfg, extra, &si)
 	probeCkptEnv(&si)
+	probeSideSlotEnv(cfg, &si)
 	spec := specMode(cfg)
 	if spec == "auto" || spec == "mtp" {
 		probeSpec(cfg, &si)
@@ -521,9 +523,16 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	// physiques au lieu de tous les threads logiques (voir threadArgs).
 	threads, threadNotes := threadArgs(cfg["THREADS"], cfg["THREADS_BATCH"], extra, si.CPU)
 	notes = append(notes, threadNotes...)
+	// Second slot (SIDE_SLOT, voir backend_serve_side.go) : sans la clé, sideCtx
+	// vaut 0 et rien de ce qui suit ne change.
+	sideCtx, sideMiB, sideWhy := sideSlotPlan(cfg, extra, si)
+	ctxArg := get("CTX", "32768")
+	if sideCtx > 0 {
+		ctxArg = strconv.Itoa(2 * sideCtx)
+	}
 	args = []string{bin,
 		"-m", si.Model,
-		"-c", get("CTX", "32768"),
+		"-c", ctxArg,
 	}
 	args = append(args, threads...)
 	args = append(args,
@@ -540,8 +549,15 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	// uniquement à cause de ce nouveau défaut. PARALLEL=n dans le preset pour qui
 	// veut vraiment servir plusieurs requêtes à la fois — ou --parallel dans
 	// EXTRA_ARGS, auquel cas on ne redouble pas le drapeau.
-	if !hasAnyFlag(extra, "--parallel", "-np") {
+	if sideCtx > 0 {
+		// Deux flux KV séparés de sideCtx jetons : aucun slot ne peut manger la
+		// place de l'autre (voir backend_serve_side.go).
+		args = append(args, "--parallel", "2", "--no-kv-unified")
+	} else if !hasAnyFlag(extra, "--parallel", "-np") {
 		args = append(args, "--parallel", get("PARALLEL", "1"))
+	}
+	if n := sideSlotNote(sideCtx, sideMiB, sideWhy, nglForced(cfg, extra)); n != "" {
+		notes = append(notes, n)
 	}
 	// Couches GPU. Quatre cas, dans cet ordre :
 	//

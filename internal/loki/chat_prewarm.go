@@ -26,7 +26,9 @@ package loki
 //
 // Il ne passe jamais devant un vrai travail :
 //   - moteur local seulement, un seul slot (/props total_slots = 1 : ni
-//     PARALLEL ni -np d'EXTRA_ARGS ne peuvent le contredire) ;
+//     PARALLEL ni -np d'EXTRA_ARGS ne peuvent le contredire) — ou les deux de
+//     SIDE_SLOT en service, et il vise alors le slot de la discussion
+//     (id_slot 0, llm_sideslot.go) ;
 //   - jamais pendant un tour, une tâche, une compaction, un bench, un travail
 //     annexe, ni s'il reste une requête de Loki en vol (compteur de
 //     llm_slots.go, qu'il tient lui-même : l'isolation des slots n'efface rien
@@ -379,13 +381,19 @@ func (c *Conversation) prewarm(why string) {
 	if !healthCheck() {
 		return
 	}
-	if prewarmSlots(ep) != 1 {
-		return
+	// Un seul slot, ou les deux de SIDE_SLOT : le préchauffage vise alors le
+	// slot de la discussion (id_slot 0), celui où partira le vrai tour.
+	slot := -1
+	if n := prewarmSlots(ep); n != 1 {
+		if slot = engineSlotFor(ep, true); n != 2 || slot != 0 {
+			return
+		}
 	}
 	payload, run, skip := c.prewarmBodyFor(ep, cfg)
 	if skip != "" {
 		return
 	}
+	setEngineSlot(payload, slot)
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return
