@@ -332,3 +332,164 @@ func TestLastOffload(t *testing.T) {
 		t.Errorf("tout sur GPU : got %d/%d", n, m)
 	}
 }
+
+// helpNgram : un moteur qui connaît les drapeaux actuels de ngram-mod.
+const helpNgram = helpSpec + `--spec-ngram-mod-n-min N                minimum number of ngram tokens (default: 48)
+--spec-ngram-mod-n-max N                maximum number of ngram tokens (default: 64)
+--spec-ngram-mod-n-match N              ngram-mod lookup length (default: 24)
+`
+
+func TestSpecArgsNgram(t *testing.T) {
+	ngram := []string{"--spec-type", "ngram-mod",
+		"--spec-ngram-mod-n-match", "24", "--spec-ngram-mod-n-min", "48", "--spec-ngram-mod-n-max", "64"}
+	both := []string{"--spec-type", "draft-mtp,ngram-mod",
+		"--spec-ngram-mod-n-match", "24", "--spec-ngram-mod-n-min", "48", "--spec-ngram-mod-n-max", "64",
+		"--spec-draft-sampling", "greedy"}
+	cfgOf := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
+	dense := func(s *serveSysInfo) { s.GGUF = &GGUFInfo{Arch: "llama", BlockCount: 32} }
+	cases := []struct {
+		name  string
+		cfg   map[string]string
+		extra []string
+		si    func(*serveSysInfo)
+		want  []string
+		notes int
+	}{
+		{name: "ngram, modèle dense : forme explicite, jamais --spec-default",
+			cfg: cfgOf("SPEC", "ngram"), si: dense, want: ngram, notes: 1},
+		{name: "ngram+mtp s'écrit aussi dans l'autre sens",
+			cfg: cfgOf("SPEC", "ngram+mtp"), want: both, notes: 2},
+		{name: "ngram sur un modèle hybride à tête MTP : tête inutilisée et points de reprise dits",
+			cfg: cfgOf("SPEC", "ngram"), want: ngram, notes: 3},
+		{name: "ngram, moteur qui n'a que le type dans sa liste : rien",
+			cfg: cfgOf("SPEC", "ngram"), notes: 1, si: func(s *serveSysInfo) { s.Help = helpSpec }},
+		{name: "mtp+ngram, moteur sans drapeaux ngram-mod : rien",
+			cfg: cfgOf("SPEC", "mtp+ngram"), notes: 1, si: func(s *serveSysInfo) { s.Help = helpSpec }},
+		{name: "mtp+ngram avec la tête dans le fichier : une seule liste de types",
+			cfg: cfgOf("SPEC", "mtp+ngram"), want: both, notes: 2},
+		{name: "mtp+ngram sans tête MTP : n-grammes seuls, jamais « failed to create MTP context »",
+			cfg: cfgOf("SPEC", "mtp+ngram"), si: dense, want: ngram, notes: 1},
+		{name: "mtp+ngram, moteur sans draft-mtp : n-grammes seuls",
+			cfg: cfgOf("SPEC", "mtp+ngram"), want: ngram, notes: 2,
+			si: func(s *serveSysInfo) {
+				s.Help = strings.ReplaceAll(s.Help, "draft-mtp", "draft-xxx")
+			}},
+		{name: "mtp+ngram avec un petit modèle brouillon : n-grammes seuls, pas de -md",
+			cfg: cfgOf("SPEC", "mtp+ngram", "MODEL_DRAFT", "Qwen3-0.6B.gguf"), want: ngram, notes: 2,
+			si: func(s *serveSysInfo) {
+				s.Draft = "/models/Qwen3-0.6B.gguf"
+				s.DraftGGUF = &GGUFInfo{Arch: "qwen3", BlockCount: 28}
+			}},
+		{name: "mtp+ngram avec la tête MTP publiée à part",
+			cfg: cfgOf("SPEC", "mtp+ngram", "MODEL_DRAFT", "mtp-q.gguf"), notes: 2,
+			want: append([]string{"-md", "/models/mtp-q.gguf"}, both...),
+			si: func(s *serveSysInfo) {
+				s.GGUF.HasNextNTensor = false
+				s.Draft = "/models/mtp-q.gguf"
+				s.DraftGGUF = &GGUFInfo{Arch: "qwen35", BlockCount: 65, HasNextNTensor: true}
+			}},
+		{name: "ngram + MODEL_DRAFT : brouillon ignoré, et dit",
+			cfg: cfgOf("SPEC", "ngram", "MODEL_DRAFT", "mtp-q.gguf"), si: dense, want: ngram, notes: 2},
+		{name: "ngram + SPEC_N_MAX : ignoré, et dit",
+			cfg: cfgOf("SPEC", "ngram", "SPEC_N_MAX", "4"), si: dense, want: ngram, notes: 2},
+		{name: "--spec-type dans EXTRA_ARGS : Loki se tait",
+			cfg: cfgOf("SPEC", "ngram"), extra: []string{"--spec-type", "ngram-simple"}, notes: 1},
+		{name: "--spec_type=… dans EXTRA_ARGS : Loki se tait",
+			cfg: cfgOf("SPEC", "ngram"), extra: []string{"--spec_type=ngram-mod"}, notes: 1},
+		{name: "--spec-default dans EXTRA_ARGS : Loki se tait",
+			cfg: cfgOf("SPEC", "mtp+ngram"), extra: []string{"--spec-default"}, notes: 1},
+		{name: "--spec-ngram-mod-n-max dans EXTRA_ARGS : Loki se tait",
+			cfg: cfgOf("SPEC", "ngram"), extra: []string{"--spec-ngram-mod-n-max=16"}, notes: 1},
+		{name: "-md dans EXTRA_ARGS : Loki se tait",
+			cfg: cfgOf("SPEC", "mtp+ngram"), extra: []string{"-md", "d.gguf"}, notes: 1},
+		{name: "LLAMA_ARG_SPEC_TYPE posée : Loki se tait", cfg: cfgOf("SPEC", "ngram"), notes: 1,
+			si: func(s *serveSysInfo) { s.ArgEnv["LLAMA_ARG_SPEC_TYPE"] = "ngram-mod" }},
+		{name: "ngram + --spec-draft-n-max à la main : rien",
+			cfg: cfgOf("SPEC", "ngram"), si: dense, extra: []string{"--spec-draft-n-max", "8"}, notes: 1},
+		{name: "mtp+ngram + --spec-draft-n-max à la main : la règle de SPEC=mtp",
+			cfg: cfgOf("SPEC", "mtp+ngram"), extra: []string{"--spec-draft-n-max", "8"}, want: both, notes: 2},
+		{name: "experts sur CPU, seuil par défaut : refusé, OP_OFFLOAD_MIN_BATCH suggéré",
+			cfg: cfgOf("SPEC", "ngram"), si: dense, extra: []string{"--n-cpu-moe", "40"}, notes: 1},
+		{name: "experts sur CPU, mtp+ngram : refusé aussi",
+			cfg: cfgOf("SPEC", "mtp+ngram"), extra: []string{"-ot", "exps=CPU"}, notes: 1},
+		{name: "experts sur CPU, OP_OFFLOAD_MIN_BATCH=64 : encore sous le lot de 65, refusé",
+			cfg: cfgOf("SPEC", "ngram", "OP_OFFLOAD_MIN_BATCH", "64"), si: dense, extra: []string{"-cmoe"}, notes: 1},
+		{name: "experts sur CPU, OP_OFFLOAD_MIN_BATCH=128 : accepté",
+			cfg: cfgOf("SPEC", "ngram", "OP_OFFLOAD_MIN_BATCH", "128"), si: dense, extra: []string{"-cmoe"}, want: ngram, notes: 1},
+		{name: "experts sur CPU, GGML_OP_OFFLOAD_MIN_BATCH=256 dans l'environnement : accepté",
+			cfg: cfgOf("SPEC", "ngram"), extra: []string{"--n-cpu-moe", "40"}, want: ngram, notes: 1,
+			si: func(s *serveSysInfo) {
+				dense(s)
+				s.UserEnv = map[string]string{"GGML_OP_OFFLOAD_MIN_BATCH": "256"}
+			}},
+		{name: "experts sur CPU, modèle plus gros que la RAM : accepté avec l'avertissement",
+			cfg: cfgOf("SPEC", "ngram", "OP_OFFLOAD_MIN_BATCH", "128"), extra: []string{"--n-cpu-moe", "40"},
+			want: ngram, notes: 2,
+			si: func(s *serveSysInfo) {
+				dense(s)
+				s.ModelBytes, s.RAMMiB = 82<<30, 64<<10
+			}},
+		{name: "NGL imposé : logits en VRAM dits",
+			cfg: cfgOf("SPEC", "ngram", "NGL", "40"), si: dense, want: ngram, notes: 2},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			si := mtpReady()
+			si.Help = helpNgram
+			if c.si != nil {
+				c.si(&si)
+			}
+			got, notes, isAuto := specArgs(c.cfg, c.extra, si)
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("args = %q, attendu %q", got, c.want)
+			}
+			if isAuto {
+				t.Error("ngram n'est jamais automatique")
+			}
+			if len(notes) != c.notes {
+				t.Errorf("%d notes, attendu %d : %q", len(notes), c.notes, notes)
+			}
+			for _, a := range got {
+				if a == "--spec-default" || strings.HasPrefix(a, "--spec-synth") {
+					t.Errorf("drapeau interdit %q", a)
+				}
+			}
+		})
+	}
+}
+
+// Sans SPEC, la même ligne qu'avant, quel que soit le moteur.
+func TestBuildServeArgsNgramDefault(t *testing.T) {
+	si := mtpReady()
+	si.Help = helpNgram
+	base, _, _ := buildServeArgs(map[string]string{}, nil, "/bin/llama-server", si)
+	for _, a := range base {
+		if strings.HasPrefix(a, "--spec") {
+			t.Fatalf("SPEC absent : aucun drapeau de spéculation, %q", base)
+		}
+	}
+	got, _, _ := buildServeArgs(map[string]string{"SPEC": "ngram"}, []string{"--jinja"}, "/bin/llama-server", si)
+	i := slices.Index(got, "--spec-type")
+	if i < 0 || got[i+1] != "ngram-mod" || slices.Index(got, "--jinja") < i {
+		t.Fatalf("SPEC=ngram : %q", got)
+	}
+}
+
+func TestSynthAcceptanceWarned(t *testing.T) {
+	for _, extra := range [][]string{{"--spec-synth-len", "3"}, {"--spec-synth-rates=0.5,0.5"}} {
+		if n := lossyCacheNotes(extra, serveSysInfo{ArgEnv: map[string]string{}}); len(n) != 1 ||
+			!strings.Contains(n[0], "AU HASARD") {
+			t.Errorf("%q : %q", extra, n)
+		}
+	}
+	si := serveSysInfo{ArgEnv: map[string]string{"LLAMA_ARG_SPEC_SYNTH_LEN": "3"}}
+	if n := lossyCacheNotes(nil, si); len(n) != 1 {
+		t.Errorf("variable : %q", n)
+	}
+}

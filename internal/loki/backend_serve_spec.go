@@ -22,6 +22,8 @@ import (
 //	MODEL_DRAFT=<nom>  → la tête ou le brouillon, résolu comme MMPROJ
 //	SPEC_N_MAX=<n>     → --spec-draft-n-max (défaut du moteur : 3)
 //	SPEC_SAMPLING=probabilistic → seulement avec SPEC=mtp ; greedy sinon
+//	SPEC=ngram         → n-grammes tirés du contexte (ngram-mod), sans brouillon
+//	SPEC=mtp+ngram     → les deux ; un n-gramme trouvé passe avant la tête MTP
 //
 // Rien n'y touche au modèle : chaque jeton émis est tiré par l'échantillonneur
 // du modèle cible, un jeton du brouillon n'est gardé que s'il coïncide
@@ -30,6 +32,11 @@ import (
 // empêcher le moteur de démarrer. D'où l'opt-in, les garde-fous d'auto et le
 // jeton de tentative (specAutoVerdict) : un lancement automatique qui n'a
 // jamais répondu ne se retente pas avec la même configuration.
+//
+// Une vérification par lot n'emprunte pas les mêmes noyaux qu'un décodage jeton
+// par jeton : même distribution, mais pas le même texte au bit près — deux
+// candidats presque à égalité peuvent s'inverser à graine égale, comme entre
+// prefill et décodage. On compare donc des sessions rejouées, pas des diffs.
 
 const (
 	// specAutoMinBuild : premier build officiel où Loki ose l'auto (MTP serveur,
@@ -37,6 +44,19 @@ const (
 	// peut connaître le drapeau sans le tenir.
 	specAutoMinBuild = 11009
 	specNMaxLimit    = 64
+
+	// Bornes de ngram-mod, toujours écrites en clair : --spec-default pose les
+	// mêmes aujourd'hui, mais son code porte un TODO qui annonce d'autres types —
+	// une mise à jour du moteur changerait le réglage sans un mot. Un brouillon
+	// part dès 24 jetons qui se répètent mot pour mot, et fait 48 à 64 jetons :
+	// ce que recopie une boucle d'outils (chemins, diffs, arguments JSON).
+	specNgramNMatch = 24
+	specNgramNMin   = 48
+	specNgramNMax   = 64
+
+	// ggmlOffloadMinBatchDefault : seuil par défaut du moteur (ggml-cuda.cu) à
+	// partir duquel un lot recopie vers le GPU les poids restés en RAM.
+	ggmlOffloadMinBatchDefault = 32
 )
 
 // specArgEnv : les variables qui règlent la spéculation sans drapeau. Posées,
@@ -45,9 +65,27 @@ var specArgEnv = []string{"LLAMA_ARG_SPEC_TYPE", "LLAMA_ARG_SPEC_DRAFT_MODEL", "
 	"LLAMA_ARG_SPEC_DRAFT_N_MAX", "LLAMA_ARG_SPEC_DRAFT_SAMPLING"}
 
 // specUserFlags : la spéculation réglée à la main. Les ajouter EN PLUS ferait
-// cumuler les types (--spec-type s'additionne) ou charger deux brouillons.
-var specUserFlags = []string{"--spec-type", "-md", "--model-draft", "--spec-draft-model",
+// cumuler les types (--spec-type s'additionne, sans l'avertissement « specified
+// multiple times » des autres drapeaux) ou charger deux brouillons.
+var specUserFlags = []string{"--spec-type", "--spec_type", "-md", "--model-draft", "--spec-draft-model",
 	"-hfd", "-hfrd", "--spec-draft-hf", "--hf-repo-draft", "--spec-default"}
+
+// specUserPrefixes : des réglages de n-grammes à la main (--spec-ngram-mod-n-max,
+// --spec-ngram-simple-size-n…) disent la même chose qu'un --spec-type.
+var specUserPrefixes = []string{"--spec-ngram-", "--spec_ngram_"}
+
+// hasFlagPrefix : un drapeau d'args commence-t-il par l'un de ces préfixes ?
+func hasFlagPrefix(args []string, prefixes ...string) string {
+	for _, a := range args {
+		for _, p := range prefixes {
+			if strings.HasPrefix(a, p) {
+				name, _, _ := strings.Cut(a, "=")
+				return name
+			}
+		}
+	}
+	return ""
+}
 
 // probeSpec : variables du moteur, puis MODEL_DRAFT résolu comme MMPROJ (nom
 // simple cherché dans les dossiers déclarés, ou chemin absolu). Introuvable ne
@@ -91,20 +129,23 @@ func specSidecarArch(arch string) bool {
 	return false
 }
 
-// specMode lit SPEC : "off", "auto", "mtp", ou "" si illisible.
+// specMode lit SPEC : "off", "auto", "mtp", "ngram", "mtp+ngram", ou "" si
+// illisible.
 func specMode(cfg map[string]string) string {
 	switch v := strings.ToLower(strings.TrimSpace(cfg["SPEC"])); v {
 	case "", "off", "non", "no", "0":
 		return "off"
-	case "auto", "mtp":
+	case "auto", "mtp", "ngram", "mtp+ngram":
 		return v
+	case "ngram+mtp":
+		return "mtp+ngram"
 	}
 	return ""
 }
 
 // specUserSet : EXTRA_ARGS ou l'environnement règlent déjà la spéculation.
 func specUserSet(extra []string, argEnv map[string]string) bool {
-	if hasAnyFlag(extra, specUserFlags...) {
+	if hasAnyFlag(extra, specUserFlags...) || hasFlagPrefix(extra, specUserPrefixes...) != "" {
 		return true
 	}
 	for _, k := range []string{"LLAMA_ARG_SPEC_TYPE", "LLAMA_ARG_SPEC_DRAFT_MODEL", "LLAMA_ARG_SPEC_DRAFT_HF_REPO"} {
@@ -204,7 +245,7 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 	draftKey := strings.TrimSpace(cfg["MODEL_DRAFT"])
 	switch mode {
 	case "":
-		return nil, []string{"SPEC=" + cfg["SPEC"] + " illisible (off, auto ou mtp) : sans décodage spéculatif"}, false
+		return nil, []string{"SPEC=" + cfg["SPEC"] + " illisible (off, auto, mtp, ngram ou mtp+ngram) : sans décodage spéculatif"}, false
 	case "off":
 		if draftKey != "" {
 			return nil, []string{"MODEL_DRAFT ignoré : SPEC=off (auto ou mtp pour s'en servir)"}, false
@@ -218,49 +259,40 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 		return nil, []string{"SPEC=" + mode + " : " + why + " — sans décodage spéculatif"}, false
 	}
 
-	// La source : MODEL_DRAFT s'il est posé, sinon la tête MTP du modèle. Dans
-	// les deux cas, on regarde les TENSEURS, comme llama.cpp : une clé
-	// nextn_predict_layers seule ne prouve pas que la tête est dans le fichier.
-	mtp := false
-	switch {
-	case draftKey != "":
-		switch {
-		case si.Draft == "":
-			why := "MODEL_DRAFT=" + draftKey + " introuvable"
-			if si.DraftErr != "" {
-				why += " (" + si.DraftErr + ")"
-			}
+	// N-grammes : leurs garde-fous d'abord, ils valent pour les deux formes.
+	if mode == "ngram" || mode == "mtp+ngram" {
+		if why := ngramBlocker(cfg, extra, si, mode); why != "" {
 			return skip(why)
-		case si.DraftGGUF == nil:
-			return skip("MODEL_DRAFT illisible (GGUF incomplet ou en cours de téléchargement ?)")
-		case si.DraftGGUF.HasNextNTensor:
-			if !helpSupportsMTP(si.Help) {
-				return skip("ce moteur ne connaît pas draft-mtp")
-			}
-			// Type explicite : llama.cpp ne le devine que sur la première tranche.
-			args, mtp = []string{"-md", si.Draft, "--spec-type", "draft-mtp"}, true
-		case specSidecarArch(si.DraftGGUF.Arch):
-			return skip("MODEL_DRAFT est une tête " + si.DraftGGUF.Arch +
-				", pas un modèle brouillon : règle -md et --spec-type dans EXTRA_ARGS")
-		default:
-			if !strings.Contains(si.Help, "--spec-type") || !strings.Contains(si.Help, "draft-simple") {
-				return skip("ce moteur ne connaît pas --spec-type draft-simple")
-			}
-			// Sans type, un brouillon qui n'est pas une tête MTP serait chargé en
-			// VRAM puis jamais utilisé.
-			args = []string{"-md", si.Draft, "--spec-type", "draft-simple"}
 		}
-	case si.GGUF == nil:
-		return skip("métadonnées du modèle illisibles")
-	case !si.GGUF.HasNextNTensor:
-		if mode == "mtp" || si.GGUF.NextN > 0 {
-			return skip("pas de tête MTP dans ce fichier (publiée à part ? MODEL_DRAFT=mtp-….gguf)")
+	}
+	if mode == "ngram" {
+		args, notes = ngramSpecArgs(cfg, extra, si, "")
+		return args, notes, false
+	}
+
+	src, mtp, why, quiet := specSource(mode, draftKey, si)
+	if mode == "mtp+ngram" && !mtp {
+		// Pas de tête MTP utilisable : la passer quand même ferait mourir le
+		// moteur sur « failed to create MTP context », et boucler. Les n-grammes,
+		// eux, n'ont besoin de rien.
+		if why == "" {
+			why = "MODEL_DRAFT n'est pas une tête MTP"
 		}
-		return nil, nil, false // auto sur un modèle sans MTP : rien à dire
-	case !helpSupportsMTP(si.Help):
-		return skip("ce moteur ne connaît pas draft-mtp")
-	default:
-		args, mtp = []string{"--spec-type", "draft-mtp"}, true
+		args, notes = ngramSpecArgs(cfg, extra, si, "SPEC=mtp+ngram : sans MTP ("+why+") → n-grammes seuls. ")
+		return args, notes, false
+	}
+	if why != "" {
+		return skip(why)
+	}
+	if quiet {
+		return nil, nil, false
+	}
+	args = src
+	if mode == "mtp+ngram" {
+		// Une seule liste : --spec-type s'additionne, mais une valeur unique se
+		// lit d'un coup d'œil dans le journal.
+		args[len(args)-1] = "draft-mtp,ngram-mod"
+		args = append(args, ngramModParams()...)
 	}
 
 	label := "brouillon " + baseName(si.Draft)
@@ -275,7 +307,10 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 		notes = append(notes, "SPEC=auto → "+label+" : sortie inchangée (chaque jeton est vérifié par le modèle), "+
 			"~1-2 Go de VRAM en plus. Mesure le prefill ; SPEC=off pour couper.")
 	} else {
-		note := "SPEC=mtp → " + label + " imposé : sortie inchangée, ~1-2 Go de VRAM en plus"
+		note := "SPEC=" + mode + " → " + label + " imposé : sortie inchangée, ~1-2 Go de VRAM en plus"
+		if mode == "mtp+ngram" {
+			note += " ; n-grammes en plus (ngram-mod, prioritaires quand ils trouvent une répétition)"
+		}
 		if why := fitBlocker(cfg, extra, si); why != "" || hasAnyFlag(extra, "-dev", "--device") {
 			if why == "" {
 				why = "--device"
@@ -290,6 +325,9 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 			note += " ; MTP qwen4exp très récent"
 		}
 		notes = append(notes, note)
+		if mode == "mtp+ngram" {
+			notes = append(notes, ngramCostNotes(cfg, extra, si)...)
+		}
 	}
 
 	// Nombre de jetons anticipés : défaut du moteur (3) si la clé est vide.
@@ -314,7 +352,7 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 	case "", "greedy":
 	case "probabilistic":
 		switch {
-		case mode != "mtp":
+		case mode == "auto":
 			notes = append(notes, "SPEC_SAMPLING=probabilistic ignoré avec SPEC=auto (SPEC=mtp pour le choisir) : greedy")
 		case statefulSampler(extra) != "":
 			notes = append(notes, "SPEC_SAMPLING=probabilistic refusé avec "+statefulSampler(extra)+
@@ -332,6 +370,158 @@ func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, not
 		args = append(args, "--spec-draft-sampling", sampling)
 	}
 	return args, notes, auto
+}
+
+// specSource : d'où vient le brouillon de SPEC=auto|mtp|mtp+ngram. MODEL_DRAFT
+// s'il est posé, sinon la tête MTP du modèle ; dans les deux cas on regarde les
+// TENSEURS, comme llama.cpp : une clé nextn_predict_layers seule ne prouve pas
+// que la tête est dans le fichier. why non vide = aucun brouillon ; quiet =
+// rien à dire (auto sur un modèle sans MTP).
+func specSource(mode, draftKey string, si serveSysInfo) (args []string, mtp bool, why string, quiet bool) {
+	switch {
+	case draftKey != "":
+		switch {
+		case si.Draft == "":
+			why := "MODEL_DRAFT=" + draftKey + " introuvable"
+			if si.DraftErr != "" {
+				why += " (" + si.DraftErr + ")"
+			}
+			return nil, false, why, false
+		case si.DraftGGUF == nil:
+			return nil, false, "MODEL_DRAFT illisible (GGUF incomplet ou en cours de téléchargement ?)", false
+		case si.DraftGGUF.HasNextNTensor:
+			if !helpSupportsMTP(si.Help) {
+				return nil, false, "ce moteur ne connaît pas draft-mtp", false
+			}
+			// Type explicite : llama.cpp ne le devine que sur la première tranche.
+			return []string{"-md", si.Draft, "--spec-type", "draft-mtp"}, true, "", false
+		case specSidecarArch(si.DraftGGUF.Arch):
+			return nil, false, "MODEL_DRAFT est une tête " + si.DraftGGUF.Arch +
+				", pas un modèle brouillon : règle -md et --spec-type dans EXTRA_ARGS", false
+		case mode == "mtp+ngram":
+			return nil, false, "", false // un modèle brouillon n'est pas une tête MTP
+		default:
+			if !strings.Contains(si.Help, "--spec-type") || !strings.Contains(si.Help, "draft-simple") {
+				return nil, false, "ce moteur ne connaît pas --spec-type draft-simple", false
+			}
+			// Sans type, un brouillon qui n'est pas une tête MTP serait chargé en
+			// VRAM puis jamais utilisé.
+			return []string{"-md", si.Draft, "--spec-type", "draft-simple"}, false, "", false
+		}
+	case si.GGUF == nil:
+		return nil, false, "métadonnées du modèle illisibles", false
+	case !si.GGUF.HasNextNTensor:
+		if mode != "auto" || si.GGUF.NextN > 0 {
+			return nil, false, "pas de tête MTP dans ce fichier (publiée à part ? MODEL_DRAFT=mtp-….gguf)", false
+		}
+		return nil, false, "", true
+	case !helpSupportsMTP(si.Help):
+		return nil, false, "ce moteur ne connaît pas draft-mtp", false
+	}
+	return []string{"--spec-type", "draft-mtp"}, true, "", false
+}
+
+// ngramModParams : les trois bornes de ngram-mod, toujours explicites.
+func ngramModParams() []string {
+	return []string{
+		"--spec-ngram-mod-n-match", strconv.Itoa(specNgramNMatch),
+		"--spec-ngram-mod-n-min", strconv.Itoa(specNgramNMin),
+		"--spec-ngram-mod-n-max", strconv.Itoa(specNgramNMax),
+	}
+}
+
+// ngramBlocker dit pourquoi SPEC=ngram|mtp+ngram ne s'active pas, ou vide.
+//
+//   - Le moteur doit connaître --spec-ngram-mod-n-match, pas seulement le mot
+//     « ngram-mod » : les moteurs d'avant le renommage ont encore le type dans
+//     leur liste mais refusent les drapeaux actuels, et meurent au démarrage.
+//   - SPEC=ngram n'a pas de brouillon : un --spec-draft-* d'EXTRA_ARGS veut dire
+//     qu'on règle un brouillon à la main, on ne mélange pas.
+//   - Poids en RAM (experts MoE sur CPU…) : llama.cpp recopie vers le GPU les
+//     poids d'un lot dès GGML_OP_OFFLOAD_MIN_BATCH jetons (32 par défaut). Un
+//     lot de vérification de n_max+1 jetons au-dessus du seuil ferait passer
+//     les experts de chaque couche par le PCIe — voire par le disque si le
+//     modèle mappé dépasse la RAM — à chaque brouillon. Refusé tant que le seuil
+//     n'est pas relevé au-dessus du lot.
+func ngramBlocker(cfg map[string]string, extra []string, si serveSysInfo, mode string) string {
+	if !strings.Contains(si.Help, "--spec-ngram-mod-n-match") {
+		return "ce moteur ne connaît pas --spec-ngram-mod-n-match"
+	}
+	if mode == "ngram" {
+		if f := hasFlagPrefix(extra, "--spec-draft-", "--spec_draft_"); f != "" {
+			return f + " dans EXTRA_ARGS (brouillon réglé à la main)"
+		}
+	}
+	blocks := 0
+	if si.GGUF != nil {
+		blocks = si.GGUF.BlockCount
+	}
+	if r := cpuWeights(cfg, extra, si.ArgEnv, blocks); r != "" {
+		if thr := opOffloadThreshold(cfg, si); specNgramNMax+1 >= thr {
+			return fmt.Sprintf("%s : un lot de vérification de %d jetons atteint GGML_OP_OFFLOAD_MIN_BATCH (%d) et "+
+				"recopierait ces poids vers le GPU à chaque brouillon — OP_OFFLOAD_MIN_BATCH=128 pour l'essayer, à mesurer",
+				r, specNgramNMax+1, thr)
+		}
+	}
+	return ""
+}
+
+// opOffloadThreshold : le seuil GGML_OP_OFFLOAD_MIN_BATCH que verra le moteur —
+// celui de l'environnement, sinon celui d'OP_OFFLOAD_MIN_BATCH, sinon le défaut.
+func opOffloadThreshold(cfg map[string]string, si serveSysInfo) int {
+	v := strings.TrimSpace(si.UserEnv["GGML_OP_OFFLOAD_MIN_BATCH"])
+	if v == "" {
+		v, _ = opOffloadMinBatchEnv(cfg, si)
+	}
+	if n, err := strconv.Atoi(v); err == nil && n > 0 {
+		return n
+	}
+	return ggmlOffloadMinBatchDefault
+}
+
+// ngramSpecArgs : SPEC=ngram, ou le repli de mtp+ngram sans tête MTP (lead dit
+// pourquoi). Pas de --spec-draft-* : il n'y a pas de brouillon.
+func ngramSpecArgs(cfg map[string]string, extra []string, si serveSysInfo, lead string) (args, notes []string) {
+	args = append([]string{"--spec-type", "ngram-mod"}, ngramModParams()...)
+	notes = append(notes, lead+fmt.Sprintf("SPEC=ngram → n-grammes du contexte (ngram-mod, brouillons de %d à %d jetons) : "+
+		"distribution inchangée (chaque jeton vérifié), ~16 Mo de RAM ; utile surtout en mode code, à mesurer "+
+		"(acceptation par nature dans /api/perf/summary)", specNgramNMin, specNgramNMax))
+	if lead == "" {
+		// --spec-type explicite : llama.cpp ne choisit plus de lui-même la tête MTP.
+		switch {
+		case strings.TrimSpace(cfg["MODEL_DRAFT"]) != "":
+			notes = append(notes, "MODEL_DRAFT ignoré avec SPEC=ngram : SPEC=mtp+ngram pour les deux")
+		case si.GGUF != nil && si.GGUF.HasNextNTensor:
+			notes = append(notes, "tête MTP du modèle inutilisée avec SPEC=ngram : SPEC=mtp+ngram pour les deux")
+		}
+	}
+	if strings.TrimSpace(cfg["SPEC_N_MAX"]) != "" || strings.TrimSpace(cfg["SPEC_SAMPLING"]) != "" {
+		notes = append(notes, "SPEC_N_MAX et SPEC_SAMPLING ignorés : les n-grammes n'ont pas de brouillon à régler")
+	}
+	return args, append(notes, ngramCostNotes(cfg, extra, si)...)
+}
+
+// ngramCostNotes : ce que les longs brouillons coûtent, là où ça se voit.
+func ngramCostNotes(cfg map[string]string, extra []string, si serveSysInfo) []string {
+	var notes []string
+	if si.GGUF != nil && si.GGUF.Hybrid {
+		notes = append(notes, "modèle hybride : chaque brouillon n-gramme copie l'état récurrent (point de reprise en RAM "+
+			"hôte) et le recharge s'il est rejeté — compare le temps par tour, pas seulement le débit")
+	}
+	blocks := 0
+	if si.GGUF != nil {
+		blocks = si.GGUF.BlockCount
+	}
+	if cpuWeights(cfg, extra, si.ArgEnv, blocks) != "" && si.ModelBytes > 0 && si.RAMMiB > 0 &&
+		si.ModelBytes > si.RAMMiB<<20 {
+		notes = append(notes, "modèle plus gros que la RAM, poids sur CPU : un lot de vérification lit la plupart des "+
+			"experts de chaque couche — surveille les lectures disque, pas seulement les jetons/s")
+	}
+	if nglForced(cfg, extra) {
+		notes = append(notes, fmt.Sprintf("NGL imposé (--fit inactif) : les logits de %d positions par slot prennent "+
+			"quelques dizaines de Mio de VRAM en plus", specNgramNMax+1))
+	}
+	return notes
 }
 
 // --- Jeton de tentative ------------------------------------------------------

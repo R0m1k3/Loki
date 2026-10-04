@@ -347,7 +347,7 @@ func cmdServe(args []string) error {
 	probeCkptEnv(&si)
 	probeSideSlotEnv(cfg, &si)
 	spec := specMode(cfg)
-	if spec == "auto" || spec == "mtp" {
+	if spec != "off" && spec != "" {
 		probeSpec(cfg, &si)
 	}
 	// Build du moteur : seulement pour un hybride ou SPEC=auto, les seuls cas où

@@ -531,6 +531,36 @@ Ajoutées par ce fork :
   exactement les jetons gardés (gabarit qui rend le dernier tour à
   l'identique), sinon recalcul comme avant. Ce que voit le modèle ne change
   pas : llama.cpp ne reprend un état que sur un préfixe de jetons identique.
+- **Spéculation par n-grammes** (clé `SPEC`, valeurs `ngram` et `mtp+ngram`,
+  **off** par défaut, `loki config set SPEC ngram`, moteur relancé) : en mode
+  Code, le modèle recopie sans cesse ce qui est déjà dans le contexte (chemins,
+  diffs, arguments JSON, fichiers réécrits). `ngram` y cherche la suite des
+  24 derniers jetons et propose d'un coup les 48 à 64 suivants
+  (`--spec-type ngram-mod --spec-ngram-mod-n-match 24 --spec-ngram-mod-n-min 48
+  --spec-ngram-mod-n-max 64`, toujours en clair, jamais `--spec-default` dont
+  le contenu peut changer d'une version à l'autre) ; `mtp+ngram` ajoute la tête
+  MTP (`--spec-type draft-mtp,ngram-mod`), les n-grammes passant d'abord quand
+  ils trouvent. Chaque jeton reste tiré par le modèle et un jeton proposé n'est
+  gardé que s'il coïncide : même distribution, mais pas le même texte au bit
+  près (la vérification par lots n'emprunte pas les noyaux du décodage jeton
+  par jeton) — on compare des sessions rejouées, pas des diffs. Rien n'est posé
+  si le moteur ne connaît pas `--spec-ngram-mod-n-match`, si `EXTRA_ARGS` ou
+  `LLAMA_ARG_SPEC_TYPE` règlent déjà la spéculation (`--spec-type`, qui
+  s'additionne au lieu de remplacer, `--spec-default`, `--spec-ngram-*`, `-md`…),
+  ou, pour `ngram`, si un `--spec-draft-*` y figure. `mtp+ngram` sans tête MTP
+  (ni dans le fichier ni en `MODEL_DRAFT`) ou sans `draft-mtp` dans le moteur
+  retombe sur les n-grammes seuls, avec une note. Avec `ngram`, une tête MTP
+  présente reste inutilisée (le type explicite coupe le choix automatique) : la
+  note le dit. Poids sur CPU (`--n-cpu-moe`, `-ot …=CPU`, `NGL` partiel) :
+  refusé tant que `GGML_OP_OFFLOAD_MIN_BATCH` (clé `OP_OFFLOAD_MIN_BATCH`) ne
+  dépasse pas le lot de vérification de 65 jetons — sinon chaque brouillon
+  recopierait les experts vers le GPU ; `OP_OFFLOAD_MIN_BATCH=128` pour
+  l'essayer, en mesurant aussi les lectures disque si le modèle dépasse la RAM.
+  Sur un hybride, chaque brouillon copie l'état récurrent (point de reprise)
+  et le recharge s'il est rejeté. `/api/perf/summary` donne l'acceptation par
+  nature de requête (`kinds.<nature>.draft_rate`) : à garder là où elle paie.
+  Les drapeaux d'acceptation synthétique (`--spec-synth-*`, « benchmarking
+  only »), que Loki ne pose jamais, déclenchent un avertissement au lancement.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

@@ -1260,7 +1260,8 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               <option value="bf16">bf16 (numérique différente de f16)</option>
             </select></span></span>
           </div>
-          <!-- Décodage spéculatif : « auto » et « MTP » écrivent la clé SPEC,
+          <!-- Décodage spéculatif : « auto », « MTP », « n-grammes du contexte » et
+               « MTP + n-grammes » écrivent la clé SPEC,
                que Loki traduit au lancement (tête MTP détectée dans le fichier,
                garde-fous VRAM) ; les autres types vont tels quels dans
                --spec-type. « non » écrit SPEC=off. Le nombre de jetons anticipés
@@ -1271,6 +1272,8 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <span class="pe-row-c"><span class="pe-selc"><select id="s-spec" onchange="onSpecType()">
               <option value="">non</option>
               <option value="auto">auto (MTP si le modèle en a une et que la VRAM suit)</option>
+              <option value="ngram">n-grammes du contexte (expérimental · mode code, à mesurer)</option>
+              <option value="mtp+ngram">MTP + n-grammes (expérimental · à mesurer)</option>
               <optgroup label="Modèle brouillon">
                 <option value="draft-mtp">MTP (imposé)</option>
                 <option value="draft-eagle3">EAGLE-3</option>

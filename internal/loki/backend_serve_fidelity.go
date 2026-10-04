@@ -23,7 +23,7 @@ import (
 // ils décident. LLAMA_ARG_NO_CONTEXT_SHIFT est celle des moteurs anciens.
 var fidelityArgEnv = []string{"LLAMA_ARG_CACHE_TYPE_K", "LLAMA_ARG_CACHE_TYPE_V",
 	"LLAMA_ARG_CONTEXT_SHIFT", "LLAMA_ARG_NO_CONTEXT_SHIFT", "LLAMA_ARG_CACHE_REUSE",
-	"LLAMA_ARG_MMPROJ", "LLAMA_ARG_MMPROJ_URL"}
+	"LLAMA_ARG_MMPROJ", "LLAMA_ARG_MMPROJ_URL", "LLAMA_ARG_SPEC_SYNTH_LEN"}
 
 // probeFidelityEnv complète ArgEnv avec fidelityArgEnv. Appelée après
 // probeServeGPUs, qui crée ArgEnv.
@@ -167,6 +167,16 @@ func lossyCacheNotes(extra []string, si serveSysInfo) []string {
 		notes = append(notes, fmt.Sprintf("avertissement : --cache-reuse %d (%s) — réutilise des morceaux "+
 			"de cache calculés sous un autre préfixe : les sorties ne sont plus exactement celles d'un calcul "+
 			"complet%s.", n, src, ignored))
+	}
+	// Acceptation SYNTHÉTIQUE (« benchmarking only ») : le moteur garde des
+	// jetons du brouillon au hasard, sans les comparer à ce qu'aurait tiré le
+	// modèle. Loki ne les pose jamais ; écrits à la main, on le crie.
+	if f := hasFlagPrefix(extra, "--spec-synth-"); f != "" || si.ArgEnv["LLAMA_ARG_SPEC_SYNTH_LEN"] != "" {
+		if f == "" {
+			f = "LLAMA_ARG_SPEC_SYNTH_LEN"
+		}
+		notes = append(notes, "avertissement : "+f+" — le moteur accepte des jetons du brouillon AU HASARD, sans "+
+			"vérification : les réponses ne sont plus celles du modèle. Réservé aux mesures, retire-le.")
 	}
 	return notes
 }

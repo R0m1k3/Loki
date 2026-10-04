@@ -249,6 +249,13 @@ func TestPerfSummarize(t *testing.T) {
 	if s.DraftRate == nil || *s.DraftRate != 0.75 {
 		t.Fatalf("acceptation : %v", s.DraftRate)
 	}
+	// Par nature aussi : le sous-agent sans brouillon n'a pas de taux inventé.
+	if m.DraftRate == nil || *m.DraftRate != 0.75 || m.DraftN != 40 || m.DraftAccepted != 30 {
+		t.Fatalf("acceptation main : %+v", m)
+	}
+	if sa := s.Kinds[perfSubagent]; sa.DraftRate != nil || sa.DraftN != 0 {
+		t.Fatalf("acceptation sous-agent : %+v", sa)
+	}
 	if len(s.Depth) != 4 || s.Depth[0].PPMedianTPS == nil || *s.Depth[0].PPMedianTPS != 500 || s.Depth[2].TGMedianTPS == nil || *s.Depth[2].TGMedianTPS != 30 || s.Depth[3].N != 0 {
 		t.Fatalf("profondeurs : %+v", s.Depth)
 	}

@@ -1108,10 +1108,14 @@ function syncLoadModeSub(mode){
 // « auto » et « MTP » passent par la clé SPEC : Loki cherche la tête MTP dans
 // le fichier et pose les garde-fous au lancement. Les autres types restent des
 // --spec-type d'EXTRA_ARGS, qui ont toujours le dernier mot côté serveur.
+// « ngram » et « mtp+ngram » aussi : Loki écrit lui-même les bornes de
+// ngram-mod et refuse là où les longs lots de vérification coûteraient cher.
 function specFromKey(v){
   v = String(v||'').trim().toLowerCase();
-  return v === 'auto' ? 'auto' : v === 'mtp' ? 'draft-mtp' : '';
+  if(v === 'ngram+mtp') v = 'mtp+ngram';
+  return v === 'auto' ? 'auto' : v === 'mtp' ? 'draft-mtp' : (v === 'ngram' || v === 'mtp+ngram') ? v : '';
 }
+const SPEC_KEY_VALUES = {'auto': 'auto', 'draft-mtp': 'mtp', 'ngram': 'ngram', 'mtp+ngram': 'mtp+ngram'};
 // Sélectionne le type courant. --spec-type accepte en réalité une LISTE séparée
 // par des virgules ; une valeur composée (ou un type sorti après cette version
 // de loki) ne correspondrait à aucune option et serait silencieusement effacée
@@ -1136,20 +1140,21 @@ function syncSpecRow(){
   const row = document.getElementById('s-spec-n-row');
   if(!sel || !row) return;
   const on = !!sel.value;
-  row.style.display = on ? '' : 'none';
+  // SPEC=ngram n'a pas de brouillon : un --spec-draft-n-max le ferait refuser.
+  row.style.display = on && sel.value !== 'ngram' ? '' : 'none';
   // Le brouillon ne sert qu'à SPEC (auto / MTP) ; un brouillon déjà posé reste
   // visible pour qu'on puisse le retirer.
   const dr = document.getElementById('s-draft-row');
-  if(dr) dr.style.display = (sel.value === 'auto' || sel.value === 'draft-mtp' || cfgReadKey('MODEL_DRAFT')) ? '' : 'none';
+  if(dr) dr.style.display = (sel.value === 'auto' || sel.value === 'draft-mtp' || sel.value === 'mtp+ngram' || cfgReadKey('MODEL_DRAFT')) ? '' : 'none';
   return on;
 }
 function onSpecType(){
   const v = document.getElementById('s-spec').value;
-  const viaKey = v === 'auto' || v === 'draft-mtp';
+  const viaKey = v in SPEC_KEY_VALUES;
   // « non » écrit SPEC=off : explicite, et identique au défaut du serveur.
-  cfgWriteKey('SPEC', v === 'auto' ? 'auto' : v === 'draft-mtp' ? 'mtp' : v ? '' : 'off');
+  cfgWriteKey('SPEC', viaKey ? SPEC_KEY_VALUES[v] : v ? '' : 'off');
   eaSetValued('--spec-type', viaKey ? '' : v);
-  if(!v){
+  if(!v || v === 'ngram'){
     eaSetValued('--spec-draft-n-max', '');
     document.getElementById('s-spec-n').value = '';
   }

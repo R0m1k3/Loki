@@ -98,10 +98,12 @@ var configTemplate = []struct{ key, help string }{
 	{"CKPT_MIN_STEP", "espacement minimal en jetons entre deux points de reprise (--checkpoint-min-step), > 0 ; " +
 		"vide = défaut du moteur, ou 2048 d'office sur un hybride avec un moteur officiel antérieur à b10864"},
 	{"SPEC", "décodage spéculatif, sortie inchangée : off (défaut) / auto = tête MTP du modèle ou MODEL_DRAFT si --fit place " +
-		"tout et qu'aucun essai n'a échoué / mtp = imposé ; ~1-2 Go de VRAM en plus"},
-	{"MODEL_DRAFT", "tête MTP publiée à part (mtp-*.gguf) ou petit modèle brouillon, nom ou chemin comme MODEL ; utilisé si SPEC≠off"},
+		"tout et qu'aucun essai n'a échoué / mtp = imposé ; ~1-2 Go de VRAM en plus / ngram = n-grammes du contexte " +
+		"(ngram-mod 24/48/64, sans brouillon, utile en mode code, à mesurer ; refusé avec des poids sur CPU sauf " +
+		"OP_OFFLOAD_MIN_BATCH ≥ 66) / mtp+ngram = les deux, n-grammes seuls si pas de tête MTP"},
+	{"MODEL_DRAFT", "tête MTP publiée à part (mtp-*.gguf) ou petit modèle brouillon, nom ou chemin comme MODEL ; utilisé avec SPEC=auto, mtp ou mtp+ngram"},
 	{"SPEC_N_MAX", "jetons anticipés par étape (--spec-draft-n-max) ; vide = défaut du moteur (3)"},
-	{"SPEC_SAMPLING", "tirage du brouillon : greedy (défaut, exact) ; probabilistic seulement avec SPEC=mtp"},
+	{"SPEC_SAMPLING", "tirage du brouillon : greedy (défaut, exact) ; probabilistic seulement avec SPEC=mtp ou mtp+ngram"},
 	{"REASONING", "passthrough du mode raisonnement (on/auto/deepseek)"},
 	{"REASONING_PRESERVE", "on/off = garder ou non la réflexion des tours passés dans le gabarit (--reasoning-preserve) ; " +
 		"vide = défaut du moteur (on depuis b10763). Sans REASONING_ECHO, Loki ne renvoie pas cette réflexion : off rend " +

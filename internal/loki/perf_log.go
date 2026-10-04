@@ -453,6 +453,12 @@ type perfKindSum struct {
 	LostEvents        int      `json:"lost_events"`
 	LostTokens        int      `json:"lost_tokens"`
 	TTFTMedianMs      *float64 `json:"ttft_median_ms,omitempty"`
+	// Acceptation du brouillon par nature : un n-gramme paie en mode code
+	// (chemins, diffs recopiés) et presque pas en prose — le taux global
+	// mélangerait les deux. Absent = moteur muet ou spéculation coupée.
+	DraftN        int      `json:"draft_n,omitempty"`
+	DraftAccepted int      `json:"draft_accepted,omitempty"`
+	DraftRate     *float64 `json:"draft_rate,omitempty"`
 }
 
 type perfDepthSum struct {
@@ -550,8 +556,10 @@ func perfSummarize(recs []perfRec) perfSummary {
 		}
 		if r.DraftN != nil {
 			s.DraftN += *r.DraftN
+			k.DraftN += *r.DraftN
 			if r.DraftAcc != nil {
 				s.DraftAccepted += *r.DraftAcc
+				k.DraftAccepted += *r.DraftAcc
 			}
 		}
 	}
@@ -561,6 +569,10 @@ func perfSummarize(recs []perfRec) perfSummary {
 			k.PrefillSecPerTurn = k.PrefillSec / float64(k.Turns)
 		}
 		k.TTFTMedianMs = perfMedian(ttft[kind])
+		if k.DraftN > 0 {
+			r := float64(k.DraftAccepted) / float64(k.DraftN)
+			k.DraftRate = &r
+		}
 	}
 	if sumTotal > 0 {
 		r := float64(sumCached) / float64(sumTotal)
