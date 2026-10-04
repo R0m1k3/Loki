@@ -197,7 +197,18 @@ func (l *tuneLock) write() error {
 	if err := os.WriteFile(tmp, b, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, l.path)
+	// Windows refuse de remplacer un fichier qu'un autre processus lit à cet
+	// instant (tuneGuard d'une requête) : on réessaie un peu avant de renoncer.
+	for i := 0; ; i++ {
+		err := os.Rename(tmp, l.path)
+		if err == nil || i == 4 {
+			if err != nil {
+				_ = os.Remove(tmp)
+			}
+			return err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 // setTrial note l'essai en cours (nil : aucun), AVANT qu'il ne charge quoi que

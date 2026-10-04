@@ -544,7 +544,12 @@ func runTune(ctx context.Context, opts tuneOpts, tr *tuneTracker) (*tuneResult, 
 		var runs []tuneRun
 		for i := 0; i < n; i++ {
 			tr.setPhase("%s : mesure %d/%d", phase, i+1, n)
-			r, err := benchRun(ctx, l.eng, bopts, tuneBenchSetup(cfg, env.ArgEnv, cpuPlaced), corp, nil)
+			// SIDE_SLOT : deux slots ; les tours en profondeur restent sur le même
+			// (le second, comme le bench ordinaire), sans quoi la reprise du cache
+			// dépendrait du slot choisi par le moteur.
+			s := tuneBenchSetup(cfg, env.ArgEnv, cpuPlaced)
+			s.sideSlot = sideSlotOn(cfg) && l.slots >= 2
+			r, err := benchRun(ctx, l.eng, bopts, s, corp, nil)
 			if err != nil {
 				return runs, err
 			}
@@ -934,8 +939,9 @@ func tuneApply(ctx context.Context, res *tuneResult, target string, say func(str
 // tuneSvc et tuneProbeFn : serviceActionOS et tunePostApplyProbe, remplaçables
 // dans les tests (application puis retour arrière sans vrai moteur).
 var (
-	tuneSvc     = serviceActionOS
-	tuneProbeFn = tunePostApplyProbe
+	tuneSvc      = serviceActionOS
+	tuneProbeFn  = tunePostApplyProbe
+	tuneHealthFn = healthCheck
 )
 
 // tuneAppliedMismatch : la configuration active après application doit être
@@ -968,9 +974,20 @@ func tunePostApplyProbe(ctx context.Context, res *tuneResult, say func(string)) 
 	say("attente du moteur")
 	e := benchEngine{base: fmt.Sprintf("http://localhost:%d", LLMPort()), auth: tuneAuth(), client: http.DefaultClient}
 	deadline := time.Now().Add(tuneLoadTimeout)
-	for !healthCheck() {
+	// Un moteur mort au chargement (OOM) se voit vite : plus de service du tout,
+	// trois fois de suite après les premières secondes. Inutile d'attendre le
+	// délai entier pour revenir à l'ancienne version.
+	gone, t0 := 0, time.Now()
+	for !tuneHealthFn() {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("le moteur ne répond pas après %s", tuneLoadTimeout)
+		}
+		if time.Since(t0) > 10*time.Second && !engineNeedsStop() {
+			if gone++; gone >= 3 {
+				return errors.New("le moteur s'est arrêté au chargement")
+			}
+		} else {
+			gone = 0
 		}
 		select {
 		case <-ctx.Done():
