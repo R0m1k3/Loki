@@ -145,6 +145,9 @@ func TestLoadModeRisk(t *testing.T) {
 		// seul ne fait jamais refuser.
 		{name: "VRAM NVIDIA seule, cartes du moteur non lues : avertissement, jamais de refus",
 			args: "--load-mode none", si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
+		{name: "VRAM NVIDIA seule, LOAD_GUARD=off : l'avis ordinaire",
+			cfg: map[string]string{"LOAD_GUARD": "off"}, args: "--load-mode none",
+			si: serveSysInfo{ModelBytes: 82 * gib, VRAMMiB: 16 << 10, RAMMiB: 60 << 10}, warn: true},
 		{name: "Vulkan, NVIDIA 12 Gio + AMD 16 Gio listées par le moteur : rien (faux refus sur la seule VRAM NVIDIA)",
 			args: "--load-mode none", si: serveSysInfo{ModelBytes: 70 * gib, VRAMMiB: 12 << 10, EngineVRAMMiB: 28 << 10, RAMMiB: 60 << 10}},
 		{name: "taille inconnue : rien",
@@ -161,6 +164,9 @@ func TestLoadModeRisk(t *testing.T) {
 		}
 		if refuse != "" && !strings.Contains(refuse, "LOAD_GUARD=off") {
 			t.Errorf("%s : refus sans clé d'échappement : %q", c.name, refuse)
+		}
+		if loadGuardOff(cfg) && strings.Contains(warn, "refus") {
+			t.Errorf("%s : refus évoqué avec LOAD_GUARD=off : %q", c.name, warn)
 		}
 	}
 }

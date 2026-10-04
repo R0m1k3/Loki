@@ -346,7 +346,7 @@ func loadModeRisk(cfg map[string]string, args []string, si serveSysInfo) (warn, 
 	if upTo {
 		what = "jusqu'à "
 	}
-	if unsure && est*10 > ram*9 {
+	if unsure && est*10 > ram*9 && !loadGuardOff(cfg) {
 		return fmt.Sprintf("%s : environ %s de poids en RAM (modèle %s, VRAM NVIDIA %s) pour %s — échec probable ; "+
 			"refus seulement si les cartes listées par le moteur le confirment, lancement sinon ; "+
 			"--load-mode mmap est plus sûr", mode, gibText(est), gibText(modelMiB), gibText(si.VRAMMiB), gibText(ram)), ""
