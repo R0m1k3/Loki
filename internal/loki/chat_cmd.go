@@ -76,19 +76,17 @@ func cmdChat(args []string) error {
 			fmt.Println(dim("[contexte compacté pour tenir dans la fenêtre]"))
 		}
 		sent, tools := prepareTurn(msgs, caps)
+		hist := msgs
 		extra, err := runChatTools(context.Background(), sent, tools, 0.7, caps, func(ev StreamEvent) bool {
 			switch {
 			case ev.Err != nil:
 				fmt.Printf("\n%s\n", red("[erreur] "+ev.Err.Error()))
 			case ev.NewHistory != nil:
 				// Compaction survenue pendant le tour : elle REMPLACE l'historique (elle
-				// contient déjà le tour en cours), préfixe système injecté retiré. Sans
-				// ça le terminal repartirait du fil complet au tour suivant.
-				base := ev.NewHistory
-				for len(base) > 0 && base[0].Role == "system" {
-					base = base[1:]
-				}
-				msgs = append([]Message(nil), base...)
+				// contient déjà le tour en cours), préfixe système injecté retiré —
+				// le /sys de l'utilisateur, lui, reste (historyFromView). Sans ça le
+				// terminal repartirait du fil complet au tour suivant.
+				msgs = historyFromView(ev.NewHistory, hist)
 				fmt.Println(dim("\n[contexte compacté pour tenir dans la fenêtre]"))
 			case ev.Stats != nil:
 				stats = ev.Stats

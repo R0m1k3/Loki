@@ -438,6 +438,47 @@ func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase s
 	return compacted, true
 }
 
+// historyFromView rend l'historique à ranger après une compaction en cours de
+// tour : la vue publiée (NewHistory), sans les messages système que la vue
+// d'envoi avait posés en tête — préambule et prompt du preset, consignes du
+// dépôt, contexte du projet ou bloc figé.
+//
+// Retirer TOUS les systèmes de tête effaçait aussi ceux de l'historique
+// lui-même : le rappel des pages mémoire lues ([MEMORY PAGES REMINDER]), posé
+// par une compaction de début de tour, disparaissait à la première compaction
+// en cours de tour, et le modèle perdait la liste des pages à relire. Un
+// système de tête n'est donc gardé que s'il figurait en tête de hist,
+// l'historique dont la vue est partie : la compaction garde la tête telle
+// quelle, et la vue d'envoi n'y ajoute que ses propres messages. Seule
+// exception, le premier : InjectSkills a pu fusionner le préambule devant un
+// système de l'historique (« préambule\n\nsystème ») — on rend alors celui-ci.
+func historyFromView(view, hist []Message) []Message {
+	own := map[string]int{}
+	for _, m := range hist {
+		if m.Role != "system" {
+			break
+		}
+		own[msgText(m)]++
+	}
+	var out []Message
+	i := 0
+	for ; i < len(view) && view[i].Role == "system"; i++ {
+		k := msgText(view[i])
+		if own[k] > 0 {
+			own[k]--
+			out = append(out, view[i])
+			continue
+		}
+		if i == 0 && len(hist) > 0 && hist[0].Role == "system" {
+			if h := msgText(hist[0]); h != "" && own[h] > 0 && strings.HasSuffix(k, "\n\n"+h) {
+				own[h]--
+				out = append(out, hist[0])
+			}
+		}
+	}
+	return append(out, view[i:]...)
+}
+
 // convState renvoie un instantané léger (pour /api/chat/state).
 func (c *Conversation) state() map[string]any {
 	c.mu.Lock()
@@ -848,6 +889,7 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// projet est celui, figé, de la discussion, et ses changements partent en
 	// tête de ce message — après la compaction de début de tour, sous c.mu.
 	sent, tools, snapTurn := c.turnView(caps, epoch, msgs, caps.Agent)
+	hist := msgs // l'historique d'où part la vue : voir historyFromView
 	runCtx := ctx
 	if snapTurn != nil {
 		runCtx = withProjSnapTurn(ctx, snapTurn)
@@ -913,15 +955,12 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			c.appendDelta(epoch, map[string]any{"tool_used": tu})
 		case ev.NewHistory != nil:
 			// Compaction faite en cours de tour : elle remplace la base au lieu de
-			// s'ajouter à l'ancienne (voir StreamEvent.NewHistory). On retire le
-			// préfixe système injecté à la volée (prompt perso + skills, fusionnés en
-			// UN message system en tête) : il n'appartient pas à l'historique persisté
-			// et doit rester modifiable à chaud.
-			base := ev.NewHistory
-			for len(base) > 0 && base[0].Role == "system" {
-				base = base[1:]
-			}
-			newBase = append([]Message(nil), base...)
+			// s'ajouter à l'ancienne (voir StreamEvent.NewHistory). On retire ce
+			// que la vue d'envoi a posé en tête (prompt perso + préambule, contexte
+			// du projet) : il n'appartient pas à l'historique persisté et doit
+			// rester modifiable à chaud. Le rappel des pages lues, lui, en fait
+			// partie (historyFromView).
+			newBase = historyFromView(ev.NewHistory, hist)
 		case ev.Echo != nil:
 			echo = ev.Echo
 		case ev.Compacting != nil:

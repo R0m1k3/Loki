@@ -177,13 +177,10 @@ func (c *Conversation) runBuilderTurn(ctx context.Context, caps Caps, temperatur
 		}
 		if ev.NewHistory != nil {
 			// Préfixe système injecté retiré, comme dans generate : il n'appartient
-			// pas à l'historique persisté. Ignorer cet événement laissait la
-			// compaction perdue et c.Messages incohérent (fil complet + tour).
-			base := ev.NewHistory
-			for len(base) > 0 && base[0].Role == "system" {
-				base = base[1:]
-			}
-			newBase = append([]Message(nil), base...)
+			// pas à l'historique persisté (le rappel des pages lues, si). Ignorer
+			// cet événement laissait la compaction perdue et c.Messages incohérent
+			// (fil complet + tour).
+			newBase = historyFromView(ev.NewHistory, msgs)
 		}
 		if ev.Echo != nil {
 			echo = ev.Echo
