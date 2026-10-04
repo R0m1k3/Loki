@@ -1033,6 +1033,12 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// retombe tout de suite et le tour suivant démarre avec de la marge.
 	// Sauf si un Reset est passé (rien à compacter) ou si le tour a été annulé
 	// (bouton stop) : on n'enchaîne pas plusieurs secondes de résumé sur un stop.
+	// KEEP_TURN_IMAGES : comme en début de tour, les images gardées partent
+	// d'abord si le contexte le demande, et le résumé ne suit que s'il reste
+	// nécessaire. Sans la clé, aucune image gardée : rien ne change.
+	if !stale && ctx.Err() == nil {
+		msgs, ctxUsed = c.keptImagesTurnStart(epoch, msgs, ctxUsed, peak)
+	}
 	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) || compactRefusedSkip(conv, ctxUsed, msgs) {
 		return
 	}

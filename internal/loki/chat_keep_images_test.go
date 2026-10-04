@@ -541,3 +541,67 @@ func TestKeepImagesBudgetPleinAvantRangement(t *testing.T) {
 		t.Fatal("image rangée alors que le budget était plein")
 	}
 }
+
+// Corrections de relecture du lot 2 : prompt refusé pour débordement alors que
+// des images sont gardées — elles partent d'abord et la requête est rejouée
+// sans elles, sans résumé (avec perte) tant que ça suffit.
+func TestKeepImagesRetireesAvantLeFiletReactif(t *testing.T) {
+	withWorkspace(t)
+	for k, v := range map[string]string{"KEEP_TURN_IMAGES": "on", "CTX": "2000"} {
+		if err := SetConfigKey(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var mu sync.Mutex
+	var bodies []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/props" {
+			_, _ = w.Write([]byte(`{"modalities":{"vision":true}}`))
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mu.Lock()
+		bodies = append(bodies, body)
+		n := len(bodies)
+		mu.Unlock()
+		if n == 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"code":400,"message":"request (2500 tokens) exceeds the available context size (2000 tokens), try increasing it"}}`))
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte(sseAnswer("fini", 0)))
+	}))
+	t.Cleanup(srv.Close)
+	u, _ := url.Parse(srv.URL)
+	for k, v := range map[string]string{"PORT": u.Port(), "MMPROJ": "/models/mmproj.gguf"} {
+		if err := SetConfigKey(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	visionProbeMu.Lock()
+	visionProbeAt = time.Time{}
+	visionProbeMu.Unlock()
+	hist := []Message{um("q"), atc("see_image"), tm("[ok]"), keptRelay(1000), am("vu"), um("suite")}
+	var published []Message
+	if _, err := runChat(mainCtx(t), hist, 0.7, Caps{Agent: true}, func(ev StreamEvent) bool {
+		if ev.NewHistory != nil {
+			published = ev.NewHistory
+		}
+		return true
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(bodies) != 2 {
+		t.Fatalf("%d requêtes : un résumé est parti alors que retirer l'image suffisait", len(bodies))
+	}
+	if published == nil || hasKeptImages(published) || len(published) != len(hist) {
+		t.Fatalf("historique publié : %+v", published)
+	}
+	if relay := reqMessages(t, bodies[1])[3]; msgText(relay) != "Voici la capture demandée."+imageLostMarker {
+		t.Fatalf("image encore envoyée après son retrait : %+v", relay)
+	}
+}

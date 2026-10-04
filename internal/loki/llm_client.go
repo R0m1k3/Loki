@@ -1560,6 +1560,18 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 			if echoOffTurn {
 				messages = stripReasoning(messages)
 			}
+			// KEEP_TURN_IMAGES : les images gardées partent d'abord, et la requête
+			// est rejouée sans elles ; le résumé (avec perte) ne vient qu'ensuite,
+			// s'il le faut encore. Sans la clé, aucune image gardée.
+			if contextOverflow(msg, messages) && hasKeptImages(messages) {
+				if s, freed := dropKeptImages(messages); freed > 0 {
+					logKeptImagesDropped("réactif", freed)
+					messages = s
+					extra = nil
+					publishHistory()
+					continue
+				}
+			}
 			if compactEnabled() && !compactedRetry && contextOverflow(msg, messages) {
 				if c, changed := compactMessages(ctx, messages, caps); changed {
 					compactedRetry = true
@@ -2646,6 +2658,18 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 			if finishReason == "length" && !ep.External && lengthReplays < 1 &&
 				compactWouldTrigger(messages, stats.PromptTokensTotal+stats.GenTokens) {
 				lengthReplays++
+				// KEEP_TURN_IMAGES : les images gardées d'abord ; le résumé ne suit
+				// que s'il reste nécessaire. Sans la clé, rien à retirer.
+				if s, freed := dropKeptImages(messages); freed > 0 {
+					logKeptImagesDropped("fenêtre-pleine", freed)
+					messages = s
+					extra = nil
+					publishHistory()
+					if !compactWouldTrigger(messages, max(stats.PromptTokensTotal+stats.GenTokens-freed, 1)) {
+						cb(StreamEvent{DropReasoning: true})
+						continue
+					}
+				}
 				yes, no := true, false
 				cb(StreamEvent{Compacting: &yes})
 				c, changed := compactMessages(ctx, messages, caps)
