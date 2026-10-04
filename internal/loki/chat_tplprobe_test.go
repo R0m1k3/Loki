@@ -33,6 +33,7 @@ func freshTplProbe(t *testing.T) {
 		tplProbeRunning = false
 		tplProbeTried = time.Time{}
 		tplProbeLogged = ""
+		tplProbeShapeLast = nil
 		tplProbeMu.Unlock()
 	}
 	reset()
@@ -51,6 +52,8 @@ func freshTplProbe(t *testing.T) {
 type fakeTpl struct {
 	mu          sync.Mutex
 	mode        string
+	tpl         string // texte du gabarit annoncé par /props (défaut : mode)
+	build       string // build_info annoncé par /props (défaut : b7000-abc)
 	key         string // Bearer exigé hors /health
 	applyStatus []int  // statuts imposés aux prochains /apply-template (0 = rendu)
 	applyBody   string
@@ -116,7 +119,15 @@ func (f *fakeTpl) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.URL.Path {
 	case "/props":
-		fmt.Fprintf(w, `{"build_info":"b7000-abc","model_path":"/models/Qwen3-8B-Q8_0.gguf","chat_template":%q}`, f.mode)
+		tpl := f.tpl
+		if tpl == "" {
+			tpl = f.mode
+		}
+		build := f.build
+		if build == "" {
+			build = "b7000-abc"
+		}
+		fmt.Fprintf(w, `{"build_info":%q,"model_path":"/models/Qwen3-8B-Q8_0.gguf","chat_template":%q}`, build, tpl)
 	case "/apply-template":
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)

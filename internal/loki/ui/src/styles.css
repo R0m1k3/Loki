@@ -1038,6 +1038,11 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    de build et un hash de commit se recopient et se comparent à l'œil, et
    « AAAA111 » n'est pas le commit « aaaa111 ». Le monospace vient de là aussi. */
 .eng-ver{font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--text)}
+/* Encart « version recommandée » du panneau Moteur : un conseil, pas une alerte
+   — bordure discrète, liste serrée des gains. */
+.eng-reco{margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--panel)}
+.eng-reco ul{margin:4px 0 4px 16px;padding:0}
+.eng-reco li{margin:1px 0}
 .mcp-tools{font-size:10px;color:var(--accent)}
 .mcp-err{font-size:10px;color:var(--err)}
 .mcp-switch{flex:none}

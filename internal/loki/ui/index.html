@@ -1073,6 +1073,11 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    de build et un hash de commit se recopient et se comparent à l'œil, et
    « AAAA111 » n'est pas le commit « aaaa111 ». Le monospace vient de là aussi. */
 .eng-ver{font-family:var(--mono);text-transform:none;letter-spacing:0;color:var(--text)}
+/* Encart « version recommandée » du panneau Moteur : un conseil, pas une alerte
+   — bordure discrète, liste serrée des gains. */
+.eng-reco{margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--panel)}
+.eng-reco ul{margin:4px 0 4px 16px;padding:0}
+.eng-reco li{margin:1px 0}
 .mcp-tools{font-size:10px;color:var(--accent)}
 .mcp-err{font-size:10px;color:var(--err)}
 .mcp-switch{flex:none}
@@ -2772,6 +2777,20 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <div>Moteur <b>llama.cpp</b> <span id="eng-build" class="mcp-tag eng-ver"></span> <span id="eng-source" class="mcp-tag"></span></div>
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
         <div id="eng-notice" class="muted" style="margin-top:6px;display:none"></div>
+        <!-- Version recommandée : affichée quand le build officiel qui tourne
+             est antérieur au minimum conseillé (décidé sans réseau). Le tag
+             n'est choisi qu'au clic, et rien ne s'installe sans confirmation. -->
+        <div id="eng-reco" class="eng-reco" style="display:none">
+          <div><b>Version recommandée : b<span id="eng-reco-min"></span> ou plus récente</b>
+            <span class="muted">(installée : b<span id="eng-reco-cur"></span>)</span></div>
+          <ul id="eng-reco-gains"></ul>
+          <div class="muted">Le décodage spéculatif (MTP) reste coupé tant que <code>SPEC</code> n'est pas posé.
+            La version actuelle est gardée pour revenir en arrière.</div>
+          <div class="row" style="margin:6px 0 0">
+            <button onclick="engRecommended()">Mettre à jour vers la version recommandée</button>
+          </div>
+        </div>
+        <div id="eng-render" style="margin-top:6px;display:none"></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
           <!-- « vérifier » ne fait QUE regarder (aucun téléchargement, aucune
@@ -2779,6 +2798,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
                gestes n'engagent pas pareil, chacun son bouton. -->
           <button onclick="engCheck()">vérifier les mises à jour</button>
           <button onclick="engUpdate()">mettre à jour le moteur</button>
+          <button id="eng-prev" style="display:none" onclick="engRollback()">Revenir à la version précédente</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
           <span id="eng-others"></span>
         </div>
@@ -3947,7 +3967,8 @@ function _openAsk(kind, message, opts){
   const chk=document.getElementById('ask-check');
   chk.style.display = opts.check ? 'inline-flex' : 'none';
   document.getElementById('ask-check-label').textContent = opts.check || '';
-  document.getElementById('ask-check-input').checked = false;
+  // opts.checked : case cochée d'office (le choix sûr), toujours décochable.
+  document.getElementById('ask-check-input').checked = !!opts.checked;
   _askCheck=false;
   const cancel=document.getElementById('ask-cancel'), ok=document.getElementById('ask-ok');
   cancel.style.display = kind==='alert' ? 'none' : '';
@@ -8413,24 +8434,78 @@ async function loadEngine(){
                              prebuilt:'précompilé', custom:'personnalisé'}[s.source] || '';
   const repo = document.getElementById('eng-repo');
   if(repo) repo.textContent = s.repo + ':' + (s.variant || 'server');
+  // Version précédente (celle qui tournait avant la dernière bascule) : un
+  // bouton à elle, sans réseau. Les autres boutons ne la répètent pas.
+  const prev = s.previous || null;
+  const prevBtn = document.getElementById('eng-prev');
+  if(prevBtn){
+    prevBtn.style.display = prev ? '' : 'none';
+    if(prev) prevBtn.textContent = 'Revenir à la version précédente'
+      + (prev.source === 'image' ? ' (moteur de l\'image' + (prev.build ? ', b'+prev.build : '') + ')'
+                                 : (prev.build ? ' (b'+prev.build+')' : ''));
+  }
   // Le retour arrière n'a de sens que si on n'est pas déjà dessus.
   const revert = document.getElementById('eng-revert');
-  if(revert) revert.style.display = (s.image_bin && s.source !== 'image') ? '' : 'none';
+  if(revert) revert.style.display = (s.image_bin && s.source !== 'image' && !(prev && prev.source === 'image')) ? '' : 'none';
   // Versions téléchargées gardées à côté (la précédente survit à une mise à
   // jour) : revenir dessus ne demande ni réseau ni que le tag soit encore publié.
   const others = document.getElementById('eng-others');
-  if(others) others.innerHTML = (s.installed || []).filter(v=>!v.in_use).map(v=>{
+  if(others) others.innerHTML = (s.installed || []).filter(v=>!v.in_use && !(prev && prev.tag === v.tag)).map(v=>{
     const tag = String(v.tag).replace(/[^A-Za-z0-9._-]/g,'');
     return '<button onclick="engUse(\''+tag+'\')">utiliser '+(v.build ? 'b'+v.build : tag)+'</button>';
   }).join(' ');
   // Build trop ancien pour les points de reprise des hybrides (voir
   // engineBuildNotice) : un avis, rien n'est changé d'office ici.
+  // L'encart « version recommandée » reprend l'avis : il le remplace quand il
+  // est affiché.
   const notice = document.getElementById('eng-notice');
   if(notice){
     notice.textContent = s.notice ? '⚠ '+s.notice : '';
-    notice.style.display = s.notice ? '' : 'none';
+    notice.style.display = (s.notice && !s.recommend) ? '' : 'none';
   }
+  // Encart « version recommandée » : décidé côté serveur sans réseau ; le tag
+  // n'est choisi qu'au clic (engRecommended).
+  const reco = document.getElementById('eng-reco');
+  if(reco){
+    const r = s.recommend;
+    reco.style.display = r ? '' : 'none';
+    if(r){
+      document.getElementById('eng-reco-min').textContent = r.min;
+      document.getElementById('eng-reco-cur').textContent = r.current;
+      document.getElementById('eng-reco-gains').innerHTML = (r.gains||[])
+        .map(g=>'<li>'+String(g).replace(/[<>&]/g,'')+'</li>').join('');
+    }
+  }
+  engRenderCheck(s.render_check);
   engSay('');
+}
+
+// Rendu du gabarit comparé avant/après la dernière bascule (web_engine_reco.go).
+// « pending » : le nouveau moteur charge encore le modèle — on repasse plus
+// tard tant que le panneau est ouvert.
+let engRenderTimer = null;
+function engRenderCheck(c){
+  const el = document.getElementById('eng-render');
+  if(!el) return;
+  const esc = x=>String(x||'').replace(/[<>&]/g,'');
+  if(!c){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.className = c.status === 'changed' ? '' : 'muted';
+  if(c.status === 'pending'){
+    el.innerHTML = '⏳ vérification du rendu du gabarit après '+esc(c.tag)+' (une fois le modèle chargé)…';
+    if(!engRenderTimer) engRenderTimer = setTimeout(()=>{
+      engRenderTimer = null;
+      const pane = document.getElementById('lc-details');
+      if(pane && pane.offsetParent !== null) loadEngine();
+    }, 10000);
+  } else if(c.status === 'same'){
+    el.innerHTML = '✓ rendu du gabarit identique avant et après '+esc(c.tag);
+  } else if(c.status === 'changed'){
+    el.innerHTML = '⚠ <b>le prompt rendu a changé avec '+esc(c.tag)+'</b> — '+esc(c.detail)
+      + '<br>Si ce sont des blocs de réflexion vides dans l\'historique, <code>REASONING_PRESERVE=off</code> dans le preset rétablit le rendu d\'avant ; « Revenir à la version précédente » annule la mise à jour.';
+  } else {
+    el.innerHTML = 'rendu du gabarit non vérifié après '+esc(c.tag)+(c.detail ? ' : '+esc(c.detail) : '');
+  }
 }
 
 // engSay écrit sous la ligne d'état : c'est le résultat d'une vérification, qui
@@ -8458,15 +8533,56 @@ async function engCheck(){
   }
 }
 
-async function engUpdate(){
-  if(!await askConfirm('Télécharger la dernière version de llama.cpp (~170 Mo) et l\'utiliser à la place du moteur de l\'image.\n\n'
-      + 'Le moteur est essayé avant d\'être adopté ; celui de l\'image reste intact. Le moteur redémarre à la fin — la génération en cours sera coupée.',
-      {title:'Mettre à jour le moteur', okText:'Mettre à jour'})) return;
+async function engUpdate(){ return engPlanAndUpdate(false); }
+async function engRecommended(){ return engPlanAndUpdate(true); }
+
+// engPlanAndUpdate : sur clic seulement. Le serveur choisit la version (la
+// dernière publiée, ou la plus récente ≥ minimum recommandé) et dit si le
+// prompt rendu va changer (preserve_reasoning par défaut depuis b10763) ; la
+// confirmation montre les deux, et la case REASONING_PRESERVE=off laisse le
+// choix à l'utilisateur — cochée d'office seulement quand le changement est
+// établi, puisque sur un gabarit qui garde déjà la réflexion, off changerait
+// à son tour le rendu.
+async function engPlanAndUpdate(recommended){
+  toast(recommended ? 'recherche de la version recommandée…' : 'recherche de la dernière version…');
+  let p;
+  try{ p = await jpost('/api/engine/plan', {recommended}); }catch(_){ toast('erreur réseau'); return; }
+  if(!p.ok){ engSay('✗ '+String(p.error||'').replace(/[<>&]/g,'')); toast('erreur'); return; }
+  if(p.uptodate){ engSay('Moteur à jour ✓ (b'+p.build+')'); toast('moteur à jour ✓'); return; }
+  const what = p.build ? 'b'+p.build+' ('+p.tag+')' : p.tag;
+  let msg = 'Télécharger llama.cpp '+what+' (~170 Mo) et l\'utiliser à la place du moteur actuel'
+          + (p.current ? ' (b'+p.current+')' : '') + '.\n\n'
+          + 'Le moteur est essayé avant d\'être adopté ; '
+          + (p.keeps ? 'la version actuelle ('+p.keeps+') est gardée' : 'celui de l\'image reste intact')
+          + ' pour revenir en arrière. Le moteur redémarre à la fin — la génération en cours sera coupée.';
+  const pr = p.preserve || {risk:'no'};
+  const opts = {title: recommended ? 'Version recommandée' : 'Mettre à jour le moteur', okText:'Mettre à jour'};
+  if(pr.risk !== 'no'){
+    msg += '\n\n⚠ Rendu du raisonnement : '+(pr.why||'');
+    opts.check = 'poser REASONING_PRESERVE=off (garde le rendu actuel de l\'historique)';
+    opts.checked = !!pr.suggest;
+  }
+  if(!await askConfirm(msg, opts)) return;
+  const preserve_off = pr.risk !== 'no' && askChecked();
   let r;
-  try{ r = await jpost('/api/engine/update', {}); }catch(_){ toast('erreur réseau'); return; }
+  try{ r = await jpost('/api/engine/update', {tag: p.tag, preserve_off}); }catch(_){ toast('erreur réseau'); return; }
   if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
   openDetails('lc-details');
   lcStartPolling();
+}
+
+// Retour au moteur d'avant la dernière bascule — sans réseau.
+async function engRollback(){
+  const prev = (engState && engState.previous) || null;
+  if(!prev) return;
+  const what = prev.source === 'image' ? 'le moteur de l\'image' : (prev.build ? 'b'+prev.build : (prev.tag || prev.bin));
+  if(!await askConfirm('Revenir à la version précédente ('+what+'). Le moteur redémarre.',
+      {title:'Revenir à la version précédente', okText:'Revenir'})) return;
+  let r;
+  try{ r = await jpost('/api/engine/rollback', {}); }catch(_){ toast('erreur réseau'); return; }
+  if(!r.ok){ toast('erreur : '+(r.error||'')); return; }
+  toast('version précédente rétablie — redémarrage en cours');
+  loadAll();
 }
 
 // Bascule vers une version déjà installée — « image » = celle d'origine.

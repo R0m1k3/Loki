@@ -68,7 +68,8 @@ function _openAsk(kind, message, opts){
   const chk=document.getElementById('ask-check');
   chk.style.display = opts.check ? 'inline-flex' : 'none';
   document.getElementById('ask-check-label').textContent = opts.check || '';
-  document.getElementById('ask-check-input').checked = false;
+  // opts.checked : case cochée d'office (le choix sûr), toujours décochable.
+  document.getElementById('ask-check-input').checked = !!opts.checked;
   _askCheck=false;
   const cancel=document.getElementById('ask-cancel'), ok=document.getElementById('ask-ok');
   cancel.style.display = kind==='alert' ? 'none' : '';

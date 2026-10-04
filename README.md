@@ -927,6 +927,40 @@ courant n'est pas touché. Le moteur livré par l'image reste par ailleurs intac
 Quand cette limite est atteinte pour de bon (CUDA majeur trop ancien), la
 solution reste le rebuild avec un `LLAMACPP_IMAGE` récent, ci-dessus.
 
+**Version recommandée.** Quand le moteur officiel qui tourne est antérieur à
+`b10864`, le panneau affiche un encart qui dit ce que la mise à jour apporte :
+les points de reprise des modèles hybrides (Qwen3.5/3.6, Qwen3-Next) ne sont plus
+évincés trop tôt — jusqu'à ~8 k jetons recalculés à chaque reprise —, le MTP
+rapide (graphes CUDA) arrive à `b11009` et le MTP de qwen4exp à `b11331`. Le
+décodage spéculatif reste coupé tant que `SPEC` n'est pas posé. L'encart se
+décide sans réseau, sur le build du moteur (jamais pour un llama.cpp compilé ou
+un fork, dont le numéro ne prouve rien). Le bouton **Mettre à jour vers la
+version recommandée** n'interroge le registre qu'au clic : il prend le dernier
+build publié, vérifie qu'il atteint `b10864` et que son tag figé
+(`server-cuda-bNNNNN`) existe bien, puis demande confirmation. Sans réseau, il
+le dit et n'installe rien. Rien n'est jamais mis à jour d'office, ni au
+démarrage.
+
+**Revenir à la version précédente.** Après une mise à jour, la version
+téléchargée qui tournait juste avant est gardée (les plus anciennes partent,
+~450 Mo chacune) ; le bouton **Revenir à la version précédente** y ramène sans
+réseau, et la version quittée devient à son tour « la précédente ».
+
+**Le rendu du raisonnement.** Depuis `b10763`, llama-server garde par défaut la
+réflexion des tours passés dans le gabarit (`preserve_reasoning`). Un gabarit
+qui la retirait de lui-même (Qwen3.6, gabarits à `clear_thinking`) la rend alors
+— vide, puisque Loki ne la renvoie pas sans `REASONING_ECHO` : le modèle
+relirait un historique où il n'a jamais réfléchi. Avant de basculer vers un tel
+moteur, Loki lit le gabarit chargé et le verdict de la sonde de gabarit ; si le
+prompt rendu va changer et que `REASONING_PRESERVE` n'est pas posé, la
+confirmation l'explique et propose de poser `REASONING_PRESERVE=off` dans le
+preset actif (case cochée seulement quand le changement est établi :
+sur un gabarit qui garde déjà la réflexion, comme Qwen3.8, `off` changerait à
+son tour le rendu). L'utilisateur choisit. Après la bascule, le rendu de
+quelques conversations synthétiques est comparé, via `/apply-template`, entre
+l'ancien et le nouveau moteur une fois le modèle chargé : le panneau dit s'il
+est identique, ou montre le premier écart.
+
 Derrière un miroir de registre ou un réseau qui n'atteint pas ghcr.io :
 `LOKI_OCI_REGISTRY=https://mon-miroir.interne` dans l'environnement du conteneur.
 

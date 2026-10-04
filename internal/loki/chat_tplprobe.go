@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Sonde de gabarit : que fait le gabarit de chat du modèle chargé de ce qu'on
@@ -176,7 +177,32 @@ var (
 	tplProbeRunning bool
 	tplProbeTried   time.Time
 	tplProbeLogged  string
+	// tplProbeShapeLast : la forme de la dernière requête sondée. C'est elle
+	// que rejoue la vérification du rendu autour d'une mise à jour du moteur
+	// (web_engine_reco.go) : mêmes outils, mêmes chat_template_kwargs que les
+	// vraies requêtes, sans rien garder de leur texte.
+	tplProbeShapeLast *tplShape
 )
+
+// tplLastShape : la forme de la dernière requête sondée, ou une requête nue
+// (sans outils ni kwargs) si aucune complétion n'a encore eu lieu.
+func tplLastShape() tplShape {
+	tplProbeMu.Lock()
+	defer tplProbeMu.Unlock()
+	if tplProbeShapeLast != nil {
+		return *tplProbeShapeLast
+	}
+	return newTplShape(nil, nil, "")
+}
+
+// tplLocalProber : le prober du moteur local, comme celui de la sonde.
+func tplLocalProber() tplProber {
+	return tplProber{
+		base:   fmt.Sprintf("http://localhost:%d", LLMPort()),
+		auth:   authHeader,
+		client: &http.Client{Timeout: tplProbeTimeout},
+	}
+}
 
 // tplProbeKick : appelé par runChat après une complétion COMPLÈTE du fil
 // principal, sur le moteur local, avec ce qu'elle a envoyé. Ne bloque jamais :
@@ -239,11 +265,11 @@ func tplProbeEnsure(ctx context.Context, shape tplShape) tplProbeResult {
 	if resolveChatEndpoint().External {
 		return tplUnknownResult("preset externe : pas de sonde")
 	}
-	p := tplProber{
-		base:   fmt.Sprintf("http://localhost:%d", LLMPort()),
-		auth:   authHeader,
-		client: &http.Client{Timeout: tplProbeTimeout},
-	}
+	tplProbeMu.Lock()
+	s := shape
+	tplProbeShapeLast = &s
+	tplProbeMu.Unlock()
+	p := tplLocalProber()
 	if !p.healthy(ctx) {
 		// Moteur absent ou en chargement : rien à conclure, rien à ranger.
 		return tplUnknownResult("moteur pas prêt (/health)")
@@ -560,4 +586,101 @@ func (p tplProber) probe(ctx context.Context, shape tplShape) tplProbeResult {
 	r.Note = strings.Join(notes, " ; ")
 	r.cacheable = definitive
 	return r
+}
+
+// --- Rendu comparé d'un moteur à l'autre ----------------------------------------
+//
+// Une mise à jour du moteur peut changer le prompt rendu sans qu'aucun réglage
+// de Loki ne bouge : depuis b10763, llama-server active preserve_reasoning par
+// défaut, et un gabarit qui ne gardait pas la réflexion des tours passés
+// (Qwen3.6) se met à la rendre — vide, puisque Loki ne la renvoie pas sans
+// REASONING_ECHO. Le modèle relirait alors un historique où il n'a jamais
+// réfléchi. tplRenderPrint fige le rendu de quelques conversations
+// synthétiques ; le même relevé avant et après la bascule dit si le prompt a
+// changé, et où.
+
+// tplRenderSep sépare les rendus dans l'empreinte ; le nom qui suit dit de
+// quelle conversation vient un écart.
+const tplRenderSep = "\n\x00--- "
+
+// tplRenderPrint : les rendus, concaténés, de trois conversations synthétiques
+// sur la forme donnée — l'historique tel que Loki l'envoie par défaut (sans
+// reasoning_content), le même avec reasoning_content (REASONING_ECHO), et un
+// tour d'outil suivi d'une question, amorce de réponse comprise. Seul
+// /apply-template est appelé : sans état, sans slot, sans effet sur le cache.
+func tplRenderPrint(ctx context.Context, p tplProber, shape tplShape) (string, error) {
+	sys := tplMsg{Role: "system", Content: tplMarkSys}
+	userA := tplMsg{Role: "user", Content: tplMarkA}
+	userB := tplMsg{Role: "user", Content: tplMarkB}
+	name := shape.first
+	if name == "" {
+		name = "lookup"
+	}
+	convs := []struct {
+		name string
+		msgs []tplMsg
+		gen  bool
+	}{
+		{"historique sans raisonnement", []tplMsg{sys, userA, {Role: "assistant", Content: tplMarkC1}, userB}, true},
+		{"historique avec raisonnement", []tplMsg{sys, userA,
+			{Role: "assistant", Content: tplMarkC1, ReasoningContent: tplMarkR1}, userB}, true},
+		{"tour d'outil", []tplMsg{sys, userA,
+			{Role: "assistant", Content: tplMarkC1,
+				ToolCalls: []ToolCall{{ID: tplCallID, Type: "function", Function: ToolCallFunc{Name: name, Arguments: "{}"}}}},
+			{Role: "tool", Content: tplMarkT1, ToolCallID: tplCallID}, userB}, true},
+	}
+	var b strings.Builder
+	for _, c := range convs {
+		out, err := p.render(ctx, shape, c.msgs, c.gen)
+		if err != nil {
+			return "", fmt.Errorf("%s : %w", c.name, err)
+		}
+		b.WriteString(tplRenderSep + c.name + " ---\n")
+		b.WriteString(out)
+	}
+	return b.String(), nil
+}
+
+// tplRenderDiff compare deux empreintes de tplRenderPrint. Identiques : true.
+// Sinon, la conversation où elles divergent et un court extrait de part et
+// d'autre du premier écart (texte synthétique : aucun contenu de discussion).
+func tplRenderDiff(before, after string) (bool, string) {
+	if before == after {
+		return true, ""
+	}
+	i := 0
+	for i < len(before) && i < len(after) && before[i] == after[i] {
+		i++
+	}
+	section := ""
+	if k := strings.LastIndex(before[:i], tplRenderSep); k >= 0 {
+		rest := before[k+len(tplRenderSep):]
+		if e := strings.Index(rest, " ---"); e >= 0 {
+			section = rest[:e]
+		}
+	}
+	excerpt := func(s string) string {
+		from := max(0, i-40)
+		to := min(len(s), i+60)
+		// Bornes sur des débuts de caractère : un extrait ne coupe pas un rune.
+		for from > 0 && !utf8.RuneStart(s[from]) {
+			from--
+		}
+		for to < len(s) && !utf8.RuneStart(s[to]) {
+			to++
+		}
+		x := strings.NewReplacer("\n", "⏎", "\x00", "").Replace(s[from:to])
+		if from > 0 {
+			x = "…" + x
+		}
+		if to < len(s) {
+			x += "…"
+		}
+		return x
+	}
+	d := fmt.Sprintf("avant « %s » / après « %s »", excerpt(before), excerpt(after))
+	if section != "" {
+		d = section + " : " + d
+	}
+	return false, d
 }

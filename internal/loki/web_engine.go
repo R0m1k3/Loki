@@ -8,6 +8,9 @@
 //	POST /api/engine/use     → bascule vers une version déjà installée
 //	POST /api/engine/remove  → supprime une version installée
 //
+// La version recommandée, le retour à la version précédente et la garde du
+// rendu des gabarits vivent dans web_engine_reco.go.
+//
 // Jusqu'ici, mettre à jour llama.cpp imposait de reconstruire l'image de Loki —
 // donc un rebuild complet et un redéploiement pour un composant qui publie
 // plusieurs versions par jour. Le panneau ne le disait même pas : il annonçait
@@ -15,12 +18,14 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // engineUseImage est la valeur de `tag` qui désigne le moteur d'origine, celui
@@ -61,6 +66,12 @@ func handleEngineStatus(w http.ResponseWriter, r *http.Request) {
 		// Avis « moteur trop ancien » : seulement pour un build digne de foi
 		// (voir engineBuildTrust), jamais pour un compilé ou un fork.
 		"notice": engineBuildNotice(engineBuildTrust(source, build)),
+		// L'encart « version recommandée » : décidé sans réseau, sur le même
+		// build de confiance. Le choix du tag n'a lieu qu'au clic (/plan).
+		"recommend": engineRecommendation(engineBuildTrust(source, build), engineOCISupported()),
+		"previous":  enginePrevious(bin),
+		// Rendu du gabarit comparé avant/après la dernière bascule.
+		"render_check": engineRenderSnapshot(),
 	})
 }
 
@@ -92,17 +103,20 @@ func handleEngineCheck(w http.ResponseWriter, r *http.Request) {
 
 // handleEngineUpdate lance le job de mise à jour. {tag} permet d'épingler une
 // version précise ; sans lui, on prend la dernière publiée pour la variante.
+// {preserve_off:true} : l'utilisateur a choisi de poser REASONING_PRESERVE=off
+// avant la bascule (voir reasoningPreserveRisk).
 func handleEngineUpdate(w http.ResponseWriter, r *http.Request) {
 	if !engineOCISupported() {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": engineUnsupportedWhy()})
 		return
 	}
 	var req struct {
-		Tag string `json:"tag"`
+		Tag         string `json:"tag"`
+		PreserveOff bool   `json:"preserve_off"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	tag := strings.TrimSpace(req.Tag)
-	if err := startLcJob("engine", func() { engineRunUpdate(tag) }); err != nil {
+	if err := startLcJob("engine", func() { engineRunUpdate(tag, req.PreserveOff) }); err != nil {
 		sendJSON(w, 409, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
@@ -118,7 +132,7 @@ func engineUnsupportedWhy() string {
 // L'ordre compte — le seul vrai risque ici est un moteur plus récent que le
 // runtime CUDA de l'image, et on le découvre au test à blanc, moteur courant
 // encore intact.
-func engineRunUpdate(tag string) {
+func engineRunUpdate(tag string, preserveOff bool) {
 	variant := engineVariant()
 	ancien := currentEngineBin()
 	if tag == "" {
@@ -152,15 +166,44 @@ func engineRunUpdate(tag string) {
 		lcFail(fmt.Errorf("%w\n\nLe moteur courant n'a PAS été touché. Cette version demande sans doute un runtime CUDA plus récent que celui de l'image : reconstruis l'image avec un LLAMACPP_IMAGE récent, ou épingle un build antérieur", err))
 		return
 	}
-	if build, commit := engineBuildOf(bin); build > 0 {
-		lcAppend(fmt.Sprintf("moteur testé : build %d (%s)", build, commit))
+	newBuild, commit := engineBuildOf(bin)
+	if newBuild > 0 {
+		lcAppend(fmt.Sprintf("moteur testé : build %d (%s)", newBuild, commit))
 	}
+
+	// Rendu du raisonnement (b10763) : la décision vient de l'utilisateur,
+	// prise avant le clic ; ici on l'applique, ou on rappelle l'avertissement.
+	if preserveOff {
+		msg, err := enginePreserveOff(bin)
+		if err != nil {
+			lcFail(fmt.Errorf("REASONING_PRESERVE=off demandée mais pas posée : %w — moteur courant inchangé ; le nouveau reste installé", err))
+			return
+		}
+		lcAppend(msg)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		risk := reasoningPreserveRisk(enginePreserveInputs(ctx, newBuild))
+		cancel()
+		if risk.Risk != "no" {
+			lcAppend("[warn] rendu du raisonnement : " + risk.Why)
+		}
+	}
+
+	// Rendu de référence sur le moteur qui tourne encore, pour comparer après.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ref, haveBefore := engineRenderBefore(ctx)
+	cancel()
 
 	if err := engineSwitchTo(bin); err != nil {
 		lcFail(err)
 		return
 	}
+	engineRememberPrevious(ancien, bin)
 	enginePrune(engineKeepAfterUpdate(bin, ancien, lcAppend), lcAppend)
+	if haveBefore {
+		lcAppend("vérification du rendu du gabarit une fois le modèle chargé (panneau Moteur, journal [moteur])")
+		go engineRenderAfter(ref, tag)
+	}
 	lcDone("moteur mis à jour (" + tag + ")")
 }
 
@@ -231,10 +274,12 @@ func handleEngineUse(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": "version non installée : " + tag})
 		return
 	}
+	left := currentEngineBin()
 	if err := SetConfigKey("BIN", bin); err != nil {
 		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
+	engineRememberPrevious(left, bin)
 	if serviceIsActive() {
 		_ = serviceAction("restart")
 	}

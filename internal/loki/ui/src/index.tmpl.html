@@ -546,6 +546,20 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <div>Moteur <b>llama.cpp</b> <span id="eng-build" class="mcp-tag eng-ver"></span> <span id="eng-source" class="mcp-tag"></span></div>
         <div class="muted" style="margin-top:4px"><code id="lc-provided-bin" style="word-break:break-all"></code></div>
         <div id="eng-notice" class="muted" style="margin-top:6px;display:none"></div>
+        <!-- Version recommandée : affichée quand le build officiel qui tourne
+             est antérieur au minimum conseillé (décidé sans réseau). Le tag
+             n'est choisi qu'au clic, et rien ne s'installe sans confirmation. -->
+        <div id="eng-reco" class="eng-reco" style="display:none">
+          <div><b>Version recommandée : b<span id="eng-reco-min"></span> ou plus récente</b>
+            <span class="muted">(installée : b<span id="eng-reco-cur"></span>)</span></div>
+          <ul id="eng-reco-gains"></ul>
+          <div class="muted">Le décodage spéculatif (MTP) reste coupé tant que <code>SPEC</code> n'est pas posé.
+            La version actuelle est gardée pour revenir en arrière.</div>
+          <div class="row" style="margin:6px 0 0">
+            <button onclick="engRecommended()">Mettre à jour vers la version recommandée</button>
+          </div>
+        </div>
+        <div id="eng-render" style="margin-top:6px;display:none"></div>
         <div id="eng-latest" style="margin-top:6px"></div>
         <div class="row" style="margin:8px 0 0">
           <!-- « vérifier » ne fait QUE regarder (aucun téléchargement, aucune
@@ -553,6 +567,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
                gestes n'engagent pas pareil, chacun son bouton. -->
           <button onclick="engCheck()">vérifier les mises à jour</button>
           <button onclick="engUpdate()">mettre à jour le moteur</button>
+          <button id="eng-prev" style="display:none" onclick="engRollback()">Revenir à la version précédente</button>
           <button id="eng-revert" style="display:none" onclick="engUse('image')">revenir au moteur de l'image</button>
           <span id="eng-others"></span>
         </div>
