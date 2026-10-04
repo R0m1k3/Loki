@@ -52,6 +52,11 @@ func cmdWeb(args []string) error {
 	if dv := dataVolumeWarning(); dv != "" {
 		fmt.Println(red(dv))
 	}
+	// Simple conseil de performance (fuse.shfs d'Unraid) : jaune, pas rouge —
+	// rien n'est perdu, seul le décodage d'un gros modèle hors RAM ralentit.
+	if sh := storageFuseHint(); sh != "" {
+		fmt.Println(yellow(sh))
+	}
 	if readWebKey() == "" {
 		fmt.Printf("%s API de pilotage NON protégée (aucune clé). Avant de l'exposer sur internet :\n", yellow("[!]"))
 		fmt.Printf("       %s\n", bold("loki set-web-key"))

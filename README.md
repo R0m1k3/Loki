@@ -167,6 +167,23 @@ Sur Unraid, garde le **même** chemin hôte d'un lancement à l'autre : `/mnt/us
 emplacements différents dès que le partage n'est pas en cache-only ou que le
 *mover* est passé. Le compose fourni utilise `/mnt/user/appdata/loki/…`.
 
+**Performance sur Unraid.** `/mnt/user/…` passe par `shfs`, la couche FUSE des
+partages : chaque écriture de `loki.db` et chaque page d'un gros modèle relue
+depuis le disque (MoE plus gros que la RAM, mmappé) traverse un démon en espace
+utilisateur, ce qui ralentit le décodage. Loki le détecte au démarrage
+(`fuse.shfs` dans `/proc/self/mountinfo`) et l'affiche en encart d'information —
+rien n'est perdu ni altéré. Pour l'éviter :
+
+- **recommandé** — passe le partage `appdata` (et celui des modèles) en
+  *Exclusive access* (Unraid 6.12+, partage sur un seul pool) : le chemin
+  `/mnt/user/…` ne change pas, FUSE est court-circuité ;
+- **avancé** — mappe `/mnt/<ton-pool>/appdata/loki/…` (ex. `/mnt/cache` si ton
+  pool s'appelle `cache`), avec une migration manuelle : `Compose Down`,
+  `rsync -a` de l'ancien dossier vers le nouveau, puis modification des deux
+  lignes `volumes`. Un `/mnt/<pool>` inexistant atterrit dans la RAM d'Unraid
+  (données perdues au redémarrage, serveur saturé par un modèle de 80 Go), et
+  changer le chemin sans migrer donne un `/data` vide.
+
 **Tu perds modèles, discussions et fichiers à chaque redémarrage ?** C'est le
 signe que `/data` n'est **pas monté** : le conteneur écrit alors dans sa couche
 éphémère, détruite à chaque recréation (mise à jour d'image, `compose down`,

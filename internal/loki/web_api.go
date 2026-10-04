@@ -83,6 +83,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		// id du preset actif : un autre appareil a pu basculer, l'UI se
 		// resynchronise sans reload (voir loadStatus). AJEAN 0.13.6.
 		"preset": activePresetID(),
+		// Conseil de performance (stockage sur fuse.shfs d'Unraid) : encart
+		// discret, distinct de « warn » qui annonce une perte de données.
+		"hint": storageFuseHint(),
 	})
 }
 

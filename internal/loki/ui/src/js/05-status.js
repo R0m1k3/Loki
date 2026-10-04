@@ -50,6 +50,13 @@ async function loadStatus(){
     if(s.warn){ wb.textContent='⚠ '+s.warn; wb.style.display=''; }
     else { wb.style.display='none'; }
   }
+  // Conseil de performance (stockage Unraid via fuse.shfs) : encart discret,
+  // pas le bandeau d'alerte — rien n'est perdu, seul le décodage ralentit.
+  const hb=document.getElementById('app-hint');
+  if(hb){
+    if(s.hint){ hb.textContent=s.hint; hb.style.display=''; }
+    else { hb.style.display='none'; }
+  }
   // Modèle qui ne charge pas (souvent un moteur incompatible) : message explicite
   // plutôt qu'un « chargement… » perpétuel ou un crash-loop muet.
   const me=document.getElementById('model-err');

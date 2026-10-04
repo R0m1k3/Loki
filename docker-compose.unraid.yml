@@ -40,6 +40,21 @@ services:
       # rebinding). Inutile pour un accès par IP ou nom local.
       - LOKI_TRUSTED_HOSTS=
     volumes:
+      # PERFORMANCE — /mnt/user/… passe par la couche FUSE des partages
+      # Unraid (shfs) : chaque écriture de la base et chaque page d'un gros
+      # modèle relue depuis le disque (modèle plus gros que la RAM) traverse un
+      # démon en espace utilisateur. Loki le signale au démarrage (encart
+      # d'information, rien n'est perdu). Deux remèdes, au choix :
+      #   - Recommandé : Shares -> appdata (et le partage des modèles) ->
+      #     « Exclusive access » = Yes (Unraid 6.12+, partage sur un seul
+      #     pool). Le chemin /mnt/user reste le même, FUSE est court-circuité.
+      #   - Avancé : mapper /mnt/<ton-pool>/appdata/loki/… (ex. /mnt/cache si
+      #     ton pool s'appelle « cache »). Migration MANUELLE obligatoire :
+      #     Compose Down, rsync -a de l'ancien dossier vers le nouveau, puis
+      #     changer les deux lignes ci-dessous. Un /mnt/<pool> qui n'existe
+      #     pas atterrit dans la RAM d'Unraid : données perdues au redémarrage,
+      #     et un modèle de 80 Go peut saturer la mémoire du serveur.
+      #   Ne change JAMAIS ce chemin sans migrer : /data apparaîtrait vide.
       # /data : config, base, mémoire, workspace, modèles téléchargés par l'UI
       - /mnt/user/appdata/loki/data:/data
       # /models : dossier de .gguf déposés à la main (gros fichiers)
