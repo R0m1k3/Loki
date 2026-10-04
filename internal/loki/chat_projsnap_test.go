@@ -248,7 +248,7 @@ func TestProjSnapCompactionRafraichit(t *testing.T) {
 	}
 	// Le message avec la mise à jour en dernier : il tombe dans la queue gardée.
 	c.Messages = append(c.Messages, am("vu"), um(ctxUpdOpen+` at="x">`+"\n~ poids — 72.4 kg\n"+ctxUpdClose+"\n\nencore"))
-	if _, changed := c.compactAndPublish(context.Background(), c.epoch, "test", append([]Message(nil), c.Messages...), 50000, caps); !changed {
+	if _, changed := c.compactAndPublish(context.Background(), c.epoch, "test", append([]Message(nil), c.Messages...), 50000, caps, compactOpts{}); !changed {
 		t.Fatal("compaction sans effet")
 	}
 	if c.ProjSnap != nil || hasContextUpdates(c.Messages) {

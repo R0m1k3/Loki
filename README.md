@@ -405,6 +405,33 @@ Ajoutées par ce fork :
   la télémétrie sous `prewarm`. Ce que voit le modèle ne change pas : au pire, le
   préchauffage ne sert à rien (moteur sans points de reprise aux messages
   utilisateur, image juste avant, agent ou web changé avant d'envoyer).
+- **Compaction en continuation** (clé `COMPACT_CONTINUATION`, **off** par
+  défaut, `loki config set COMPACT_CONTINUATION on`) : sans la clé, le résumé
+  d'une compaction part dans une requête à part — un prompt de résumeur et une
+  transcription des anciens tours — que le moteur local calcule à froid, des
+  dizaines de secondes sur un 27B, des minutes sur un MoE. Avec la clé, quand le
+  slot porte encore le prompt de la discussion, Loki renvoie la requête du tour
+  telle qu'elle est partie (mêmes messages, outils, arguments du gabarit et
+  intensité de raisonnement) suivie d'une seule demande de résumé : le moteur ne
+  calcule que celle-ci. La demande désigne le premier message gardé tel quel,
+  demande de tout résumer avant lui et de dater l'état d'avancement à cet
+  endroit ; mêmes règles de résumé qu'avant (mode Code compris), même budget,
+  température 0.2 sans l'échantillonnage du preset, réflexion coupée,
+  `tool_choice` à `none`. Ce qui est compacté, archivé et rangé ne change pas :
+  la requête sert seulement à obtenir le résumé, et rien du prompt système ou du
+  projet n'entre dans l'historique. Repli sur la transcription au moindre
+  écart : autre requête passée par le slot depuis le tour (vérification du mode Code,
+  sous-agent, tâche, préchauffage, bench, client `/v1`, autre discussion),
+  moteur relancé sur un autre modèle ou une autre fenêtre, marge insuffisante
+  dans la fenêtre, refus du moteur, appel d'outil émis, résumé vide ou fait de
+  seul raisonnement ; un refus du gabarit ou un appel d'outil la suspend pour ce
+  modèle jusqu'au redémarrage (gpt-oss à intensité haute peut épuiser le budget
+  en réflexion : repli). La clé évite aussi un résumé voué au refus (même vide,
+  il ne réduirait pas le contexte de 20 %) et, après un refus faute de réduction,
+  n'en redemande pas avant que le contexte ait grossi de 10 % — sauf à 90 % de la
+  fenêtre. Le filet réactif (prompt refusé), le bouton « compacter », les tâches,
+  les sous-agents et un preset externe gardent le chemin d'avant. Visible dans la
+  télémétrie sous `compact`.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes

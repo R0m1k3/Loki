@@ -119,6 +119,10 @@ var configTemplate = []struct{ key, help string }{
 	{"PRESENCE_PENALTY", "pénalité de présence ; vide = défaut du moteur"},
 	{"REPEAT_PENALTY", "pénalité de répétition (1 = neutre) ; vide = défaut du moteur"},
 	{"COMPACT", "compactage automatique du contexte (off pour couper)"},
+	{"COMPACT_CONTINUATION", "on = le résumé d'une compaction prolonge la requête du tour que le moteur local a en cache " +
+		"(mêmes messages, outils et réglages du gabarit, plus une demande de résumé) au lieu d'une transcription calculée à froid ; " +
+		"repli sur la transcription au moindre écart (autre requête passée par le slot, marge, refus, appel d'outil, résumé vide). " +
+		"Ne redemande pas un résumé voué au refus. Vide/off (défaut) = compaction d'avant ; sans effet sur un preset externe"},
 	{"MEM_MODE", "mémoire de l'IA : off / ondemand / always"},
 	{"EXTRA_ARGS", "ajouté tel quel à la ligne de commande de llama-server"},
 }

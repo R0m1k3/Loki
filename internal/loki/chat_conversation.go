@@ -389,9 +389,12 @@ func compactLog(log []LogEvent) []LogEvent {
 // messages donne ce que l'estimation ne voit pas (prompt système injecté,
 // schémas d'outils, gabarit de chat). On le rajoute à l'estimation d'après
 // compaction, sinon la jauge s'effondre puis resaute au tour suivant.
-func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase string, msgs []Message, ctxUsed int, caps Caps) ([]Message, bool) {
+//
+// opt : options de COMPACT_CONTINUATION (chat_compact_cont.go) ; nulles, le
+// chemin d'avant.
+func (c *Conversation) compactAndPublish(ctx context.Context, epoch int, phase string, msgs []Message, ctxUsed int, caps Caps, opt compactOpts) ([]Message, bool) {
 	c.appendDelta(epoch, map[string]any{"compacting": true})
-	compacted, changed := compactMessages(ctx, msgs, caps)
+	compacted, changed := compactMessagesNoted(ctx, msgs, caps, opt)
 	c.appendDelta(epoch, map[string]any{"compacting": false})
 	logCompact(phase, ctxUsed, msgs, compacted, changed)
 	if !changed {
@@ -797,8 +800,13 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// Estimation de début de tour, comparée au premier compte réel du moteur
 	// (journal [ctx], seulement au-delà de 2 % d'écart).
 	startEst := ctxUsed
-	if compactNeeded(msgs, ctxUsed, peak) {
-		if out, changed := c.compactAndPublish(ctx, epoch, "début-tour", msgs, ctxUsed, caps); changed {
+	// COMPACT_CONTINUATION (off par défaut) : un refus récent n'est pas retenté
+	// tout de suite, et le résumé peut prolonger le prompt en cache. Sans la
+	// clé, ni l'un ni l'autre.
+	conv := perfTagOf(ctx).conv
+	if compactNeeded(msgs, ctxUsed, peak) && !compactRefusedSkip(conv, ctxUsed) {
+		opt := c.compactOptsFor(caps, msgs, ctxUsed, conv)
+		if out, changed := c.compactAndPublish(ctx, epoch, "début-tour", msgs, ctxUsed, caps, opt); changed {
 			msgs = out
 			// Le chiffre d'avant compaction ne dit plus rien de la requête qui
 			// part : on compare celui que la compaction vient de poser.
@@ -1009,12 +1017,14 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 	// retombe tout de suite et le tour suivant démarre avec de la marge.
 	// Sauf si un Reset est passé (rien à compacter) ou si le tour a été annulé
 	// (bouton stop) : on n'enchaîne pas plusieurs secondes de résumé sur un stop.
-	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) {
+	if stale || ctx.Err() != nil || !compactNeeded(msgs, ctxUsed, peak) || compactRefusedSkip(conv, ctxUsed) {
 		return
 	}
 	// context.Background() et non ctx : le tour est terminé, son contexte peut
-	// être annulé alors que cette compaction-là doit aller au bout.
-	c.compactAndPublish(context.Background(), epoch, "fin-tour", msgs, ctxUsed, caps)
+	// être annulé alors que cette compaction-là doit aller au bout. Après une
+	// vérification du mode Code, le slot porte son prompt : pas de
+	// continuation (engineSlotHolds), transcription comme avant.
+	c.compactAndPublish(context.Background(), epoch, "fin-tour", msgs, ctxUsed, caps, c.compactOptsFor(caps, msgs, ctxUsed, conv))
 }
 
 // ctxNowLocked : contexte à juger pour compacter, c.mu tenu. llama-server
@@ -1063,7 +1073,7 @@ func (c *Conversation) CompactNow() error {
 			}
 			c.mu.Unlock()
 		}()
-		if _, changed := c.compactAndPublish(ctx, epoch, "manuel", msgs, lastReal, Caps{}); changed {
+		if _, changed := c.compactAndPublish(ctx, epoch, "manuel", msgs, lastReal, Caps{}, compactOpts{}); changed {
 			c.persist()
 		}
 	}()

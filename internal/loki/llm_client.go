@@ -1165,6 +1165,12 @@ type chatPayloadOpts struct {
 	toolChoiceNone bool
 	effort         string
 	kwargs         map[string]any
+	// noSampling : sans l'échantillonnage du preset. Pour le résumé en
+	// continuation (COMPACT_CONTINUATION, chat_compact_cont.go), qui garde celui
+	// du résumeur d'aujourd'hui — température 0.2 seule : une pénalité de
+	// répétition jouerait contre la reprise fidèle des noms, chemins et chiffres.
+	// L'échantillonnage ne touche pas au prompt : le cache n'y perd rien.
+	noSampling bool
 }
 
 // buildChatPayload : le corps d'une requête de complétion de chat, à partir des
@@ -1189,7 +1195,9 @@ func buildChatPayload(ep chatEndpoint, sent []Message, temperature float64, o ch
 	// l'emporte sur la température ci-dessus). Posé AVANT le raisonnement : les
 	// deux blocs écrivent des clés disjointes, mais l'ordre rend explicite que
 	// c'est bien loki qui a le dernier mot sur `chat_template_kwargs`.
-	applySampling(payload)
+	if !o.noSampling {
+		applySampling(payload)
+	}
 	if o.effort != "" {
 		payload["reasoning_effort"] = o.effort
 	}
@@ -1398,8 +1406,9 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		// Un préchauffage en vol (PREWARM, chat_prewarm.go) est annulé ici, sauf
 		// s'il prépare exactement le début de CETTE requête d'un tour de chat.
 		endReq := func() {}
+		var reqSeq uint64
 		if !ep.External {
-			endReq = engineRequestStartKeep(prewarmKeeper(ptag.kind, sent, payload))
+			endReq, reqSeq = engineRequestBegin(prewarmKeeper(ptag.kind, sent, payload))
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -1569,6 +1578,11 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 		}
 		if !ep.External {
 			engineServed() // le slot porte désormais cette requête (llm_slots.go)
+			// Étape d'un tour de discussion : une compaction en continuation
+			// pourra la prolonger (chat_compact_cont.go). Sans la clé, rien.
+			if ptag.kind == perfMain && compactContinuationOn(chatCfg) {
+				engineMarkMain(reqSeq, ptag.conv)
+			}
 		}
 		toolCalls := map[int]*ToolCall{}
 		// argBufs : arguments de chaque appel, accumulés sans recopie. `+=` sur la
@@ -2481,10 +2495,18 @@ func runChatTools(ctx context.Context, messages []Message, tools []Tool, tempera
 				used = base + estimateTokens(messages[stepStart:])
 				lastEst = used
 			}
-			if compactNeeded(messages, used, peakGen) {
+			// COMPACT_CONTINUATION (chat_compact_cont.go) : tour de discussion
+			// seulement, ni tâche ni sous-agent. Sans la clé, rien ne change.
+			mainConv := ""
+			if ptag.kind == perfMain {
+				mainConv = ptag.conv
+			}
+			if compactNeeded(messages, used, peakGen) && !compactRefusedSkip(mainConv, used) {
+				opt := compactOptsMid(chatCfg, ep, mainConv, messages, used, tools, reasoningEffort, reasoningKwargs, pol,
+					disableTools || toolChoiceNone)
 				yes, no := true, false
 				cb(StreamEvent{Compacting: &yes})
-				c, changed := compactMessages(ctx, messages, caps)
+				c, changed := compactMessagesNoted(ctx, messages, caps, opt)
 				cb(StreamEvent{Compacting: &no})
 				logCompact("en-tour", used, messages, c, changed)
 				if changed {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -58,6 +59,57 @@ var engineGate struct {
 	mu       sync.Mutex
 	inflight int
 	served   uint64 // réponses 200 du moteur obtenues par runChat ou le bench
+	// seq numérote les requêtes de Loki vers le moteur local, préchauffage
+	// compris. main : la dernière, quand c'était une étape d'un tour de
+	// discussion acceptée par le moteur — le slot porte alors, selon toute
+	// vraisemblance, le prompt de cette discussion (COMPACT_CONTINUATION).
+	seq  uint64
+	main engineMainStamp
+}
+
+// engineMainStamp : la requête d'un tour de discussion que le slot porte.
+// Modèle et fenêtre en font partie : un moteur relancé sur un autre modèle ou
+// une autre fenêtre a un slot vide.
+type engineMainStamp struct {
+	seq         uint64
+	conv, model string
+	window      int
+}
+
+// engineMainNow : modèle et fenêtre du moteur, pour le tampon.
+func engineMainNow() (model string, window int) {
+	return filepath.Base(strings.TrimSpace(ReadConfig()["MODEL"])), ctxWindow()
+}
+
+// engineMarkMain : la requête seq, étape d'un tour de la discussion conv, a été
+// acceptée par le moteur. Sans effet si une autre requête est partie depuis.
+func engineMarkMain(seq uint64, conv string) {
+	if conv == "" {
+		return
+	}
+	model, window := engineMainNow()
+	engineGate.mu.Lock()
+	defer engineGate.mu.Unlock()
+	if engineGate.seq == seq {
+		engineGate.main = engineMainStamp{seq: seq, conv: conv, model: model, window: window}
+	}
+}
+
+// engineSlotHolds : le slot porte-t-il plausiblement le prompt de conv ? Oui si
+// la dernière requête de Loki vers le moteur était une étape d'un de ses tours,
+// acceptée, sur le même modèle et la même fenêtre. Un vérificateur, un
+// sous-agent, une tâche, un préchauffage, un résumé, un bench, un client /v1 ou
+// une autre discussion passés depuis : non. Un client qui parlerait au moteur
+// sans passer par Loki échappe à ce compte — au pire, un recalcul.
+func engineSlotHolds(conv string) bool {
+	if conv == "" {
+		return false
+	}
+	model, window := engineMainNow()
+	engineGate.mu.Lock()
+	defer engineGate.mu.Unlock()
+	m := engineGate.main
+	return m.seq != 0 && m.seq == engineGate.seq && m.conv == conv && m.model == model && m.window == window
 }
 
 // engineServed note qu'une requête de Loki a été acceptée par le moteur local :
@@ -92,11 +144,20 @@ func engineRequestStart() func() { return engineRequestStartKeep(nil) }
 // Décidé sous le verrou du compteur : aucun préchauffage ne peut démarrer entre
 // la décision et le compte.
 func engineRequestStartKeep(keep func(*prewarmRun) bool) func() {
+	end, _ := engineRequestBegin(keep)
+	return end
+}
+
+// engineRequestBegin : engineRequestStartKeep, avec le numéro de la requête
+// (engineMarkMain).
+func engineRequestBegin(keep func(*prewarmRun) bool) (func(), uint64) {
 	engineGate.mu.Lock()
 	if p := prewarmCur; p != nil && (keep == nil || !keep(p)) {
 		prewarmDropLocked(p)
 	}
 	engineGate.inflight++
+	engineGate.seq++
+	seq := engineGate.seq
 	engineGate.mu.Unlock()
 	var once sync.Once
 	return func() {
@@ -105,7 +166,7 @@ func engineRequestStartKeep(keep func(*prewarmRun) bool) func() {
 			engineGate.inflight--
 			engineGate.mu.Unlock()
 		})
-	}
+	}, seq
 }
 
 // slotsWrite : une action sur /slots (save, restore, erase) plutôt qu'une

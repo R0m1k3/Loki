@@ -234,7 +234,7 @@ func projSnapKey(caps Caps, cfg map[string]string) string {
 // moteur ni toucher au bloc. Les compter rafraîchirait pour rien.
 var projSnapIgnoredKeys = map[string]bool{
 	"PROJ_SNAPSHOT": true, "PREWARM": true, "REASONING_ECHO": true, "REASONING_EFFORT": true, "TEMP": true,
-	"COMPACT": true, "CRAWL4AI_URL": true, "CRAWL4AI_KEY": true, "WEB_ENGINE": true,
+	"COMPACT": true, "COMPACT_CONTINUATION": true, "CRAWL4AI_URL": true, "CRAWL4AI_KEY": true, "WEB_ENGINE": true,
 }
 
 // projSnapSysHash : empreinte du bloc système commun et des outils. S'ils

@@ -366,6 +366,17 @@ func compactBounds(msgs []Message, tailBudget int) (head, tailStart int) {
 }
 
 func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message, bool) {
+	out, changed, _ := compactMessagesOpt(ctx, msgs, caps, compactOpts{})
+	return out, changed
+}
+
+// compactMessagesOpt : compactMessages, avec les options de
+// COMPACT_CONTINUATION (chat_compact_cont.go) — options nulles, exactement le
+// chemin d'avant. Bornes, archives, demande réinjectée et sortie restent sur la
+// vue MODÈLE (msgs) dans tous les cas ; la vue d'envoi ne sert qu'à construire
+// la requête de résumé. refused : un résumé a été obtenu, mais la réduction
+// reste sous les 20 % exigés.
+func compactMessagesOpt(ctx context.Context, msgs []Message, caps Caps, opt compactOpts) (out []Message, changed, refused bool) {
 	// Budget de queue = fraction de la CONVERSATION (pas de la fenêtre). Le lier à
 	// la fenêtre était le bug : une conversation de 25k tokens dans une fenêtre de
 	// 64k gardait 16k (0.25×64k) en queue → torse minuscule → réduction < 20% →
@@ -376,10 +387,19 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 
 	// Rien à compacter : le torse [head, tailStart) est vide.
 	if tailStart <= head {
-		return msgs, false
+		return msgs, false, false
 	}
 
 	torso := msgs[head:tailStart]
+
+	// Même un résumé vide ne ferait pas passer la garantie de réduction (plus
+	// bas) : inutile d'appeler le modèle ni d'archiver quoi que ce soit, la
+	// compaction serait refusée. Borne basse exacte, jamais un refus de plus
+	// qu'aujourd'hui. Avec COMPACT_CONTINUATION seulement.
+	if opt.precheck && compactHopeless(msgs, head, tailStart) {
+		fmt.Fprintf(os.Stderr, "[compact] résumé non demandé : même vide, la réduction resterait sous 20 %%\n")
+		return msgs, false, false
+	}
 
 	// 3. Archivage des gros blocs (mémoire longue). AVANT de compacter, chaque bloc
 	//    du torse assez long est enregistré VERBATIM sous un id (r7…) : le résumé et
@@ -472,7 +492,19 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	// Loki, pas la conversation, et le bloc projet est repris tout neuf après la
 	// compaction. Sans la clé, rien à retirer.
 	forSummary = stripContextUpdates(forSummary)
-	summary, err := summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
+	var summary string
+	var err error
+	if opt.view != nil {
+		// COMPACT_CONTINUATION : le résumé prolonge le prompt que le moteur a
+		// déjà en cache. Au moindre écart, repli sur la transcription d'avant.
+		summary, err = summarizeContinuation(ctx, msgs, tailStart, opt.view, caps.Code)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[compact] continuation écartée (%v) : résumé sur transcription\n", err)
+			summary, err = summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
+		}
+	} else {
+		summary, err = summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
+	}
 	var mid []Message
 	if err != nil || summaryLooksEmpty(summary) {
 		// Résumé raté (erreur, vide, ou juste une référence recall) → on garde le
@@ -497,7 +529,7 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 		}
 		mid = []Message{
 			{Role: "user", Content: sumMsg},
-			{Role: "assistant", Content: "Understood. I'll resume from exactly where I left off, using the findings above, and call recall(id) if I need the full content of an archived block, without redoing work that is already done."},
+			{Role: "assistant", Content: compactAckMsg},
 		}
 	}
 
@@ -522,31 +554,13 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	// Un rappel de loki (budget d'outils, relance) a le rôle `user` sans être une
 	// demande (isLokiInjected) : ni il ne prouve qu'une demande a été servie, ni
 	// il ne se réinjecte à la place de la vraie.
-	tailHasUser := false
-	for _, m := range msgs[tailStart:] {
-		if m.Role == "user" && !isLokiInjected(m) {
-			tailHasUser = true
-			break
-		}
-	}
 	summarized := err == nil && !summaryLooksEmpty(summary)
 	var pending []Message
-	for i := len(torso) - 1; i >= 0 && summarized && !tailHasUser; i-- {
-		if torso[i].Role != "user" || isLokiInjected(torso[i]) {
-			continue
-		}
-		if strings.HasPrefix(msgText(torso[i]), compactSummaryPrefix) {
-			continue // résumé d'une compaction précédente, pas une demande
-		}
-		pending = []Message{torso[i]}
-		break
+	if summarized {
+		pending = compactPending(msgs, torso, tailStart)
 	}
 
-	out := make([]Message, 0, head+len(mid)+len(pending)+len(msgs)-tailStart)
-	out = append(out, msgs[:head]...)
-	out = append(out, mid...)
-	out = append(out, pending...)
-	out = append(out, msgs[tailStart:]...)
+	out = compactAssemble(msgs, head, tailStart, mid, pending)
 
 	// Garantie de réduction : on n'accepte la compaction que si elle enlève au
 	// moins ~20% du contexte estimé. Sinon (torse déjà maigre, résumé peu rentable)
@@ -554,9 +568,55 @@ func compactMessages(ctx context.Context, msgs []Message, caps Caps) ([]Message,
 	// vraiment réduire, puis re-déclenchait aussitôt.
 	before, after := estimateTokens(msgs), estimateTokens(out)
 	if after > before*4/5 {
-		return msgs, false
+		return msgs, false, summarized
 	}
-	return out, true
+	return out, true, false
+}
+
+// compactAckMsg : la réponse assistant synthétique qui suit le résumé.
+const compactAckMsg = "Understood. I'll resume from exactly where I left off, using the findings above, and call recall(id) if I need the full content of an archived block, without redoing work that is already done."
+
+// compactPending : la demande en cours à réinjecter avant la queue (voir
+// compactMessagesOpt), quand un résumé a été obtenu ; nil sinon.
+func compactPending(msgs, torso []Message, tailStart int) []Message {
+	for _, m := range msgs[tailStart:] {
+		if m.Role == "user" && !isLokiInjected(m) {
+			return nil
+		}
+	}
+	for i := len(torso) - 1; i >= 0; i-- {
+		if torso[i].Role != "user" || isLokiInjected(torso[i]) {
+			continue
+		}
+		if strings.HasPrefix(msgText(torso[i]), compactSummaryPrefix) {
+			continue // résumé d'une compaction précédente, pas une demande
+		}
+		return []Message{torso[i]}
+	}
+	return nil
+}
+
+// compactAssemble : tête, zone résumée, demande réinjectée, queue.
+func compactAssemble(msgs []Message, head, tailStart int, mid, pending []Message) []Message {
+	out := make([]Message, 0, head+len(mid)+len(pending)+len(msgs)-tailStart)
+	out = append(out, msgs[:head]...)
+	out = append(out, mid...)
+	out = append(out, pending...)
+	return append(out, msgs[tailStart:]...)
+}
+
+// compactHopeless : la compaction serait refusée par la garantie de réduction
+// quel que soit le résumé. Le plancher est la sortie avec un résumé VIDE —
+// message d'en-tête court, sans index ni critères, réponse assistant, demande
+// réinjectée, queue : toute vraie sortie a la même forme avec des messages au
+// moins aussi longs, donc une estimation au moins aussi grande.
+func compactHopeless(msgs []Message, head, tailStart int) bool {
+	torso := msgs[head:tailStart]
+	floor := compactAssemble(msgs, head, tailStart, []Message{
+		{Role: "user", Content: compactSummaryUserMsg("", nil)},
+		{Role: "assistant", Content: compactAckMsg},
+	}, compactPending(msgs, torso, tailStart))
+	return estimateTokens(floor) > estimateTokens(msgs)*4/5
 }
 
 // summaryLooksEmpty détecte un résumé raté : trop court, ou constitué seulement
@@ -688,13 +748,7 @@ func renderTranscript(msgs []Message) string {
 // summarizeResp modélise le sous-ensemble utile d'une réponse non-streamée de
 // /v1/chat/completions.
 type summarizeResp struct {
-	Choices []struct {
-		Message struct {
-			Content          string `json:"content"`
-			ReasoningContent string `json:"reasoning_content"`
-		} `json:"message"`
-		FinishReason string `json:"finish_reason"`
-	} `json:"choices"`
+	Choices []summaryChoice `json:"choices"`
 }
 
 // summarizeTranscript demande au modèle local un résumé dense et fidèle du torse.
@@ -713,13 +767,17 @@ This is a CODING session. Also keep:
 - Errors hit (build, tests, tools) and how each was resolved — or that it is still open
 - The commands that build and test the project`
 
-// summarizeTranscriptFor : code = résumé d'une session du mode Code.
-func summarizeTranscriptFor(ctx context.Context, transcript string, code bool) (string, error) {
-	sys := `You are a context compactor. You are given the transcript of the older turns of a conversation between a user and an AI assistant (with its tools). The PURPOSE of your summary is to let the conversation continue in a fresh, smaller context WITHOUT losing any information that is useful or important to understand what came before and keep working — preserve everything that matters, drop only what is redundant.
+// compactTranscriptIntro : le rôle du résumeur sur transcription. Les règles
+// qui suivent (compactSummaryRules) servent aussi au résumé en continuation
+// (chat_compact_cont.go) : les deux chemins gardent les mêmes exigences.
+const compactTranscriptIntro = `You are a context compactor. You are given the transcript of the older turns of a conversation between a user and an AI assistant (with its tools). The PURPOSE of your summary is to let the conversation continue in a fresh, smaller context WITHOUT losing any information that is useful or important to understand what came before and keep working — preserve everything that matters, drop only what is redundant.
 
 The assistant is MID-TASK: it will read your summary and must resume exactly where it left off, WITHOUT redoing work it has already done. Its own internal reasoning is NOT part of the transcript and is lost — your summary is the only memory it keeps.
 
-Summarize densely and faithfully, keeping ONLY the essentials:
+`
+
+// compactSummaryRules : ce que tout résumé de compaction doit garder.
+const compactSummaryRules = `Summarize densely and faithfully, keeping ONLY the essentials:
 - The user's CURRENT request, goal(s) and constraints
 - FINDINGS: the concrete information already gathered — facts, figures, dates, names, URLs, file paths, values, config. This is the most important part: whatever is not here is lost and will have to be looked up again.
 - Sources already consulted (URLs opened, files read, commands run) — so they are not consulted a second time
@@ -727,6 +785,10 @@ Summarize densely and faithfully, keeping ONLY the essentials:
 - STATE OF PROGRESS: what is already answered, what is still missing, and the next concrete step
 Strict rules: no preamble or conclusion, no verbatim or long quotes, no throwaway detail. Use short bullet points. Be as concise as you can WHILE keeping every fact, decision and still-open task: a detail you drop here is lost for good, so when in doubt keep it. This is a dense compression summary, not a report. Always write ACTUAL prose sentences/bullets — never answer with just an id or a reference.
 Write the summary in the SAME language as the conversation.`
+
+// summarizeTranscriptFor : code = résumé d'une session du mode Code.
+func summarizeTranscriptFor(ctx context.Context, transcript string, code bool) (string, error) {
+	sys := compactTranscriptIntro + compactSummaryRules
 	if code {
 		sys += codeSummaryRules
 	}
@@ -757,10 +819,45 @@ Write the summary in the SAME language as the conversation.`
 		// argument inconnu par un 400, et la compaction échouait à chaque fois.
 		delete(payload, "chat_template_kwargs")
 	}
+	ch, err := postSummary(ctx, ep, payload, perfTag{kind: perfCompact, conv: perfTagOf(ctx).conv})
+	if err != nil {
+		return "", err
+	}
+	return cleanSummary(ch.Message.Content, ch.Message.ReasoningContent, ch.FinishReason)
+}
+
+// summaryChoice : le premier choix d'une réponse de résumé.
+type summaryChoice struct {
+	Message struct {
+		Content          string `json:"content"`
+		ReasoningContent string `json:"reasoning_content"`
+		// Appels d'outil émis malgré tool_choice « none » (résumé en
+		// continuation, qui garde les outils du tour) : jamais un résumé.
+		ToolCalls []json.RawMessage `json:"tool_calls"`
+	} `json:"message"`
+	FinishReason string `json:"finish_reason"`
+}
+
+// summaryHTTPError : le moteur a refusé la requête de résumé.
+type summaryHTTPError struct {
+	who    string
+	status int
+	body   string
+}
+
+func (e *summaryHTTPError) Error() string {
+	return fmt.Sprintf("résumé: %s %d: %s", e.who, e.status, e.body)
+}
+
+// postSummary envoie une requête de résumé non streamée et rend son premier
+// choix. Partagé par le résumé sur transcription et celui en continuation
+// (chat_compact_cont.go) : même compteur de requêtes en vol, même télémétrie
+// (kind=compact), mêmes erreurs.
+func postSummary(ctx context.Context, ep chatEndpoint, payload map[string]any, tag perfTag) (summaryChoice, error) {
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return summaryChoice{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	ep.auth(req.Header.Set)
@@ -769,7 +866,7 @@ Write the summary in the SAME language as the conversation.`
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", friendlyLLMError(err)
+		return summaryChoice{}, friendlyLLMError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -778,28 +875,27 @@ Write the summary in the SAME language as the conversation.`
 		if ep.External {
 			who = "API externe"
 		}
-		return "", fmt.Errorf("résumé: %s %d: %s", who, resp.StatusCode, strings.TrimSpace(string(b)))
+		return summaryChoice{}, &summaryHTTPError{who: who, status: resp.StatusCode, body: strings.TrimSpace(string(b))}
 	}
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return summaryChoice{}, err
 	}
 	// Decoder et non Unmarshal : comme avant, seule la première valeur JSON
 	// compte — un octet parasite après elle (proxy, passerelle) ne doit pas
 	// faire échouer une compaction qui passait.
 	var out summarizeResp
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&out); err != nil {
-		return "", err
+		return summaryChoice{}, err
 	}
 	// Télémétrie de la compaction : réponse non streamée, timings et usage sont
 	// à la racine. Lue à part et sans échec possible (perfWire) : un compteur
 	// mal typé ne doit jamais faire échouer la compaction.
-	perfRecord(perfRecFromWire(perfTag{kind: perfCompact, conv: perfTagOf(ctx).conv}, decodePerfWire(raw)), nil)
+	perfRecord(perfRecFromWire(tag, decodePerfWire(raw)), nil)
 	if len(out.Choices) == 0 {
-		return "", fmt.Errorf("résumé: réponse vide")
+		return summaryChoice{}, fmt.Errorf("résumé: réponse vide")
 	}
-	ch := out.Choices[0]
-	return cleanSummary(ch.Message.Content, ch.Message.ReasoningContent, ch.FinishReason)
+	return out.Choices[0], nil
 }
 
 // summaryRuneCap borne le résumé en caractères, en filet de sécurité

@@ -130,6 +130,7 @@ func prewarmBegin(p *prewarmRun) (end func(), ok bool) {
 	prewarmCur = p
 	prewarmLive.Store(true)
 	engineGate.inflight++
+	engineGate.seq++ // le slot ne porte plus le tour d'avant (engineSlotHolds)
 	var once sync.Once
 	return func() {
 		once.Do(func() {
