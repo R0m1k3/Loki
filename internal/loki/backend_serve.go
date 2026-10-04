@@ -346,6 +346,8 @@ func cmdServe(args []string) error {
 	probeCacheRAM(cfg, extra, &si)
 	probeCkptEnv(&si)
 	probeSideSlotEnv(cfg, &si)
+	// SPLIT_MODE=tensor seulement : cartes listées par CE moteur, dans son ordre.
+	probeSplit(cfg, bin, &si)
 	spec := specMode(cfg)
 	if spec != "off" && spec != "" {
 		probeSpec(cfg, &si)
@@ -455,6 +457,10 @@ type serveSysInfo struct {
 	DraftErr        string    // pourquoi MODEL_DRAFT n'a pas été trouvé
 	DraftGGUF       *GGUFInfo // métadonnées du brouillon ; nil = illisibles
 	SpecAutoBlocked string    // un essai automatique précédent a échoué : la raison
+
+	// Cartes listées par le moteur (--list-devices), lues seulement pour
+	// SPLIT_MODE=tensor (voir backend_serve_split.go) ; vide = inconnues.
+	SplitDevs []splitDev
 }
 
 // cudaDeviceEnv : sélection GPU (loki gpu), on filtre les devices visibles par
@@ -516,16 +522,30 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 		notes = append(notes, loadNote)
 	}
 
+	// Parallélisme de tenseurs (SPLIT_MODE=tensor, voir backend_serve_split.go) :
+	// sans la clé, splitOn est faux et rien de ce qui suit ne change. Accepté, il
+	// compte pour les réglages qui lisent le placement dans EXTRA_ARGS (files de
+	// lancement, graphes CUDA, --fit) comme un -sm tensor écrit à la main.
+	splitOn, splitA, splitNGLArgs, splitEnv, splitNotes := splitTensorArgs(cfg, extra, si)
+	place := extra
+	if splitOn {
+		place = append(append([]string{}, extra...), "-sm", "tensor")
+	}
+	for k, v := range splitEnv {
+		env[k] = v
+	}
+	notes = append(notes, splitNotes...)
+
 	// Files de lancement CUDA : une variable d'environnement, pas un drapeau —
 	// la ligne de commande n'en dépend pas (voir launchQueuesEnv).
-	q, qNotes := launchQueuesEnv(cfg, extra, si)
+	q, qNotes := launchQueuesEnv(cfg, place, si)
 	if q != "" {
 		env["CUDA_SCALE_LAUNCH_QUEUES"] = q
 	}
 	notes = append(notes, qNotes...)
 	// Réglages d'expert passés par variable (voir backend_serve_expert.go) :
 	// absents du preset, ils ne posent rien.
-	g, gNotes := graphOptEnv(cfg, extra, si)
+	g, gNotes := graphOptEnv(cfg, place, si)
 	if g != "" {
 		env["GGML_CUDA_GRAPH_OPT"] = g
 	}
@@ -595,7 +615,9 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	// ci-dessus. Sur un moteur qui connaît « auto », 999 devient donc auto, et on
 	// le DIT sur stderr plutôt que de le faire en douce. Qui veut réellement
 	// forcer tout sur le GPU écrit NGL=all (ou un nombre qui n'est pas 999).
-	if !hasAnyFlag(extra, "-ngl", "--n-gpu-layers", "--gpu-layers") {
+	if splitOn {
+		args = append(args, splitNGLArgs...) // « -ngl all », ou rien si EXTRA_ARGS l'a déjà
+	} else if !hasAnyFlag(extra, "-ngl", "--n-gpu-layers", "--gpu-layers") {
 		ngl, note := nglArgs(get("NGL", ""), helpFitsLayersItself(si.Help))
 		if note != "" {
 			notes = append(notes, note)
@@ -604,8 +626,8 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	}
 	// Marge VRAM par carte du placement automatique (FIT_TARGET, voir
 	// fitTargetArgs) : seulement si --fit tournera vraiment.
-	fitt, fitNotes := fitTargetArgs(cfg, extra, si)
-	args = append(args, fitt...)
+	fitt, fitNotes := fitTargetArgs(cfg, place, si)
+	args = append(append(args, fitt...), splitA...)
 	notes = append(notes, fitNotes...)
 	if ktv != "" {
 		args = append(args, "-ctk", ktv)

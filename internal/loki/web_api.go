@@ -120,6 +120,10 @@ func modelLoadError() string {
 			strings.Contains(low, "failed to initialize speculative decoding context"):
 			// Avant l'échec générique : c'est le brouillon qui manque, pas le modèle.
 			reason = "le décodage spéculatif n'a pas pu démarrer (tête MTP ou modèle brouillon) — SPEC=off dans le preset"
+		case strings.Contains(low, "split_mode_tensor requires flash_attn"),
+			strings.Contains(low, "split_mode_tensor not implemented"):
+			// Les autres lignes qui citent SPLIT_MODE_TENSOR ne sont que des avis.
+			reason = "le mode tensor (-sm tensor) n'a pas pu démarrer — SPLIT_MODE=off dans le preset"
 		case strings.Contains(l, "has offset") && strings.Contains(l, "expected"):
 			reason = "format de quantification non reconnu par ce moteur"
 		case strings.Contains(low, "unknown model architecture"),

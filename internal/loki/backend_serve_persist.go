@@ -84,6 +84,8 @@ func slotPersistPlan(cfg map[string]string, extra []string, si serveSysInfo) (ok
 		return false, "dossier des slots indisponible"
 	case specMode(cfg) != "off" || specUserSet(extra, si.ArgEnv) || si.ArgEnv["LLAMA_ARG_SPEC_TYPE"] != "":
 		return false, "décodage spéculatif : la sauvegarde du moteur ne garde pas l'état du brouillon"
+	case splitModeKey(cfg) != "":
+		return false, "SPLIT_MODE : état réparti entre cartes, sauvegarde non validée"
 	}
 	if !slotSaveSafe(cfg, extra, si) {
 		return false, "moteur joignable par d'autres sans clé d'API (HOST=127.0.0.1 ou une clé d'API)"

@@ -76,6 +76,12 @@ var configTemplate = []struct{ key, help string }{
 		"vide = 1024, minimum 1024 ; sans effet si NGL chiffré, --tensor-split, -ot ou --n-cpu-moe"},
 	{"OP_OFFLOAD_MIN_BATCH", "experts MoE sur CPU : taille de lot à partir de laquelle ils sont recopiés vers le GPU ; " +
 		"vide = défaut du moteur (32) ; plus haut = lots courts sur CPU, à mesurer"},
+	{"SPLIT_MODE", "tensor = parallélisme de tenseurs entre cartes CUDA (-sm tensor, expérimental) : décodage plus rapide, " +
+		"prefill plus lent, à mesurer par tour. Loki pose -ngl all, -ts au prorata de la VRAM, -fa on (sauf réglés à la main) " +
+		"et GGML_CUDA_ALLREDUCE=internal (NCCL compresse en BF16, avec perte). Refusé sans la liste {none,layer,row,tensor} " +
+		"dans l'aide du moteur, avec un cache KV autre que f16/bf16/f32, des poids ou le KV sur CPU, --backend-sampling, " +
+		"-fa off, -sm à la main, SPEC, SIDE_SLOT, CTX non chiffré, une seule carte ou une VRAM estimée insuffisante. " +
+		"Vide/off (défaut) = découpe par couches"},
 	{"CUDA_GRAPH_OPT", "on = GGML_CUDA_GRAPH_OPT=1, branches Q/K/V en parallèle au décodage (expérimental, " +
 		"sortie identique, gain de 0 à quelques %) ; off puis redémarrage s'il plante"},
 	{"KV_TYPE", "quantization du cache KV ; vide = f16, sorties de référence ; q8_0 les modifie légèrement, " +

@@ -561,6 +561,29 @@ Ajoutées par ce fork :
   nature de requête (`kinds.<nature>.draft_rate`) : à garder là où elle paie.
   Les drapeaux d'acceptation synthétique (`--spec-synth-*`, « benchmarking
   only »), que Loki ne pose jamais, déclenchent un avertissement au lancement.
+- **Parallélisme de tenseurs** (clé `SPLIT_MODE=tensor`, **off** par défaut,
+  expérimental, moteur relancé) : au lieu de donner à chaque carte des couches
+  entières (`-sm layer`, défaut), chaque couche est coupée entre les cartes,
+  qui additionnent ensuite leurs morceaux. L'amont mesure un décodage plus
+  rapide mais un prefill nettement plus lent : sur deux GeForce en PCIe et une
+  boucle d'agent qui relit beaucoup, à mesurer par tour avant de l'adopter.
+  Loki n'active le mode que si l'aide du moteur liste `{none,layer,row,tensor}`
+  (le mot « tensor » seul est partout), et ajoute alors `-ngl all`, `-ts` au
+  prorata de la VRAM totale des cartes dans l'ordre du moteur (`--device`
+  compris), `-fa on` — chacun seulement s'il n'est pas déjà dans `EXTRA_ARGS`
+  ou une `LLAMA_ARG_*` — et `GGML_CUDA_ALLREDUCE=internal` si l'environnement
+  ne le fixe pas : le chemin NCCL compresse en BF16 les grosses réductions du
+  prefill, une perte de précision ; la réduction interne garde le type natif.
+  « NCCL not compiled in » au journal est alors sans effet ; `GGML_CUDA_P2P=1`
+  reste à poser soi-même si le pilote le permet. Pas de `--fit` en mode
+  tensor : Loki estime poids + cache de `CTX` jetons et refuse au-delà de 90 %
+  de la VRAM — jamais en réduisant `CTX`. Refusé aussi (découpe par couches,
+  note au journal) avec un cache KV autre que f16/bf16/f32 (jamais réécrit
+  d'office), des poids ou le cache KV sur CPU (`--n-cpu-moe`, `-ot`, `NGL`
+  partiel, `-nkvo`), `--backend-sampling`, `-fa off`, un `-sm` déjà réglé,
+  `SPEC`, `SIDE_SLOT`, `CTX` non chiffré, une seule carte ou une carte non
+  CUDA, une architecture que llama.cpp exclut (et `qwen4exp`), un preset
+  externe ; `SLOT_PERSIST` est refusé avec la clé.
 - **Discussions multiples** : historique complet dans la barre latérale, titre
   repris du premier message (renommable), suppression. **Chaque discussion a son
   dossier de fichiers** (`workspace/discussions/<id>/`) : les pièces jointes
