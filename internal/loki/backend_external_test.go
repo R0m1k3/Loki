@@ -230,7 +230,7 @@ func TestPresetExterneVisionEtBench(t *testing.T) {
 	if !visionEnabled() || !engineSeesImages() {
 		t.Error("preset externe déclaré multimodal : la vision devrait être active")
 	}
-	if _, err := runBench(10, 10); err == nil {
+	if _, err := runBench(context.Background(), benchOpts{Prompt: 10, Predict: 10}, nil); err == nil {
 		t.Error("benchmark lancé sur un preset externe")
 	}
 	if got := chatModelName(); got != "gpt-4o" {

@@ -330,7 +330,9 @@ func newWebMux() *http.ServeMux {
 	api("/api/start", svcHandler("start"))
 	api("/api/stop", svcHandler("stop"))
 	api("/api/restart", svcHandler("restart"))
-	api("/api/bench", handleBench)
+	api("/api/bench", handleBench)              // POST : lance le benchmark en arrière-plan (llm_bench_job.go)
+	api("/api/bench/status", handleBenchStatus) // progression, puis résultat
+	api("/api/bench/cancel", handleBenchCancel) // POST : annule
 	api("/api/bench/last", handleBenchLast)
 	api("/api/perf/summary", handlePerfSummary)
 	api("/api/chat", handleChat)                       // flux d'ABONNEMENT (SSE) : rejoue + suit le fil

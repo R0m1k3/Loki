@@ -1,45 +1,100 @@
 function openBenchModal(){ showModal('bench-modal'); }
 function closeBenchModal(){ hideModal('bench-modal'); }
-async function runBenchUI(){
-  const btn = document.getElementById('btn-bench');
-  const rerun = document.getElementById('bench-rerun');
-  const body = document.getElementById('bench-body');
-  openBenchModal();
-  btn.disabled = true; btn.textContent = '⏳ bench…';
-  rerun.disabled = true;
-  body.innerHTML =
-    '<div style="text-align:center;padding:20px 0">' +
+// Le bench tourne en tâche de fond côté serveur (llm_bench_job.go) : on le lance,
+// puis on suit sa progression. Fermer la fenêtre ne l'arrête pas ; la rouvrir
+// (bouton bench) reprend le suivi au lieu d'en lancer un second.
+let benchPoll=null;
+function benchButtons(busy){
+  const btn=document.getElementById('btn-bench');
+  btn.disabled=busy; btn.textContent=busy?'⏳ bench…':'bench';
+  for(const id of ['bench-rerun','bench-full']){ const b=document.getElementById(id); if(b) b.disabled=busy; }
+  const c=document.getElementById('bench-cancel'); if(c) c.style.display=busy?'':'none';
+}
+function benchSpinner(text){
+  return '<div style="text-align:center;padding:20px 0">' +
     '<div style="font-size:24px;animation:spin 1s linear infinite;display:inline-block">⏳</div>' +
-    '<div class="muted" style="margin-top:8px">prompt 2000 tok + 300 decode<br>~10 secondes…</div>' +
-    '</div>';
+    '<div class="muted" style="margin-top:8px">'+text+'</div></div>';
+}
+function benchErr(msg){ return '<div style="color:var(--err);text-align:center">erreur : '+escHtml(msg||'?')+'</div>'; }
+async function runBenchUI(mode){
+  mode = mode==='full' ? 'full' : 'quick';
+  const body=document.getElementById('bench-body');
+  openBenchModal();
+  benchButtons(true);
+  body.innerHTML=benchSpinner('démarrage…');
   try{
-    const r = await jget('/api/bench');
-    if(!r.ok){
-      body.innerHTML = '<div style="color:var(--err);text-align:center">erreur: '+r.error+'</div>';
+    const st=await jget('/api/bench/status');
+    if(st.running){ benchWatch(); return; }
+  }catch(e){}
+  let r;
+  try{ r=await jpost('/api/bench',{mode:mode}); }catch(e){ r={ok:false,error:e.message}; }
+  if(!r.ok){ body.innerHTML=benchErr(r.error); benchButtons(false); return; }
+  benchWatch();
+}
+async function cancelBenchUI(){ try{ await jpost('/api/bench/cancel',{}); }catch(e){} }
+function benchWatch(){
+  clearTimeout(benchPoll);
+  const body=document.getElementById('bench-body');
+  const tick=async()=>{
+    let st;
+    try{ st=await jget('/api/bench/status'); }
+    catch(e){ benchPoll=setTimeout(tick,2000); return; }
+    if(st.running){
+      const step=st.steps?' ('+st.step+'/'+st.steps+')':'';
+      const hint=st.mode==='full'?'<br>bench complet : 1 à 5 minutes, chat et tâches en pause':'';
+      body.innerHTML=benchSpinner(escHtml(st.phase||'…')+step+' · '+Math.round(st.elapsed_sec||0)+' s'+hint);
+      benchPoll=setTimeout(tick,1000);
       return;
     }
-    const x = r.result;
-    body.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
-        '<div style="padding:14px;background:var(--panel);border:1px solid var(--border);border-radius:8px">' +
-          '<div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em">Prefill</div>' +
-          '<div style="font-size:26px;color:var(--accent);font-weight:600;margin:6px 0">'+x.prompt_per_second.toFixed(0)+'</div>' +
-          '<div class="muted">tok/s</div>' +
-          '<div class="muted" style="font-size:11px;margin-top:8px">'+x.prompt_n+' tok · '+(x.prompt_ms/1000).toFixed(2)+'s</div>' +
-        '</div>' +
-        '<div style="padding:14px;background:var(--panel);border:1px solid var(--border);border-radius:8px">' +
-          '<div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em">Decode</div>' +
-          '<div style="font-size:26px;color:var(--ok);font-weight:600;margin:6px 0">'+x.predicted_per_second.toFixed(1)+'</div>' +
-          '<div class="muted">tok/s</div>' +
-          '<div class="muted" style="font-size:11px;margin-top:8px">'+x.predicted_n+' tok · '+(x.predicted_ms/1000).toFixed(2)+'s</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="muted" style="text-align:center;font-size:11px">total '+x.elapsed_sec.toFixed(2)+'s</div>';
-  } finally {
-    btn.disabled = false; btn.textContent = 'bench';
-    rerun.disabled = false;
+    benchButtons(false);
+    if(st.error) body.innerHTML=benchErr(st.error);
+    else if(st.result) body.innerHTML=benchResultHTML(st.result, st.saved);
+    else body.innerHTML='';
     loadPresets();
+  };
+  tick();
+}
+function benchDraftTxt(d){ return d&&d.n ? Math.round(d.accepted*100/d.n)+' % ('+d.accepted+'/'+d.n+')' : 'n/a'; }
+function benchCard(label, color, val, unit, sub){
+  return '<div style="padding:14px;background:var(--panel);border:1px solid var(--border);border-radius:8px">' +
+    '<div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em">'+label+'</div>' +
+    '<div style="font-size:26px;color:'+color+';font-weight:600;margin:6px 0">'+val+'</div>' +
+    '<div class="muted">'+unit+'</div>' +
+    '<div class="muted" style="font-size:11px;margin-top:8px">'+sub+'</div></div>';
+}
+function benchResultHTML(x, saved){
+  let h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
+    benchCard('Prefill','var(--accent)',x.prompt_per_second.toFixed(0),'tok/s',x.prompt_n+' tok · '+(x.prompt_ms/1000).toFixed(2)+'s') +
+    benchCard('Decode','var(--ok)',x.predicted_per_second.toFixed(1),'tok/s',x.predicted_n+' tok · '+(x.predicted_ms/1000).toFixed(2)+'s') +
+    '</div>';
+  const rows=[];
+  if(x.draft) rows.push(['brouillon accepté (prose)', benchDraftTxt(x.draft)]);
+  const d=x.depth;
+  const notes=[];
+  if(d){
+    if(d.skipped) notes.push('profondeur sautée : '+d.skipped);
+    if(d.cold) rows.push(['prefill à froid · '+d.cold.new+' tok', d.cold.prompt_per_second.toFixed(0)+' tok/s']);
+    if(d.turns&&d.turns.length){
+      rows.push(['prefill des tours suivants (cache)', d.cached_per_second.toFixed(0)+' tok/s']);
+      rows.push(['decode en profondeur', d.decode_per_second.toFixed(1)+' tok/s']);
+      rows.push(['reprise du cache', d.reuse>=0 ? Math.round(d.reuse*100)+' %' : 'n/a']);
+      rows.push(['brouillon accepté (code)', benchDraftTxt(d.draft)]);
+    }
+    for(const n of [d.reuse_note, d.partial, d.hint]) if(n) notes.push(n);
   }
+  if(rows.length){
+    h+='<table style="width:100%;font-size:12px;border-collapse:collapse">';
+    for(const r of rows) h+='<tr><td class="muted" style="padding:3px 0">'+escHtml(r[0])+'</td><td style="text-align:right">'+escHtml(r[1])+'</td></tr>';
+    h+='</table>';
+  }
+  for(const n of notes) h+='<div style="font-size:11px;color:var(--warn)">'+escHtml(n)+'</div>';
+  let foot='KV '+(x.kv||'?')+(x.kv_quantized?' (quantifié — zone grise)':'');
+  if(x.engine) foot+=' · moteur '+x.engine;
+  foot+=' · total '+x.elapsed_sec.toFixed(1)+'s';
+  if(saved===false) foot+=' · résultat partiel, non enregistré';
+  h+='<div class="muted" style="text-align:center;font-size:11px">'+escHtml(foot)+'</div>';
+  if(d&&d.cold) h+='<div class="muted" style="text-align:center;font-size:11px">Le slot est effacé après le bench quand le moteur le permet : sinon, le prochain message reprend la conversation depuis le cache RAM (CACHE_RAM) ou la recalcule.</div>';
+  return h;
 }
 async function switchTo(n,name,id){
   if(!await askConfirm('Basculer vers « '+name+' » et redémarrer le service ?', {title:'Changer de preset', okText:'Basculer'})) return;

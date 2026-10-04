@@ -135,7 +135,7 @@ Moteur (loki-engine) :
   enable | disable              auto-démarrage au boot
   edit                          éditer la configuration dans $EDITOR
   switch [N]                    activer un preset de presets/ (interactif ou par numéro)
-  test | bench [N]              vérifier que l'IA répond / mesurer prefill + decode tok/s
+  test | bench [N] [--full]     vérifier que l'IA répond / mesurer prefill + decode (--full : en profondeur)
   vram                          utilisation GPU/VRAM (nvidia-smi)
   gpu [index…]                  liste les GPU / choisit le(s)quel(s) utiliser (gpu all = tous)
   set-api-key [clé]             protéger llama-server (clé Bearer); vide = générer, "" = retirer

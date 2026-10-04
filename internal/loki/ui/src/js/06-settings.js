@@ -93,8 +93,11 @@ async function loadPresets(){
     }
     if(x.bench){
       const bt=document.createElement('span'); bt.className='btag';
-      bt.title='prefill / decode — dernier bench de ce preset';
-      bt.textContent=x.bench.prefill.toFixed(0)+'-'+x.bench.decode.toFixed(0)+' t/s';
+      let tip='prefill / decode — dernier bench de ce preset';
+      if(x.bench.depth_decode) tip+='\ndecode à '+x.bench.depth+' jetons : '+x.bench.depth_decode.toFixed(1)+' t/s';
+      if(x.bench.kv) tip+='\ncache KV '+x.bench.kv+(x.bench.kv_quantized?' — quantifié (zone grise, pas une référence sans perte)':'');
+      bt.title=tip;
+      bt.textContent=x.bench.prefill.toFixed(0)+'-'+x.bench.decode.toFixed(0)+' t/s'+(x.bench.kv_quantized?' · KV '+x.bench.kv:'');
       meta.appendChild(bt);
     }
     info.appendChild(nm);

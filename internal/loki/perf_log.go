@@ -101,6 +101,7 @@ type perfWire struct {
 		PromptMs        perfNum `json:"prompt_ms"`
 		PromptPerSecond perfNum `json:"prompt_per_second"`
 		PredictedN      perfNum `json:"predicted_n"`
+		PredictedMs     perfNum `json:"predicted_ms"`
 		PredictedPerSec perfNum `json:"predicted_per_second"`
 		CacheN          perfNum `json:"cache_n"`
 		DraftN          perfNum `json:"draft_n"`

@@ -408,6 +408,7 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := loadBenchStore()
+	cur := ReadConfig()
 	out := []map[string]any{}
 	for _, p := range list {
 		item := map[string]any{"id": p.ID, "name": p.Name, "active": p.Active}
@@ -430,12 +431,23 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 				item["reasoning"] = strings.ToLower(r)
 			}
 		}
-		if sb, ok := store[p.ID]; ok && benchMatchesPreset(sb, parseEnv(content)) {
-			item["bench"] = map[string]any{
+		if sb, ok := store[p.ID]; ok && benchMatchesPreset(sb, parseEnv(content), cur) {
+			bench := map[string]any{
 				"prefill": sb.Result.PromptPerSecond,
 				"decode":  sb.Result.PredictedPerSec,
 				"at":      sb.At,
 			}
+			// Types de cache à côté de la mesure : un KV quantifié n'est pas une
+			// référence sans perte, la pastille le dit.
+			if sb.Result.KV != "" {
+				bench["kv"] = sb.Result.KV
+				bench["kv_quantized"] = sb.Result.KVQuantized
+			}
+			if d := sb.Result.Depth; d != nil && d.DecodePerSec > 0 && d.Cold != nil {
+				bench["depth"] = d.Cold.New
+				bench["depth_decode"] = d.DecodePerSec
+			}
+			item["bench"] = bench
 		}
 		out = append(out, item)
 	}
@@ -1340,39 +1352,6 @@ func svcHandler(action string) http.HandlerFunc {
 // handleChat is the SSE proxy with tool-calling. The HTTP handler writes raw
 // data: lines matching what the embedded JS expects (delta.content,
 // delta.reasoning_content, delta.tool_used).
-// handleBench runs `runBench` synchronously. Long enough (~30-60s) that we
-// rely on the client side to show a spinner / disable the button.
-func handleBench(w http.ResponseWriter, r *http.Request) {
-	nPrompt, nPredict := 2000, 300
-	if v := r.URL.Query().Get("prompt"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
-			nPrompt = parsed
-		}
-	}
-	if v := r.URL.Query().Get("n"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
-			nPredict = parsed
-		}
-	}
-	res, err := runBench(nPrompt, nPredict)
-	if err != nil {
-		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	sendJSON(w, 200, map[string]any{"ok": true, "result": res})
-}
-
-// handleBenchLast returns the most recent persisted benchmark, or {ok:false}
-// when none has been run yet.
-func handleBenchLast(w http.ResponseWriter, r *http.Request) {
-	sb := loadLastBench()
-	if sb == nil {
-		sendJSON(w, 200, map[string]any{"ok": false})
-		return
-	}
-	sendJSON(w, 200, map[string]any{"ok": true, "result": sb.Result, "model": sb.Model, "at": sb.At})
-}
-
 // chatReq est le corps d'une requête de chat (commun au chat clair et au chat E2E).
 //
 // `messages` et `ctx_used`, que les clients envoyaient du temps où l'historique

@@ -119,6 +119,14 @@ func oaiHandler() http.Handler {
 			// Complétion d'un client externe : elle prend le slot sous le nez de
 			// la conversation. Notée pour nommer la perte de cache qui suit.
 			if r.Method == http.MethodPost && strings.HasPrefix(p, "/v1/") {
+				// Pendant un benchmark, elle fausserait la mesure et attendrait des
+				// minutes derrière lui : refus explicite, à retenter.
+				if benchRunning() {
+					w.Header().Set("Retry-After", "30")
+					sendOAIError(w, http.StatusServiceUnavailable,
+						"benchmark en cours sur ce moteur — réessaie dans un moment", "server_error", "benchmark_running")
+					return
+				}
 				perfNoteForeign()
 			}
 			lp.ServeHTTP(w, r)

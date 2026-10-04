@@ -77,6 +77,9 @@ type Conversation struct {
 	// à une génération fantôme dans la discussion ouverte.
 	runningTaskID   string
 	runningTaskName string
+	// benching : le verrou est tenu par un benchmark (llm_bench_job.go). Même
+	// logique que la tâche : l'interface et les refus disent qui occupe le moteur.
+	benching bool
 
 	// File d'attente des messages envoyés PENDANT une génération (AJEAN
 	// 0.14.0). Ils sont injectés dans le tour en cours à la prochaine frontière
@@ -443,8 +446,11 @@ var ErrBusy = fmt.Errorf("génération en cours")
 // nomme la tâche et on dit comment reprendre la main.
 func (c *Conversation) busyReason() error {
 	c.mu.Lock()
-	name := c.runningTaskName
+	name, bench := c.runningTaskName, c.benching
 	c.mu.Unlock()
+	if bench {
+		return errBenchBusy
+	}
 	if name == "" {
 		return ErrBusy
 	}
@@ -550,8 +556,8 @@ func (c *Conversation) seenCIDLocked(cid string) bool {
 // EnqueueOrStart démarre un tour tout de suite si le moteur est libre, sinon
 // MET EN FILE le message (AJEAN 0.14.0) — au lieu du 409 d'avant, qui obligeait
 // à arrêter la réponse pour ajouter une précision. Seul un tour de CHAT accepte
-// une file : une tâche planifiée qui occupe le modèle garde le refus
-// (busyReason), sa fin ne dépile rien. cid = identifiant de l'envoi (voir
+// une file : une tâche planifiée ou un benchmark qui occupe le modèle garde le
+// refus (busyReason), sa fin ne dépile rien. cid = identifiant de l'envoi (voir
 // recentCIDs) ; un doublon renvoie ErrDupSend.
 func (c *Conversation) EnqueueOrStart(cid, text string, files []attachInfo, caps Caps, temperature float64) (bool, error) {
 	c.mu.Lock()
@@ -559,7 +565,7 @@ func (c *Conversation) EnqueueOrStart(cid, text string, files []attachInfo, caps
 		c.mu.Unlock()
 		return false, ErrDupSend
 	}
-	if c.Generating && c.runningTaskName == "" {
+	if c.Generating && c.runningTaskName == "" && !c.benching {
 		c.queued = append(c.queued, queuedMsg{text: text, files: files, caps: caps, temp: temperature})
 		c.mu.Unlock()
 		return true, nil
@@ -571,7 +577,7 @@ func (c *Conversation) EnqueueOrStart(cid, text string, files []attachInfo, caps
 		// appareils qui envoient en même temps) : en file plutôt qu'un refus
 		// (AJEAN 0.17.4). Une tâche planifiée garde le refus : sa fin ne dépile rien.
 		c.mu.Lock()
-		if c.Generating && c.runningTaskName == "" {
+		if c.Generating && c.runningTaskName == "" && !c.benching {
 			c.queued = append(c.queued, queuedMsg{text: text, files: files, caps: caps, temp: temperature})
 			c.mu.Unlock()
 			// Ce tour a pu finir entre-temps : sans relance, le message attendrait

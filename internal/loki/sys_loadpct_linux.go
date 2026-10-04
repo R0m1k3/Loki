@@ -102,3 +102,27 @@ func modelTotalSize(path string) int64 {
 	}
 	return 0
 }
+
+// engineIOSample : octets lus du disque (read_bytes) et mémoire résidente du
+// moteur, pour l'indication « possible thrash » du benchmark. ok=false si le
+// PID ou /proc est illisible : le bench s'en passe sans rien dire.
+func engineIOSample() (read, rss int64, ok bool) {
+	pid := readServicePID()
+	if pid <= 0 {
+		return 0, 0, false
+	}
+	b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/io")
+	if err != nil {
+		return 0, 0, false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, found := strings.CutPrefix(line, "read_bytes:"); found {
+			n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+			if err != nil {
+				return 0, 0, false
+			}
+			return n, procVmRSS(pid), true
+		}
+	}
+	return 0, 0, false
+}
