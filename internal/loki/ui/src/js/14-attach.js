@@ -215,6 +215,18 @@ function markFileLinks(root){
   for(const a of root.querySelectorAll('a[href]')){
     const p=fileLinkPath(a.getAttribute('href'));
     if(!p) continue;
+    // Lien vers une IMAGE ([le graphique](graph.png)) : on l'affiche au lieu d'un
+    // simple bouton de téléchargement (repris d'AJEAN). hydrateImages, appelé
+    // juste après, la charge en vignette ; un clic ouvre l'original. Formats que
+    // le navigateur affiche seulement (pas de SVG servi tel quel, ni de HEIC).
+    if(/\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(p)){
+      const img=document.createElement('img');
+      img.setAttribute('src', '/api/chat/image?path='+encodeURIComponent(p));
+      img.alt=(a.textContent||'').trim() || p.split('/').pop();
+      img.loading='lazy';
+      a.replaceWith(img);
+      continue;
+    }
     a.classList.add('filelink');
     a.removeAttribute('target');
     a.setAttribute('href','#');

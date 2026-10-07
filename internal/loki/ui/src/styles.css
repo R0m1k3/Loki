@@ -2270,3 +2270,17 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   transition:background .15s,color .15s,border-color .15s}
 #chat .history-more button:hover{color:var(--text);border-color:var(--dim);background:var(--row-bg-on)}
 #chat .history-more button:disabled{opacity:.6;cursor:default}
+/* Aperçu en direct du navigateur piloté (09-stream.js showCuShot, repris d'AJEAN). */
+.cu-shot{flex-shrink:0;align-self:flex-start;width:min(640px,100%);margin:2px 0 6px;overflow:hidden;
+  transition:height .35s cubic-bezier(.2,.7,.3,1),opacity .3s ease,margin .35s ease;animation:cushotcard .3s ease both}
+.cu-shot.out{opacity:0;margin:0}
+@keyframes cushotcard{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.cu-shot-cap{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);margin:0 0 6px 2px;min-width:0}
+.cu-shot-cap svg{flex:none}
+.cu-shot-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-shot-img{position:relative;border-radius:12px;overflow:hidden;background:var(--row-bg);
+  box-shadow:0 4px 18px rgba(0,0,0,.10);aspect-ratio:16 / 10}
+.cu-shot-img img.cu-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;
+  opacity:0;transition:opacity .45s ease;cursor:zoom-in}
+.cu-shot-img img.cu-frame.in{opacity:1}
+@media (prefers-reduced-motion:reduce){.cu-shot,.cu-shot-img img.cu-frame{transition:none;animation:none}}

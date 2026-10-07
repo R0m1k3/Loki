@@ -361,6 +361,21 @@ func handleChatImage(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 404, map[string]any{"ok": false, "error": "fichier introuvable"})
 		return
 	}
+	// Vignette légère (?thumb=<px>) : le fil n'a besoin que de ~560 px, pas
+	// d'une capture de 3 Mo — en accès distant, chaque image partait en entier
+	// dans le tunnel chiffré (repris d'AJEAN). Format non décodable ici (webp…) :
+	// on sert l'original.
+	if t := r.URL.Query().Get("thumb"); t != "" {
+		px, _ := strconv.Atoi(t)
+		if data, mime, err := chatThumb(abs, st, px); err == nil {
+			w.Header().Set("Content-Type", mime)
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+			w.Header().Set("Cache-Control", "private, max-age=3600")
+			_, _ = w.Write(data)
+			return
+		}
+	}
 	f, err := os.Open(abs)
 	if err != nil {
 		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})

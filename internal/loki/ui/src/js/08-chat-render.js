@@ -230,7 +230,47 @@ function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLink
 // revoke) : quelques captures par discussion, mémoire négligeable, et un revoke
 // casserait les rendus suivants qui réutilisent la même entrée.
 const IMG_CACHE = new Map();
+// Vignettes du fil (repris d'AJEAN) : ~560 px suffisent à l'affichage, le
+// serveur les calcule (?thumb=). Chargement DEUX PAR DEUX avec un nouvel essai :
+// en accès distant, une rafale de captures saturait le tunnel et certaines
+// n'arrivaient jamais.
+const CHAT_THUMB_PX = 560;
+let chatImgActive = 0;
+const chatImgWaiting = [];
+function chatImgQueue(job){
+  return new Promise((resolve, reject)=>{
+    const run = async ()=>{
+      chatImgActive++;
+      try{
+        try{ resolve(await job()); }
+        catch(_){ await new Promise(r=>setTimeout(r, 800)); resolve(await job()); }
+      }catch(e){ reject(e); }
+      finally{ chatImgActive--; const next = chatImgWaiting.shift(); if(next) next(); }
+    };
+    if(chatImgActive < 2) run(); else chatImgWaiting.push(run);
+  });
+}
+async function chatImgBlob(url){
+  const hit = IMG_CACHE.get(url);
+  if(hit) return hit;
+  const r = await jfetch(url);
+  if(!r.ok) throw new Error(r.status);
+  const obj = URL.createObjectURL(await r.blob());
+  IMG_CACHE.set(url, obj);
+  return obj;
+}
 function hydrateImages(root){
+  // Images du web (outil web_images, repris d'AJEAN) : même rendu et même
+  // loupe que les nôtres, sans Referer, et masquées si le site les refuse.
+  root.querySelectorAll('img[src^="http://"],img[src^="https://"]').forEach(img => {
+    if(img.dataset.hydrated) return;
+    img.dataset.hydrated = '1';
+    img.classList.add('chatimg');
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    bindZoom(img, img.getAttribute('alt') || '');
+    img.addEventListener('error', ()=>{ img.style.display = 'none'; });
+  });
   root.querySelectorAll('img[src*="/api/chat/image"]').forEach(async img => {
     if(img.dataset.hydrated) return;
     img.dataset.hydrated = '1';
@@ -242,15 +282,21 @@ function hydrateImages(root){
       const m = /[?&]path=([^&]*)/.exec(src);
       if(m){ try{ name = decodeURIComponent(m[1]).split('/').pop(); }catch(_){ name = m[1]; } }
     }
-    bindZoom(img, name);
-    const cached = IMG_CACHE.get(src);
+    const full = src.startsWith('/') ? src : '/' + src;
+    // Loupe : l'ORIGINAL, chargé seulement à l'agrandissement (le fil n'affiche
+    // qu'une vignette calculée par le serveur).
+    if(!img.dataset.zoom){
+      img.dataset.zoom = '1';
+      img.addEventListener('click', async ()=>{
+        try{ openLightbox(await chatImgBlob(full), name); }
+        catch(_){ openLightbox(img.currentSrc || img.src, name); }
+      });
+    }
+    const thumb = full + (full.includes('?') ? '&' : '?') + 'thumb=' + CHAT_THUMB_PX;
+    const cached = IMG_CACHE.get(thumb);
     if(cached){ img.src = cached; return; }
     try{
-      const r = await jfetch(src.startsWith('/') ? src : '/' + src);
-      if(!r.ok) throw new Error(r.status);
-      const url = URL.createObjectURL(await r.blob());
-      IMG_CACHE.set(src, url);
-      img.src = url;
+      img.src = await chatImgQueue(()=>chatImgBlob(thumb));
     }catch(e){
       // Pas de remplacement définitif pendant le STREAMING : l'URL peut être
       // tronquée en cours de frappe (404 transitoire) et le prochain delta
@@ -275,6 +321,7 @@ function renderToolMsg(el, tu){
     write:      {lbl:'fichier',   head:'écriture'},
     edit:       {lbl:'édition',   head:'édition'},
     web_search: {lbl:'recherche', head:'recherche web'},
+    web_images: {lbl:'images',    head:"recherche d'images"},
     web_open:   {lbl:'page web',  head:'ouverture'},
     web_read:   {lbl:'page web',  head:'lecture'},
     web_grep:   {lbl:'page web',  head:'recherche'},

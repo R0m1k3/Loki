@@ -2305,6 +2305,20 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   transition:background .15s,color .15s,border-color .15s}
 #chat .history-more button:hover{color:var(--text);border-color:var(--dim);background:var(--row-bg-on)}
 #chat .history-more button:disabled{opacity:.6;cursor:default}
+/* Aperçu en direct du navigateur piloté (09-stream.js showCuShot, repris d'AJEAN). */
+.cu-shot{flex-shrink:0;align-self:flex-start;width:min(640px,100%);margin:2px 0 6px;overflow:hidden;
+  transition:height .35s cubic-bezier(.2,.7,.3,1),opacity .3s ease,margin .35s ease;animation:cushotcard .3s ease both}
+.cu-shot.out{opacity:0;margin:0}
+@keyframes cushotcard{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.cu-shot-cap{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);margin:0 0 6px 2px;min-width:0}
+.cu-shot-cap svg{flex:none}
+.cu-shot-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-shot-img{position:relative;border-radius:12px;overflow:hidden;background:var(--row-bg);
+  box-shadow:0 4px 18px rgba(0,0,0,.10);aspect-ratio:16 / 10}
+.cu-shot-img img.cu-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;
+  opacity:0;transition:opacity .45s ease;cursor:zoom-in}
+.cu-shot-img img.cu-frame.in{opacity:1}
+@media (prefers-reduced-motion:reduce){.cu-shot,.cu-shot-img img.cu-frame{transition:none;animation:none}}
 </style></head><body>
 <button id="menubtn" onclick="toggleSide()" title="menu" aria-label="ouvrir le menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
 <!-- Installation d'un moteur en cours : le détail vit dans le panneau, qui est
@@ -2709,7 +2723,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       </div>
     </div>
     <div id="net-block" class="gated-group">
-      <div class="subhead">Accès internet<span id="internet-badge" class="sbadge"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Ajoute les outils <b>web_search / web_open / web_read / web_grep</b>. Le moteur <b>intégré</b> ne demande aucune installation. Le moteur <b>Crawl4AI</b> exige un serveur que tu héberges toi-même (ex. <code>docker run -d -p 11235:11235 --shm-size=1g unclecode/crawl4ai:latest</code>) mais exécute le JavaScript des pages. Actifs seulement si le <b>mode agent</b> est actif.</span></span></div>
+      <div class="subhead">Accès internet<span id="internet-badge" class="sbadge"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Ajoute les outils <b>web_search / web_images / web_open / web_read / web_grep</b>. Le moteur <b>intégré</b> ne demande aucune installation. Le moteur <b>Crawl4AI</b> exige un serveur que tu héberges toi-même (ex. <code>docker run -d -p 11235:11235 --shm-size=1g unclecode/crawl4ai:latest</code>) mais exécute le JavaScript des pages. Actifs seulement si le <b>mode agent</b> est actif.</span></span></div>
       <div class="slist">
         <label class="switchrow"><span class="switch"><input type="checkbox" id="internet-toggle" onchange="toggleInternet()"><span class="slider"></span></span> donner internet à l'IA</label>
         <!-- Moteur web : « go » = intégré au binaire (rien à installer, pas de rendu
@@ -7392,7 +7406,47 @@ function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLink
 // revoke) : quelques captures par discussion, mémoire négligeable, et un revoke
 // casserait les rendus suivants qui réutilisent la même entrée.
 const IMG_CACHE = new Map();
+// Vignettes du fil (repris d'AJEAN) : ~560 px suffisent à l'affichage, le
+// serveur les calcule (?thumb=). Chargement DEUX PAR DEUX avec un nouvel essai :
+// en accès distant, une rafale de captures saturait le tunnel et certaines
+// n'arrivaient jamais.
+const CHAT_THUMB_PX = 560;
+let chatImgActive = 0;
+const chatImgWaiting = [];
+function chatImgQueue(job){
+  return new Promise((resolve, reject)=>{
+    const run = async ()=>{
+      chatImgActive++;
+      try{
+        try{ resolve(await job()); }
+        catch(_){ await new Promise(r=>setTimeout(r, 800)); resolve(await job()); }
+      }catch(e){ reject(e); }
+      finally{ chatImgActive--; const next = chatImgWaiting.shift(); if(next) next(); }
+    };
+    if(chatImgActive < 2) run(); else chatImgWaiting.push(run);
+  });
+}
+async function chatImgBlob(url){
+  const hit = IMG_CACHE.get(url);
+  if(hit) return hit;
+  const r = await jfetch(url);
+  if(!r.ok) throw new Error(r.status);
+  const obj = URL.createObjectURL(await r.blob());
+  IMG_CACHE.set(url, obj);
+  return obj;
+}
 function hydrateImages(root){
+  // Images du web (outil web_images, repris d'AJEAN) : même rendu et même
+  // loupe que les nôtres, sans Referer, et masquées si le site les refuse.
+  root.querySelectorAll('img[src^="http://"],img[src^="https://"]').forEach(img => {
+    if(img.dataset.hydrated) return;
+    img.dataset.hydrated = '1';
+    img.classList.add('chatimg');
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    bindZoom(img, img.getAttribute('alt') || '');
+    img.addEventListener('error', ()=>{ img.style.display = 'none'; });
+  });
   root.querySelectorAll('img[src*="/api/chat/image"]').forEach(async img => {
     if(img.dataset.hydrated) return;
     img.dataset.hydrated = '1';
@@ -7404,15 +7458,21 @@ function hydrateImages(root){
       const m = /[?&]path=([^&]*)/.exec(src);
       if(m){ try{ name = decodeURIComponent(m[1]).split('/').pop(); }catch(_){ name = m[1]; } }
     }
-    bindZoom(img, name);
-    const cached = IMG_CACHE.get(src);
+    const full = src.startsWith('/') ? src : '/' + src;
+    // Loupe : l'ORIGINAL, chargé seulement à l'agrandissement (le fil n'affiche
+    // qu'une vignette calculée par le serveur).
+    if(!img.dataset.zoom){
+      img.dataset.zoom = '1';
+      img.addEventListener('click', async ()=>{
+        try{ openLightbox(await chatImgBlob(full), name); }
+        catch(_){ openLightbox(img.currentSrc || img.src, name); }
+      });
+    }
+    const thumb = full + (full.includes('?') ? '&' : '?') + 'thumb=' + CHAT_THUMB_PX;
+    const cached = IMG_CACHE.get(thumb);
     if(cached){ img.src = cached; return; }
     try{
-      const r = await jfetch(src.startsWith('/') ? src : '/' + src);
-      if(!r.ok) throw new Error(r.status);
-      const url = URL.createObjectURL(await r.blob());
-      IMG_CACHE.set(src, url);
-      img.src = url;
+      img.src = await chatImgQueue(()=>chatImgBlob(thumb));
     }catch(e){
       // Pas de remplacement définitif pendant le STREAMING : l'URL peut être
       // tronquée en cours de frappe (404 transitoire) et le prochain delta
@@ -7437,6 +7497,7 @@ function renderToolMsg(el, tu){
     write:      {lbl:'fichier',   head:'écriture'},
     edit:       {lbl:'édition',   head:'édition'},
     web_search: {lbl:'recherche', head:'recherche web'},
+    web_images: {lbl:'images',    head:"recherche d'images"},
     web_open:   {lbl:'page web',  head:'ouverture'},
     web_read:   {lbl:'page web',  head:'lecture'},
     web_grep:   {lbl:'page web',  head:'recherche'},
@@ -7835,7 +7896,7 @@ function confirmPending(text){
 let REPLAYING=true;
 // État de rendu du tour courant, délimité par les événements user / turn_done.
 let T=null;
-function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'', model:'' }; }
+function newTurn(){ T={ cuShotEl:null, reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'', model:'' }; }
 newTurn();
 
 // --- Temps de travail du tour ------------------------------------------------
@@ -7938,6 +7999,54 @@ function paintStats(el, speed){
 }
 const simpleMode=()=>document.documentElement.getAttribute('data-display')==='simple';
 function removeTyping(){ if(T.typingEl){ T.typingEl.remove(); T.typingEl=null; } }
+// Aperçu EN DIRECT du navigateur piloté (repris d'AJEAN). Après chaque action
+// browser_*, le serveur garde une capture en mémoire (tu.shot = son id). Une
+// seule carte par tour : la nouvelle image arrive en fondu par-dessus
+// l'ancienne. Purement de l'interface : la carte s'efface à la fin du tour et
+// rien n'est gardé. Une capture à conserver passe par browser_screenshot.
+async function showCuShot(tu){
+  if(REPLAYING) return;
+  let card=T.cuShotEl;
+  if(!card){
+    card=document.createElement('div'); card.className='cu-shot';
+    card.innerHTML='<div class="cu-shot-cap"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg><span class="cu-shot-t">navigateur en direct</span></div><div class="cu-shot-img"></div>';
+    T.cuShotEl=card;
+  }
+  if(tu.name==='browser_open' && tu.label) card.querySelector('.cu-shot-t').textContent=tu.label;
+  // Juste avant l'indicateur d'activité s'il est là, sinon en bas du fil.
+  const chat=chatEl(), anchor=(T.typingEl && T.typingEl.parentNode===chat) ? T.typingEl : null;
+  if(card.parentNode!==chat || card.nextSibling!==anchor){ if(anchor) chat.insertBefore(card, anchor); else chat.appendChild(card); }
+  const my=(card._n=(card._n||0)+1); // ordre d'arrivée des captures
+  let r; try{ r=await jget('/api/chat/cushot?id='+encodeURIComponent(tu.shot)); }catch(_){ return; }
+  if(!r || !r.ok || T.cuShotEl!==card) return; // carte déjà retirée (tour fini)
+  const box=card.querySelector('.cu-shot-img');
+  const img=new Image(); img.alt=''; img.className='cu-frame';
+  img.onclick=()=>openLightbox(img.src, card.querySelector('.cu-shot-t').textContent);
+  img.src='data:'+(r.mime||'image/jpeg')+';base64,'+r.data;
+  // Décodée AVANT d'entrer dans la page : jamais d'image à moitié peinte.
+  try{ await img.decode(); }catch(_){ return; }
+  // Une capture plus récente est déjà affichée (réponses dans le désordre) : on jette.
+  if(T.cuShotEl!==card || my<(card._shown||0)) return;
+  card._shown=my;
+  box.appendChild(img);
+  if(!box.style.aspectRatio) box.style.aspectRatio=img.naturalWidth+' / '+img.naturalHeight;
+  setTimeout(()=>img.classList.add('in'), 20);
+  // Fondu terminé : on retire les images PLUS ANCIENNES seulement.
+  setTimeout(()=>{ let x=img.previousElementSibling; while(x){ const p=x.previousElementSibling; x.remove(); x=p; } }, 480);
+  scrollMaybe();
+}
+// Fin du tour : l'aperçu s'efface en douceur. Toutes les cartes du fil, au cas
+// où un tour précédent en aurait laissé une.
+function hideCuShot(){
+  if(T) T.cuShotEl=null;
+  const chat=chatEl(); if(!chat) return;
+  chat.querySelectorAll(':scope > .cu-shot').forEach(card=>{
+    if(card.classList.contains('out')) return;
+    card.style.height=card.offsetHeight+'px'; void card.offsetHeight;
+    card.classList.add('out'); card.style.height='0px';
+    setTimeout(()=>card.remove(), 380);
+  });
+}
 // Compactage : on ÉTIQUETTE l'indicateur de frappe déjà à l'écran au lieu
 // d'ouvrir une bannière à part (on avait les deux en même temps pour un seul
 // état d'attente). En fin de tour l'indicateur a déjà été retiré : on le
@@ -8287,7 +8396,7 @@ function handleDelta(d){
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
-  if(d.turn_done){ settleBlocks(); removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
+  if(d.turn_done){ hideCuShot(); settleBlocks(); removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
     // La durée se fige ICI : au-delà, plus rien ne bouge, la ligne doit montrer
     // le temps réellement passé et non continuer d'avancer.
     T.doneTs = d.ts || T.doneTs || 0;
@@ -8296,7 +8405,7 @@ function handleDelta(d){
     paintTurnClock();                               // fige le total au-dessus de la carte
     setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations();
     if(typeof filesOnActivity==='function') filesOnActivity(); return; }
-  if(d.error){ settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
+  if(d.error){ hideCuShot(); settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
   // Pas de toast au REPLAY : le journal est rejoué à chaque chargement de page,
@@ -8333,6 +8442,7 @@ function handleDelta(d){
     // Résultat arrivé : la carte est finie, elle se replie tout de suite (en
     // direct seulement — au rejeu elle est déjà née repliée). SAUF une capture
     // d'écran : l'image EST le résultat, la replier la cacherait sitôt prise.
+    if(tu.done && tu.shot) showCuShot(tu);
     if(tu.done){
       if(!REPLAYING && T.pendingToolEl && !tu.image) collapseBody(T.pendingToolEl);
       // Carte à image : retirée de la liste du tour, sinon le repli de fin de
@@ -9893,6 +10003,18 @@ function markFileLinks(root){
   for(const a of root.querySelectorAll('a[href]')){
     const p=fileLinkPath(a.getAttribute('href'));
     if(!p) continue;
+    // Lien vers une IMAGE ([le graphique](graph.png)) : on l'affiche au lieu d'un
+    // simple bouton de téléchargement (repris d'AJEAN). hydrateImages, appelé
+    // juste après, la charge en vignette ; un clic ouvre l'original. Formats que
+    // le navigateur affiche seulement (pas de SVG servi tel quel, ni de HEIC).
+    if(/\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(p)){
+      const img=document.createElement('img');
+      img.setAttribute('src', '/api/chat/image?path='+encodeURIComponent(p));
+      img.alt=(a.textContent||'').trim() || p.split('/').pop();
+      img.loading='lazy';
+      a.replaceWith(img);
+      continue;
+    }
     a.classList.add('filelink');
     a.removeAttribute('target');
     a.setAttribute('href','#');

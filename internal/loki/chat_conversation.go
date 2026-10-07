@@ -354,6 +354,17 @@ func compactLog(log []LogEvent) []LogEvent {
 		if tu, ok := ev.Delta["tool_used"].(map[string]any); ok {
 			flush()
 			if done, _ := tu["done"].(bool); done {
+				// L'aperçu du navigateur (shot) n'est que du direct : on ne le
+				// garde pas une fois le tour fini (voir cu_autoshot.go).
+				if _, has := tu["shot"]; has {
+					cp := make(map[string]any, len(tu))
+					for k, v := range tu {
+						if k != "shot" {
+							cp[k] = v
+						}
+					}
+					ev.Delta = map[string]any{"tool_used": cp}
+				}
 				out = append(out, ev)
 			}
 			continue
@@ -944,6 +955,9 @@ func (c *Conversation) generate(ctx context.Context, caps Caps, temperature floa
 			}
 			if ev.ToolUsed.Image != "" {
 				tu["image"] = ev.ToolUsed.Image
+			}
+			if ev.ToolUsed.Shot != "" {
+				tu["shot"] = ev.ToolUsed.Shot
 			}
 			// Aperçu seulement dans le flux : taille réelle + id pour « voir plus ».
 			if ev.ToolUsed.ResultChars > 0 {
