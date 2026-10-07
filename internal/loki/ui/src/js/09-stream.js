@@ -84,7 +84,7 @@ function confirmPending(text){
 let REPLAYING=true;
 // État de rendu du tour courant, délimité par les événements user / turn_done.
 let T=null;
-function newTurn(){ T={ reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'', model:'' }; }
+function newTurn(){ T={ cuShotEl:null, reasonEl:null, contentEl:null, pendingToolEl:null, typingEl:null, fullContent:'', fullReason:'', turnCollapsibles:[], serverStats:null, reasonTok:0, contentTok:0, reasonFirstTs:0, reasonLastTs:0, contentFirstTs:0, contentLastTs:0, startTs:0, doneTs:0, speedText:'', model:'' }; }
 newTurn();
 
 // --- Temps de travail du tour ------------------------------------------------
@@ -187,6 +187,54 @@ function paintStats(el, speed){
 }
 const simpleMode=()=>document.documentElement.getAttribute('data-display')==='simple';
 function removeTyping(){ if(T.typingEl){ T.typingEl.remove(); T.typingEl=null; } }
+// Aperçu EN DIRECT du navigateur piloté (repris d'AJEAN). Après chaque action
+// browser_*, le serveur garde une capture en mémoire (tu.shot = son id). Une
+// seule carte par tour : la nouvelle image arrive en fondu par-dessus
+// l'ancienne. Purement de l'interface : la carte s'efface à la fin du tour et
+// rien n'est gardé. Une capture à conserver passe par browser_screenshot.
+async function showCuShot(tu){
+  if(REPLAYING) return;
+  let card=T.cuShotEl;
+  if(!card){
+    card=document.createElement('div'); card.className='cu-shot';
+    card.innerHTML='<div class="cu-shot-cap"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg><span class="cu-shot-t">navigateur en direct</span></div><div class="cu-shot-img"></div>';
+    T.cuShotEl=card;
+  }
+  if(tu.name==='browser_open' && tu.label) card.querySelector('.cu-shot-t').textContent=tu.label;
+  // Juste avant l'indicateur d'activité s'il est là, sinon en bas du fil.
+  const chat=chatEl(), anchor=(T.typingEl && T.typingEl.parentNode===chat) ? T.typingEl : null;
+  if(card.parentNode!==chat || card.nextSibling!==anchor){ if(anchor) chat.insertBefore(card, anchor); else chat.appendChild(card); }
+  const my=(card._n=(card._n||0)+1); // ordre d'arrivée des captures
+  let r; try{ r=await jget('/api/chat/cushot?id='+encodeURIComponent(tu.shot)); }catch(_){ return; }
+  if(!r || !r.ok || T.cuShotEl!==card) return; // carte déjà retirée (tour fini)
+  const box=card.querySelector('.cu-shot-img');
+  const img=new Image(); img.alt=''; img.className='cu-frame';
+  img.onclick=()=>openLightbox(img.src, card.querySelector('.cu-shot-t').textContent);
+  img.src='data:'+(r.mime||'image/jpeg')+';base64,'+r.data;
+  // Décodée AVANT d'entrer dans la page : jamais d'image à moitié peinte.
+  try{ await img.decode(); }catch(_){ return; }
+  // Une capture plus récente est déjà affichée (réponses dans le désordre) : on jette.
+  if(T.cuShotEl!==card || my<(card._shown||0)) return;
+  card._shown=my;
+  box.appendChild(img);
+  if(!box.style.aspectRatio) box.style.aspectRatio=img.naturalWidth+' / '+img.naturalHeight;
+  setTimeout(()=>img.classList.add('in'), 20);
+  // Fondu terminé : on retire les images PLUS ANCIENNES seulement.
+  setTimeout(()=>{ let x=img.previousElementSibling; while(x){ const p=x.previousElementSibling; x.remove(); x=p; } }, 480);
+  scrollMaybe();
+}
+// Fin du tour : l'aperçu s'efface en douceur. Toutes les cartes du fil, au cas
+// où un tour précédent en aurait laissé une.
+function hideCuShot(){
+  if(T) T.cuShotEl=null;
+  const chat=chatEl(); if(!chat) return;
+  chat.querySelectorAll(':scope > .cu-shot').forEach(card=>{
+    if(card.classList.contains('out')) return;
+    card.style.height=card.offsetHeight+'px'; void card.offsetHeight;
+    card.classList.add('out'); card.style.height='0px';
+    setTimeout(()=>card.remove(), 380);
+  });
+}
 // Compactage : on ÉTIQUETTE l'indicateur de frappe déjà à l'écran au lieu
 // d'ouvrir une bannière à part (on avait les deux en même temps pour un seul
 // état d'attente). En fin de tour l'indicateur a déjà été retiré : on le
@@ -536,7 +584,7 @@ function handleDelta(d){
   // Fin de tour : la discussion vient d'être enregistrée côté serveur — son
   // titre (déduit du 1er message) et son compteur d'échanges ont changé. Pas au
   // replay, qui rejoue tous les tours passés d'un bloc.
-  if(d.turn_done){ settleBlocks(); removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
+  if(d.turn_done){ hideCuShot(); settleBlocks(); removeTyping(); collapseAll(T.turnCollapsibles); stopWorkTimer();
     // La durée se fige ICI : au-delà, plus rien ne bouge, la ligne doit montrer
     // le temps réellement passé et non continuer d'avancer.
     T.doneTs = d.ts || T.doneTs || 0;
@@ -545,7 +593,7 @@ function handleDelta(d){
     paintTurnClock();                               // fige le total au-dessus de la carte
     setBusy(false); if(!REPLAYING && typeof loadConversations==='function') loadConversations();
     if(typeof filesOnActivity==='function') filesOnActivity(); return; }
-  if(d.error){ settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
+  if(d.error){ hideCuShot(); settleBlocks(); removeTyping(); T.contentEl=null; T.reasonEl=null; const eb=addMsg('assistant',''); eb.classList.add('errmsg'); renderBody(eb, d.error); return; }
   if(d.compacting!==undefined){ setCompacting(d.compacting); return; }
   if(d.compacted){ setCompacting(false); addCompactMark(); return; }
   // Pas de toast au REPLAY : le journal est rejoué à chaque chargement de page,
@@ -582,6 +630,7 @@ function handleDelta(d){
     // Résultat arrivé : la carte est finie, elle se replie tout de suite (en
     // direct seulement — au rejeu elle est déjà née repliée). SAUF une capture
     // d'écran : l'image EST le résultat, la replier la cacherait sitôt prise.
+    if(tu.done && tu.shot) showCuShot(tu);
     if(tu.done){
       if(!REPLAYING && T.pendingToolEl && !tu.image) collapseBody(T.pendingToolEl);
       // Carte à image : retirée de la liste du tour, sinon le repli de fin de

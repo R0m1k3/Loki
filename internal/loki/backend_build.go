@@ -44,20 +44,45 @@ func emitBuildLine(line string) {
 // Sert à téer la sortie des commandes de runStep quand un sink est actif.
 // (mutex : stdout et stderr d'une même commande peuvent écrire en parallèle)
 type sinkWriter struct {
-	mu  sync.Mutex
-	buf []byte
+	mu       sync.Mutex
+	buf      []byte
+	lastProg time.Time // dernière ligne de progression (\r) émise
 }
+
+// sinkProgressEvery : une barre de progression (tqdm, téléchargements de
+// l'installeur de Strata) se redessine sur place avec \r, sans jamais finir sa
+// ligne. On en montre une version toutes les 10 s : sans elle, un téléchargement
+// de 76 Go laissait le journal figé pendant une heure ; toutes, elles le noieraient.
+const sinkProgressEvery = 10 * time.Second
 
 func (s *sinkWriter) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.buf = append(s.buf, p...)
 	for {
-		i := strings.IndexByte(string(s.buf), '\n')
+		i := strings.IndexAny(string(s.buf), "\r\n")
 		if i < 0 {
 			break
 		}
-		emitBuildLine(strings.TrimRight(string(s.buf[:i]), "\r"))
+		if s.buf[i] == '\n' {
+			emitBuildLine(strings.TrimRight(string(s.buf[:i]), "\r"))
+			s.buf = s.buf[i+1:]
+			continue
+		}
+		// \r : fin de ligne Windows (\r\n) ou barre qui se redessine. Le \n peut
+		// arriver dans l'écriture suivante : on attend de le savoir.
+		if i+1 >= len(s.buf) {
+			break
+		}
+		if s.buf[i+1] == '\n' {
+			emitBuildLine(string(s.buf[:i]))
+			s.buf = s.buf[i+2:]
+			continue
+		}
+		if prog := strings.TrimSpace(string(s.buf[:i])); prog != "" && time.Since(s.lastProg) >= sinkProgressEvery {
+			s.lastProg = time.Now()
+			emitBuildLine(prog)
+		}
 		s.buf = s.buf[i+1:]
 	}
 	return len(p), nil

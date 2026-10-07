@@ -225,6 +225,7 @@ func cdpLaunch() (*cdpSession, error) {
 		args = append([]string{"--headless=new"}, args...)
 	}
 	cmd := exec.Command(bin, args...)
+	prepareBoundChild(cmd) // tué avec Loki, même brutalement (sys_childbind_*.go)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(userDir)
 		return nil, err

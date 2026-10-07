@@ -494,7 +494,7 @@ func EnabledTools(caps Caps) []Tool {
 	// caps.Internet intègre déjà la joignabilité (globalCaps / override web_server.go),
 	// donc prompt et outils restent cohérents — pas de web_search halluciné.
 	if caps.Agent && caps.Internet {
-		tools = append(tools, webSearchTool(), webOpenTool(), webReadTool(), webGrepTool())
+		tools = append(tools, webSearchTool(), webImagesTool(), webOpenTool(), webReadTool(), webGrepTool())
 	}
 	// Capture d'écran : seulement si Playwright est réellement présent dans
 	// l'image (annoncer un outil absent enverrait le modèle en boucle de
@@ -602,6 +602,10 @@ type ToolUsedEvent struct {
 	// pensait à recopier la ligne markdown rendue par l'outil : un petit modèle
 	// l'oublie, et l'utilisateur ne voyait jamais l'image qu'il avait demandée.
 	Image string
+	// Shot : identifiant de la capture du navigateur prise après une action
+	// browser_* (cu_autoshot.go). Aperçu EN DIRECT seulement : gardé en RAM,
+	// jamais envoyé au modèle, retiré du journal en fin de tour.
+	Shot string
 	// ResultChars : taille RÉELLE du résultat (en runes), même quand Result n'en
 	// porte qu'un APERÇU. Sert au compteur « ~N tok » de la bulle.
 	ResultChars int
@@ -1103,7 +1107,7 @@ func isNetTimeout(err error) bool {
 func toolCallLabel(name string, args map[string]any) string {
 	label := ""
 	switch name {
-	case "mem_search", "web_search", "recall_search":
+	case "mem_search", "web_search", "web_images", "recall_search":
 		label, _ = args["query"].(string)
 	case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff", "see_image":
 		label, _ = args["file"].(string)
@@ -1876,7 +1880,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				if cur := toolCalls[0]; cur != nil {
 					key := "command"
 					switch cur.Function.Name {
-					case "mem_search", "web_search", "recall_search":
+					case "mem_search", "web_search", "web_images", "recall_search":
 						key = "query"
 					case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff":
 						key = "file"
@@ -2494,6 +2498,8 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					}
 				case "web_search":
 					result = capWebOutput(toolWebSearch(args))
+				case "web_images":
+					result = capWebOutput(toolWebImages(args))
 				case "web_open":
 					result = capWebOutput(toolWebOpen(args))
 				case "web_read":
@@ -2535,8 +2541,14 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 						result = "[erreur] outil inconnu: " + tc.Function.Name
 					}
 				}
+				// Aperçu en direct du navigateur piloté (repris d'AJEAN) : une
+				// capture après chaque action qui change la page, pour l'UI seule.
+				liveShot := ""
 				if !strings.HasPrefix(result, "[erreur]") {
 					doneCalls[callKey] = result
+					if cuAutoShotTool(tc.Function.Name) {
+						liveShot = cuAutoShot()
+					}
 				}
 				// Capture d'écran : l'image part avec l'événement pour être
 				// affichée dans la bulle, quoi que le modèle en fasse ensuite.
@@ -2544,7 +2556,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				if tc.Function.Name == "web_screenshot" {
 					shot = capturedRelPath(result)
 				}
-				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot}, result)})
+				cb(StreamEvent{ToolUsed: fillToolResult(&ToolUsedEvent{Name: tc.Function.Name, Label: label, Done: true, Diff: diff, Added: diffAdd, Removed: diffDel, Image: shot, Shot: liveShot}, result)})
 				// Plafond pour le MODÈLE seulement : l'UI vient de recevoir le
 				// résultat complet (aperçu + « voir plus »).
 				toolMsg := Message{Role: "tool", ToolCallID: tc.ID, Content: capToolResult(result)}

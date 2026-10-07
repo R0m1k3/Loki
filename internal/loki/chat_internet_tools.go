@@ -297,7 +297,7 @@ func cmdInternet(args []string) error {
 		if err := setInternetEnabled(true); err != nil {
 			return err
 		}
-		fmt.Println(green("[ok]") + " accès internet activé — l'IA dispose de web_search/web_open/web_read/web_grep (si le mode agent est actif)")
+		fmt.Println(green("[ok]") + " accès internet activé — l'IA dispose de web_search/web_images/web_open/web_read/web_grep (si le mode agent est actif)")
 	case "off":
 		if err := setInternetEnabled(false); err != nil {
 			return err
@@ -352,7 +352,7 @@ func cmdInternet(args []string) error {
 		fmt.Printf("%s  état: %s\n", cyan("Accès internet"), state)
 		if webEngine() == engineGo {
 			fmt.Printf("  moteur  : %s (aucune installation, pas de rendu JavaScript)\n", bold("intégré"))
-			fmt.Printf("  outils  : web_search, web_open, web_read, web_grep\n")
+			fmt.Printf("  outils  : web_search, web_images, web_open, web_read, web_grep\n")
 			return nil
 		}
 		fmt.Printf("  moteur  : %s\n", bold("crawl4ai"))
@@ -366,7 +366,7 @@ func cmdInternet(args []string) error {
 			reach = green("joignable")
 		}
 		fmt.Printf("  serveur : %s (%s)\n", bold(u), reach)
-		fmt.Printf("  outils  : web_search, web_open, web_read, web_grep\n")
+		fmt.Printf("  outils  : web_search, web_images, web_open, web_read, web_grep\n")
 	default:
 		return fmt.Errorf("usage: loki internet [on|off|status|engine <go|crawl4ai>|url <url>|key <clé>]")
 	}

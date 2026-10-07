@@ -362,6 +362,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/chat/file/delete", handleChatFileDelete) // supprime un fichier ou un dossier de la discussion
 	api("/api/chat/file", handleChatFile)              // télécharge un fichier produit par l'agent (dossier de travail only)
 	api("/api/chat/image", handleChatImage)            // affiche une IMAGE du dossier de travail (captures d'écran)
+	api("/api/chat/cushot", handleCUShot)              // aperçu en direct du navigateur piloté (RAM, jamais gardé)
 	api("/api/chat/stop", handleChatStop)              // interrompt la génération en cours
 	api("/api/chat/tool-result", handleToolResult)     // résultat COMPLET d'un outil (« voir plus »)
 	api("/api/chat/reset", handleChatReset)            // vide la discussion courante (pour tous les appareils)
