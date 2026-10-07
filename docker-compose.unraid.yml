@@ -64,4 +64,8 @@ services:
       - /mnt/user/appdata/loki/data:/data
       # /models : dossier de .gguf déposés à la main (gros fichiers)
       - /mnt/user/appdata/loki/models:/models
+    # Moteur Strata (Qwen3.8 Flash Next) : il verrouille ses experts en RAM
+    # (mlock, 30 à 50 Go). La limite Docker par défaut (64 Ko) l'en empêche.
+    ulimits:
+      memlock: -1
     restart: unless-stopped

@@ -96,6 +96,11 @@ func oaiHandler() http.Handler {
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(&url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", LLMPort())})
 			pr.Out.Host = pr.In.Host
+			// Strata refuse (403) un Host qu'il ne connaît pas (protection contre
+			// le DNS rebinding) : il se voit appelé sous son propre nom.
+			if strataActive() {
+				pr.Out.Host = pr.Out.URL.Host
+			}
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, e error) {
 			sendOAIError(w, http.StatusBadGateway,

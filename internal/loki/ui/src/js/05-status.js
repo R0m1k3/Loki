@@ -315,6 +315,27 @@ async function loadCfg(){
   const [c, lc] = await Promise.all([jget('/api/config'), jget('/api/llamacpp').catch(()=>null)]);
   const row=(k,v,title)=>'<div class="kv"><span>'+k+'</span><span title="'+String(title!=null?title:v).replace(/"/g,'&quot;')+'">'+String(v)+'</span></div>';
   const rows=[];
+  // Strata (backend_strata.go) : la config réelle de lancement, calculée par le
+  // serveur comme au démarrage (/api/strata → details du modèle actif).
+  if(/^(strata|moe)$/i.test((c.ENGINE||'').trim())){
+    const s = await jget('/api/strata').catch(()=>null);
+    let fam=null, fit=null;
+    for(const f of (s&&s.families)||[]){ const x=f.fits.find(x=>x.active); if(x){ fam=f; fit=x; } }
+    const d=fit&&fit.details;
+    rows.push(row('MOTEUR', 'Strata', 'paquet AJEAN MoE '+((s&&s.version)||'')));
+    if(typeof setLoadedModel === 'function') setLoadedModel('');
+    if(fam) rows.push(row('MODEL', 'Qwen3.8 Flash Next '+fam.label+' '+fit.quant.id));
+    if(d){
+      const k=n=>(+n>=1024 ? Math.round(+n/1024)+'K' : n);
+      rows.push(row('CTX', d.ctx));
+      rows.push(row('KV', d.kv+(d.kv_resident ? ' · '+k(d.kv_resident)+' VRAM' : '')));
+      rows.push(row('MTP', d.spec));
+      rows.push(row('EXPERTS', d.drop ? 'mlock' : d.mmap ? 'mmap' : 'RAM'));
+      if(d.vision_gpu) rows.push(row('VISION', 'on', d.vision_gpu));
+    }else if(c.CTX) rows.push(row('CTX', c.CTX));
+    document.getElementById('cfg').innerHTML = rows.join('');
+    return;
+  }
   if(c.BIN){
     // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
     // toujours le chemin complet, quel que soit le libellé.

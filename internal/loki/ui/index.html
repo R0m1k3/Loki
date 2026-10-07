@@ -802,6 +802,32 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    gris atténué du thème monochrome et devenait illisible en mode sombre. */
 .lc-reco{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--text);color:var(--bg);border:1px solid var(--text);border-radius:4px;padding:1px 6px}
 .lc-mode-d{font-size:11px;color:var(--dim);margin-top:3px}
+/* Strata (10b-strata.js) : liste des qualités, réglages et configuration. */
+.slist>.lc-modes#lc-engines{border-top:1px solid var(--border)}
+#lc-strata.moe-off{cursor:default}
+#lc-strata.moe-off:hover{background:none}
+#lc-strata.moe-off .lc-mode-t{color:var(--dim)}
+#strata-quants{overflow:hidden}
+#strata-quants .lc-mode.moe-sel{background:var(--accent-bg)}
+#strata-quants .lc-mode.moe-sel .lc-mode-t{color:var(--accent)}
+#strata-quants .lc-mode.moe-off{cursor:default}
+#strata-quants .lc-mode.moe-off:hover{background:none}
+#strata-quants .lc-mode.moe-off .lc-mode-t{color:var(--dim)}
+.moe-details{padding:4px 10px}
+.moe-details .moe-kv{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;padding:5px 0}
+.moe-details .moe-kv .switch{display:block}
+.moe-details .moe-kv:not(:last-child){border-bottom:1px solid var(--border)}
+.moe-details .moe-kv span:first-child{color:var(--dim)}
+.moe-details .moe-kv span:last-child{text-align:right}
+.moe-ctx{display:flex;align-items:center;gap:10px}
+.moe-ctx input[type=range]{width:160px;height:16px;margin:0;padding:0;background:transparent;border:none;-webkit-appearance:none;appearance:none;cursor:ew-resize}
+.moe-ctx input[type=range]:focus{outline:none}
+.moe-ctx input[type=range]::-webkit-slider-runnable-track{height:4px;border:none;border-radius:999px;background:linear-gradient(to right,var(--accent) var(--p,50%),color-mix(in srgb,var(--dim) 25%,transparent) var(--p,50%))}
+.moe-ctx input[type=range]::-moz-range-track{height:4px;border:none;border-radius:999px;background:color-mix(in srgb,var(--dim) 25%,transparent)}
+.moe-ctx input[type=range]::-moz-range-progress{height:4px;border-radius:999px;background:var(--accent)}
+.moe-ctx input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;border:none;border-radius:50%;background:var(--accent)}
+.moe-ctx input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--accent)}
+.moe-ctx span{min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
 /* Hauteur réservée : la ligne d'état arrive après l'appel réseau, sans elle
    les trois cartes grandissaient d'un cran une fois l'état connu. */
 .lc-mode-state{font-size:11px;min-height:16px;margin-top:7px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -2560,7 +2586,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <button data-pane="tasks" onclick="settingsShow('tasks')"><span>Tâches planifiées</span><span id="tasks-badge" class="sbadge"></span></button>
         <button data-pane="sysprompt" onclick="settingsShow('sysprompt')">System prompt</button>
         <div class="set-nav-h">Moteur</div>
-        <button data-pane="engine" onclick="settingsShow('engine')">Moteur llama.cpp</button>
+        <button data-pane="engine" onclick="settingsShow('engine')">Moteur</button>
         <button data-pane="engine-log" onclick="settingsShow('engine-log')">Journal du moteur</button>
         <button data-pane="dictee" onclick="settingsShow('dictee')">Dictée</button>
         <div class="set-nav-h">Application</div>
@@ -2762,7 +2788,7 @@ html[data-files="1"] #files-btn{color:var(--accent)}
     </div></div>
   </section>
   <section class="set-pane" data-pane="engine" id="lc-details">
-    <div class="set-pane-h"><span>Moteur</span></div>
+    <div class="set-pane-h"><span>Moteur</span><span class="muted" style="font-size:12px;font-weight:400">actif : <b id="lc-active-engine">…</b></span></div>
     <!-- Une seule carte : état, choix du mode et journal d'installation sont le
          même sujet. Les trois modes sont des LIGNES de cette carte (elles
          étaient des cartes dans une carte). -->
@@ -2826,6 +2852,18 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <div class="lc-mode-t">llama.cpp personnalisé</div>
         <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
         <div class="lc-mode-state" id="lc-custom-state"></div>
+      </div>
+    </div>
+    <!-- Deuxième moteur, hors des modes llama.cpp (masqués quand le moteur vient
+         de l'image) : Strata, spécialisé Qwen3.8 Flash Next, paquet figé repris
+         d'AJEAN (backend_strata.go). Le choix du moteur se fait par preset :
+         activer un modèle Strata bascule sur Strata, un autre preset revient à
+         llama.cpp. -->
+    <div class="lc-modes" id="lc-engines">
+      <div class="lc-mode" id="lc-strata" onclick="openStrata()">
+        <div class="lc-mode-t">Strata — Qwen3.8 Flash Next</div>
+        <div class="lc-mode-d">moteur spécialisé pour ce MoE de 125 B (experts répartis entre VRAM, RAM et disque), installation en un clic</div>
+        <div class="lc-mode-state" id="lc-strata-state"></div>
       </div>
     </div>
     <div id="lc-job" class="rowbody" style="display:none">
@@ -3094,6 +3132,46 @@ html[data-files="1"] #files-btn{color:var(--accent)}
         <button class="danger" onclick="deleteTracker()">supprimer</button>
       </div>
       <div class="foot-r"><button onclick="closeTracker()">fermer</button></div>
+    </div>
+  </div>
+</div>
+<div id="strata-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeStrata()">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-head">
+      <strong>Strata — Qwen3.8 Flash Next</strong>
+      <button class="modal-x" onclick="closeStrata()" aria-label="Fermer">×</button>
+    </div>
+    <div class="modal-body mform">
+      <div id="strata-machine" class="muted" style="font-size:12px;line-height:1.5"></div>
+      <div class="fld">
+        <label class="fld-l">Version</label>
+        <div class="seg" id="strata-fams"></div>
+      </div>
+      <div class="fld">
+        <label class="fld-l">Qualité</label>
+        <div class="slist" id="strata-quants"></div>
+      </div>
+      <div id="strata-disk" class="muted" style="font-size:12px;line-height:1.5"></div>
+      <div class="fld" id="strata-settings-fld" hidden>
+        <label class="fld-l">Réglages</label>
+        <div class="slist moe-details" id="strata-settings"></div>
+      </div>
+      <div class="fld" id="strata-details-fld" hidden>
+        <label class="fld-l">Configuration</label>
+        <div class="slist moe-details" id="strata-details"></div>
+      </div>
+      <div id="strata-note" class="muted" style="font-size:11px;line-height:1.5"></div>
+      <div class="muted" style="font-size:11px;line-height:1.5">Moteur <a href="https://github.com/Niko1221/Strata" target="_blank" rel="noopener">Strata</a> (MIT),
+        paquet figé et vérifié (SHA-256) publié par <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener">AJEAN</a>.
+        Linux + NVIDIA (RTX 20 ou plus récente). Le modèle est téléchargé dans <code>/data/strata</code>.</div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-l"></div>
+      <div class="foot-r">
+        <button onclick="closeStrata()">fermer</button>
+        <button id="strata-save" hidden onclick="strataSaveSettings()">Enregistrer</button>
+        <button class="btn-save" id="strata-go" onclick="strataInstall()">Installer</button>
+      </div>
     </div>
   </div>
 </div>
@@ -4382,6 +4460,27 @@ async function loadCfg(){
   const [c, lc] = await Promise.all([jget('/api/config'), jget('/api/llamacpp').catch(()=>null)]);
   const row=(k,v,title)=>'<div class="kv"><span>'+k+'</span><span title="'+String(title!=null?title:v).replace(/"/g,'&quot;')+'">'+String(v)+'</span></div>';
   const rows=[];
+  // Strata (backend_strata.go) : la config réelle de lancement, calculée par le
+  // serveur comme au démarrage (/api/strata → details du modèle actif).
+  if(/^(strata|moe)$/i.test((c.ENGINE||'').trim())){
+    const s = await jget('/api/strata').catch(()=>null);
+    let fam=null, fit=null;
+    for(const f of (s&&s.families)||[]){ const x=f.fits.find(x=>x.active); if(x){ fam=f; fit=x; } }
+    const d=fit&&fit.details;
+    rows.push(row('MOTEUR', 'Strata', 'paquet AJEAN MoE '+((s&&s.version)||'')));
+    if(typeof setLoadedModel === 'function') setLoadedModel('');
+    if(fam) rows.push(row('MODEL', 'Qwen3.8 Flash Next '+fam.label+' '+fit.quant.id));
+    if(d){
+      const k=n=>(+n>=1024 ? Math.round(+n/1024)+'K' : n);
+      rows.push(row('CTX', d.ctx));
+      rows.push(row('KV', d.kv+(d.kv_resident ? ' · '+k(d.kv_resident)+' VRAM' : '')));
+      rows.push(row('MTP', d.spec));
+      rows.push(row('EXPERTS', d.drop ? 'mlock' : d.mmap ? 'mmap' : 'RAM'));
+      if(d.vision_gpu) rows.push(row('VISION', 'on', d.vision_gpu));
+    }else if(c.CTX) rows.push(row('CTX', c.CTX));
+    document.getElementById('cfg').innerHTML = rows.join('');
+    return;
+  }
   if(c.BIN){
     // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
     // toujours le chemin complet, quel que soit le libellé.
@@ -4528,7 +4627,7 @@ async function loadPresets(){
     // Deux éditeurs, deux mondes : les réglages d'un preset externe (URL, modèle
     // distant, clé) n'ont rien à voir avec ceux d'un modèle local.
     edit.title = x.external ? 'réglages de l’API externe' : 'réglages du preset';
-    edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : openPreset(x.id); };
+    edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : x.strata ? openStrata(x.id) : openPreset(x.id); };
     row.appendChild(info); row.appendChild(edit);
     cont.appendChild(row);
   });
@@ -5036,7 +5135,7 @@ async function loadAll(){
   // MANQUANTE lève ici une ReferenceError qui est avalée en silence. Toute
   // suppression de module doit donc retirer son appel de cette ligne, et le test
   // navigateur écoute `pageerror` pour ne pas s'en apercevoir trop tard.
-  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadComputer(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadThinkEffort(),loadTasks(),loadProjects()]);
+  await Promise.allSettled([loadStatus(),loadVram(),loadRam(),loadCfg(),loadPresets(),loadModelSwitchFiles(),loadConversations(),loadIdentity(),loadAgent(),loadInternet(),loadComputer(),loadMCP(),loadApiKey(),loadPrefs(),loadLlamacpp(),loadStrata(),loadThinkEffort(),loadTasks(),loadProjects()]);
   releaseHeights(); // tout est en place : on rend la main et on mesure pour la prochaine fois
 }
 async function act(a){ toast(a+'…'); await jpost('/api/'+a); setTimeout(loadAll,1500); }
@@ -8354,7 +8453,7 @@ let lcSeenEnd = false, lcEndShown = false;
 function lcChipLabel(action){
   return {install:'Compilation du moteur', update:'Mise à jour du moteur',
           prebuilt:'Téléchargement du moteur', engine:'Mise à jour du moteur',
-          custom:'Installation du backend'}[action] || 'Installation du moteur';
+          custom:'Installation du backend', strata:'Installation de Strata'}[action] || 'Installation du moteur';
 }
 function lcChipSync(j){
   const chip = document.getElementById('lc-chip');
@@ -8787,6 +8886,206 @@ function lcToggleLog(){
   const bar = document.querySelector('.lc-logbar');
   if(pre.hasAttribute('hidden')){ pre.removeAttribute('hidden'); bar.classList.add('open'); pre.scrollTop = pre.scrollHeight; }
   else { pre.setAttribute('hidden',''); bar.classList.remove('open'); }
+}
+// Moteur Strata : installation « en un clic » du moteur spécialisé Qwen3.8 Flash
+// Next (repris d'AJEAN, « AJEAN MoE »). L'utilisateur choisit la version (Swift
+// ou Classique) et la qualité (quant) ; tout le reste (cartes, RAM, mmap,
+// réglages) est déduit côté serveur (backend_strata.go). L'installation est une
+// tâche comme celles de llama.cpp : même suivi (#lc-job), même pastille.
+let strataState = null, strataFam = '', strataQuant = '', strataTarget = '';
+
+async function loadStrata(){
+  let s;
+  try{ s = await jget('/api/strata'); }catch(_){ return; }
+  strataState = s;
+  const row = document.getElementById('lc-strata');
+  if(!row) return;
+  // Hors Linux + NVIDIA, la ligne reste visible mais dit pourquoi : choisir son
+  // moteur, c'est aussi savoir pourquoi l'un des deux n'est pas proposé.
+  const env = s.env || {};
+  row.classList.toggle('moe-off', !env.supported);
+  const st = document.getElementById('lc-strata-state');
+  if(st){
+    const n = (s.installed||[]).length;
+    st.textContent = !env.supported ? (env.reason || 'indisponible sur cette machine')
+      : s.active ? 'moteur actif' + (n > 1 ? ' · '+n+' modèles installés' : '')
+      : n ? n+' modèle(s) installé(s)' : '';
+  }
+  const eng = document.getElementById('lc-active-engine');
+  if(eng) eng.textContent = s.active ? 'Strata' : 'llama.cpp';
+}
+
+// presetId (optionnel) : ouverte depuis l'engrenage d'un modèle installé, la
+// fenêtre se place directement sur lui.
+async function openStrata(presetId){
+  // état relu à chaque ouverture : juste après une installation, l'ancien
+  // proposait encore « Installer »
+  await loadStrata();
+  if(!strataState) return;
+  const s = strataState, env = s.env || {};
+  if(!env.supported){ toast('Strata : '+(env.reason||'indisponible sur cette machine')); return; }
+  strataTarget = typeof presetId === 'string' ? presetId : '';
+  const cards = (env.gpus||[]).filter(g=>g.index===env.main || g.index===env.helper)
+    .sort((a,b)=>(a.index===env.main?-1:1))
+    .map(g=>g.name.replace(/^NVIDIA GeForce /,'')+' '+Math.round(g.vram_gb)+' Go');
+  document.getElementById('strata-machine').textContent =
+    'Machine : '+cards.join(' + ')+', '+Math.round(env.ram_gb)+' Go de RAM, '
+    +Math.round(env.disk_free_gb)+' Go libres. Réglages automatiques.';
+  if(!strataFam) strataFam = (s.families[0]||{}).id || '';
+  if(strataTarget){
+    for(const f of s.families){
+      const hit = f.fits.find(x=>x.preset===strataTarget);
+      if(hit){ strataFam = f.id; strataQuant = hit.quant.id; }
+    }
+  }
+  strataRenderFams();
+  strataRenderQuants(!strataTarget);
+  showModal('strata-modal');
+}
+function closeStrata(){ hideModal('strata-modal'); }
+
+function strataRenderFams(){
+  const box = document.getElementById('strata-fams');
+  box.innerHTML = strataState.families.map(f=>
+    '<label><input type="radio" name="strata-fam" value="'+f.id+'"'+(f.id===strataFam?' checked':'')
+    +' onchange="strataFam=this.value;strataRenderQuants(true)">'
+    +'<span>'+escHtml(f.label)+'</span><span class="be-note">'+escHtml(f.about)+'</span></label>').join('');
+}
+
+function strataRenderQuants(pickReco){
+  const f = strataState.families.find(x=>x.id===strataFam);
+  if(!f) return;
+  // à l'ouverture : le modèle actif s'il est de cette version, sinon un installé, sinon le conseillé
+  if(pickReco || !f.fits.some(x=>x.quant.id===strataQuant && (x.ok || x.preset))){
+    const cur = f.fits.find(x=>x.active) || f.fits.find(x=>x.preset);
+    strataQuant = cur ? cur.quant.id : (f.recommend || '');
+  }
+  const box = document.getElementById('strata-quants');
+  box.innerHTML = f.fits.map(x=>{
+    const q = x.quant, sel = q.id===strataQuant;
+    const tag = x.active ? 'actif' : x.preset ? 'installé' : q.id===f.recommend ? 'conseillé' : '';
+    const reco = tag ? ' <span class="lc-reco">'+tag+'</span>' : '';
+    const usable = x.ok || !!x.preset;   // installé : activable même si l'espace disque manque
+    const desc = x.preset ? escHtml(q.about)
+      : x.ok ? escHtml(q.about)+' · ~'+Math.round(x.disk_gb)+' Go sur le disque'
+      : escHtml(x.why);
+    return '<div class="lc-mode'+(sel?' moe-sel':'')+(usable?'':' moe-off')+'"'
+      +(usable?' onclick="strataQuant=\''+q.id+'\';strataRenderQuants(false)"':'')+'>'
+      +'<div class="lc-mode-t">'+q.id+reco+'</div><div class="lc-mode-d">'+desc+'</div></div>';
+  }).join('');
+  const fit = f.fits.find(x=>x.quant.id===strataQuant);
+  const go = document.getElementById('strata-go');
+  go.disabled = !fit || !!fit.active;
+  go.textContent = fit && fit.active ? 'Déjà actif' : fit && fit.preset ? 'Activer' : 'Installer';
+  strataRenderDisk(fit);
+  strataRenderSettings(fit);
+  strataRenderDetails(fit);
+  document.getElementById('strata-note').textContent = !fit ? 'Aucune version ne tient sur cette machine.'
+    : fit.active ? 'Modèle actif.' : fit.preset ? 'Modèle installé, prêt à être activé.'
+    : fit.mmap ? 'RAM insuffisante pour tout charger : experts lus depuis le disque (mmap, ~45 Go de plus). Installation et activation automatiques.'
+    : 'Installation et activation automatiques. Premier chargement : quelques minutes.';
+}
+
+// Place disque : libre, ce que ce choix occupe, ce qui restera.
+function strataRenderDisk(fit){
+  const el = document.getElementById('strata-disk');
+  const free = Math.round((strataState.env||{}).disk_free_gb||0);
+  if(!fit){ el.textContent = ''; return; }
+  if(fit.preset){ el.textContent = 'Disque : '+free+' Go libres. Modèle déjà présent.'; return; }
+  const need = Math.round(fit.disk_gb), left = free - need;
+  el.textContent = left >= 5
+    ? 'Disque : '+free+' Go libres, ~'+need+' Go requis, ~'+left+' Go restants.'
+    : 'Disque : '+free+' Go libres, ~'+need+' Go requis. Espace insuffisant.';
+}
+
+// Réglages modifiables d'un modèle installé.
+function strataRenderSettings(fit){
+  const fld = document.getElementById('strata-settings-fld'), save = document.getElementById('strata-save');
+  const d = fit && fit.details;
+  fld.hidden = save.hidden = !d;
+  if(!d) return;
+  const sel = (id, opts, cur) => '<select class="ctl" id="'+id+'" style="width:auto">'
+    + opts.map(([v,l])=>'<option value="'+v+'"'+(String(v)===String(cur)?' selected':'')+'>'+escHtml(l)+'</option>').join('')+'</select>';
+  const sw = (id, on) => '<label class="switch"><input type="checkbox" id="'+id+'"'+(on?' checked':'')+'><span class="slider"></span></label>';
+  const rows = [
+    ['Contexte', '<span class="moe-ctx"><input type="range" id="strata-s-ctx" min="32768" max="262144" step="4096" value="'+(+d.ctx||131072)+'" oninput="strataCtxLbl()"><span id="strata-s-ctx-v"></span></span>'],
+    ['Cache KV', sel('strata-s-kv', [['fp16', 'fp16 (meilleure qualité)'],['int8', '8 bits (plus léger)']], d.kv)],
+    ['Prédiction (MTP)', sel('strata-s-spec', [[2,'2'],[3,'3'],[4,'4']], d.spec)],
+    ['Lire les images', sw('strata-s-vision', d.vision)],
+  ];
+  if(d.has_helper) rows.push(["Carte d'appoint", sw('strata-s-helper', d.helper_on)]);
+  document.getElementById('strata-settings').innerHTML = rows.map(([a,b])=>
+    '<div class="moe-kv"><span>'+escHtml(a)+'</span><span>'+b+'</span></div>').join('');
+  strataCtxLbl();
+}
+// valeur exacte en jetons (131 072 et non « 128K », source de confusion)
+function strataCtxLbl(){
+  const r = document.getElementById('strata-s-ctx'), o = document.getElementById('strata-s-ctx-v');
+  if(!r || !o) return;
+  o.textContent = (+r.value).toLocaleString('fr-FR');
+  // partie remplie à gauche de la pastille (la piste est dessinée en CSS)
+  r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
+}
+
+async function strataSaveSettings(){
+  const f = strataState && strataState.families.find(x=>x.id===strataFam);
+  const fit = f && f.fits.find(x=>x.quant.id===strataQuant);
+  if(!fit || !fit.preset) return;
+  const v = id => document.getElementById(id);
+  const body = {preset: fit.preset, ctx: +v('strata-s-ctx').value, kv: v('strata-s-kv').value, spec: +v('strata-s-spec').value,
+    vision: v('strata-s-vision').checked, helper: v('strata-s-helper') ? v('strata-s-helper').checked : false};
+  if(fit.active && !await askConfirm('Le modèle va redémarrer avec ces réglages (quelques minutes).', {title:'Strata — Qwen3.8 Flash Next', okText:'Enregistrer'})) return;
+  const r = await jpost('/api/strata/settings', body);
+  if(!r.ok){ toast('Erreur : '+(r.error||'')); return; }
+  toast(r.restarted ? 'Réglages enregistrés, redémarrage en cours' : 'Réglages enregistrés');
+  strataTarget = fit.preset;
+  await openStrata(fit.preset);
+  if(typeof loadPresets === 'function') loadPresets();
+}
+
+// La config qui tourne (ou tournera) pour un modèle installé.
+function strataRenderDetails(fit){
+  const fld = document.getElementById('strata-details-fld');
+  const d = fit && fit.details;
+  fld.hidden = !d;
+  if(!d) return;
+  const k = n => (+n >= 1024 ? Math.round(+n/1024)+'K' : n);
+  const rows = [
+    ['Carte principale', d.main_gpu],
+    ["Carte d'appoint", d.helper_gpu || 'aucune'],
+    ['Lecture des images', d.vision_gpu || 'aucune'],
+    ['Contexte', (+d.ctx).toLocaleString('fr-FR')+' jetons'],
+    ['Cache KV', d.kv + (d.kv_resident ? ' · '+k(d.kv_resident)+' en VRAM, le reste en RAM' : '')],
+    ['Prédiction (MTP)', d.spec+' jetons'],
+    ['Experts hors GPU', d.drop ? "verrouillés en RAM, hors ceux de la carte d'appoint" : d.mmap ? 'lus depuis le disque (mmap)' : 'chargés en RAM'],
+    ['Lecture des prompts', 'blocs de '+k(d.prefill)+', lecture directe sous '+d.short_read+' jetons'],
+    ["Démarrage d'une conversation", 'reprise après le prompt système (dès '+d.cache_root+' jetons)'],
+    ['Version du moteur', 'paquet AJEAN MoE '+d.version],
+  ];
+  document.getElementById('strata-details').innerHTML = rows.map(([a,b])=>
+    '<div class="moe-kv"><span>'+escHtml(a)+'</span><span>'+escHtml(b)+'</span></div>').join('');
+}
+
+async function strataInstall(){
+  const f = strataState && strataState.families.find(x=>x.id===strataFam);
+  const fit = f && f.fits.find(x=>x.quant.id===strataQuant);
+  if(!fit || fit.active) return;
+  // déjà installé : simple bascule, la même que dans la liste des modèles
+  if(fit.preset){
+    closeStrata();
+    await switchTo(-1, f.label+' '+strataQuant, fit.preset);
+    loadStrata();
+    return;
+  }
+  const msg = 'Installer Qwen3.8 Flash Next '+f.label+' '+strataQuant+' sur Strata ? Téléchargement : ~'
+    +Math.round(fit.disk_gb)+' Go. Le modèle sera activé à la fin.';
+  if(!await askConfirm(msg, {title:'Strata — Qwen3.8 Flash Next', okText:'Installer'})) return;
+  const r = await jpost('/api/strata/install', {family:strataFam, quant:strataQuant});
+  if(!r.ok){ toast('Erreur : '+(r.error||'')); return; }
+  closeStrata();
+  const det = document.getElementById('lc-details');
+  if(det && 'open' in det) det.open = true;
+  lcStartPolling();
 }
 // 11-external.js — presets « externes » : le chat part vers une API
 // OpenAI-compatible distante (OpenAI, Groq, OpenRouter, un vLLM sur une autre
@@ -11897,6 +12196,21 @@ const I18N_EN = {
   'Tâches planifiées': 'Scheduled tasks',
   'System prompt': 'System prompt',
   'Moteur llama.cpp': 'llama.cpp engine',
+  // Moteur Strata (10b-strata.js)
+  'Version': 'Version',
+  'Qualité': 'Quality',
+  'Configuration': 'Configuration',
+  'Installer': 'Install',
+  'Activer': 'Activate',
+  'Déjà actif': 'Already active',
+  'Cache KV': 'KV cache',
+  'Prédiction (MTP)': 'Prediction (MTP)',
+  'Lire les images': 'Read images',
+  "Carte d'appoint": 'Helper card',
+  'Carte principale': 'Main card',
+  'conseillé': 'recommended',
+  'installé': 'installed',
+  'actif': 'active',
   'Journal du moteur': 'Engine log',
   'Dictée': 'Dictation',
   'Identité': 'Identity',

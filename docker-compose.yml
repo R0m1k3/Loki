@@ -37,4 +37,8 @@ services:
             - driver: nvidia
               count: all
               capabilities: ["gpu"]
+    # Moteur Strata (Qwen3.8 Flash Next) : il verrouille ses experts en RAM
+    # (mlock, 30 à 50 Go). La limite Docker par défaut (64 Ko) l'en empêche.
+    ulimits:
+      memlock: -1
     restart: unless-stopped

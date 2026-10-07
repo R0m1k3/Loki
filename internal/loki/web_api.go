@@ -109,7 +109,8 @@ func modelLoadErrorFrom(log string) string {
 	for i, l := range lines {
 		// Un lancement refusé par LOAD_GUARD (backend_serve_moe.go) s'arrête
 		// avant tout chargement : c'est lui, la dernière tentative.
-		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) {
+		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) ||
+			strings.Contains(l, strataServeMarker) {
 			start = i
 		}
 	}
@@ -117,8 +118,16 @@ func modelLoadErrorFrom(log string) string {
 	for _, l := range lines[start:] {
 		low := strings.ToLower(l)
 		switch {
-		case strings.Contains(low, "model loaded"), strings.Contains(low, "server is listening"):
+		case strings.Contains(low, "model loaded"), strings.Contains(low, "server is listening"),
+			strings.HasPrefix(l, "ready: http://"): // serveur de Strata prêt
 			loaded = true
+		// Serveur de Strata (Python) : une trace = il s'est arrêté, pas « il charge encore ».
+		case strings.Contains(l, "Traceback (most recent call last)"):
+			if reason == "" {
+				reason = "le serveur de Strata s'est arrêté (trace Python dans le journal)"
+			}
+		case strings.Contains(l, "[strata] config"):
+			reason = "configuration de Strata refusée (détail dans le journal) — réinstalle le modèle"
 		case strings.Contains(low, "failed to create mtp context"),
 			strings.Contains(low, "failed to load draft model"),
 			strings.Contains(low, "failed to initialize speculative decoding context"):
@@ -434,6 +443,13 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 				}
 				out = append(out, item)
 				continue
+			}
+			// Strata : réglages dans sa propre fenêtre, pas l'éditeur llama.cpp.
+			if cfg := parseEnv(content); isStrataConfig(cfg) {
+				item["strata"] = true
+				if cfg["STRATA_VISION"] != "0" {
+					item["vision"] = true
+				}
 			}
 			if q := detectQuant(content); q != "" {
 				item["quant"] = q

@@ -329,7 +329,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <button data-pane="tasks" onclick="settingsShow('tasks')"><span>Tâches planifiées</span><span id="tasks-badge" class="sbadge"></span></button>
         <button data-pane="sysprompt" onclick="settingsShow('sysprompt')">System prompt</button>
         <div class="set-nav-h">Moteur</div>
-        <button data-pane="engine" onclick="settingsShow('engine')">Moteur llama.cpp</button>
+        <button data-pane="engine" onclick="settingsShow('engine')">Moteur</button>
         <button data-pane="engine-log" onclick="settingsShow('engine-log')">Journal du moteur</button>
         <button data-pane="dictee" onclick="settingsShow('dictee')">Dictée</button>
         <div class="set-nav-h">Application</div>
@@ -531,7 +531,7 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     </div></div>
   </section>
   <section class="set-pane" data-pane="engine" id="lc-details">
-    <div class="set-pane-h"><span>Moteur</span></div>
+    <div class="set-pane-h"><span>Moteur</span><span class="muted" style="font-size:12px;font-weight:400">actif : <b id="lc-active-engine">…</b></span></div>
     <!-- Une seule carte : état, choix du mode et journal d'installation sont le
          même sujet. Les trois modes sont des LIGNES de cette carte (elles
          étaient des cartes dans une carte). -->
@@ -595,6 +595,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <div class="lc-mode-t">llama.cpp personnalisé</div>
         <div class="lc-mode-d">un fork de llama.cpp pour modèles spéciaux (quant ternaire…)</div>
         <div class="lc-mode-state" id="lc-custom-state"></div>
+      </div>
+    </div>
+    <!-- Deuxième moteur, hors des modes llama.cpp (masqués quand le moteur vient
+         de l'image) : Strata, spécialisé Qwen3.8 Flash Next, paquet figé repris
+         d'AJEAN (backend_strata.go). Le choix du moteur se fait par preset :
+         activer un modèle Strata bascule sur Strata, un autre preset revient à
+         llama.cpp. -->
+    <div class="lc-modes" id="lc-engines">
+      <div class="lc-mode" id="lc-strata" onclick="openStrata()">
+        <div class="lc-mode-t">Strata — Qwen3.8 Flash Next</div>
+        <div class="lc-mode-d">moteur spécialisé pour ce MoE de 125 B (experts répartis entre VRAM, RAM et disque), installation en un clic</div>
+        <div class="lc-mode-state" id="lc-strata-state"></div>
       </div>
     </div>
     <div id="lc-job" class="rowbody" style="display:none">
@@ -863,6 +875,46 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <button class="danger" onclick="deleteTracker()">supprimer</button>
       </div>
       <div class="foot-r"><button onclick="closeTracker()">fermer</button></div>
+    </div>
+  </div>
+</div>
+<div id="strata-modal" class="modal-ov" style="display:none" onclick="if(event.target===this)closeStrata()">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-head">
+      <strong>Strata — Qwen3.8 Flash Next</strong>
+      <button class="modal-x" onclick="closeStrata()" aria-label="Fermer">×</button>
+    </div>
+    <div class="modal-body mform">
+      <div id="strata-machine" class="muted" style="font-size:12px;line-height:1.5"></div>
+      <div class="fld">
+        <label class="fld-l">Version</label>
+        <div class="seg" id="strata-fams"></div>
+      </div>
+      <div class="fld">
+        <label class="fld-l">Qualité</label>
+        <div class="slist" id="strata-quants"></div>
+      </div>
+      <div id="strata-disk" class="muted" style="font-size:12px;line-height:1.5"></div>
+      <div class="fld" id="strata-settings-fld" hidden>
+        <label class="fld-l">Réglages</label>
+        <div class="slist moe-details" id="strata-settings"></div>
+      </div>
+      <div class="fld" id="strata-details-fld" hidden>
+        <label class="fld-l">Configuration</label>
+        <div class="slist moe-details" id="strata-details"></div>
+      </div>
+      <div id="strata-note" class="muted" style="font-size:11px;line-height:1.5"></div>
+      <div class="muted" style="font-size:11px;line-height:1.5">Moteur <a href="https://github.com/Niko1221/Strata" target="_blank" rel="noopener">Strata</a> (MIT),
+        paquet figé et vérifié (SHA-256) publié par <a href="https://github.com/nathaninline/ajean" target="_blank" rel="noopener">AJEAN</a>.
+        Linux + NVIDIA (RTX 20 ou plus récente). Le modèle est téléchargé dans <code>/data/strata</code>.</div>
+    </div>
+    <div class="modal-foot">
+      <div class="foot-l"></div>
+      <div class="foot-r">
+        <button onclick="closeStrata()">fermer</button>
+        <button id="strata-save" hidden onclick="strataSaveSettings()">Enregistrer</button>
+        <button class="btn-save" id="strata-go" onclick="strataInstall()">Installer</button>
+      </div>
     </div>
   </div>
 </div>

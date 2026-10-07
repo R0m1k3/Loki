@@ -256,6 +256,9 @@ func newWebMux() *http.ServeMux {
 	api("/api/engine/remove", handleEngineRemove)     // supprime une version téléchargée
 	api("/api/engine/plan", handleEnginePlan)         // sur clic : version visée + effet sur le rendu du gabarit
 	api("/api/engine/rollback", handleEngineRollback) // revient au moteur d'avant la dernière bascule
+	api("/api/strata", handleStrata)                  // Strata : machine, catalogue figé, recommandation, modèles installés
+	api("/api/strata/install", handleStrataInstall)   // job : paquet figé + installeur de Strata + preset (suivi par /api/llamacpp/job)
+	api("/api/strata/settings", handleStrataSettings) // réglages d'un modèle Strata installé (relance s'il est actif)
 	api("/api/presets", handlePresets)
 	api("/api/preset", handlePreset)
 	api("/api/preset/save", handlePresetSave)
