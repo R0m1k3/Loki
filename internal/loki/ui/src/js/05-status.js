@@ -315,6 +315,27 @@ async function loadCfg(){
   const [c, lc] = await Promise.all([jget('/api/config'), jget('/api/llamacpp').catch(()=>null)]);
   const row=(k,v,title)=>'<div class="kv"><span>'+k+'</span><span title="'+String(title!=null?title:v).replace(/"/g,'&quot;')+'">'+String(v)+'</span></div>';
   const rows=[];
+  // Strata (backend_strata.go) : la config réelle de lancement, calculée par le
+  // serveur comme au démarrage (/api/strata → details du modèle actif).
+  if(/^(strata|moe)$/i.test((c.ENGINE||'').trim())){
+    const s = await jget('/api/strata').catch(()=>null);
+    let fam=null, fit=null;
+    for(const f of (s&&s.families)||[]){ const x=f.fits.find(x=>x.active); if(x){ fam=f; fit=x; } }
+    const d=fit&&fit.details;
+    rows.push(row('MOTEUR', 'Strata', 'paquet AJEAN MoE '+((s&&s.version)||'')));
+    if(typeof setLoadedModel === 'function') setLoadedModel('');
+    if(fam) rows.push(row('MODEL', 'Qwen3.8 Flash Next '+fam.label+' '+fit.quant.id));
+    if(d){
+      const k=n=>(+n>=1024 ? Math.round(+n/1024)+'K' : n);
+      rows.push(row('CTX', d.ctx));
+      rows.push(row('KV', d.kv+(d.kv_resident ? ' · '+k(d.kv_resident)+' VRAM' : '')));
+      rows.push(row('MTP', d.spec));
+      rows.push(row('EXPERTS', d.drop ? 'mlock' : d.mmap ? 'mmap' : 'RAM'));
+      if(d.vision_gpu) rows.push(row('VISION', 'on', d.vision_gpu));
+    }else if(c.CTX) rows.push(row('CTX', c.CTX));
+    document.getElementById('cfg').innerHTML = rows.join('') + await engineCmdlineRow();
+    return;
+  }
   if(c.BIN){
     // Moteur : précompilé / compilé / personnalisé (avec le chemin). Le title garde
     // toujours le chemin complet, quel que soit le libellé.
@@ -336,12 +357,26 @@ async function loadCfg(){
   // Le modèle chargé alimente aussi le sélecteur de l'en-tête : c'est la seule
   // source qui le connaisse quand aucun preset ne correspond à la configuration.
   if(typeof setLoadedModel === 'function') setLoadedModel(c.MODEL || '');
+  // Nombre de couches du modèle (amont #43) : NGL au-delà de ngl_max ne change
+  // rien, en dessous on libère de la VRAM pour le contexte et le cache KV.
+  const ly=c.MODEL ? await jget('/api/model/layers').catch(()=>null) : null;
   ['MODEL','CTX','BATCH','UBATCH','NGL'].filter(k=>c[k]).forEach(k=>{
-    let v=c[k]; if(k==='MODEL') v=v.split('/').pop();
+    let v=c[k]; if(k==='MODEL') v=v.split(/[\\/]/).pop();
+    if(k==='NGL' && ly && ly.ok){ rows.push(row(k, v+' / '+ly.ngl_max, ly.ngl_max+' = tout le modèle sur le GPU ('+ly.layers+' couches + la sortie)')); return; }
     rows.push(row(k, v));
   });
   // n-cpu-moe : affiché seulement s'il est réellement présent dans EXTRA_ARGS.
   const m=(c.EXTRA_ARGS||'').match(/--n-cpu-moe\s+(\d+)/);
   if(m) rows.push(row('N-CPU-MOE', m[1]));
-  document.getElementById('cfg').innerHTML = rows.join('');
+  document.getElementById('cfg').innerHTML = rows.join('') + await engineCmdlineRow();
+}
+// Ligne de commande exacte du dernier lancement du moteur (amont #108),
+// copiable pour la vérifier ou la partager. Clé API masquée côté serveur.
+let ENGINE_CMDLINE='';
+async function engineCmdlineRow(){
+  const cl=await jget('/api/engine/cmdline').catch(()=>null);
+  ENGINE_CMDLINE=(cl&&cl.cmdline)||'';
+  if(!ENGINE_CMDLINE) return '';
+  return '<div class="kv"><span>COMMANDE</span><span><button class="pe-link" onclick="copyText(ENGINE_CMDLINE, \'commande copiée\')" title="'
+    +escHtml(ENGINE_CMDLINE)+'">copier la commande du moteur</button></span></div>';
 }

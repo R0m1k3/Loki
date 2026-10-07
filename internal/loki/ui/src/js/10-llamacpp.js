@@ -57,7 +57,7 @@ let lcSeenEnd = false, lcEndShown = false;
 function lcChipLabel(action){
   return {install:'Compilation du moteur', update:'Mise à jour du moteur',
           prebuilt:'Téléchargement du moteur', engine:'Mise à jour du moteur',
-          custom:'Installation du backend'}[action] || 'Installation du moteur';
+          custom:'Installation du backend', strata:'Installation de Strata'}[action] || 'Installation du moteur';
 }
 function lcChipSync(j){
   const chip = document.getElementById('lc-chip');

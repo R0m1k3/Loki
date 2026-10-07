@@ -65,6 +65,12 @@ func userSvcAction(action string) error {
 }
 
 func userSvcStart() error {
+	// Preset externe : `loki serve` sortirait aussitôt (rien à lancer), et
+	// userCheckStarted le prendrait pour un plantage.
+	if isExternalConfig(ReadConfig()) {
+		fmt.Printf("%s preset externe actif : pas de moteur local à démarrer\n", dim("[info]"))
+		return nil
+	}
 	if pid := readServicePID(); pid > 0 && processAlive(pid) {
 		fmt.Printf("%s déjà démarré (PID %d)\n", yellow("[info]"), pid)
 		return nil

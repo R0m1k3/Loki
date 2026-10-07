@@ -272,6 +272,20 @@ func cmdServe(args []string) error {
 		}
 		cfg = c
 	}
+	// API externe : aucun moteur local. On sort SANS erreur, sinon systemd
+	// (Restart=on-failure) relance en boucle « MODEL non défini » (amont #95).
+	if isExternalConfig(cfg) {
+		fmt.Println("[info] preset externe actif : pas de moteur local à lancer")
+		return nil
+	}
+	// Preset ENGINE=strata (backend_strata.go) : un autre moteur, lancé par son
+	// propre serveur. L'optimiseur ne règle que llama-server.
+	if isStrataConfig(cfg) {
+		if trialDir != "" {
+			return fmt.Errorf("l'optimiseur ne s'applique pas à un preset Strata")
+		}
+		return serveStrata(cfg)
+	}
 	bin := cfg["BIN"]
 	if bin == "" {
 		return fmt.Errorf("BIN non défini — lance « loki edit »")
@@ -463,6 +477,10 @@ func cmdServe(args []string) error {
 
 	fmt.Fprintf(os.Stderr, "[loki serve] %s  model=%s  port=%s\n",
 		bin, filepath.Base(model), port)
+	// Ligne de commande réellement lancée, gardée pour l'interface (amont #108).
+	if trialDir == "" {
+		recordEngineCmdline(env, llmArgs)
+	}
 
 	// Hand off to the llama-server process. On Unix this replaces the current
 	// process (exec); on Windows it runs as a child and waits. See sys_platform_*.go.

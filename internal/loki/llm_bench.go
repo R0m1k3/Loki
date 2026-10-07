@@ -828,6 +828,12 @@ func runBench(ctx context.Context, opts benchOpts, progress benchProgress) (*ben
 	if externalActive() {
 		return nil, fmt.Errorf("benchmark indisponible : le preset actif est une API externe")
 	}
+	// Le protocole s'appuie sur /tokenize et sur la reprise du cache de
+	// llama-server ; Strata n'a pas le premier et garde sa conversation en cache
+	// malgré cache_prompt:false (la lecture serait comptée deux fois trop vite).
+	if strataActive() {
+		return nil, fmt.Errorf("benchmark indisponible : le preset actif tourne sur Strata (le débit s'affiche sous chaque réponse)")
+	}
 	if err := tuneGuard(); err != nil {
 		return nil, err
 	}

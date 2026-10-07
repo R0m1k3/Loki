@@ -52,6 +52,16 @@ et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
 **pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
 expose à la place un export/import de paquet chiffré en fichier local.
 
+## Moteur Strata
+
+Le second moteur de Loki (`internal/loki/backend_strata.go`) est
+**[Strata](https://github.com/Niko1221/Strata)** (MIT), spécialisé dans
+Qwen3.8-Flash-Next. Son intégration est reprise d'AJEAN (« AJEAN MoE 1.0 »,
+`backend_moe.go`) : Loki télécharge le paquet figé publié par AJEAN sur sa
+release `moe-v1.0` (sources de Strata et binaire Linux CUDA 12 compilé, avec
+les modifications d'AJEAN), vérifié par SHA-256. Ni Strata ni le modèle ne sont
+inclus dans l'image : ils sont téléchargés à la demande.
+
 ## Services externes
 
 Le tunnel d'accès distant continue de pointer vers **ajean.link**, le relais

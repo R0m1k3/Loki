@@ -109,7 +109,8 @@ func modelLoadErrorFrom(log string) string {
 	for i, l := range lines {
 		// Un lancement refusé par LOAD_GUARD (backend_serve_moe.go) s'arrête
 		// avant tout chargement : c'est lui, la dernière tentative.
-		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) {
+		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) ||
+			strings.Contains(l, strataServeMarker) {
 			start = i
 		}
 	}
@@ -117,8 +118,16 @@ func modelLoadErrorFrom(log string) string {
 	for _, l := range lines[start:] {
 		low := strings.ToLower(l)
 		switch {
-		case strings.Contains(low, "model loaded"), strings.Contains(low, "server is listening"):
+		case strings.Contains(low, "model loaded"), strings.Contains(low, "server is listening"),
+			strings.HasPrefix(l, "ready: http://"): // serveur de Strata prêt
 			loaded = true
+		// Serveur de Strata (Python) : une trace = il s'est arrêté, pas « il charge encore ».
+		case strings.Contains(l, "Traceback (most recent call last)"):
+			if reason == "" {
+				reason = "le serveur de Strata s'est arrêté (trace Python dans le journal)"
+			}
+		case strings.Contains(l, "[strata] config"):
+			reason = "configuration de Strata refusée (détail dans le journal) — réinstalle le modèle"
 		case strings.Contains(low, "failed to create mtp context"),
 			strings.Contains(low, "failed to load draft model"),
 			strings.Contains(low, "failed to initialize speculative decoding context"):
@@ -432,8 +441,26 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 				if m := strings.TrimSpace(cfg[extKeyModel]); m != "" {
 					item["model"] = m
 				}
+				if strings.TrimSpace(cfg[extKeyVision]) == "1" {
+					item["vision"] = true
+				}
 				out = append(out, item)
 				continue
+			}
+			// Pastilles de la liste : taille de contexte, et l'œil quand le preset
+			// charge un projecteur vision (repris d'AJEAN v0.10.1 / v0.10.9).
+			if c := presetCtx(content); c != "" {
+				item["ctx"] = c
+			}
+			if strings.TrimSpace(parseEnv(content)["MMPROJ"]) != "" {
+				item["vision"] = true
+			}
+			// Strata : réglages dans sa propre fenêtre, pas l'éditeur llama.cpp.
+			if cfg := parseEnv(content); isStrataConfig(cfg) {
+				item["strata"] = true
+				if cfg["STRATA_VISION"] != "0" {
+					item["vision"] = true
+				}
 			}
 			if q := detectQuant(content); q != "" {
 				item["quant"] = q
@@ -465,6 +492,26 @@ func handlePresets(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, 200, out)
 }
 
+// handlePresetsOrder (POST {ids}) : l'ordre de la liste choisi par glisser-déposer.
+func handlePresetsOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendJSON(w, 405, map[string]any{"ok": false, "error": "POST attendu"})
+		return
+	}
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if err := savePresetOrder(req.IDs); err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
 func handlePreset(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if id == "" {
@@ -476,16 +523,20 @@ func handlePreset(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 404, map[string]any{"error": "not found"})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"id": id, "name": presetDisplayName(content, id), "content": content})
+	sendJSON(w, 200, map[string]any{"id": id, "name": presetDisplayName(content, id), "content": content,
+		"sysprompt": getStr(bkState, sysPromptKeyPrefix+id)})
 }
 
 // presetSaveReq is the preset editor payload. `id` identifies an existing
 // preset to update ("" creates a new one); `name` is the display name.
+// SysPrompt : le prompt système DE CE preset, édité dans l'éditeur (repris
+// d'AJEAN v0.13.0) ; nil = champ absent, on n'y touche pas.
 type presetSaveReq struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Content     string `json:"content"`
-	DeleteModel bool   `json:"deleteModel"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Content     string  `json:"content"`
+	DeleteModel bool    `json:"deleteModel"`
+	SysPrompt   *string `json:"sysprompt,omitempty"`
 }
 
 // saveReq is the skill editor payload (skills keep name-as-identity + rename).
@@ -587,6 +638,12 @@ func handlePresetSave(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
+	}
+	if req.SysPrompt != nil {
+		if err := putStr(bkState, sysPromptKeyPrefix+newID, strings.TrimSpace(*req.SysPrompt)); err != nil {
+			sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
 	}
 	if applied {
 		fmt.Printf("%s config.env <- %s (preset actif modifié)\n", green("[ok]"), newID)

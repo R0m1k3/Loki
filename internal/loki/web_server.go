@@ -220,6 +220,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/vram/reload", handleVramReload) // relance le moteur (le modèle se recharge)
 	api("/api/ram", handleRam)
 	api("/api/config", handleConfigEnv)
+	api("/api/engine/cmdline", handleEngineCmdline) // commande du dernier lancement du moteur (amont #108)
+	api("/api/model/layers", handleModelLayers)     // nombre de couches du modèle, lu dans le GGUF (amont #43)
 	api("/api/paths", handlePaths)
 	api("/api/update", handleUpdateCheck)
 	api("/api/update/apply", handleUpdateApply)
@@ -256,7 +258,11 @@ func newWebMux() *http.ServeMux {
 	api("/api/engine/remove", handleEngineRemove)     // supprime une version téléchargée
 	api("/api/engine/plan", handleEnginePlan)         // sur clic : version visée + effet sur le rendu du gabarit
 	api("/api/engine/rollback", handleEngineRollback) // revient au moteur d'avant la dernière bascule
+	api("/api/strata", handleStrata)                  // Strata : machine, catalogue figé, recommandation, modèles installés
+	api("/api/strata/install", handleStrataInstall)   // job : paquet figé + installeur de Strata + preset (suivi par /api/llamacpp/job)
+	api("/api/strata/settings", handleStrataSettings) // réglages d'un modèle Strata installé (relance s'il est actif)
 	api("/api/presets", handlePresets)
+	api("/api/presets/order", handlePresetsOrder) // ordre de la liste (glisser-déposer)
 	api("/api/preset", handlePreset)
 	api("/api/preset/save", handlePresetSave)
 	api("/api/preset/cacheram", handlePresetCacheRAM)   // aperçu de --cache-ram pour le preset édité

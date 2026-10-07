@@ -87,8 +87,12 @@ LABEL org.opencontainers.image.revision="${LOKI_VERSION}" \
 # via npx ; tini en PID 1. curl et libgomp1 sont déjà dans l'image amont.
 # Node 22 depuis NodeSource et non depuis Ubuntu (qui livre Node 18) : Playwright
 # et la plupart des serveurs MCP réclament Node ≥ 20.
+# python3 + python3-venv : l'installeur et le serveur du moteur Strata
+# (backend_strata.go) sont en Python ≥ 3.10 et créent leur propre .venv dans
+# /data/strata. Le moteur et le modèle ne sont PAS dans l'image : téléchargés
+# à la demande depuis Paramètres → Moteur.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git tini ca-certificates curl gnupg \
+        git tini ca-certificates curl gnupg python3 python3-venv \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*

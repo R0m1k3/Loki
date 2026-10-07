@@ -93,6 +93,33 @@ la recherche qu'au téléchargement. À défaut, la variable d'environnement
 priorité. Un jeton en **lecture** suffit (huggingface.co/settings/tokens), et il
 n'est envoyé qu'aux adresses Hugging Face.
 
+## Choisir son moteur : llama.cpp ou Strata
+
+Loki a deux moteurs, et le choix se fait **par preset** (clé `ENGINE`) :
+
+- **llama.cpp** (par défaut) — n'importe quel GGUF, réglages complets dans
+  l'éditeur de preset.
+- **[Strata](https://github.com/Niko1221/Strata)** — spécialisé dans
+  **Qwen3.8 Flash Next** (MoE de 125 B) : les experts sont répartis entre
+  VRAM, RAM et disque pour faire tourner ce modèle sur une carte de joueur.
+  Intégration reprise d'AJEAN (paquet figé « AJEAN MoE 1.0 », vérifié par
+  SHA-256).
+
+**Paramètres → Moteur → Strata** : la fenêtre lit la machine (cartes, RAM,
+disque), propose la version (Classique ou Swift 1.5) et la qualité qui tient,
+puis installe et active le modèle en un clic (téléchargement de 66 à 84 Go dans
+`/data/strata`). Le modèle installé devient un preset comme les autres :
+basculer dessus lance Strata, basculer sur un autre preset revient à llama.cpp.
+Son engrenage ouvre les réglages propres à Strata (contexte jusqu'à 262 144,
+cache KV fp16/8 bits, prédiction MTP, lecture des images, carte d'appoint).
+
+Pré-requis : Linux + NVIDIA RTX 20 ou plus récente (8 Go de VRAM minimum, une
+deuxième carte est utilisée comme carte d'appoint), environ 46 Go de RAM pour
+la plus petite qualité, pilote compatible CUDA 12.8. Le conteneur doit pouvoir
+verrouiller la mémoire : `ulimits: memlock: -1` (déjà présent dans les
+fichiers compose fournis). Le benchmark et l'optimiseur ne s'appliquent qu'à
+llama.cpp.
+
 ## Installation sur Unraid
 
 L'image est construite et publiée par GitHub Actions sur GHCR

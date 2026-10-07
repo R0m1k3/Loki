@@ -170,7 +170,7 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag,.preset-meta .ctag,.preset-meta .captag{font-size:11px;padding:2px 9px;border-radius:4px}
   .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
@@ -266,6 +266,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
    (étiquette comprise), plus sur la carte seule. */
 .gated-group{margin:0 0 10px;transition:opacity .15s}
 .gated-group.gated{opacity:.4;pointer-events:none;filter:grayscale(.4)}
+/* L'aide « ? » reste survolable sur un réglage grisé : c'est justement là qu'on
+   veut savoir à quoi il sert (repris d'AJEAN, #104). */
+.gated-group.gated .help{pointer-events:auto}
 .switch{position:relative;display:inline-block;width:36px;height:20px;flex:none}
 .switch input{position:absolute;opacity:0;width:0;height:0}
 /* Piste décochée : un gris franc (pas --border), sinon le pavé blanc ne se
@@ -363,6 +366,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+.ctag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Pastille « capacités » (repris d'AJEAN) : vision (œil) et raisonnement
+   (ampoule + niveau). Icônes en em : la bulle a la hauteur des autres tags. */
+.captag{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+.captag::before{content:"\200b";margin-right:-4px}
+.captag svg{display:block;width:1.3em;height:1.3em}
+/* Réordonnancement des presets (SortableJS) : clone plein qui suit le curseur,
+   emplacement cible discret. */
+.preset-drag{cursor:grabbing;background:var(--row-bg-on);border:none;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.35);outline:none;opacity:1!important}
+.preset-ghost{opacity:.35}
+.preset-chosen{cursor:grabbing}
 /* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
    un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
    carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.
@@ -767,6 +781,32 @@ textarea.sctl{min-height:76px;resize:vertical;line-height:1.5}
    gris atténué du thème monochrome et devenait illisible en mode sombre. */
 .lc-reco{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--text);color:var(--bg);border:1px solid var(--text);border-radius:4px;padding:1px 6px}
 .lc-mode-d{font-size:11px;color:var(--dim);margin-top:3px}
+/* Strata (10b-strata.js) : liste des qualités, réglages et configuration. */
+.slist>.lc-modes#lc-engines{border-top:1px solid var(--border)}
+#lc-strata.moe-off{cursor:default}
+#lc-strata.moe-off:hover{background:none}
+#lc-strata.moe-off .lc-mode-t{color:var(--dim)}
+#strata-quants{overflow:hidden}
+#strata-quants .lc-mode.moe-sel{background:var(--accent-bg)}
+#strata-quants .lc-mode.moe-sel .lc-mode-t{color:var(--accent)}
+#strata-quants .lc-mode.moe-off{cursor:default}
+#strata-quants .lc-mode.moe-off:hover{background:none}
+#strata-quants .lc-mode.moe-off .lc-mode-t{color:var(--dim)}
+.moe-details{padding:4px 10px}
+.moe-details .moe-kv{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;padding:5px 0}
+.moe-details .moe-kv .switch{display:block}
+.moe-details .moe-kv:not(:last-child){border-bottom:1px solid var(--border)}
+.moe-details .moe-kv span:first-child{color:var(--dim)}
+.moe-details .moe-kv span:last-child{text-align:right}
+.moe-ctx{display:flex;align-items:center;gap:10px}
+.moe-ctx input[type=range]{width:160px;height:16px;margin:0;padding:0;background:transparent;border:none;-webkit-appearance:none;appearance:none;cursor:ew-resize}
+.moe-ctx input[type=range]:focus{outline:none}
+.moe-ctx input[type=range]::-webkit-slider-runnable-track{height:4px;border:none;border-radius:999px;background:linear-gradient(to right,var(--accent) var(--p,50%),color-mix(in srgb,var(--dim) 25%,transparent) var(--p,50%))}
+.moe-ctx input[type=range]::-moz-range-track{height:4px;border:none;border-radius:999px;background:color-mix(in srgb,var(--dim) 25%,transparent)}
+.moe-ctx input[type=range]::-moz-range-progress{height:4px;border-radius:999px;background:var(--accent)}
+.moe-ctx input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;border:none;border-radius:50%;background:var(--accent)}
+.moe-ctx input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--accent)}
+.moe-ctx span{min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
 /* Hauteur réservée : la ligne d'état arrive après l'appel réseau, sans elle
    les trois cartes grandissaient d'un cran une fois l'état connu. */
 .lc-mode-state{font-size:11px;min-height:16px;margin-top:7px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}

@@ -113,7 +113,69 @@ func ListPresets() ([]Preset, error) {
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	return applyPresetOrder(out), nil
+}
+
+// presetOrderKey : ordre d'affichage choisi par glisser-déposer dans l'UI
+// (repris d'AJEAN v0.10.9), une liste d'IDs persistée en base.
+const presetOrderKey = "preset_order"
+
+func loadPresetOrder() []string {
+	var ids []string
+	getJSON(bkState, presetOrderKey, &ids)
+	return ids
+}
+
+func savePresetOrder(ids []string) error { return putJSON(bkState, presetOrderKey, ids) }
+
+// applyPresetOrder réordonne `list` (déjà trié par nom) selon l'ordre stocké :
+// d'abord les presets classés dans l'ordre choisi, puis les non classés
+// (fraîchement créés) dans leur ordre alphabétique. Tri STABLE.
+func applyPresetOrder(list []Preset) []Preset {
+	order := loadPresetOrder()
+	if len(order) == 0 {
+		return list
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		pi, oki := pos[list[i].ID]
+		pj, okj := pos[list[j].ID]
+		if oki && okj {
+			return pi < pj
+		}
+		if oki != okj {
+			return oki // un preset classé passe avant un non classé
+		}
+		return false // deux non classés : l'ordre alphabétique reste
+	})
+	return list
+}
+
+// presetCtx : la taille de contexte d'un preset, formatée pour la pastille de
+// la liste (« 32K », « 128K », « 1M »). CTX absent = 32768, le défaut de serve.
+func presetCtx(content string) string {
+	raw := strings.TrimSpace(parseEnv(content)["CTX"])
+	if raw == "" {
+		raw = "32768"
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return ""
+	}
+	// Multiple de 1024 (32768, 131072…) : écrit comme on le pense, « 32K »,
+	// « 128K » ; sinon décimal, comme on le tape (40000 → « 40K »).
+	switch {
+	case n >= 1024 && n%1024 == 0 && n < 1<<20:
+		return strconv.Itoa(n/1024) + "K"
+	case n >= 1000000:
+		return strings.TrimSuffix(strconv.FormatFloat(float64(n)/1000000, 'f', 1, 64), ".0") + "M"
+	case n >= 1000:
+		return strconv.Itoa((n+500)/1000) + "K"
+	}
+	return strconv.Itoa(n)
 }
 
 // uniquePresetID derives a unique filename id from a display name, appending
