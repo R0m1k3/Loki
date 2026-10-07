@@ -4521,7 +4521,7 @@ async function loadCfg(){
       rows.push(row('CTX', d.ctx));
       rows.push(row('KV', d.kv+(d.kv_resident ? ' · '+k(d.kv_resident)+' VRAM' : '')));
       rows.push(row('MTP', d.spec));
-      rows.push(row('EXPERTS', d.drop ? 'mlock' : d.mmap ? 'mmap' : 'RAM'));
+      rows.push(row('EXPERTS', ({drop:'mlock (hors appoint)', ram:'RAM', arena:'experts.bin', disk:'mmap (disque)'})[d.mode] || (d.mmap ? 'mmap' : 'RAM'), d.mode_label||''));
       if(d.vision_gpu) rows.push(row('VISION', 'on', d.vision_gpu));
     }else if(c.CTX) rows.push(row('CTX', c.CTX));
     document.getElementById('cfg').innerHTML = rows.join('') + await engineCmdlineRow();
@@ -9188,8 +9188,9 @@ async function openStrata(presetId){
     .sort((a,b)=>(a.index===env.main?-1:1))
     .map(g=>g.name.replace(/^NVIDIA GeForce /,'')+' '+Math.round(g.vram_gb)+' Go');
   document.getElementById('strata-machine').textContent =
-    'Machine : '+cards.join(' + ')+', '+Math.round(env.ram_gb)+' Go de RAM, '
-    +Math.round(env.disk_free_gb)+' Go libres. Réglages automatiques.';
+    'Machine : '+cards.join(' + ')+', '+Math.round(env.ram_gb)+' Go de RAM dont '
+    +Math.round(env.avail_gb||env.ram_gb)+' disponibles, '
+    +Math.round(env.disk_free_gb)+' Go de disque libres. Réglages automatiques.';
   if(!strataFam) strataFam = (s.families[0]||{}).id || '';
   if(strataTarget){
     for(const f of s.families){
@@ -9241,7 +9242,7 @@ function strataRenderQuants(pickReco){
   strataRenderDetails(fit);
   document.getElementById('strata-note').textContent = !fit ? 'Aucune version ne tient sur cette machine.'
     : fit.active ? 'Modèle actif.' : fit.preset ? 'Modèle installé, prêt à être activé.'
-    : fit.mmap ? 'RAM insuffisante pour tout charger : experts lus depuis le disque (mmap, ~45 Go de plus). Installation et activation automatiques.'
+    : fit.mmap ? 'RAM disponible insuffisante pour tout charger : les experts seront lus depuis le disque (mmap, un peu plus lent). Installation et activation automatiques.'
     : 'Installation et activation automatiques. Premier chargement : quelques minutes.';
 }
 
@@ -9270,6 +9271,9 @@ function strataRenderSettings(fit){
     ['Contexte', '<span class="moe-ctx"><input type="range" id="strata-s-ctx" min="32768" max="262144" step="4096" value="'+(+d.ctx||131072)+'" oninput="strataCtxLbl()"><span id="strata-s-ctx-v"></span></span>'],
     ['Cache KV', sel('strata-s-kv', [['fp16', 'fp16 (meilleure qualité)'],['int8', '8 bits (plus léger)']], d.kv)],
     ['Prédiction (MTP)', sel('strata-s-spec', [[2,'2'],[3,'3'],[4,'4']], d.spec)],
+    // Placement des experts : auto décide AU LANCEMENT sur la RAM disponible ;
+    // « disque » ne charge rien en RAM au démarrage (jamais tué faute de RAM).
+    ['Experts', sel('strata-s-experts', [['auto','auto (selon la RAM libre)'],['ram','en RAM (le plus rapide)'],['disk','depuis le disque (mmap, économe)']], d.experts||'auto')],
     ['Lire les images', sw('strata-s-vision', d.vision)],
   ];
   if(d.has_helper) rows.push(["Carte d'appoint", sw('strata-s-helper', d.helper_on)]);
@@ -9292,7 +9296,8 @@ async function strataSaveSettings(){
   if(!fit || !fit.preset) return;
   const v = id => document.getElementById(id);
   const body = {preset: fit.preset, ctx: +v('strata-s-ctx').value, kv: v('strata-s-kv').value, spec: +v('strata-s-spec').value,
-    vision: v('strata-s-vision').checked, helper: v('strata-s-helper') ? v('strata-s-helper').checked : false};
+    vision: v('strata-s-vision').checked, helper: v('strata-s-helper') ? v('strata-s-helper').checked : false,
+    experts: v('strata-s-experts') ? v('strata-s-experts').value : ''};
   if(fit.active && !await askConfirm('Le modèle va redémarrer avec ces réglages (quelques minutes).', {title:'Strata — Qwen3.8 Flash Next', okText:'Enregistrer'})) return;
   const r = await jpost('/api/strata/settings', body);
   if(!r.ok){ toast('Erreur : '+(r.error||'')); return; }
@@ -9316,7 +9321,8 @@ function strataRenderDetails(fit){
     ['Contexte', (+d.ctx).toLocaleString('fr-FR')+' jetons'],
     ['Cache KV', d.kv + (d.kv_resident ? ' · '+k(d.kv_resident)+' en VRAM, le reste en RAM' : '')],
     ['Prédiction (MTP)', d.spec+' jetons'],
-    ['Experts hors GPU', d.drop ? "verrouillés en RAM, hors ceux de la carte d'appoint" : d.mmap ? 'lus depuis le disque (mmap)' : 'chargés en RAM'],
+    ['Experts hors GPU', (d.mode_label || (d.mmap ? 'lus depuis le disque (mmap)' : 'chargés en RAM'))
+      + (fit.active ? ' — dernier lancement' : ' — selon la RAM libre maintenant')],
     ['Lecture des prompts', 'blocs de '+k(d.prefill)+', lecture directe sous '+d.short_read+' jetons'],
     ["Démarrage d'une conversation", 'reprise après le prompt système (dès '+d.cache_root+' jetons)'],
     ['Version du moteur', 'paquet AJEAN MoE '+d.version],

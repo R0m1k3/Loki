@@ -129,9 +129,120 @@ const strataDropHeadroomGB = 7
 // le contexte CUDA, l'encodeur d'images et la marge : 5,3 Gio sur une 3070 8 Go).
 func strataHelperExpertsGB(vramGB float64) float64 { return max(vramGB-2.5, 0) }
 
-// strataMmapExtraGB : le mode mmap écrit les experts dans un fichier à part
-// (experts.bin), à compter en plus du téléchargement.
-const strataMmapExtraGB = 45
+// Où vivent les experts que les cartes ne gardent pas (clé STRATA_EXPERTS du
+// preset : auto, ram ou disk), et le mode effectivement lancé :
+//
+//	drop   experts de la carte d'appoint hors RAM, le reste verrouillé en RAM
+//	       (le plus rapide mesuré par AJEAN) — demande un experts.bin existant
+//	ram    tous les experts chargés et verrouillés en RAM
+//	arena  experts.bin existant mappé tel quel (cache système)
+//	disk   experts lus dans les fichiers du modèle (--mmap-experts) : rien
+//	       n'est chargé au démarrage, le cache système garde ce que la RAM
+//	       permet. Un peu plus lent, mais jamais tué faute de RAM.
+//
+// Vécu (2026-10) : 62 Go de RAM dont 18 déjà pris par le reste du serveur, le
+// mode « hors RAM » choisi sur la RAM TOTALE, et un premier lancement qui
+// écrivait experts.bin en chargeant ~41 Go en mémoire anonyme : le noyau a tué
+// le moteur. D'où : décision sur la RAM DISPONIBLE au lancement, et plus jamais
+// de premier lancement qui écrit experts.bin.
+const (
+	strataExpertsAuto = "auto"
+	strataExpertsRAM  = "ram"
+	strataExpertsDisk = "disk"
+)
+
+// memAvailableGB : la RAM réellement disponible (MemAvailable : libre + cache
+// récupérable), en Go. Hors Linux ou illisible : la RAM totale.
+func memAvailableGB() float64 {
+	b, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return totalRAMGB()
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(line, "MemAvailable:"); ok {
+			f := strings.Fields(v)
+			if len(f) > 0 {
+				if kb, err := strconv.ParseFloat(f[0], 64); err == nil {
+					return kb * 1024 / 1e9
+				}
+			}
+		}
+	}
+	return totalRAMGB()
+}
+
+// strataArenaGB : la taille des experts du quant d'un preset (lue dans le nom
+// de sa config d'installeur : strata-swift-iq3_xxs.json → IQ3_XXS). 0 = inconnu.
+func strataArenaGB(cfg map[string]string) float64 {
+	tag := strings.ToUpper(strataConfigTag(strings.TrimSpace(cfg["STRATA_CONFIG"])))
+	tag = strings.TrimPrefix(tag, "SWIFT-")
+	if q, ok := strataQuants[tag]; ok {
+		return q.ArenaGB
+	}
+	return 0
+}
+
+// strataPackHasExpertsBin : experts.bin est déjà dans le pack (écrit par un
+// lancement précédent ou par l'installeur en mode peu de RAM).
+func strataPackHasExpertsBin(args []string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--pack" {
+			if _, err := os.Stat(filepath.Join(args[i+1], "experts.bin")); err == nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// strataResolveExperts : le mode lancé, d'après le choix du preset et la RAM
+// disponible (availGB) ; helperGB = VRAM de la carte d'appoint (0 sans).
+// Pure : la décision se teste en table.
+func strataResolveExperts(cfg map[string]string, args []string, availGB, helperGB float64) string {
+	binReady := strataPackHasExpertsBin(args) && strataEngineInstalled() == strataEngineAsset
+	dropReady := binReady && strataHelperOn(cfg) && cfg["STRATA_DROP"] != "0"
+	arena := strataArenaGB(cfg)
+	switch strings.ToLower(strings.TrimSpace(cfg["STRATA_EXPERTS"])) {
+	case strataExpertsDisk:
+		if binReady {
+			return "arena"
+		}
+		return "disk"
+	case strataExpertsRAM:
+		if dropReady {
+			return "drop"
+		}
+		return "ram"
+	}
+	if arena <= 0 { // quant inconnu : on ne parie pas sur la RAM
+		return "disk"
+	}
+	if dropReady && availGB >= arena-strataHelperExpertsGB(helperGB)+strataDropHeadroomGB {
+		return "drop"
+	}
+	if availGB >= arena+strataLowRAMHeadroomGB {
+		return "ram"
+	}
+	if binReady {
+		return "arena"
+	}
+	return "disk"
+}
+
+// strataExpertsLabel : le mode en clair, pour l'interface et le journal.
+func strataExpertsLabel(mode string) string {
+	switch mode {
+	case "drop":
+		return "verrouillés en RAM, hors ceux de la carte d'appoint"
+	case "ram":
+		return "chargés et verrouillés en RAM"
+	case "arena":
+		return "experts.bin mappé (cache système)"
+	case "disk":
+		return "lus depuis le disque (mmap)"
+	}
+	return mode
+}
 
 // strataMaxCtx : contexte natif maximal de Qwen3.8 Flash Next.
 const strataMaxCtx = 262144
@@ -162,6 +273,7 @@ type strataEnv struct {
 	Main       int         `json:"main"`   // index nvidia-smi de la carte principale
 	Helper     int         `json:"helper"` // index de la carte d'aide, -1 sans
 	RAMGB      float64     `json:"ram_gb"`
+	AvailGB    float64     `json:"avail_gb"` // RAM disponible (+ celle du moteur Strata en marche)
 	DiskFreeGB float64     `json:"disk_free_gb"`
 	Python     string      `json:"python,omitempty"`
 }
@@ -171,6 +283,7 @@ const strataMinArch = 75
 
 func strataDetect() strataEnv {
 	env := strataEnv{Main: -1, Helper: -1, RAMGB: totalRAMGB()}
+	env.AvailGB = min(memAvailableGB()+strataEngineRSSGB(), env.RAMGB)
 	if f := diskFree(LokiHome()); f > 0 {
 		env.DiskFreeGB = float64(f) / 1e9
 	}
@@ -281,32 +394,60 @@ func strataHaveGB(family, quant string) float64 {
 		strataDirGB(filepath.Join(strataDataDir(), "mtp"))
 }
 
-// strataNeedsMmap : les experts ne tiennent pas en RAM avec la marge
-// nécessaire, ils seront lus en mmap depuis un fichier à part (experts.bin).
-func strataNeedsMmap(q strataQuant, ramGB float64) bool {
-	return ramGB < q.ArenaGB+strataLowRAMHeadroomGB
-}
-
-// strataDropFits : avec une carte d'aide, les experts qu'elle garde ne sont pas
-// en RAM ; le reste est verrouillé en RAM (plus rapide que le mmap : génération
-// ~64 au lieu de ~56 tok/s, lecture +17 à +38 %). Il faut que ce reste tienne.
-func strataDropFits(q strataQuant, env strataEnv) bool {
-	if env.Helper < 0 {
-		return false
+// strataEngineRSSGB : la RAM tenue par le moteur Strata qui tourne (serveur et
+// moteur, arbre du service), en Go. Ajoutée à la RAM disponible quand on prédit
+// pour CETTE machine : sinon le moteur en marche ferait croire qu'il ne tient pas.
+func strataEngineRSSGB() float64 {
+	if !strataActive() {
+		return 0
 	}
-	for _, g := range env.GPUs {
-		if g.Index == env.Helper {
-			return env.RAMGB >= q.ArenaGB-strataHelperExpertsGB(g.VRAMGB)+strataDropHeadroomGB
+	root := readServicePID()
+	if root <= 0 {
+		return 0
+	}
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0
+	}
+	parent := map[int]int{}
+	rss := map[int]float64{}
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join("/proc", e.Name(), "status"))
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if v, ok := strings.CutPrefix(line, "PPid:"); ok {
+				parent[pid], _ = strconv.Atoi(strings.TrimSpace(v))
+			} else if v, ok := strings.CutPrefix(line, "VmRSS:"); ok {
+				if f := strings.Fields(v); len(f) > 0 {
+					kb, _ := strconv.ParseFloat(f[0], 64)
+					rss[pid] = kb * 1024 / 1e9
+				}
+			}
 		}
 	}
-	return false
+	var total float64
+	for pid, r := range rss {
+		for p, n := pid, 0; p > 0 && n < 64; p, n = parent[p], n+1 {
+			if p == root {
+				total += r
+				break
+			}
+		}
+	}
+	return total
 }
 
 // strataFit : ce qu'un quant demande sur cette machine, et s'il y tient.
 type strataFit struct {
 	Quant  strataQuant `json:"quant"`
 	DiskGB float64     `json:"disk_gb"`
-	Mmap   bool        `json:"mmap"`
+	Mmap   bool        `json:"mmap"` // en mode auto, les experts seraient lus depuis le disque
 	Drop   bool        `json:"drop"` // experts de la carte d'aide hors RAM, le reste verrouillé
 	OK     bool        `json:"ok"`
 	Why    string      `json:"why,omitempty"`
@@ -329,9 +470,15 @@ type strataDetails struct {
 	CacheRoot  string `json:"cache_root"`
 	Mmap       bool   `json:"mmap"`
 	Drop       bool   `json:"drop"`
-	MainGPU    string `json:"main_gpu"`
-	HelperGPU  string `json:"helper_gpu,omitempty"`
-	VisionGPU  string `json:"vision_gpu,omitempty"`
+	// Experts : le choix du preset (auto, ram, disk) ; Mode : le mode lancé
+	// (drop, ram, arena, disk) — celui du dernier lancement pour le preset
+	// actif, sinon celui que la RAM disponible donnerait maintenant.
+	Experts   string `json:"experts"`
+	Mode      string `json:"mode"`
+	ModeLabel string `json:"mode_label"`
+	MainGPU   string `json:"main_gpu"`
+	HelperGPU string `json:"helper_gpu,omitempty"`
+	VisionGPU string `json:"vision_gpu,omitempty"`
 	// pour les réglages : ce que la machine permet et l'état actuel
 	HasHelper bool `json:"has_helper"` // une carte d'aide est disponible
 	HelperOn  bool `json:"helper_on"`
@@ -353,7 +500,13 @@ func strataDetailsFor(presetID string, env strataEnv) *strataDetails {
 	if json.Unmarshal(raw, &base) != nil {
 		return nil
 	}
-	out, err := strataBuildConfig(base, pc, "")
+	mode := strataResolveExperts(pc, strataArgList(base), env.AvailGB, strataHelperVRAM(pc, env.GPUs))
+	if active, _ := strataPresetActive(presetID); active {
+		if m := getStr(bkState, strataLaunchModeKey); m != "" {
+			mode = m
+		}
+	}
+	out, err := strataBuildConfig(base, pc, "", mode)
 	if err != nil {
 		return nil
 	}
@@ -379,9 +532,11 @@ func strataDetailsFor(presetID string, env strataEnv) *strataDetails {
 		Spec: val("--spec"), Prefill: val("--prefill"), ShortRead: val("--short-read"),
 		CacheRoot: val("--prompt-cache-root"), MainGPU: gpuName(pc["STRATA_MAIN_GPU"]),
 	}
-	if e, ok := out["env"].(map[string]any); ok {
-		d.Mmap = fmt.Sprint(e["STRATA_ARENA_MMAP"]) == "1"
-		d.Drop = fmt.Sprint(e["STRATA_REMOTE_DROP"]) == "1"
+	d.Mode, d.ModeLabel = mode, strataExpertsLabel(mode)
+	d.Mmap, d.Drop = mode == "disk" || mode == "arena", mode == "drop"
+	d.Experts = strings.ToLower(strings.TrimSpace(pc["STRATA_EXPERTS"]))
+	if d.Experts != strataExpertsRAM && d.Experts != strataExpertsDisk {
+		d.Experts = strataExpertsAuto
 	}
 	if h := strings.TrimSpace(pc["STRATA_HELPER_GPU"]); h != "" && h != "-1" {
 		d.HasHelper = true
@@ -402,15 +557,11 @@ func strataDetailsFor(presetID string, env strataEnv) *strataDetails {
 }
 
 func strataFitFor(q strataQuant, env strataEnv, haveGB float64) strataFit {
-	f := strataFit{Quant: q, Mmap: strataNeedsMmap(q, env.RAMGB)}
-	if f.Mmap && strataDropFits(q, env) {
-		f.Mmap, f.Drop = false, true
-	}
+	// Prédiction du mode auto sur la RAM DISPONIBLE (pas la RAM totale) : sous
+	// la marge, les experts seront lus depuis le disque. Le mode « hors RAM » de
+	// la carte d'appoint demande un experts.bin, qu'une installation neuve n'a pas.
+	f := strataFit{Quant: q, Mmap: env.AvailGB < q.ArenaGB+strataLowRAMHeadroomGB}
 	f.DiskGB = q.DownloadGB
-	// les deux modes lisent les experts dans experts.bin, écrit au premier lancement
-	if f.Mmap || f.Drop {
-		f.DiskGB += strataMmapExtraGB
-	}
 	// ce qui est déjà là ne se retélécharge pas ; il reste toujours les
 	// environnements (Python, bibliothèques CUDA, moteur) : ~10 Go
 	f.DiskGB = max(f.DiskGB-haveGB, 10)
@@ -646,8 +797,9 @@ func strataRunInstall(req strataInstallReq) {
 		"STRATA_MAIN_GPU=" + strconv.Itoa(env.Main),
 		"STRATA_HELPER_GPU=" + strconv.Itoa(env.Helper),
 		"STRATA_VISION=1",
-		"STRATA_MMAP=" + strataBool(fit.Mmap),
-		"STRATA_DROP=" + strataBool(fit.Drop),
+		// experts placés au lancement selon la RAM disponible (strataResolveExperts)
+		"STRATA_EXPERTS=" + strataExpertsAuto,
+		"STRATA_DROP=1",
 		// la meilleure qualité validée par AJEAN : cache KV en fp16 (32K en
 		// VRAM, le reste en RAM pour ne pas prendre la place des experts) et 3
 		// jetons de brouillon MTP (mesuré meilleur que 4)
@@ -773,8 +925,9 @@ func strataArgList(cfg map[string]any) []string {
 }
 
 // strataBuildConfig lit la config de l'installeur et y applique les réglages
-// du preset. Pure (testable) : ne lance rien.
-func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey string) (map[string]any, error) {
+// du preset, avec les experts placés selon `mode` (strataResolveExperts). Pure
+// (testable) : ne lance rien.
+func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey, mode string) (map[string]any, error) {
 	raw, _ := json.Marshal(base)
 	var out map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -811,32 +964,39 @@ func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey string
 			}
 		}
 	}
-	// Mode « peu de RAM » : l'installeur écrit --mmap-experts / --resident-experts.
-	// On applique à la place la variante mesurée par AJEAN : le pack experts.bin
-	// mappé tel quel (STRATA_ARENA_MMAP, le système garde en cache ce que la RAM
-	// permet), sans part PCIe (le mappage n'en donne pas l'adresse GPU). Le
-	// moteur écrit experts.bin lui-même au premier démarrage s'il manque.
+	// Experts (strataResolveExperts) : les drapeaux de l'installeur
+	// (--mmap-experts / --resident-experts) sont remplacés par ceux du mode.
 	env := map[string]any{}
 	if e, ok := out["env"].(map[string]any); ok {
 		env = e
 	}
-	if hasHelper && cfg["STRATA_DROP"] == "1" && strataDropReady(args) {
-		// Les experts de la carte d'aide hors RAM, le reste verrouillé en RAM
-		// (strataDropFits) : la principale relit aussi par PCIe une part de ce
-		// qui lui manque (part automatique) ; la réserve de la carte d'aide est figée.
-		args = strataDropFlag(strataDropFlag(args, "--mmap-experts"), "--resident-experts")
+	args = strataDropFlag(strataDropFlag(args, "--mmap-experts"), "--resident-experts")
+	delete(env, "STRATA_ARENA_MMAP")
+	delete(env, "STRATA_REMOTE_DROP")
+	switch mode {
+	case "drop":
+		if !hasHelper {
+			break // sans carte d'appoint, c'est le mode « ram »
+		}
+		// Les experts de la carte d'aide hors RAM, le reste verrouillé en RAM :
+		// la principale relit aussi par PCIe une part de ce qui lui manque (part
+		// automatique) ; la réserve de la carte d'aide est figée.
 		args = strataDropFlagValue(args, "--pcie-frac")
-		delete(env, "STRATA_ARENA_MMAP")
 		env["STRATA_REMOTE_DROP"] = "1"
 		// ses experts sont relus de sa VRAM à la lecture d'un prompt, par les fils
 		// de copie : 8 fils et 32 tampons (le moteur en prendrait 32 et 128)
 		env["STRATA_STAGER_THREADS"] = "8"
 		env["STRATA_STAGER_RING"] = "32"
-	} else if cfg["STRATA_MMAP"] == "1" || cfg["STRATA_DROP"] == "1" || strataHasArg(args, "--mmap-experts") || strataHasArg(args, "--resident-experts") {
-		// (STRATA_DROP sans experts.bin : ce lancement l'écrit, en mmap)
-		args = strataDropFlag(strataDropFlag(args, "--mmap-experts"), "--resident-experts")
+	case "arena":
+		// experts.bin mappé tel quel (variante mesurée par AJEAN), sans part PCIe :
+		// le mappage n'en donne pas l'adresse GPU.
 		args = strataSetArg(args, "--pcie-frac", "0")
 		env["STRATA_ARENA_MMAP"] = "1"
+	case "disk":
+		// Lus dans les fichiers du modèle par le cache système : rien n'est
+		// chargé au démarrage. Pas de part PCIe non plus (mémoire non épinglée).
+		args = append(args, "--mmap-experts")
+		args = strataSetArg(args, "--pcie-frac", "0")
 	}
 	for _, kv := range strataEnvTuning {
 		k, v, _ := strings.Cut(kv, "=")
@@ -874,23 +1034,50 @@ func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey string
 	return out, nil
 }
 
-// strataDropReady : le mode « experts de la carte d'aide hors RAM » lit les
-// experts dans experts.bin (écrit au premier lancement, en mmap) et demande le
-// moteur du paquet.
-func strataDropReady(args []string) bool {
-	pack := ""
-	for i := 0; i+1 < len(args); i++ {
-		if args[i] == "--pack" {
-			pack = args[i+1]
+// strataLaunchModeKey : le mode des experts du dernier lancement (bkState),
+// montré dans la fenêtre de Strata pour le preset actif.
+const strataLaunchModeKey = "strata_experts_mode"
+
+// strataHelperVRAM : VRAM (Go) de la carte d'appoint du preset, 0 sans.
+func strataHelperVRAM(cfg map[string]string, gpus []strataGPU) float64 {
+	if !strataHelperOn(cfg) {
+		return 0
+	}
+	h := strings.TrimSpace(cfg["STRATA_HELPER_GPU"])
+	for _, g := range gpus {
+		if strconv.Itoa(g.Index) == h {
+			return g.VRAMGB
 		}
 	}
-	if pack == "" {
-		return false
+	return 0
+}
+
+// strataPresetActive : le preset id est-il celui en service ?
+func strataPresetActive(id string) (bool, error) {
+	list, err := ListPresets()
+	if err != nil {
+		return false, err
 	}
-	if _, err := os.Stat(filepath.Join(pack, "experts.bin")); err != nil {
-		return false
+	for _, p := range list {
+		if p.ID == id {
+			return p.Active, nil
+		}
 	}
-	return strataEngineInstalled() == strataEngineAsset
+	return false, nil
+}
+
+// strataGPUs : les cartes NVIDIA vues par nvidia-smi (nil si indisponible).
+func strataGPUs() []strataGPU {
+	gpus, err := detectGPUs()
+	if err != nil {
+		return nil
+	}
+	var out []strataGPU
+	for _, g := range gpus {
+		mib, _ := strconv.ParseFloat(g.MemTotal, 64)
+		out = append(out, strataGPU{Index: g.Index, Name: g.Name, VRAMGB: mib / 1024})
+	}
+	return out
 }
 
 // strataEngineMarker : le paquet dont vient le moteur installé.
@@ -1009,7 +1196,14 @@ func serveStrata(cfg map[string]string) error {
 		fmt.Fprintf(os.Stderr, "[loki serve] moteur %s non installé (%v) : l'ancien reste en place\n", strataEngineAsset, err)
 	}
 	apiKey, _ := effectiveAPIKeyErr()
-	final, err := strataBuildConfig(base, cfg, apiKey)
+	// Experts : décidé ICI, sur la RAM disponible au moment du lancement (l'ancien
+	// moteur est déjà arrêté), pas sur la RAM totale.
+	avail := memAvailableGB()
+	mode := strataResolveExperts(cfg, strataArgList(base), avail, strataHelperVRAM(cfg, strataGPUs()))
+	fmt.Fprintf(os.Stderr, "%s experts : %s (choix %s, %.0f Go de RAM disponibles, %.0f Go d'experts)\n",
+		strataServeMarker, strataExpertsLabel(mode), firstNonEmpty(cfg["STRATA_EXPERTS"], strataExpertsAuto), avail, strataArenaGB(cfg))
+	_ = putStr(bkState, strataLaunchModeKey, mode)
+	final, err := strataBuildConfig(base, cfg, apiKey, mode)
 	if err != nil {
 		return err
 	}
@@ -1110,12 +1304,13 @@ func handleStrata(w http.ResponseWriter, r *http.Request) {
 
 // strataSettingsReq : les réglages modifiables d'un modèle installé.
 type strataSettingsReq struct {
-	Preset string `json:"preset"`
-	Ctx    int    `json:"ctx"`
-	KV     string `json:"kv"`
-	Spec   int    `json:"spec"`
-	Vision bool   `json:"vision"`
-	Helper bool   `json:"helper"`
+	Preset  string `json:"preset"`
+	Ctx     int    `json:"ctx"`
+	KV      string `json:"kv"`
+	Spec    int    `json:"spec"`
+	Vision  bool   `json:"vision"`
+	Helper  bool   `json:"helper"`
+	Experts string `json:"experts"` // auto, ram ou disk ; vide = inchangé
 }
 
 // strataApplySettings réécrit les clés du preset (pure, testable).
@@ -1128,10 +1323,17 @@ func strataApplySettings(content string, r strataSettingsReq) (string, error) {
 		return "", fmt.Errorf("cache KV inconnu : %s", r.KV)
 	case r.Spec < 2 || r.Spec > 4:
 		return "", fmt.Errorf("MTP hors limites : %d", r.Spec)
+	case r.Experts != "" && r.Experts != strataExpertsAuto && r.Experts != strataExpertsRAM && r.Experts != strataExpertsDisk:
+		return "", fmt.Errorf("placement des experts inconnu : %s", r.Experts)
 	}
 	set := map[string]string{
 		"CTX": strconv.Itoa(r.Ctx), "STRATA_KV": r.KV, "STRATA_SPEC": strconv.Itoa(r.Spec),
 		"STRATA_VISION": strataBool(r.Vision), "STRATA_HELPER": strataBool(r.Helper),
+	}
+	keys := []string{"CTX", "STRATA_KV", "STRATA_SPEC", "STRATA_VISION", "STRATA_HELPER"}
+	if r.Experts != "" {
+		set["STRATA_EXPERTS"] = r.Experts
+		keys = append(keys, "STRATA_EXPERTS")
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(content, "\n"), "\n") {
@@ -1141,7 +1343,7 @@ func strataApplySettings(content string, r strataSettingsReq) (string, error) {
 		}
 		lines = append(lines, l)
 	}
-	for _, k := range []string{"CTX", "STRATA_KV", "STRATA_SPEC", "STRATA_VISION", "STRATA_HELPER"} {
+	for _, k := range keys {
 		lines = append(lines, k+"="+set[k])
 	}
 	return strings.Join(lines, "\n") + "\n", nil

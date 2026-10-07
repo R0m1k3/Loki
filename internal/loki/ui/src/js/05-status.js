@@ -330,7 +330,7 @@ async function loadCfg(){
       rows.push(row('CTX', d.ctx));
       rows.push(row('KV', d.kv+(d.kv_resident ? ' · '+k(d.kv_resident)+' VRAM' : '')));
       rows.push(row('MTP', d.spec));
-      rows.push(row('EXPERTS', d.drop ? 'mlock' : d.mmap ? 'mmap' : 'RAM'));
+      rows.push(row('EXPERTS', ({drop:'mlock (hors appoint)', ram:'RAM', arena:'experts.bin', disk:'mmap (disque)'})[d.mode] || (d.mmap ? 'mmap' : 'RAM'), d.mode_label||''));
       if(d.vision_gpu) rows.push(row('VISION', 'on', d.vision_gpu));
     }else if(c.CTX) rows.push(row('CTX', c.CTX));
     document.getElementById('cfg').innerHTML = rows.join('') + await engineCmdlineRow();
