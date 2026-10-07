@@ -108,7 +108,8 @@ function renderModelSwitch(presets, active){
 async function loadModelSwitchFiles(){
   try{
     const r = await jget('/api/models');
-    MS_FILES = Array.isArray(r) ? r : [];
+    // Projecteurs vision exclus : choisis comme modèle, le moteur ne démarre pas.
+    MS_FILES = (Array.isArray(r) ? r : []).filter(m => !/mmproj/i.test(String(m.name||'')));
   }catch(_){ return; }
   paintModelSwitch();
 }

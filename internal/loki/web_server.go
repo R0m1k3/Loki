@@ -262,6 +262,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/strata/install", handleStrataInstall)   // job : paquet figé + installeur de Strata + preset (suivi par /api/llamacpp/job)
 	api("/api/strata/settings", handleStrataSettings) // réglages d'un modèle Strata installé (relance s'il est actif)
 	api("/api/presets", handlePresets)
+	api("/api/presets/order", handlePresetsOrder) // ordre de la liste (glisser-déposer)
 	api("/api/preset", handlePreset)
 	api("/api/preset/save", handlePresetSave)
 	api("/api/preset/cacheram", handlePresetCacheRAM)   // aperçu de --cache-ram pour le preset édité

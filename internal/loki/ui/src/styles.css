@@ -170,7 +170,7 @@ option,optgroup{background:var(--panel);color:var(--text)}
 /* Desktop : menu plus large et bulles (badges) un peu plus grosses. */
 @media (min-width:721px){
   .side{width:380px}
-  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag{font-size:11px;padding:2px 9px;border-radius:4px}
+  .preset-meta .qtag,.preset-meta .rtag,.preset-meta .btag,.preset-meta .xtag,.preset-meta .ctag,.preset-meta .captag{font-size:11px;padding:2px 9px;border-radius:4px}
   .preset-meta .qtag svg,.preset-meta .rtag svg,.preset-meta .btag svg,.preset-meta .xtag svg{width:11px;height:11px}
 }
 h1{margin:0;font-size:18px;color:var(--accent)}
@@ -266,6 +266,9 @@ h1{margin:0;font-size:18px;color:var(--accent)}
    (étiquette comprise), plus sur la carte seule. */
 .gated-group{margin:0 0 10px;transition:opacity .15s}
 .gated-group.gated{opacity:.4;pointer-events:none;filter:grayscale(.4)}
+/* L'aide « ? » reste survolable sur un réglage grisé : c'est justement là qu'on
+   veut savoir à quoi il sert (repris d'AJEAN, #104). */
+.gated-group.gated .help{pointer-events:auto}
 .switch{position:relative;display:inline-block;width:36px;height:20px;flex:none}
 .switch input{position:absolute;opacity:0;width:0;height:0}
 /* Piste décochée : un gris franc (pas --border), sinon le pavé blanc ne se
@@ -363,6 +366,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .preset-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
 .qtag{flex-shrink:0;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em;text-transform:uppercase}
 .rtag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+.ctag{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+/* Pastille « capacités » (repris d'AJEAN) : vision (œil) et raisonnement
+   (ampoule + niveau). Icônes en em : la bulle a la hauteur des autres tags. */
+.captag{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:1px 6px;border:1px solid var(--border);color:var(--dim);border-radius:4px;letter-spacing:.03em}
+.captag::before{content:"\200b";margin-right:-4px}
+.captag svg{display:block;width:1.3em;height:1.3em}
+/* Réordonnancement des presets (SortableJS) : clone plein qui suit le curseur,
+   emplacement cible discret. */
+.preset-drag{cursor:grabbing;background:var(--row-bg-on);border:none;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.35);outline:none;opacity:1!important}
+.preset-ghost{opacity:.35}
+.preset-chosen{cursor:grabbing}
 /* Preset externe : le seul tag qui prend la couleur d'accent. Il ne décrit pas
    un réglage mais une DESTINATION — la réponse part sur internet, pas sur la
    carte graphique d'à côté, et ça mérite de se voir du premier coup d'œil.

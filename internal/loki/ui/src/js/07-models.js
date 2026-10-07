@@ -158,6 +158,10 @@ async function openItem(kind, key){
   const modelRow = document.getElementById('m-model-row');
   const settingsRow = document.getElementById('m-settings-row');
   const samplingRow = document.getElementById('m-sampling-row');
+  const sysRow = document.getElementById('m-sys-row');
+  if(sysRow) sysRow.style.display = kind === 'preset' ? '' : 'none';
+  const sysTa = document.getElementById('m-sysprompt');
+  if(sysTa) sysTa.value = '';
   const rawHead = document.getElementById('m-raw-head');
   const rawToggle = document.getElementById('m-raw-toggle');
   const rawBody = document.getElementById('m-raw-body');
@@ -216,6 +220,7 @@ async function openItem(kind, key){
   document.getElementById('m-name').value = display;
   document.getElementById('m-content').value = d.content || '';
   if(kind === 'preset'){
+    if(sysTa) sysTa.value = d.sysprompt || '';
     // Ces deux-là LISENT le contenu : elles doivent passer après son arrivée.
     document.getElementById('m-quant').value = currentQuantInTextarea();
     populateSettings();
@@ -297,6 +302,10 @@ async function populateModelPicker(){
   // regroupe par dossier, celui de loki d'abord (l'API les renvoie dans cet ordre).
   const groups = [];
   for(const m of (list||[])){
+    // Projecteurs vision : ils ont leur propre sélecteur (Vision) et ne se
+    // lancent pas comme modèle (repris d'AJEAN v0.16.2). Gardé seulement s'il
+    // est DÉJÀ le MODEL du preset, pour ne pas masquer une erreur de saisie.
+    if(isMmprojName(m.name) && m !== hit) continue;
     let g = groups.find(x => x.dir === m.dir);
     if(!g){ g = {dir: m.dir, home: m.home, items: []}; groups.push(g); }
     g.items.push(m);
@@ -632,6 +641,21 @@ function onPickMmproj(){
   // et on centralise le choix dans la clé MMPROJ.
   eaSetValued('--mmproj', '');
   cfgWriteKey('MMPROJ', document.getElementById('m-mmproj').value);
+  syncMmprojCpuRow();
+}
+// « Projecteur sur le CPU » n'a de sens qu'avec un mmproj chargé : la ligne est
+// masquée sans vision. Source de vérité = la config, pas le select (rempli
+// APRÈS cette synchro à l'ouverture du preset). Sans projecteur, le drapeau
+// resté dans EXTRA_ARGS est retiré.
+function syncMmprojCpuRow(){
+  const row = document.getElementById('s-mmproj-cpu-row');
+  if(!row) return;
+  const on = !!currentMmprojInTextarea();
+  row.style.display = on ? '' : 'none';
+  if(!on && eaHasFlag('--no-mmproj-offload')){
+    eaToggleFlag('--no-mmproj-offload', false);
+    const c = document.getElementById('s-mmproj-cpu'); if(c) c.checked = false;
+  }
 }
 // Un projecteur multimodal se reconnaît à « mmproj » dans son nom : c'est la
 // convention de nommage universelle (llama.cpp, HF). On ne liste que ceux-là —
@@ -1087,6 +1111,8 @@ function populateSettings(){
     }
   }
   chk('s-flash', eaHasFlag('--flash-attn') && !/^off$/i.test(eaGetValued('--flash-attn')));
+  chk('s-mmproj-cpu', eaHasFlag('--no-mmproj-offload'));
+  syncMmprojCpuRow();
   const lm = eaLoadMode();
   set('s-loadmode', lm);
   syncLoadModeSub(lm);
@@ -1421,7 +1447,7 @@ async function saveItem(){
   // Presets: keyed by id (filename); duplicate display names are allowed.
   // Skills: keyed by name, rename via `old`.
   const payload = editingKind==='preset'
-    ? {id: editingKey, name, content}
+    ? {id: editingKey, name, content, sysprompt: (document.getElementById('m-sysprompt')||{}).value || ''}
     : {name, old: editingKey, content};
   const r = await jpost(K.saveUrl, payload);
   if(!r.ok){ toast('erreur : ' + (r.error||'')); return; }

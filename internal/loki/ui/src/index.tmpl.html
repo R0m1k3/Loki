@@ -1189,6 +1189,11 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
               <span class="pe-row-l">Vision<span class="pe-sub">projecteur mmproj</span></span>
               <span class="pe-row-c"><span class="pe-selc"><select id="m-mmproj" onchange="onPickMmproj()"></select></span></span>
             </div>
+            <!-- Repris d'AJEAN v0.10.3 : n'apparaît qu'avec un projecteur choisi. -->
+            <div class="pe-row" id="s-mmproj-cpu-row" style="display:none">
+              <span class="pe-row-l">Projecteur vision sur le CPU<span class="pe-sub">garde le mmproj hors du GPU — libère de la VRAM, images lues plus lentement (--no-mmproj-offload)</span></span>
+              <span class="pe-row-c"><label class="pe-switch"><input type="checkbox" id="s-mmproj-cpu" onchange="eaToggleFlag('--no-mmproj-offload', this.checked)"><span class="pe-sl"></span></label></span>
+            </div>
             <!-- Recherche Hugging Face. Le champ « lien direct » juste en dessous
                  reste là : c'est le mode expert (dépôt privé, fichier exotique,
                  lien reçu d'ailleurs). Celui-ci évite d'avoir à quitter Loki, et
@@ -1465,6 +1470,18 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <div class="pe-row">
             <span class="pe-row-l">Pénalité de répétition<span class="pe-sub">anti-répétition (1 = neutre)</span></span>
             <span class="pe-row-c"><input id="s-reppen" class="pe-val" type="number" min="0" step="0.05" placeholder="—" oninput="cfgWriteKey('REPEAT_PENALTY', this.value)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prompt système DE CE preset (repris d'AJEAN v0.13.0) : il bascule avec
+           le preset. Rangé en base (sysprompt:<id>), pas dans le .env qui ne
+           porte qu'une ligne par clé. Vide = le prompt global s'applique. -->
+      <div id="m-sys-row" class="pe-group" style="display:none">
+        <div class="pe-gh">Prompt système</div>
+        <div class="pe-list">
+          <div class="pe-row stack">
+            <textarea id="m-sysprompt" class="pe-inp" rows="4" spellcheck="false" placeholder="(optionnel) consigne propre à ce preset — vide = prompt système général"></textarea>
           </div>
         </div>
       </div>

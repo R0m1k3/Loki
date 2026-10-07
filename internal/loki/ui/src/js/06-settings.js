@@ -60,7 +60,9 @@ async function loadPresets(){
     const row=document.createElement('div');
     const pend = !x.active && pendingPreset===i+1;
     row.className='preset'+(x.active?' active':'')+(pend?' pending':'')+(moved?' sel-anim':'');
-    row.onclick=()=>switchTo(i+1, x.name, x.id);
+    row.dataset.id = x.id;
+    // Fin d'un glisser-déposer : le clic qui le termine ne bascule pas le preset.
+    row.onclick=()=>{ if(presetJustDragged) return; switchTo(i+1, x.name, x.id); };
     const info=document.createElement('div'); info.className='preset-info';
     const nm=document.createElement('div'); nm.className='preset-name';
     // Puce de l'actif : un ÉLÉMENT rond en CSS, pas le caractère « ● ». Le glyphe
@@ -88,12 +90,27 @@ async function loadPresets(){
       q.textContent=x.quant; q.title='quantization';
       meta.appendChild(q);
     }
-    if(x.reasoning){
-      const rt=document.createElement('span'); rt.className='rtag';
-      rt.title='raisonnement actif ('+x.reasoning+')';
-      rt.innerHTML='<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>';
-      rt.appendChild(document.createTextNode(x.reasoning));
-      meta.appendChild(rt);
+    if(x.ctx && !x.external){
+      const c=document.createElement('span'); c.className='ctag';
+      c.title='taille de contexte'; c.textContent=x.ctx;
+      meta.appendChild(c);
+    }
+    // Pastille « capacités » (repris d'AJEAN) : vision (œil) et raisonnement
+    // (ampoule + niveau), regroupés en un seul tag.
+    if(x.vision || x.reasoning){
+      const cap=document.createElement('span'); cap.className='captag';
+      const tip=[];
+      if(x.vision){
+        cap.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>');
+        tip.push('lit les images');
+      }
+      if(x.reasoning){
+        cap.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg>');
+        cap.appendChild(document.createTextNode(x.reasoning));
+        tip.push('raisonnement actif ('+x.reasoning+')');
+      }
+      cap.title=tip.join(' · ');
+      meta.appendChild(cap);
     }
     if(x.bench){
       const bt=document.createElement('span'); bt.className='btag';
@@ -117,6 +134,40 @@ async function loadPresets(){
     edit.onclick=(e)=>{ e.stopPropagation(); x.external ? openExternal(x.id) : x.strata ? openStrata(x.id) : openPreset(x.id); };
     row.appendChild(info); row.appendChild(edit);
     cont.appendChild(row);
+  });
+  initPresetSortable(cont);
+}
+// ─── Réordonnancement des presets (SortableJS, repris d'AJEAN) ───────────────
+// La ligne entière se déplace, sans poignée. L'ordre est gardé côté serveur
+// (/api/presets/order) : il vaut aussi pour le sélecteur de l'en-tête.
+let presetJustDragged = false;
+let presetSortable = null;
+function initPresetSortable(cont){
+  if(typeof Sortable==='undefined') return; // lib absente : la liste reste simple
+  if(presetSortable) return;                 // une instance, sur le conteneur qui persiste
+  presetSortable = Sortable.create(cont, {
+    animation: 160,
+    easing: 'cubic-bezier(.2,.7,.3,1)',
+    // Clone géré par Sortable (et non l'image native, semi-transparente), posé
+    // sur <body> : dans la modale (ancêtre transformé), il apparaissait loin
+    // du curseur.
+    forceFallback: true,
+    fallbackTolerance: 3,
+    fallbackOnBody: true,
+    // Sur mobile, il faut MAINTENIR l'appui : un simple défilement attrapait un preset.
+    delay: 220,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 6,
+    ghostClass: 'preset-ghost',
+    chosenClass: 'preset-chosen',
+    dragClass: 'preset-drag',
+    onStart(){ presetJustDragged = true; },
+    onEnd(){
+      setTimeout(()=>{ presetJustDragged = false; }, 60);
+      const ids=[...cont.children].map(r=>r.dataset.id).filter(Boolean);
+      // Re-rendu une fois l'ordre persisté : les positions (pendingPreset) suivent.
+      jpost('/api/presets/order', {ids}).then(()=>loadPresets()).catch(()=>{});
+    },
   });
 }
 // « Mode agent » = accès machine + skills réunis en un seul interrupteur.
