@@ -599,6 +599,20 @@ function onPickModel(){
     ta.value = 'MODEL="'+val+'"\n' + ta.value;
   }
   toast('MODEL='+val);
+  showNglMax(val);
+}
+
+// Nombre de couches du modèle du preset (amont #43), lu dans son en-tête GGUF :
+// affiché à côté du champ NGL (placeholder, « / N » et survol).
+async function showNglMax(model){
+  const e=document.getElementById('s-ngl'), u=document.getElementById('s-ngl-max'); if(!e) return;
+  e.placeholder='999'; e.title=''; if(u) u.textContent='';
+  if(!model) return;
+  const ly=await jget('/api/model/layers?model='+encodeURIComponent(model)).catch(()=>null);
+  if(!ly || !ly.ok) return;
+  e.placeholder=String(ly.ngl_max);
+  if(u) u.textContent='/ '+ly.ngl_max;
+  e.title=ly.ngl_max+' = tout le modèle sur le GPU ('+ly.layers+' couches + la sortie)';
 }
 
 // --- Vision (projecteur multimodal --mmproj) --------------------------------
@@ -1013,6 +1027,7 @@ function populateSettings(){
   const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
   set('s-ctx', cfgReadKey('CTX'));
   set('s-ngl', cfgReadKey('NGL'));
+  showNglMax(cfgReadKey('MODEL'));
   set('s-threads', cfgReadKey('THREADS'));
   set('s-batch', cfgReadKey('BATCH'));
   set('s-ubatch', cfgReadKey('UBATCH'));

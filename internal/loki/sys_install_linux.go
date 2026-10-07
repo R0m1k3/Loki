@@ -32,6 +32,9 @@ WorkingDirectory=%s
 ExecStart=%s
 Restart=on-failure
 RestartSec=3
+# llama-server ignore SIGTERM en pleine génération : sans borne, une bascule de
+# preset restait bloquée 90 s (défaut systemd) avant le SIGKILL.
+TimeoutStopSec=5
 # Lancement refusé d'avance par LOAD_GUARD (le mode de chargement ne tient pas
 # en RAM) : relancer n'y changerait rien.
 RestartPreventExitStatus=78

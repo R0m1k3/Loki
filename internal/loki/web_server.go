@@ -220,6 +220,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/vram/reload", handleVramReload) // relance le moteur (le modèle se recharge)
 	api("/api/ram", handleRam)
 	api("/api/config", handleConfigEnv)
+	api("/api/engine/cmdline", handleEngineCmdline) // commande du dernier lancement du moteur (amont #108)
+	api("/api/model/layers", handleModelLayers)     // nombre de couches du modèle, lu dans le GGUF (amont #43)
 	api("/api/paths", handlePaths)
 	api("/api/update", handleUpdateCheck)
 	api("/api/update/apply", handleUpdateApply)

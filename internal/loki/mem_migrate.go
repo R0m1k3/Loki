@@ -259,50 +259,156 @@ func DisableMemEncryption() error {
 	// page, et on ne baisse le drapeau qu'à la toute fin. Ainsi une interruption
 	// laisse un état parfaitement lisible et RE-JOUABLE (le drapeau est encore
 	// levé, donc DisableMemEncryption peut être relancé).
-	if err := decryptAllPages(); err != nil {
+	return finishDecryption()
+}
+
+// finishDecryption : fichiers (pages, images des conversations), puis
+// conversations, puis retrait de la clé, dans cet ordre et seulement si tout ce
+// qui précède a réussi. Sûr à rejouer. Partagé avec la reprise au démarrage, qui
+// retirait la clé après les seules pages : les conversations restaient
+// chiffrées sans plus aucun moyen de les rouvrir (amont cac0cda).
+func finishDecryption() error {
+	bad, err := decryptAllPagesSkipping()
+	if err != nil {
 		return err
 	}
-	if err := decryptChatStores(); err != nil {
+	badKV, err := decryptChatStoresSkipping()
+	if err != nil {
 		return err
 	}
-	// Toutes les pages sont en clair et vérifiées : on peut baisser le drapeau,
-	// retirer le keyvault et purger la DEK.
+	bad = append(bad, badKV...)
+	if len(bad) > 0 {
+		// Valeurs illisibles avec la clé actuelle : déjà inaccessibles avant ce
+		// déchiffrement. On les met en quarantaine (toujours chiffrées) avec une
+		// copie du keyvault, pour pouvoir encore les rouvrir plus tard, puis on
+		// les retire de la base pour que le reste fonctionne en clair.
+		if err := quarantineUnreadable(bad); err != nil {
+			return fmt.Errorf("mise en quarantaine des valeurs illisibles impossible, déchiffrement interrompu (rien n'est perdu, il peut être relancé) : %w", err)
+		}
+		for _, u := range bad {
+			if u.Bucket != "fichier" { // un fichier reste en place, sa copie est en quarantaine
+				_ = putBytes(u.Bucket, u.Key, nil)
+			}
+		}
+	}
+	// Tout est en clair et vérifié : on peut baisser le drapeau, retirer le
+	// keyvault et purger la DEK.
 	if err := SetConfigKey("MEM_ENCRYPTED", ""); err != nil {
 		return err
 	}
 	removeVault()
 	clearMemDEK()
 	clearMigrationJournal()
+	if n := scrubEncryptedResidue(); n > 0 {
+		fmt.Fprintf(os.Stderr, "[mémoire] %d copie(s) .bak chiffrée(s), illisibles sans la clé, retirée(s)\n", n)
+	}
 	return nil
 }
 
-// decryptAllPages réécrit en clair toutes les pages encore chiffrées, DANS TOUS LES
-// PROJETS, en vérifiant chacune. Exige la DEK en RAM. Sûr à rejouer (idempotent).
-func decryptAllPages() error {
-	for _, p := range allMemPageFiles() {
+// decryptAllPagesSkipping réécrit en clair tous les fichiers encore chiffrés de
+// la mémoire (tous projets) et des images de conversation, en vérifiant chacun.
+// Exige la DEK en RAM. Sûr à rejouer. Un fichier indéchiffrable est laissé tel
+// quel et renvoyé au lieu de tout arrêter.
+func decryptAllPagesSkipping() ([]unreadableValue, error) {
+	var bad []unreadableValue
+	for _, p := range allMemFilesForDecrypt() {
 		raw, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("lecture %s : %w", p, err)
+			return bad, fmt.Errorf("lecture %s : %w", p, err)
 		}
 		if !looksEncrypted(raw) {
 			continue // déjà en clair
 		}
 		plain, err := decodeMemContent(raw)
 		if err != nil {
-			return fmt.Errorf("déchiffrement %s impossible, on n'écrase rien : %w", p, err)
+			bad = append(bad, unreadableValue{Bucket: "fichier", Key: p, Blob: raw, Error: err.Error()})
+			continue // on n'écrase rien
 		}
 		if old, err := os.ReadFile(p); err == nil {
 			_ = memWriteFileAtomic(p+".bak", old, 0o600)
 		}
 		if err := memWriteFileVerified(p, plain, 0o600); err != nil {
-			return fmt.Errorf("écriture claire %s : %w", p, err)
+			return bad, fmt.Errorf("écriture claire %s : %w", p, err)
 		}
 		back, err := os.ReadFile(p)
 		if err != nil || looksEncrypted(back) || string(back) != string(plain) {
-			return fmt.Errorf("vérification post-déchiffrement de %s échouée", p)
+			return bad, fmt.Errorf("vérification post-déchiffrement de %s échouée", p)
 		}
 	}
+	return bad, nil
+}
+
+// allMemFilesForDecrypt : TOUS les fichiers de la mémoire, sous-dossiers compris,
+// et les images de conversation (chatimg/, chiffrées comme le fil), sauf les
+// copies .bak et les écritures en cours (.tmp). Ne déchiffrer que les pages .md
+// laissait le reste chiffré sans plus aucune clé une fois le keyvault retiré.
+func allMemFilesForDecrypt() []string {
+	var out []string
+	for _, root := range []string{projectsRoot(), chatImgDir()} {
+		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || strings.HasSuffix(d.Name(), ".bak") || strings.HasSuffix(d.Name(), ".tmp") {
+				return nil
+			}
+			out = append(out, p)
+			return nil
+		})
+	}
+	return out
+}
+
+// quarantineUnreadable écrit les valeurs indéchiffrables, encore chiffrées, dans
+// un dossier daté de LOKI_HOME, avec une copie du keyvault à côté : elles
+// restent récupérables si l'ancienne clé est retrouvée.
+func quarantineUnreadable(bad []unreadableValue) error {
+	dir := filepath.Join(LokiHome(), "chiffre-illisible-"+time.Now().Format("20060102-150405"))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(bad, "", " ")
+	if err != nil {
+		return err
+	}
+	if err := memWriteFileAtomic(filepath.Join(dir, "valeurs.json"), raw, 0o600); err != nil {
+		return err
+	}
+	for _, p := range []string{vaultPathPrimary(), vaultPathBackup()} {
+		if b, err := os.ReadFile(p); err == nil {
+			_ = memWriteFileAtomic(filepath.Join(dir, filepath.Base(p)), b, 0o600)
+		}
+	}
+	if b := getBytes(bkState, vaultDBKey); len(b) > 0 {
+		_ = memWriteFileAtomic(filepath.Join(dir, "keyvault-base.json"), b, 0o600)
+	}
+	for _, u := range bad {
+		fmt.Fprintf(os.Stderr, "[mémoire] illisible avec la clé actuelle, mis en quarantaine : %s / %s (%s)\n", u.Bucket, u.Key, u.Error)
+	}
+	fmt.Fprintf(os.Stderr, "[mémoire] %d valeur(s) en quarantaine dans %s\n", len(bad), dir)
 	return nil
+}
+
+// scrubEncryptedResidue retire les .bak encore CHIFFRÉS de la mémoire une fois
+// le chiffrement désactivé : la clé est partie avec le keyvault, ils ne pourront
+// plus jamais être lus, et ce sont des copies de pages qui viennent d'être
+// remises en clair. Pendant symétrique de scrubPlaintextResidue. Les valeurs en
+// quarantaine et les snapshots vivent hors de memory/ : jamais touchés. Rien
+// n'est fait tant que le chiffrement est actif.
+func scrubEncryptedResidue() int {
+	if memEncActive() {
+		return 0
+	}
+	n := 0
+	for _, root := range []string{projectsRoot(), chatImgDir()} {
+		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".bak") {
+				return nil
+			}
+			if b, err := os.ReadFile(p); err == nil && looksEncrypted(b) && os.Remove(p) == nil {
+				n++
+			}
+			return nil
+		})
+	}
+	return n
 }
 
 // resumeMemMigration reprend une migration interrompue au démarrage. Pour une
@@ -328,12 +434,12 @@ func resumeMemMigration() {
 		// encore levé, on termine proprement (écrit le clair restant), puis on
 		// baisse le drapeau. Sans DEK, on laisse le journal : l'état reste lisible
 		// et l'écran de santé signalera le mélange.
+		// Même chemin complet que DisableMemEncryption : la reprise retirait la clé
+		// après les seules pages, en laissant les conversations chiffrées sans
+		// plus aucun moyen de les rouvrir.
 		if memEncActive() && memUnlocked() {
-			if err := decryptAllPages(); err == nil {
-				_ = SetConfigKey("MEM_ENCRYPTED", "")
-				removeVault()
-				clearMemDEK()
-				clearMigrationJournal()
+			if err := finishDecryption(); err != nil {
+				fmt.Fprintf(os.Stderr, "[mémoire] reprise du déchiffrement : %v\n", err)
 			}
 		}
 	}

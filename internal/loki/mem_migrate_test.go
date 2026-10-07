@@ -2,6 +2,7 @@ package loki
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -259,5 +260,86 @@ func TestChiffrementGardeLesPointeursLisibles(t *testing.T) {
 	healPlainStoreKeys()
 	if got := getStr(bkChat, ckActive); got != id {
 		t.Fatalf("pointeur chiffré non réparé : %q", got)
+	}
+}
+
+// Une seule valeur indéchiffrable bloquait toute la désactivation, et les images
+// de conversation (chatimg/) restaient chiffrées sans clé une fois le keyvault
+// retiré. Désormais : tout ce qui se lit est déchiffré, l'illisible part en
+// quarantaine, et la désactivation aboutit.
+func TestDisableMemEncryptionSurvitAuxValeursIllisibles(t *testing.T) {
+	testHome(t)
+	clearMemDEK()
+	seedPages(t)
+	if _, err := EnableMemEncryption("pass-de-test-1234"); err != nil {
+		t.Fatal(err)
+	}
+	img := []byte("\x89PNG octets d'image de test")
+	ref, err := storeChatImage(img, "image/png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgPath := filepath.Join(chatImgDir(), strings.TrimPrefix(ref, imgRefScheme))
+	if raw, _ := os.ReadFile(imgPath); !looksEncrypted(raw) {
+		t.Fatal("l'image devrait être chiffrée")
+	}
+	other := make([]byte, 32)
+	other[0] = 7
+	alien, err := encPage(other, []byte("conversation chiffrée avec une autre clé"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := putBytes(bkChat, "vieille", alien); err != nil {
+		t.Fatal(err)
+	}
+	if err := DisableMemEncryption(); err != nil {
+		t.Fatalf("la désactivation aurait dû aboutir : %v", err)
+	}
+	if memEncActive() {
+		t.Fatal("le chiffrement devrait être désactivé")
+	}
+	if b, _ := os.ReadFile(imgPath); string(b) != string(img) {
+		t.Fatalf("image pas déchiffrée : %q", b)
+	}
+	if v := getBytes(bkChat, "vieille"); len(v) != 0 {
+		t.Fatal("la valeur illisible aurait dû quitter la base")
+	}
+	q, _ := filepath.Glob(filepath.Join(LokiHome(), "chiffre-illisible-*", "valeurs.json"))
+	if len(q) != 1 {
+		t.Fatalf("quarantaine attendue, trouvée : %v", q)
+	}
+	if qb, _ := os.ReadFile(q[0]); !strings.Contains(string(qb), "vieille") {
+		t.Fatal("la quarantaine doit contenir la valeur illisible")
+	}
+	if baks, _ := filepath.Glob(filepath.Join(chatImgDir(), "*.bak")); len(baks) != 0 {
+		t.Fatalf(".bak chiffrés restés derrière : %v", baks)
+	}
+}
+
+// Déchiffrement interrompu puis repris au démarrage : la reprise retirait la clé
+// après les seules pages, et les conversations restaient chiffrées pour toujours.
+func TestResumeInterruptedDecryptDechiffreLesConversations(t *testing.T) {
+	testHome(t)
+	clearMemDEK()
+	seedPages(t)
+	if _, err := EnableMemEncryption("pw"); err != nil {
+		t.Fatal(err)
+	}
+	enc, err := encodeMemContent([]byte(`{"titre":"conversation"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := putBytes(bkChat, "conv:x", enc); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeMigrationJournal("decrypt"); err != nil {
+		t.Fatal(err)
+	}
+	resumeMemMigration()
+	if memEncActive() {
+		t.Fatal("la reprise aurait dû terminer le déchiffrement")
+	}
+	if v := getBytes(bkChat, "conv:x"); string(v) != `{"titre":"conversation"}` {
+		t.Fatalf("conversation restée chiffrée après la reprise : %q", v)
 	}
 }

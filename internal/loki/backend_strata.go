@@ -1036,6 +1036,7 @@ func serveStrata(cfg map[string]string) error {
 	_ = os.Chdir(srcDir)
 	fmt.Fprintf(os.Stderr, "%s (paquet AJEAN MoE %s)  config=%s  port=%s  gpu=%s\n",
 		strataServeMarker, strataVersion, filepath.Base(out), port, os.Getenv("CUDA_VISIBLE_DEVICES"))
+	recordEngineCmdline(map[string]string{"CUDA_VISIBLE_DEVICES": os.Getenv("CUDA_VISIBLE_DEVICES")}, args)
 	return execServer(py, args)
 }
 
