@@ -146,6 +146,15 @@ func tuneActive() (tuneOwner, bool) {
 // tuneHeld : verrous pris par CE processus et pas encore rendus (tuneHeldKey).
 var tuneHeld sync.Map
 
+// tuneFileMu sérialise, DANS CE PROCESSUS, les opérations sur le fichier de
+// verrou : prise, réécriture, rendu, et le déplacement-relecture du ménage
+// (tuneReapStale). Sans lui, le ménage pouvait déplacer un verrou vivant
+// pendant que release() le cherchait : release, ne le trouvant plus, rendait
+// l'inscription ; le ménage le remettait ensuite en place, désormais orphelin,
+// et le ménage suivant le prenait pour une optimisation interrompue (moteur
+// relancé, preset « rétabli »). Vu en CI : TestTuneRecoverNeverReapsOwnLock.
+var tuneFileMu sync.Mutex
+
 func tuneHeldKey(o tuneOwner) string { return fmt.Sprintf("%s|%d|%d", o.Via, o.Since, o.Nonce) }
 
 // tuneOwnerAlive : le propriétaire d'un verrou vit-il encore ? Un verrou qui
@@ -201,6 +210,7 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 	key := tuneHeldKey(l.owner)
 	tuneHeld.Store(key, true)
 	for attempt := 0; attempt < 3; attempt++ {
+		tuneFileMu.Lock()
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
 			b, _ := json.Marshal(l.owner)
@@ -209,11 +219,14 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 			if werr != nil || cerr != nil {
 				_ = os.Remove(path)
 				tuneHeld.Delete(key)
+				tuneFileMu.Unlock()
 				return nil, fmt.Errorf("verrou de l'optimiseur : %v", errors.Join(werr, cerr))
 			}
 			l.held = true
+			tuneFileMu.Unlock()
 			return l, nil
 		}
+		tuneFileMu.Unlock()
 		if !os.IsExist(err) {
 			tuneHeld.Delete(key)
 			return nil, err
@@ -232,6 +245,13 @@ func tuneLockAcquire(via string, mainActive bool) (*tuneLock, error) {
 // write réécrit le verrou d'un bloc (fichier voisin puis renommage) : un
 // lecteur ne voit jamais un JSON à moitié écrit.
 func (l *tuneLock) write() error {
+	tuneFileMu.Lock()
+	defer tuneFileMu.Unlock()
+	return l.writeLocked()
+}
+
+// writeLocked : write, tuneFileMu déjà tenu par l'appelant.
+func (l *tuneLock) writeLocked() error {
 	b, err := json.Marshal(l.owner)
 	if err != nil {
 		return err
@@ -291,6 +311,8 @@ func (l *tuneLock) setBackup(backup, id, name string) {
 func (l *tuneLock) release() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	tuneFileMu.Lock()
+	defer tuneFileMu.Unlock()
 	if l.held {
 		// Un fichier absent un instant (renommé par un ménage qui le remet en
 		// place, voir tuneReapStale) n'est pas un fichier rendu : on relit.
@@ -305,7 +327,7 @@ func (l *tuneLock) release() {
 		if ours {
 			l.owner.Phase, l.owner.Trial, l.owner.MainWasActive = "rendu", nil, false
 			l.owner.Backup, l.owner.PresetID, l.owner.PresetName = "", "", ""
-			_ = l.write()
+			_ = l.writeLocked()
 			for i := 0; i < 5; i++ {
 				if err := os.Remove(l.path); err == nil || os.IsNotExist(err) {
 					break
@@ -328,6 +350,24 @@ func (l *tuneLock) release() {
 // périmé). Le renommage d'abord : de deux processus qui trouvent le même verrou
 // périmé, un seul l'emporte, et aucun ne retire un verrou neuf posé entre-temps.
 func tuneReapStale() (mainWasActive bool) {
+	o, ok := tuneReapClaim()
+	if !ok {
+		return false
+	}
+	if o.Trial != nil && tuneProcAlive(*o.Trial) {
+		fmt.Fprintf(os.Stderr, "[loki tune] essai orphelin (PID %d) d'une optimisation interrompue : arrêt\n", o.Trial.PID)
+		tuneKillTree(o.Trial.PID, nil)
+	}
+	tuneUndoApply(o)
+	return o.MainWasActive
+}
+
+// tuneReapClaim : la partie de tuneReapStale qui touche au fichier, sous
+// tuneFileMu — lecture, déplacement, relecture, remise en place. Rend le
+// verrou périmé effectivement retiré (ok=false : rien à écarter).
+func tuneReapClaim() (tuneOwner, bool) {
+	tuneFileMu.Lock()
+	defer tuneFileMu.Unlock()
 	path := tuneLockPath()
 	o, ok := readTuneOwner(path)
 	if !ok {
@@ -338,14 +378,14 @@ func tuneReapStale() (mainWasActive bool) {
 		if fi, err := os.Stat(path); err == nil && time.Since(fi.ModTime()) > tuneLockFreshness {
 			_ = os.Remove(path)
 		}
-		return false
+		return tuneOwner{}, false
 	}
 	if tuneOwnerAlive(o) {
-		return false
+		return tuneOwner{}, false
 	}
 	stale := fmt.Sprintf("%s.stale-%d-%d", path, os.Getpid(), time.Now().UnixNano())
 	if os.Rename(path, stale) != nil {
-		return false
+		return tuneOwner{}, false
 	}
 	defer os.Remove(stale)
 	// Entre la lecture et le renommage, le verrou lu a pu être rendu et un
@@ -358,14 +398,9 @@ func tuneReapStale() (mainWasActive bool) {
 		if err := os.Link(stale, path); err != nil {
 			fmt.Fprintf(os.Stderr, "[loki tune] verrou vivant déplacé par erreur, remise en place impossible : %v\n", err)
 		}
-		return false
+		return tuneOwner{}, false
 	}
-	if o.Trial != nil && tuneProcAlive(*o.Trial) {
-		fmt.Fprintf(os.Stderr, "[loki tune] essai orphelin (PID %d) d'une optimisation interrompue : arrêt\n", o.Trial.PID)
-		tuneKillTree(o.Trial.PID, nil)
-	}
-	tuneUndoApply(o)
-	return o.MainWasActive
+	return o, true
 }
 
 // sameTuneLock : a et b désignent-ils la même prise de verrou (propriétaire et
