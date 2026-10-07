@@ -31,7 +31,7 @@ func TestStrataBuildConfigApplyTuning(t *testing.T) {
 		"args": []any{"--pack", "/p", "--prefill", "8192", "--max-context", "131072"},
 		"port": 8080.0,
 	}
-	out, err := strataBuildConfig(base, map[string]string{"PORT": "8081", "CTX": "65536"}, "k")
+	out, err := strataBuildConfig(base, map[string]string{"PORT": "8081", "CTX": "65536"}, "k", "ram")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestStrataBuildConfigApplyTuning(t *testing.T) {
 func TestStrataBuildConfigHelperGPU(t *testing.T) {
 	base := map[string]any{"args": []any{"--pack", "/p", "--mmap-experts", "--vram-reserve-mib", "700"}, "gpu": 1.0,
 		"vision": map[string]any{"exe": "v", "gpu": true}}
-	out, err := strataBuildConfig(base, map[string]string{"STRATA_HELPER_GPU": "0"}, "")
+	out, err := strataBuildConfig(base, map[string]string{"STRATA_HELPER_GPU": "0"}, "", "ram")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,70 +84,6 @@ func TestStrataBuildConfigHelperGPU(t *testing.T) {
 	}
 }
 
-func TestStrataDropFits(t *testing.T) {
-	q := strataQuants["IQ3_XXS"]
-	env := strataEnv{Main: 1, Helper: 0, RAMGB: 46.9, GPUs: []strataGPU{{Index: 0, VRAMGB: 7.8}, {Index: 1, VRAMGB: 15.9}}}
-	if !strataDropFits(q, env) {
-		t.Error("serveur de test (46 Go + 3070) : le mode hors RAM devrait tenir")
-	}
-	f := strataFitFor(q, env, 0)
-	if f.Mmap || !f.Drop {
-		t.Errorf("fit = mmap %v drop %v, attendu drop", f.Mmap, f.Drop)
-	}
-	env.Helper = -1
-	if strataDropFits(q, env) {
-		t.Error("sans carte d'aide, pas de mode hors RAM")
-	}
-	env.Helper, env.RAMGB = 0, 32
-	if strataDropFits(q, env) {
-		t.Error("32 Go : ne tient pas, doit rester en mmap")
-	}
-}
-
-func TestStrataBuildConfigDrop(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("LOKI_HOME", home)
-	pack := filepath.Join(home, "pack")
-	_ = os.MkdirAll(pack, 0o755)
-	base := map[string]any{"args": []any{"--pack", pack, "--pcie-frac", "0.3"}, "env": map[string]any{}}
-	cfg := map[string]string{"STRATA_HELPER_GPU": "0", "STRATA_DROP": "1", "STRATA_MMAP": "0"}
-	// sans experts.bin ni moteur à jour : repli mmap (ce lancement écrit experts.bin)
-	out, _ := strataBuildConfig(base, cfg, "")
-	if out["env"].(map[string]any)["STRATA_ARENA_MMAP"] != "1" || out["env"].(map[string]any)["STRATA_REMOTE_DROP"] != nil {
-		t.Fatalf("repli mmap attendu : %v", out["env"])
-	}
-	_ = os.WriteFile(filepath.Join(pack, "experts.bin"), []byte("x"), 0o644)
-	_ = os.MkdirAll(filepath.Join(strataSrcDir(), "engine-cuda12"), 0o755)
-	_ = os.WriteFile(strataEngineMarker(), []byte(strataEngineAsset+"\n"), 0o644)
-	out, _ = strataBuildConfig(base, cfg, "")
-	e := out["env"].(map[string]any)
-	if e["STRATA_REMOTE_DROP"] != "1" || e["STRATA_ARENA_MMAP"] != nil {
-		t.Errorf("mode hors RAM attendu : %v", e)
-	}
-	if a := strataArgs(t, out); strataHasArg(a, "--pcie-frac") {
-		t.Errorf("--pcie-frac gardé (la part PCIe doit être automatique) : %v", a)
-	}
-	// carte d'aide coupée : pas de mode hors RAM
-	cfg["STRATA_HELPER"] = "0"
-	out, _ = strataBuildConfig(base, cfg, "")
-	if out["env"].(map[string]any)["STRATA_REMOTE_DROP"] != nil {
-		t.Error("mode hors RAM sans carte d'aide")
-	}
-}
-
-func TestStrataBuildConfigMmap(t *testing.T) {
-	base := map[string]any{"args": []any{"--pack", "/p", "--mmap-experts"}, "env": map[string]any{"X": "1"}}
-	out, err := strataBuildConfig(base, map[string]string{"STRATA_HELPER_GPU": "0"}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := strataArgs(t, out)
-	env := out["env"].(map[string]any)
-	if strataHasArg(a, "--mmap-experts") || argAfter(a, "--pcie-frac") != "0" || env["STRATA_ARENA_MMAP"] != "1" || env["X"] != "1" {
-		t.Errorf("mmap validé non appliqué : %v %v", a, env)
-	}
-}
-
 func TestStrataCudaDevices(t *testing.T) {
 	cases := []struct {
 		main, helper, want string
@@ -167,7 +103,7 @@ func TestStrataCudaDevices(t *testing.T) {
 
 func TestStrataRecommend(t *testing.T) {
 	// la machine de test : 5060 Ti 16 Go + 3070 8 Go, 47 Go de RAM, disque large
-	env := strataEnv{Supported: true, Main: 1, Helper: 0, RAMGB: 47, DiskFreeGB: 400,
+	env := strataEnv{Supported: true, Main: 1, Helper: 0, RAMGB: 47, AvailGB: 47, DiskFreeGB: 400,
 		GPUs: []strataGPU{{Index: 0, VRAMGB: 8, Arch: 86}, {Index: 1, VRAMGB: 16, Arch: 120}}}
 	if got := strataRecommend("swift", env); got != "IQ3_XXS" {
 		t.Errorf("swift : %q, attendu IQ3_XXS", got)
@@ -177,12 +113,13 @@ func TestStrataRecommend(t *testing.T) {
 		t.Errorf("qwen 47 Go : %q, attendu IQ3_XXS", got)
 	}
 	f := strataFitFor(strataQuants["IQ3_XXS"], env, 0)
-	// trop juste pour tout garder en RAM, mais la 3070 garde les siens : mode hors RAM
-	if !f.OK || f.Mmap || !f.Drop {
-		t.Errorf("IQ3_XXS sur 47 Go : ok=%v mmap=%v drop=%v (attendu ok, hors RAM)", f.OK, f.Mmap, f.Drop)
+	// trop juste pour tout garder en RAM : experts lus depuis le disque (le mode
+	// hors RAM demande un experts.bin, qu'une installation neuve n'a pas)
+	if !f.OK || !f.Mmap || f.Drop {
+		t.Errorf("IQ3_XXS sur 47 Go : ok=%v mmap=%v drop=%v (attendu ok, disque)", f.OK, f.Mmap, f.Drop)
 	}
 	// 64 Go : IQ3_S tient en RAM
-	env.RAMGB = 64
+	env.RAMGB, env.AvailGB = 64, 64
 	if got := strataRecommend("qwen", env); got != "IQ3_S" {
 		t.Errorf("qwen 64 Go : %q, attendu IQ3_S", got)
 	}
@@ -208,22 +145,6 @@ func TestStrataPresetName(t *testing.T) {
 	}
 }
 
-func TestStrataBuildConfigMmapFromPreset(t *testing.T) {
-	base := map[string]any{"args": []any{"--pack", "/p"}}
-	out, err := strataBuildConfig(base, map[string]string{"STRATA_MMAP": "1"}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := strataArgs(t, out)
-	if argAfter(a, "--pcie-frac") != "0" || out["env"].(map[string]any)["STRATA_ARENA_MMAP"] != "1" {
-		t.Errorf("STRATA_MMAP=1 non appliqué : %v %v", a, out["env"])
-	}
-	out, _ = strataBuildConfig(base, map[string]string{"STRATA_MMAP": "0"}, "")
-	if out["env"].(map[string]any)["STRATA_ARENA_MMAP"] != nil {
-		t.Errorf("mmap appliqué sans STRATA_MMAP : %v", out["env"])
-	}
-}
-
 func TestStrataFitCountsExistingData(t *testing.T) {
 	env := strataEnv{Supported: true, Main: 1, Helper: 0, RAMGB: 47, DiskFreeGB: 32,
 		GPUs: []strataGPU{{Index: 0, VRAMGB: 8, Arch: 86}, {Index: 1, VRAMGB: 16, Arch: 120}}}
@@ -237,7 +158,7 @@ func TestStrataFitCountsExistingData(t *testing.T) {
 
 func TestStrataBuildConfigPresetOverrides(t *testing.T) {
 	base := map[string]any{"args": []any{"--kv", "int8", "--spec", "4"}}
-	out, _ := strataBuildConfig(base, map[string]string{"STRATA_KV": "fp16", "STRATA_SPEC": "3"}, "")
+	out, _ := strataBuildConfig(base, map[string]string{"STRATA_KV": "fp16", "STRATA_SPEC": "3"}, "", "ram")
 	a := strataArgs(t, out)
 	if argAfter(a, "--kv") != "fp16" || argAfter(a, "--spec") != "3" {
 		t.Errorf("%v", a)
@@ -307,7 +228,7 @@ func TestStrataApplySettings(t *testing.T) {
 		t.Error("carte d'aide coupée mais encore utilisée")
 	}
 	base := map[string]any{"args": []any{"--vision", "--pack", "/p"}, "vision": map[string]any{"exe": "v"}}
-	b, _ := strataBuildConfig(base, cfg, "")
+	b, _ := strataBuildConfig(base, cfg, "", "ram")
 	if strataHasArg(strataArgs(t, b), "--vision") || b["vision"] != nil || strataHasArg(strataArgs(t, b), "--expert-cache-device1") {
 		t.Errorf("vision / aide coupées mais présentes : %v", b)
 	}
@@ -339,5 +260,105 @@ func TestModelLoadErrorStrata(t *testing.T) {
 	// une trace d'un lancement PRÉCÉDENT ne compte pas
 	if got := modelLoadErrorFrom(crash + strataServeMarker + "\nloading the model ...\n"); got != "" {
 		t.Errorf("ancienne trace prise pour l'échec en cours : %q", got)
+	}
+}
+
+// Où vont les experts : décidé sur la RAM DISPONIBLE. Vécu : 62 Go dont 18 pris
+// ailleurs, mode « hors RAM » choisi sur la RAM totale, moteur tué par le noyau.
+func TestStrataResolveExperts(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("LOKI_HOME", home)
+	pack := filepath.Join(home, "pack")
+	_ = os.MkdirAll(pack, 0o755)
+	args := []string{"--pack", pack}
+	cfg := map[string]string{"STRATA_CONFIG": "/x/strata-swift-iq3_xxs.json", "STRATA_HELPER_GPU": "1", "STRATA_DROP": "1"}
+	// IQ3_XXS : 42,9 Go d'experts
+	cases := []struct {
+		experts string
+		avail   float64
+		want    string
+	}{
+		{"", 44, "disk"}, // le cas vécu : 44 Go disponibles, pas de experts.bin
+		{"", 60, "ram"},  // assez de RAM pour tout charger avec la marge
+		{"auto", 52.8, "disk"},
+		{"disk", 60, "disk"}, // choix de l'utilisateur
+		{"ram", 20, "ram"},   // choix de l'utilisateur, même à l'étroit
+	}
+	for _, c := range cases {
+		cfg["STRATA_EXPERTS"] = c.experts
+		if got := strataResolveExperts(cfg, args, c.avail, 12); got != c.want {
+			t.Errorf("experts=%q dispo=%.0f : %s, attendu %s", c.experts, c.avail, got, c.want)
+		}
+	}
+	// experts.bin présent (moteur du paquet) : le mode hors RAM et le mappage deviennent possibles
+	_ = os.WriteFile(filepath.Join(pack, "experts.bin"), []byte("x"), 0o644)
+	_ = os.MkdirAll(filepath.Join(strataSrcDir(), "engine-cuda12"), 0o755)
+	_ = os.WriteFile(strataEngineMarker(), []byte(strataEngineAsset+"\n"), 0o644)
+	cfg["STRATA_EXPERTS"] = ""
+	if got := strataResolveExperts(cfg, args, 44, 12); got != "drop" {
+		t.Errorf("44 Go + carte d'appoint 12 Go + experts.bin : %s, attendu drop", got)
+	}
+	if got := strataResolveExperts(cfg, args, 30, 12); got != "arena" {
+		t.Errorf("30 Go + experts.bin : %s, attendu arena", got)
+	}
+	cfg["STRATA_HELPER"] = "0"
+	if got := strataResolveExperts(cfg, args, 44, 12); got != "arena" {
+		t.Errorf("carte d'appoint coupée : %s, attendu arena", got)
+	}
+	cfg["STRATA_EXPERTS"] = "disk"
+	if got := strataResolveExperts(cfg, args, 60, 12); got != "arena" {
+		t.Errorf("disque demandé avec experts.bin : %s, attendu arena", got)
+	}
+	// quant inconnu : on ne parie pas sur la RAM
+	if got := strataResolveExperts(map[string]string{"STRATA_CONFIG": "/x/autre.json"}, nil, 500, 0); got != "disk" {
+		t.Errorf("quant inconnu : %s, attendu disk", got)
+	}
+}
+
+func TestStrataBuildConfigModes(t *testing.T) {
+	base := map[string]any{"args": []any{"--pack", "/p", "--resident-experts", "--pcie-frac", "0.3"}, "env": map[string]any{"X": "1"}}
+	cfg := map[string]string{"STRATA_HELPER_GPU": "1"}
+	env := func(m map[string]any) map[string]any { return m["env"].(map[string]any) }
+
+	out, _ := strataBuildConfig(base, cfg, "", "disk")
+	a := strataArgs(t, out)
+	if !strataHasArg(a, "--mmap-experts") || strataHasArg(a, "--resident-experts") || argAfter(a, "--pcie-frac") != "0" ||
+		env(out)["STRATA_ARENA_MMAP"] != nil || env(out)["X"] != "1" {
+		t.Errorf("disk : %v %v", a, env(out))
+	}
+	out, _ = strataBuildConfig(base, cfg, "", "ram")
+	a = strataArgs(t, out)
+	if strataHasArg(a, "--mmap-experts") || strataHasArg(a, "--resident-experts") || env(out)["STRATA_ARENA_MMAP"] != nil || env(out)["STRATA_REMOTE_DROP"] != nil {
+		t.Errorf("ram : %v %v", a, env(out))
+	}
+	out, _ = strataBuildConfig(base, cfg, "", "arena")
+	if a = strataArgs(t, out); argAfter(a, "--pcie-frac") != "0" || env(out)["STRATA_ARENA_MMAP"] != "1" {
+		t.Errorf("arena : %v %v", a, env(out))
+	}
+	out, _ = strataBuildConfig(base, cfg, "", "drop")
+	if a = strataArgs(t, out); strataHasArg(a, "--pcie-frac") || env(out)["STRATA_REMOTE_DROP"] != "1" {
+		t.Errorf("drop : la part PCIe doit être automatique : %v %v", a, env(out))
+	}
+	// drop sans carte d'appoint : rien de spécial, c'est le mode ram
+	out, _ = strataBuildConfig(base, map[string]string{"STRATA_HELPER_GPU": "-1"}, "", "drop")
+	if env(out)["STRATA_REMOTE_DROP"] != nil {
+		t.Error("mode hors RAM sans carte d'appoint")
+	}
+}
+
+func TestStrataApplySettingsExperts(t *testing.T) {
+	in := "ENGINE=strata\nSTRATA_EXPERTS=auto\n"
+	r := strataSettingsReq{Ctx: 131072, KV: "fp16", Spec: 3, Experts: "disk"}
+	out, err := strataApplySettings(in, r)
+	if err != nil || parseEnv(out)["STRATA_EXPERTS"] != "disk" {
+		t.Fatalf("%v %q", err, out)
+	}
+	r.Experts = "nvme"
+	if _, err := strataApplySettings(in, r); err == nil {
+		t.Error("placement inconnu accepté")
+	}
+	r.Experts = ""
+	if out, _ := strataApplySettings(in, r); parseEnv(out)["STRATA_EXPERTS"] != "auto" {
+		t.Errorf("vide doit laisser le choix en place : %q", out)
 	}
 }
