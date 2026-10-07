@@ -9097,10 +9097,21 @@ function lcStartPolling(){
   lcPollJob();
 }
 
+// Une seule requête à la fois : l'intervalle d'une seconde relançait un appel
+// avant la réponse du précédent quand le serveur était occupé (téléchargement,
+// accès distant), et les deux ajoutaient les MÊMES lignes au journal.
+let lcPollInflight = false;
 async function lcPollJob(quiet){
+  if(lcPollInflight) return;
+  lcPollInflight = true;
+  const from = lcLogNext;
   let j;
-  try{ j = await jget('/api/llamacpp/job?from='+lcLogNext); }catch(_){ return; }
+  try{ j = await jget('/api/llamacpp/job?from='+from); }catch(_){ return; }
+  finally{ lcPollInflight = false; }
   if(!j.exists) return;
+  // Le journal a été remis à zéro ou avancé entre-temps (nouveau job) : ces
+  // lignes ne suivent plus ce qui est affiché.
+  if(from !== lcLogNext) return;
   const phaseEl = document.getElementById('lc-job-phase');
   if(j.lines && j.lines.length){
     const pre = document.getElementById('lc-log');
