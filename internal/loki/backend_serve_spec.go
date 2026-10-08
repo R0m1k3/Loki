@@ -113,6 +113,11 @@ func probeSpec(cfg map[string]string, si *serveSysInfo) {
 		return
 	}
 	si.Draft = p
+	if a, err := os.Stat(p); err == nil {
+		if b, err := os.Stat(si.Model); err == nil && os.SameFile(a, b) {
+			si.DraftIsModel = true
+		}
+	}
 	if g, err := ggufMeta(p); err == nil {
 		si.DraftGGUF = &g
 	}
@@ -241,6 +246,23 @@ func specAutoBlocker(cfg map[string]string, extra []string, si serveSysInfo) str
 // et s'ils viennent de SPEC=auto (cmdServe pose alors le jeton de tentative).
 // Fonction pure ; cmdServe a déjà résolu MODEL_DRAFT et lu les GGUF.
 func specArgs(cfg map[string]string, extra []string, si serveSysInfo) (args, notes []string, auto bool) {
+	// MODEL_DRAFT = le modèle principal lui-même (choisi dans la liste des
+	// brouillons de l'éditeur) : -md recharge alors les 27B une seconde fois
+	// (common_speculative_init_result charge tout fichier -md comme un modèle
+	// à part), quand la tête MTP intégrée se greffe sur le modèle déjà en VRAM.
+	// Vécu : « allocating 9628.34 MiB on device 0 » pour le brouillon, moteur
+	// mort ; ou, quand ça passait, des couches renvoyées sur le CPU et 5 t/s au
+	// lieu de 22. On l'ignore : même tête, sans les poids en double.
+	if si.DraftIsModel && strings.TrimSpace(cfg["MODEL_DRAFT"]) != "" {
+		c := make(map[string]string, len(cfg))
+		for k, v := range cfg {
+			c[k] = v
+		}
+		delete(c, "MODEL_DRAFT")
+		args, notes, auto = specArgs(c, extra, si)
+		return args, append([]string{"MODEL_DRAFT est le modèle principal lui-même : ignoré — la tête MTP intégrée " +
+			"sert de brouillon sans recharger les poids (retire MODEL_DRAFT du preset)"}, notes...), auto
+	}
 	mode := specMode(cfg)
 	draftKey := strings.TrimSpace(cfg["MODEL_DRAFT"])
 	switch mode {

@@ -6635,7 +6635,10 @@ async function populateDraft(){
   if(!sel) return;
   const list = await jget('/api/models');
   const cur = readEnvKey(document.getElementById('m-content').value, 'MODEL_DRAFT');
-  const items = (list||[]).filter(m => !isMmprojName(m.name));
+  // Le modèle principal n'est pas un brouillon : le choisir rechargeait tous
+  // ses poids une seconde fois (-md), quand sa tête MTP s'utilise sans.
+  const main = matchModel(currentModelInTextarea(), list);
+  const items = (list||[]).filter(m => !isMmprojName(m.name) && m !== main);
   const hit = matchModel(cur, items);
   let html = '<option value="">— aucun —</option>';
   let matched = false;
@@ -6645,7 +6648,9 @@ async function populateDraft(){
     html += '<option value="'+escHtml(m.value)+'"'+on+'>'+escHtml(m.name)+' ('+fmtSize(m.size)+')</option>';
   }
   if(cur && !matched){
-    html += '<option value="'+escHtml(cur)+'" selected>'+escHtml(baseName(cur)||cur)+' (introuvable)</option>';
+    const self = main && matchModel(cur, [main]);
+    html += '<option value="'+escHtml(cur)+'" selected>'+escHtml(baseName(cur)||cur)+
+      (self ? ' (le modèle lui-même : ignoré, choisis « aucun »)' : ' (introuvable)')+'</option>';
   }
   sel.innerHTML = html;
   syncSpecRow();

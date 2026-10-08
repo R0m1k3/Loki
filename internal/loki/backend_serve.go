@@ -527,6 +527,7 @@ type serveSysInfo struct {
 	Draft           string    // MODEL_DRAFT résolu et vérifié ; vide = absent ou introuvable
 	DraftErr        string    // pourquoi MODEL_DRAFT n'a pas été trouvé
 	DraftGGUF       *GGUFInfo // métadonnées du brouillon ; nil = illisibles
+	DraftIsModel    bool      // MODEL_DRAFT désigne le modèle principal lui-même (voir specArgs)
 	SpecAutoBlocked string    // un essai automatique précédent a échoué : la raison
 
 	// Cartes listées par le moteur (--list-devices), lues seulement pour
