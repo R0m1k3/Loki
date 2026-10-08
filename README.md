@@ -120,6 +120,43 @@ verrouiller la mémoire : `ulimits: memlock: -1` (déjà présent dans les
 fichiers compose fournis). Le benchmark et l'optimiseur ne s'appliquent qu'à
 llama.cpp.
 
+### Strata sur un SSD dédié (Unraid)
+
+Strata range **tout** dans `/data/strata` : moteur, environnement Python (~10
+Go), modèle (66 à 84 Go), et, quand la RAM ne suffit pas à garder les experts
+(mode « lus depuis le disque »), il les relit en continu depuis ce dossier. Un
+SSD de 250 Go dédié lui suffit largement (quelle que soit la qualité choisie)
+et c'est lui qui fait la vitesse en mode disque : un NVMe vaut mieux qu'un SATA,
+et un disque dur de l'array est à proscrire.
+
+1. **Le SSD en pool Unraid.** Array arrêté : *Main → Add Pool*, nom `strata`,
+   1 emplacement, assigne le SSD. Démarre l'array, clique le pool, *File
+   system type* = `xfs` (ou `btrfs`), puis *Format* en bas de la page Main.
+   Le SSD est alors monté en `/mnt/strata`.
+   (Avec le plugin *Unassigned Devices* à la place : monte-le, il apparaît en
+   `/mnt/disks/<nom>` — même suite en remplaçant le chemin.)
+2. **Le dossier** (terminal Unraid) : `mkdir -p /mnt/strata/loki`.
+   Vérifie avec `df -h /mnt/strata` que c'est bien le SSD (~230 Go) et pas
+   `rootfs` : un `/mnt/<pool>` qui n'existe pas est dans la RAM d'Unraid.
+3. **Ce qui existe déjà.** Si une installation de Strata avait commencé dans
+   `/mnt/user/appdata/loki/data/strata`, *Compose Down* puis, au choix :
+   `rsync -a /mnt/user/appdata/loki/data/strata/ /mnt/strata/loki/` (on garde,
+   les presets restent valides : le chemin vu par le conteneur ne change pas),
+   ou supprime ce dossier pour repartir de zéro. Sinon il reste caché sous le
+   montage et occupe de la place pour rien.
+4. **Le compose** : décommente dans `docker-compose.unraid.yml` la ligne
+   ```yaml
+   - /mnt/strata/loki:/data/strata
+   ```
+   (sous les deux volumes existants), puis *Compose Up*.
+5. **Installer** : *Paramètres → Moteur → Strata*. La fenêtre affiche
+   maintenant l'espace libre **du SSD** ; choisis la version et la qualité
+   proposées, puis installe.
+
+Pas de partage `/mnt/user/…` pour ce montage : la couche FUSE d'Unraid
+ralentit fortement la lecture des experts en mmap. Et rien à faire côté mover
+ou cache : le pool `strata` n'est lié à aucun partage.
+
 ## Installation sur Unraid
 
 L'image est construite et publiée par GitHub Actions sur GHCR

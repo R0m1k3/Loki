@@ -64,6 +64,15 @@ services:
       - /mnt/user/appdata/loki/data:/data
       # /models : dossier de .gguf déposés à la main (gros fichiers)
       - /mnt/user/appdata/loki/models:/models
+      # Strata sur un SSD dédié (optionnel) : tout ce que Strata installe
+      # (moteur, Python, modèle de 66 à 84 Go, experts lus en mmap) va dans
+      # /data/strata. Monter un SSD à cet endroit l'y envoie entier. Le SSD
+      # doit être un pool Unraid (Main -> Add Pool, ex. « strata ») : chemin
+      # /mnt/<pool>/…, PAS /mnt/user/… (FUSE ralentit le mmap des experts).
+      # Vérifie que /mnt/strata existe avant Compose Up : sinon Docker crée
+      # le dossier dans la RAM d'Unraid. Détails : README, « Strata sur un
+      # SSD dédié ».
+      # - /mnt/strata/loki:/data/strata
     # Moteur Strata (Qwen3.8 Flash Next) : il verrouille ses experts en RAM
     # (mlock, 30 à 50 Go). La limite Docker par défaut (64 Ko) l'en empêche.
     ulimits:
