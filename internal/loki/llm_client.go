@@ -1069,6 +1069,12 @@ func friendlyLLMError(err error) error {
 }
 
 func errEngineDown() error {
+	// Un refus de connexion ne veut pas toujours dire « il charge encore » : si
+	// le journal montre que le dernier lancement a échoué, c'est cela qu'il faut
+	// dire — réessayer dans quelques secondes n'y changera rien.
+	if msg := modelLoadError(); msg != "" {
+		return fmt.Errorf("⚠️ %s", msg)
+	}
 	return fmt.Errorf("⚠️ Le moteur (llama-server) ne répond pas sur le port %d. Il est probablement en train de démarrer ou de charger le modèle — réessaie dans quelques secondes.", LLMPort())
 }
 
