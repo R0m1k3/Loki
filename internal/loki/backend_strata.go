@@ -284,7 +284,9 @@ const strataMinArch = 75
 func strataDetect() strataEnv {
 	env := strataEnv{Main: -1, Helper: -1, RAMGB: totalRAMGB()}
 	env.AvailGB = min(memAvailableGB()+strataEngineRSSGB(), env.RAMGB)
-	if f := diskFree(LokiHome()); f > 0 {
+	// strataHome() et pas LokiHome() : /data/strata peut être un disque à part
+	// (SSD dédié monté dans le conteneur), c'est sa place libre qui compte.
+	if f := diskFree(strataHome()); f > 0 {
 		env.DiskFreeGB = float64(f) / 1e9
 	}
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
@@ -774,7 +776,10 @@ func strataRunInstall(req strataInstallReq) {
 		// réserver sa propre variante (qui ne voit pas un experts.bin présent).
 		"--low-ram", "off",
 	}
-	extra := "CUDA_DEVICE_ORDER=PCI_BUS_ID\x00PYTHONUNBUFFERED=1"
+	// XDG_CACHE_HOME : les caches de pip et de Hugging Face (~/.cache, soit
+	// /root dans le conteneur, donc l'image Docker — 20 Go sur Unraid) suivent
+	// le reste de Strata dans /data/strata.
+	extra := "CUDA_DEVICE_ORDER=PCI_BUS_ID\x00PYTHONUNBUFFERED=1\x00XDG_CACHE_HOME=" + filepath.Join(strataHome(), "cache")
 	if err := runStepEnv("installation de Strata", strataSrcDir(), extra, "bash", args...); err != nil {
 		lcFail(fmt.Errorf("l'installation a échoué : %w (voir le journal)", err))
 		return
