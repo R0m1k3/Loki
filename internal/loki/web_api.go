@@ -107,6 +107,13 @@ func modelLoadErrorFrom(log string) string {
 	// On ne considère que ce qui suit la DERNIÈRE tentative de chargement.
 	start := 0
 	for i, l := range lines {
+		// Une pile d'appels cite les fonctions traversées
+		// (…server_context_impl10load_model…) : ce n'est pas une nouvelle
+		// tentative, et repartir de là perdait la cause écrite juste avant
+		// (« cudaMalloc failed: out of memory » devenait « a planté »).
+		if isBacktraceFrame(l) {
+			continue
+		}
 		// Un lancement refusé par LOAD_GUARD (backend_serve_moe.go) s'arrête
 		// avant tout chargement : c'est lui, la dernière tentative.
 		if strings.Contains(l, "loading model") || strings.Contains(l, "load_model") || strings.Contains(l, loadGuardMarker) ||
@@ -159,7 +166,8 @@ func modelLoadErrorFrom(log string) string {
 			strings.Contains(low, "cudamalloc failed"),
 			strings.Contains(low, "failed to allocate"):
 			// Prioritaire sur l'échec générique : la cause mémoire doit gagner.
-			reason = "mémoire GPU insuffisante (VRAM) — réduis le contexte (CTX) ou prends une quantification plus petite"
+			reason = "mémoire GPU insuffisante (VRAM) — réduis le contexte (CTX) ou prends une quantification plus petite, " +
+				"et vérifie qu'aucun autre programme n'occupe la carte (nvidia-smi)"
 		case strings.Contains(low, "ggml_cuda error"), strings.Contains(low, "cuda error"):
 			if reason == "" {
 				reason = "erreur CUDA — GPU indisponible ? (après un redémarrage du serveur : docker restart loki)"
@@ -195,6 +203,10 @@ func modelLoadErrorFrom(log string) string {
 			"). Ouvre le journal du moteur pour le détail."
 	}
 }
+
+// isBacktraceFrame : une ligne de pile d'appels de glibc
+// (« /chemin/lib.so(symbole+0x1c)[0x14bd…] »).
+func isBacktraceFrame(l string) bool { return strings.Contains(l, ")[0x") }
 
 // handleServiceLog (GET /api/service/log) : dernières lignes du journal du
 // service, pour que l'UI puisse montrer POURQUOI le modèle ne se charge pas

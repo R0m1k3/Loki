@@ -362,3 +362,18 @@ func TestStrataApplySettingsExperts(t *testing.T) {
 		t.Errorf("vide doit laisser le choix en place : %q", out)
 	}
 }
+
+// Vécu : bascule de Strata vers llama-server, l'encodeur de vision ne trouve
+// plus de VRAM. La pile d'appels cite « load_model » : elle ne doit pas passer
+// pour une nouvelle tentative qui effacerait la cause, écrite juste avant.
+func TestModelLoadErrorOOMBeforeBacktrace(t *testing.T) {
+	log := "0.00.247.285 I srv    load_model: loading model '/data/models/Swift.gguf'\n" +
+		"4.47.957.764 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 884.62 MiB on device 0: cudaMalloc failed: out of memory\n" +
+		"/app/ggml/src/ggml-backend.cpp:328: GGML_ASSERT(buffer) failed\n" +
+		"/data/engine/libmtmd.so.0(mtmd_init_from_file+0x31)[0x14bd4fea4c01]\n" +
+		"/data/engine/libllama-server-impl.so(_ZN19server_context_impl10load_modelER13common_params+0x7ff)[0x14bd50b9f1ff]\n" +
+		"/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x14bd5059a28b]\n"
+	if got := modelLoadErrorFrom(log); !strings.Contains(got, "mémoire GPU insuffisante") {
+		t.Errorf("cause mémoire perdue derrière la pile d'appels : %q", got)
+	}
+}

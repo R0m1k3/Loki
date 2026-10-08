@@ -125,25 +125,25 @@ func userCheckStarted(pid int) error {
 
 func userSvcStop(verbose bool) error {
 	pid := readServicePID()
-	if pid <= 0 || !processAlive(pid) {
+	// Le chef parti, ses enfants peuvent tourner encore (moteur de Strata) :
+	// on ne conclut « rien à arrêter » que si l'arbre entier est vide.
+	if pid <= 0 || len(procTreeOf(procTable(), pid, os.Getpid())) == 0 {
 		_ = os.Remove(pidFilePath())
 		if verbose {
 			fmt.Println(yellow("[info]") + " aucun service en cours d'exécution")
 		}
 		return nil
 	}
-	// Setsid a fait de l'enfant un chef de groupe : le PID négatif vise le
-	// groupe entier, donc llama-server s'arrête avec lui.
-	if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil {
-		_ = syscall.Kill(pid, syscall.SIGTERM)
-	}
-	for i := 0; i < 40 && processAlive(pid); i++ {
-		time.Sleep(100 * time.Millisecond)
-	}
-	if processAlive(pid) {
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
-	}
+	// Setsid a fait de l'enfant un chef de session : tout ce qu'il a lancé
+	// (llama-server, serveur et moteur de Strata) s'arrête avec lui, et on
+	// attend qu'il soit VRAIMENT parti — la relance qui suit en a besoin pour
+	// trouver la VRAM et la RAM libres.
+	left := stopProcTree(pid, 4*time.Second, 20*time.Second)
 	_ = os.Remove(pidFilePath())
+	if len(left) > 0 {
+		fmt.Fprintf(os.Stderr, "%s %d processus du moteur toujours là après SIGKILL (PID %d…) : "+
+			"la mémoire du GPU peut ne pas être encore rendue\n", yellow("[attention]"), len(left), left[0].pid)
+	}
 	if verbose {
 		fmt.Println(green("[ok]") + " arrêté")
 	}
