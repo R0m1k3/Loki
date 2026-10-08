@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -106,6 +107,13 @@ func TestSpecArgs(t *testing.T) {
 				s.GGUF.HasNextNTensor = false
 				s.Draft = "/models/mtp-Qwen3.6-27B-Q8_0.gguf"
 				s.DraftGGUF = &GGUFInfo{Arch: "qwen35", BlockCount: 65, HasNextNTensor: true}
+			}},
+		{name: "MODEL_DRAFT = le modèle lui-même : pas de -md, la tête intégrée, et on le dit",
+			cfg: with(forced, "MODEL_DRAFT", "Qwen3.6-27B-MTP.gguf"), notes: 2, want: mtp,
+			si: func(s *serveSysInfo) {
+				s.Draft = s.Model
+				s.DraftGGUF = s.GGUF
+				s.DraftIsModel = true
 			}},
 		{name: "MODEL_DRAFT petit modèle : -md + draft-simple, sinon chargé pour rien",
 			cfg: with(forced, "MODEL_DRAFT", "Qwen3-0.6B.gguf"), notes: 1,
@@ -491,5 +499,28 @@ func TestSynthAcceptanceWarned(t *testing.T) {
 	si := serveSysInfo{ArgEnv: map[string]string{"LLAMA_ARG_SPEC_SYNTH_LEN": "3"}}
 	if n := lossyCacheNotes(nil, si); len(n) != 1 {
 		t.Errorf("variable : %q", n)
+	}
+}
+
+// probeSpec reconnaît un MODEL_DRAFT qui désigne le modèle principal.
+func TestProbeSpecDraftIsModel(t *testing.T) {
+	t.Setenv("LOKI_HOME", t.TempDir())
+	dir := t.TempDir()
+	model := dir + "/Swift-27B.gguf"
+	other := dir + "/mtp-Swift.gguf"
+	for _, p := range []string{model, other} {
+		if err := os.WriteFile(p, []byte("GGUF"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	si := serveSysInfo{Model: model}
+	probeSpec(map[string]string{"MODEL_DRAFT": model}, &si)
+	if !si.DraftIsModel {
+		t.Errorf("MODEL_DRAFT = le modèle, non reconnu (Draft=%q, err=%q)", si.Draft, si.DraftErr)
+	}
+	si = serveSysInfo{Model: model}
+	probeSpec(map[string]string{"MODEL_DRAFT": other}, &si)
+	if si.DraftIsModel || si.Draft != other {
+		t.Errorf("tête à part prise pour le modèle : %+v", si)
 	}
 }
