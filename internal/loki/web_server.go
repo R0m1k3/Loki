@@ -33,7 +33,7 @@ func cmdWeb(args []string) error {
 		port = n
 	}
 	mux := newWebMux()
-	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	addr := webBindAddr(port)
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -98,6 +98,17 @@ func cmdWeb(args []string) error {
 	// SSE et les binaires passent tels quels (voir web_gzip.go).
 	srv := &http.Server{Handler: gzipHandler(mux), ReadHeaderTimeout: 10 * time.Second}
 	return srv.Serve(ln)
+}
+
+// webBindAddr renvoie l'adresse d'écoute de l'UI. LOKI_WEB_BIND (défaut
+// 0.0.0.0) existe pour la façade Rust du conteneur (rust/loki-rs) : elle prend
+// le port public et lance `loki web` en local seulement, sur 127.0.0.1.
+func webBindAddr(port int) string {
+	host := strings.TrimSpace(os.Getenv("LOKI_WEB_BIND"))
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
 // newWebMux construit le routeur HTTP de l'UI web. Extrait de cmdWeb pour être
