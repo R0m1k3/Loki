@@ -22,3 +22,6 @@ Thumbs.db
 .pytest_cache/
 __pycache__/
 node_modules/
+
+# Rust (façade loki-rs)
+rust/target/

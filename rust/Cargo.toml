@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["loki-rs"]
+
+[profile.release]
+strip = true
+lto = "thin"
