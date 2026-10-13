@@ -96,7 +96,9 @@ func cmdWeb(args []string) error {
 	// clients tiers, en plein milieu d'une génération.
 	// gzipHandler : l'UI (~590 Ko) et les gros JSON partent compressés ; les flux
 	// SSE et les binaires passent tels quels (voir web_gzip.go).
-	srv := &http.Server{Handler: gzipHandler(mux), ReadHeaderTimeout: 10 * time.Second}
+	// withInternalAPI : l'API interne de la façade Rust (web_internal.go) n'est
+	// branchée QUE sur cette écoute directe — le tunnel sert le mux nu.
+	srv := &http.Server{Handler: gzipHandler(withInternalAPI(mux)), ReadHeaderTimeout: 10 * time.Second}
 	return srv.Serve(ln)
 }
 
