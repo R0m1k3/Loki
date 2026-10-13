@@ -41,13 +41,14 @@ pub struct Supervisor {
 
 impl Supervisor {
     /// Lance `<go_bin> web <port>` en écoute locale et le maintient en vie.
-    pub fn spawn(go_bin: PathBuf, port: u16) -> Supervisor {
+    /// `env` : variables ajoutées à l'environnement du Go (jeton interne…).
+    pub fn spawn(go_bin: PathBuf, port: u16, env: Vec<(String, String)>) -> Supervisor {
         let (tx, mut rx) = oneshot::channel::<Duration>();
         let done = tokio::spawn(async move {
             let mut delay = Duration::ZERO;
             loop {
                 let started = Instant::now();
-                let mut child = match launch(&go_bin, port) {
+                let mut child = match launch(&go_bin, port, &env) {
                     Ok(c) => c,
                     Err(e) => {
                         eprintln!(
@@ -99,8 +100,9 @@ impl Supervisor {
     }
 }
 
-fn launch(go_bin: &Path, port: u16) -> std::io::Result<Child> {
+fn launch(go_bin: &Path, port: u16, env: &[(String, String)]) -> std::io::Result<Child> {
     Command::new(go_bin)
+        .envs(env.iter().map(|(k, v)| (k, v)))
         .arg("web")
         .arg(port.to_string())
         .env("LOKI_WEB_BIND", "127.0.0.1")

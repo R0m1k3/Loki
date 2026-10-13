@@ -91,7 +91,12 @@ async fn facade(backend: SocketAddr) -> (SocketAddr, oneshot::Sender<()>) {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let (tx, rx) = oneshot::channel::<()>();
-    tokio::spawn(loki_rs::proxy::serve(l, backend, async move {
+    let cfg = loki_rs::proxy::Config {
+        backend,
+        internal_token: "jeton-de-test".into(),
+        host_env: Default::default(),
+    };
+    tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;
     }));
     (addr, tx)
@@ -198,7 +203,8 @@ async fn backend_absent_donne_502() {
         .local_addr()
         .unwrap();
     let (f, _stop) = facade(dead).await;
-    let req = Request::get(format!("http://{f}/"))
+    // Route relayée au Go (« / » est servie par la façade elle-même).
+    let req = Request::get(format!("http://{f}/api/status"))
         .body(Full::new(Bytes::new()))
         .unwrap();
     let resp = client().request(req).await.unwrap();

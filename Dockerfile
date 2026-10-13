@@ -50,8 +50,12 @@ RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 FROM rust:1-alpine AS rustbuild
 RUN apk add --no-cache musl-dev
 WORKDIR /src
-COPY rust/ ./
-RUN cargo build --release --locked && mkdir -p /out && cp target/release/loki-rs /out/loki-rs
+# L'UI est embarquée par build.rs depuis la même source que le go:embed : les
+# deux binaires d'une image servent toujours la même interface.
+COPY internal/loki/ui/ internal/loki/ui/
+COPY rust/ rust/
+RUN cd rust && cargo build --release --locked \
+    && mkdir -p /out && cp target/release/loki-rs /out/loki-rs
 
 # ── Étape 1 bis : serveur de dictée (Parakeet via sherpa-onnx) ──────────
 # On TÉLÉCHARGE un binaire préconstruit, on ne compile plus rien. C'est le

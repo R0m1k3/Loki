@@ -7,7 +7,7 @@
 //! loki-rs version
 //! ```
 
-use loki_rs::{child, proxy, update};
+use loki_rs::{auth, child, proxy, update};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -89,7 +89,20 @@ fn serve() -> ExitCode {
             "[loki-rs] serveur Go : {} web {go_port} (local)",
             go_bin.display()
         );
-        let sup = child::Supervisor::spawn(go_bin, go_port);
+        // Jeton de l'API interne du Go : tiré au hasard à chaque démarrage,
+        // connu seulement de la façade et du Go qu'elle lance.
+        let token = match internal_token() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[loki-rs] aléa système indisponible : {e}");
+                return ExitCode::FAILURE;
+            }
+        };
+        let sup = child::Supervisor::spawn(
+            go_bin,
+            go_port,
+            vec![(auth::INTERNAL_ENV.to_string(), token.clone())],
+        );
         wait_for(backend, Duration::from_secs(30)).await;
 
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
@@ -102,7 +115,12 @@ fn serve() -> ExitCode {
             }
         };
         eprintln!("[loki-rs] façade : http://{addr} → {backend}");
-        let res = proxy::serve(listener, backend, shutdown_signal()).await;
+        let cfg = proxy::Config {
+            backend,
+            internal_token: token,
+            host_env: auth::HostEnv::from_env(),
+        };
+        let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
         sup.shutdown(Duration::from_secs(10)).await;
         match res {
@@ -113,6 +131,12 @@ fn serve() -> ExitCode {
             }
         }
     })
+}
+
+fn internal_token() -> Result<String, getrandom::Error> {
+    let mut b = [0u8; 32];
+    getrandom::fill(&mut b)?;
+    Ok(hex::encode(b))
 }
 
 /// Attend que le Go accepte les connexions, sans bloquer au-delà de `max` :

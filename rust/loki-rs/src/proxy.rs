@@ -1,6 +1,6 @@
-//! Façade HTTP : reçoit tout le trafic public et le relaie au serveur Go
-//! (`loki web` sur 127.0.0.1). Les lots suivants de la migration y brancheront
-//! les routes réécrites en Rust ; au lot 1, tout est relayé.
+//! Façade HTTP : reçoit tout le trafic public. Les routes déjà réécrites en
+//! Rust sont servies ici (lot 2 : UI statique, `/api/ping`) ; tout le reste
+//! est relayé au serveur Go (`loki web` sur 127.0.0.1).
 //!
 //! Règles, héritées de `web_server.go` :
 //! - aucun tampon : un flux SSE (chat, `/v1` en streaming) part trame par trame ;
@@ -27,6 +27,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
+use crate::auth::{self, HostEnv, INTERNAL_HEADER, InternalClient};
+use crate::ui;
+
 pub type Body = BoxBody<Bytes, hyper::Error>;
 
 /// En-tête posé par le tunnel du relais côté Go (`viaTunnelHeader`).
@@ -43,19 +46,35 @@ const HOP_BY_HOP: [&str; 8] = [
     "upgrade",
 ];
 
+/// Réglages de la façade.
+pub struct Config {
+    /// Serveur Go (`loki web`), en écoute locale.
+    pub backend: SocketAddr,
+    /// Jeton de l'API interne du Go (`LOKI_INTERNAL_TOKEN`).
+    pub internal_token: String,
+    pub host_env: HostEnv,
+}
+
 struct Proxy {
     client: Client<HttpConnector, Incoming>,
     backend: SocketAddr,
+    internal: InternalClient,
+    host_env: HostEnv,
 }
 
 /// Sert la façade sur `listener` jusqu'à ce que `shutdown` se termine.
 pub async fn serve(
     listener: TcpListener,
-    backend: SocketAddr,
+    cfg: Config,
     shutdown: impl Future<Output = ()>,
 ) -> std::io::Result<()> {
     let client = Client::builder(TokioExecutor::new()).build_http();
-    let proxy = Arc::new(Proxy { client, backend });
+    let proxy = Arc::new(Proxy {
+        client,
+        backend: cfg.backend,
+        internal: InternalClient::new(cfg.backend, cfg.internal_token),
+        host_env: cfg.host_env,
+    });
     tokio::pin!(shutdown);
     loop {
         tokio::select! {
@@ -91,9 +110,43 @@ pub async fn serve(
 
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
+        // Jamais de confiance accordée sur la foi d'un en-tête du client :
+        // ni « je viens du tunnel », ni « je suis la façade ».
+        req.headers_mut().remove(VIA_TUNNEL);
+        req.headers_mut().remove(INTERNAL_HEADER);
+
+        let path = req.uri().path();
+        // L'API interne du Go n'est jamais joignable de l'extérieur.
+        if path.starts_with("/internal/") {
+            return plain(StatusCode::NOT_FOUND, "404 page not found");
+        }
+        if let Some(resp) = ui::serve(req.method(), path, req.headers()) {
+            return resp;
+        }
+        if path == "/api/ping" {
+            return self.ping(req.headers()).await;
+        }
+        self.forward(req).await
+    }
+
+    /// `/api/ping` : vérifie la connectivité ET la clé (200 = bonne clé,
+    /// 401 = mauvaise clé), comme `handlePing`.
+    async fn ping(&self, headers: &HeaderMap) -> Response<Body> {
+        let info = self.internal.auth().await;
+        if let Some(refus) = auth::authorize(headers, &info, &self.host_env) {
+            return refus;
+        }
+        let version = info.map(|i| i.version).unwrap_or_default();
+        auth::json(
+            StatusCode::OK,
+            &serde_json::json!({ "ok": true, "service": "loki", "version": version }),
+        )
+    }
+
+    /// Relais vers le Go (HTTP, SSE, WebSocket).
+    async fn forward(&self, mut req: Request<Incoming>) -> Response<Body> {
         let upgrade = upgrade_protocol(req.headers());
         strip_hop_by_hop(req.headers_mut());
-        req.headers_mut().remove(VIA_TUNNEL);
         let client_upgrade = upgrade.as_ref().map(|proto| {
             let h = req.headers_mut();
             h.insert(header::CONNECTION, HeaderValue::from_static("upgrade"));

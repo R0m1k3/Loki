@@ -39,7 +39,10 @@ seule image.
   seule l'UI (8090) l'est.
 - **Migration vers Rust en cours**, par lots : la façade `loki-rs`
   (`rust/loki-rs`) prend le port public et relaie au serveur Go ; chaque lot
-  lui fait reprendre des routes. Plan et feuille de route :
+  lui fait reprendre des routes. Déjà servis par Rust : l'interface (HTML,
+  JS, polices) et `/api/ping`, avec l'authentification de pilotage portée à
+  l'identique (la clé est demandée au Go par une API interne locale,
+  protégée par un jeton tiré à chaque démarrage). Plan et feuille de route :
   `docs/superpowers/specs/2026-10-13-rust-migration-lot1-design.md`.
 
 ## Démarrage rapide (Docker, GPU NVIDIA)
