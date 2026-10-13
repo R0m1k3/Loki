@@ -16,8 +16,10 @@
 #   Les modèles se téléchargent directement depuis l'UI (catalogue intégré),
 #   ou dépose tes .gguf dans /mnt/user/appdata/loki/models.
 #
-#   Mise à jour : Compose Down puis Up avec « pull image », ou
-#   « docker compose pull » avant Up.
+#   Mise à jour : AUTOMATIQUE au redémarrage du conteneur (binaires Loki de
+#   la release « rolling », vérifiés SHA-256 ; LOKI_AUTO_UPDATE=0 pour couper).
+#   Si le journal demande une nouvelle image : Compose Down puis Up avec
+#   « pull image », ou « docker compose pull » avant Up.
 # ───────────────────────────────────────────────────────────────────────────
 services:
   loki:

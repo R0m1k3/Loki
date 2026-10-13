@@ -16,7 +16,9 @@ seule image.
 
 ```
 ┌────────────────── conteneur loki ──────────────────┐
-│  loki web  (UI + API, port 8090, premier plan)     │
+│  loki-rs serve (façade Rust, port 8090)            │
+│     │ relaie HTTP/SSE/WebSocket                    │
+│  loki web  (UI + API Go, 127.0.0.1:8091)           │
 │     │ pilote (fichier PID — pas de systemd)        │
 │  loki serve ──exec──► llama-server (CUDA, :8080)   │
 │                        ▲ modèles .gguf             │
@@ -35,6 +37,10 @@ seule image.
   redémarre le moteur normalement.
 - Le moteur (port 8080, non authentifié par défaut) **n'est pas exposé** ;
   seule l'UI (8090) l'est.
+- **Migration vers Rust en cours**, par lots : la façade `loki-rs`
+  (`rust/loki-rs`) prend le port public et relaie au serveur Go ; chaque lot
+  lui fait reprendre des routes. Plan et feuille de route :
+  `docs/superpowers/specs/2026-10-13-rust-migration-lot1-design.md`.
 
 ## Démarrage rapide (Docker, GPU NVIDIA)
 
@@ -172,6 +178,32 @@ Unraid. Compose prêt à l'emploi : [`docker-compose.unraid.yml`](docker-compose
    `docker-compose.unraid.yml` → **Compose Up**.
 4. Interface : `http://<ip-unraid>:8090`.
 
+## Mise à jour au démarrage
+
+Un **simple redémarrage du conteneur** (ou du serveur Unraid) suffit à passer
+à la dernière version de Loki : pas besoin de `docker compose pull` pour les
+changements de code.
+
+- À chaque push sur `main`, la CI publie la release GitHub
+  [`rolling`](https://github.com/R0m1k3/Loki/releases/tag/rolling) : binaires
+  `loki` (Go) et `loki-rs` (Rust), `SHA256SUMS`, `manifest.json`.
+- Au démarrage, `loki-rs self-update` les télécharge, vérifie leur empreinte
+  SHA-256 et les installe dans `/data/bin/<build>/`. Le journal du conteneur
+  dit ce qui s'est passé (`[loki-rs update] …`, puis
+  `[entrypoint] binaires Loki : …`).
+- **Jamais bloquant** : réseau coupé, empreinte fausse, GitHub injoignable →
+  les binaires déjà en place servent, le conteneur démarre normalement.
+- **Quand une nouvelle image est nécessaire** (nouvelle dépendance système,
+  Python, Node, llama.cpp…), le fichier `IMAGE_ABI` est incrémenté : les
+  conteneurs plus anciens n'installent pas ces binaires et le journal demande
+  un `docker compose pull`.
+- La mise à jour est faite par le `loki-rs` **de l'image**, jamais par celui
+  téléchargé : une version publiée défectueuse ne peut pas empêcher le
+  correctif suivant d'arriver au redémarrage d'après.
+- `docker exec loki loki …` utilise aussi la version installée.
+- Couper : `LOKI_AUTO_UPDATE=0`. Revenir aux binaires de l'image : supprimer
+  `/data/bin` et redémarrer avec `LOKI_AUTO_UPDATE=0`.
+
 ## Configuration
 
 Tout se règle **dans l'UI** (modèle, contexte, presets…) et survit aux
@@ -189,6 +221,9 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_CHROME` | binaire du navigateur piloté (contrôle du navigateur) ; par défaut le Chromium de Playwright de l'image | — |
 | `LOKI_CU_HEADFUL` | `1` : ouvre une vraie fenêtre au lieu du mode headless (machine avec écran) | — |
 | `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** clé de pilotage (reverse proxy), séparés par des virgules | — |
+| `LOKI_AUTO_UPDATE` | `0` : pas de mise à jour des binaires au démarrage | `1` |
+| `LOKI_FACADE` | `0` : sans façade Rust, le Go sert directement le port public (porte de sortie) | `1` |
+| `LOKI_GO_PORT` | port local (127.0.0.1) du serveur Go derrière la façade | `8091` |
 
 **Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
 hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse
@@ -1062,7 +1097,7 @@ Une étape à la fois, mesurée avant la suivante :
 | Agent de code | — | mode Code : critères d'acceptation, passe de vérification, LSP, outils git |
 | Accès distant | relais chiffré ajean.link | retiré de l'interface |
 | Endpoint OpenAI | `:8080/v1` du moteur, ouvert par `network on` | `/v1` servi par Loki sur le port de l'interface, protégé par la clé API |
-| Mise à jour | `ajean update` (binaire GitHub) | `docker compose pull` |
+| Mise à jour | `ajean update` (binaire GitHub) | au redémarrage du conteneur (release `rolling`) ; `docker compose pull` si l'image change |
 
 Le reste — mémoire, outils, protocole, moteur d'inférence — est celui d'AJEAN.
 Pour récupérer les évolutions de l'amont :

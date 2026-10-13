@@ -54,6 +54,7 @@ jobs:
           push: true
           build-args: |
             LOKI_VERSION=${{ github.sha }}
+            LOKI_BUILD=${{ github.run_number }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Le cache de couches réutilise l'étape asrfetch (téléchargement du
@@ -61,3 +62,56 @@ jobs:
           # pas : seul le code Go et l'assemblage de l'image se refont.
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Release « rolling » : les binaires que le conteneur installe lui-même au
+  # démarrage (loki-rs self-update, voir docker-entrypoint.sh). Même numéro de
+  # run que l'image ci-dessus : c'est lui qui ordonne les versions.
+  # manifest.json part EN DERNIER — tant qu'il annonce l'ancien build, un
+  # conteneur qui démarre pendant l'envoi garde ce qu'il a ; s'il lit des
+  # binaires à moitié remplacés, l'empreinte ne correspond pas et il n'installe
+  # rien. Pré-release : `loki update` (hors conteneur, /releases/latest) ne la
+  # voit pas.
+  rolling:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: rolling-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Outils musl
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends musl-tools
+      - name: Binaires
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags "-s -w" -o dist/loki-linux ./cmd/loki
+          (cd rust && cargo build --release --locked --target x86_64-unknown-linux-musl)
+          cp rust/target/x86_64-unknown-linux-musl/release/loki-rs dist/loki-rs-linux
+          file dist/loki-rs-linux
+          (cd dist && sha256sum loki-linux loki-rs-linux > SHA256SUMS)
+          abi=$(tr -d '[:space:]' < IMAGE_ABI)
+          printf '{"build":%s,"abi":%s,"commit":"%s"}\n' \
+            "${{ github.run_number }}" "$abi" "$GITHUB_SHA" > dist/manifest.json
+          cat dist/manifest.json dist/SHA256SUMS
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rolling >/dev/null 2>&1 || \
+            gh release create rolling --prerelease --target "$GITHUB_SHA" \
+              --title "rolling (mise à jour au démarrage)" \
+              --notes "Binaires installés automatiquement par le conteneur à son démarrage. Ne pas télécharger à la main."
+          gh release upload rolling dist/loki-linux dist/loki-rs-linux dist/SHA256SUMS --clobber
+          gh release upload rolling dist/manifest.json --clobber

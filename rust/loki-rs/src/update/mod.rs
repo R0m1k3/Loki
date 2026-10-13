@@ -95,6 +95,13 @@ impl Outcome {
             Outcome::AbiMismatch {
                 remote_abi,
                 image_abi,
+            } if remote_abi < image_abi => format!(
+                "image plus récente que la release publiée (ABI {remote_abi}, image {image_abi}) \
+                 — binaires de l'image conservés"
+            ),
+            Outcome::AbiMismatch {
+                remote_abi,
+                image_abi,
             } => format!(
                 "nouvelle version disponible mais elle exige une nouvelle image \
                  (ABI {remote_abi}, image {image_abi}) : docker compose pull"

@@ -8,3 +8,4 @@ dist/
 !README.md
 .env
 .env.*
+rust/target/

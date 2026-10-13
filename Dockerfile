@@ -42,6 +42,17 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/loki ./cmd/loki
 # limité à cette étape de build.
 RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 
+# ── Étape 1 ter : façade Rust loki-rs ───────────────────────────────────
+# Premier lot de la migration Go → Rust (rust/, voir docs/superpowers/specs/).
+# Alpine = musl : binaire STATIQUE, indépendant de la glibc de l'image runtime —
+# le même que celui publié dans la release « rolling » et installé à chaud
+# dans /data/bin par `loki-rs self-update`.
+FROM rust:1-alpine AS rustbuild
+RUN apk add --no-cache musl-dev
+WORKDIR /src
+COPY rust/ ./
+RUN cargo build --release --locked && mkdir -p /out && cp target/release/loki-rs /out/loki-rs
+
 # ── Étape 1 bis : serveur de dictée (Parakeet via sherpa-onnx) ──────────
 # On TÉLÉCHARGE un binaire préconstruit, on ne compile plus rien. C'est le
 # changement de fond par rapport à whisper.cpp, qu'il remplace : deux étapes de
@@ -131,6 +142,7 @@ RUN if [ "$PLAYWRIGHT" = "1" ]; then \
 
 COPY --from=gobuild /out/loki /usr/local/bin/loki
 COPY --from=gobuild /out/gopls /usr/local/bin/gopls
+COPY --from=rustbuild /out/loki-rs /usr/local/bin/loki-rs
 # Dictée vocale (POST /api/transcribe). Le modèle (~500 Mo) n'est PAS dans
 # l'image : téléchargé à la demande dans /data/asr/.
 COPY --from=asrfetch /out/sherpa-onnx-offline-websocket-server /usr/local/bin/sherpa-onnx-offline-websocket-server
@@ -146,6 +158,15 @@ ENV LOKI_CONTAINER=1 \
     LD_LIBRARY_PATH=/app \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Mise à jour au démarrage (loki-rs self-update) : IMAGE_ABI dit quelles
+# dépendances d'image les binaires exigent — un binaire publié pour une autre
+# ABI n'est jamais installé. LOKI_BUILD = numéro de run CI de cette image : un
+# binaire de /data/bin n'est pris que s'il est PLUS RÉCENT. Posés ici, en fin
+# d'image, pour ne pas invalider le cache des couches lourdes à chaque build.
+COPY IMAGE_ABI /etc/loki/IMAGE_ABI
+ARG LOKI_BUILD=0
+ENV LOKI_BUILD=${LOKI_BUILD}
 
 # 8090 : interface web (seule à exposer). Le moteur (8080) reste interne au
 # conteneur — il n'est pas authentifié par défaut.
