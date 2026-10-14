@@ -277,59 +277,10 @@ pub fn preset_ctx(content: &str) -> String {
     n.to_string()
 }
 
-/// SHA-1 (FIPS 180-4). Le Go hache l'empreinte en SHA-1 et aucune crate SHA-1
-/// n'est disponible : implémentation directe, vérifiée par les vecteurs
-/// officiels dans les tests. Usage d'identification, pas de sécurité.
+/// SHA-1 (crate RustCrypto `sha1`), comme `crypto/sha1` côté Go.
 fn sha1(data: &[u8]) -> [u8; 20] {
-    let mut h: [u32; 5] = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0];
-    let mut msg = data.to_vec();
-    let bit_len = (data.len() as u64).wrapping_mul(8);
-    msg.push(0x80);
-    while msg.len() % 64 != 56 {
-        msg.push(0);
-    }
-    msg.extend_from_slice(&bit_len.to_be_bytes());
-    // Le bourrage aligne `msg` sur 64 octets : le reste est vide.
-    let (blocks, _) = msg.as_chunks::<64>();
-    for block in blocks {
-        let mut w = [0u32; 80];
-        let (words, _) = block.as_chunks::<4>();
-        for (wi, word) in w.iter_mut().zip(words) {
-            *wi = u32::from_be_bytes(*word);
-        }
-        for i in 16..80 {
-            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
-        }
-        let [mut a, mut b, mut c, mut d, mut e] = h;
-        for (i, wi) in w.iter().enumerate() {
-            let (f, k) = match i {
-                0..=19 => ((b & c) | (!b & d), 0x5A827999),
-                20..=39 => (b ^ c ^ d, 0x6ED9EBA1),
-                40..=59 => ((b & c) | (b & d) | (c & d), 0x8F1BBCDC),
-                _ => (b ^ c ^ d, 0xCA62C1D6),
-            };
-            let t = a
-                .rotate_left(5)
-                .wrapping_add(f)
-                .wrapping_add(e)
-                .wrapping_add(k)
-                .wrapping_add(*wi);
-            e = d;
-            d = c;
-            c = b.rotate_left(30);
-            b = a;
-            a = t;
-        }
-        for (hv, v) in h.iter_mut().zip([a, b, c, d, e]) {
-            *hv = hv.wrapping_add(v);
-        }
-    }
-    let mut out = [0u8; 20];
-    let (chunks, _) = out.as_chunks_mut::<4>();
-    for (chunk, v) in chunks.iter_mut().zip(h) {
-        *chunk = v.to_be_bytes();
-    }
-    out
+    use sha1::{Digest, Sha1};
+    Sha1::digest(data).into()
 }
 
 #[cfg(test)]

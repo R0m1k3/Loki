@@ -13,6 +13,7 @@ hyper = { version = "1.12.0", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1.21", features = ["tokio", "server", "client-legacy", "http1"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["raw_value"] }
+sha1 = "0.11.0"
 sha2 = "0.11.1"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "signal", "process", "sync", "fs"] }
 
