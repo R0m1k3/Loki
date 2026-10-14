@@ -14,6 +14,7 @@ use crate::auth::{self, HostEnv, InternalClient};
 use crate::engine;
 use crate::proxy::Body;
 use crate::store::{BK_STATE, Store};
+use crate::sysinfo;
 use std::collections::BTreeMap;
 
 /// Ce dont les routes ont besoin, partagé par toutes les connexions.
@@ -39,7 +40,10 @@ impl Ctx {
 
 /// Cette route est-elle servie par Rust ?
 pub fn handles(_method: &Method, path: &str) -> bool {
-    matches!(path, "/api/ping" | "/api/config" | "/api/engine/cmdline")
+    matches!(
+        path,
+        "/api/ping" | "/api/config" | "/api/engine/cmdline" | "/api/ram" | "/api/vram"
+    )
 }
 
 pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
@@ -64,6 +68,22 @@ pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
         "/api/engine/cmdline" => {
             let cmdline = ctx.store.get_str(BK_STATE, "engine_cmdline").await;
             auth::json(StatusCode::OK, &json!({ "ok": true, "cmdline": cmdline }))
+        }
+        // RAM système en Mo (total = 0 : l'UI masque le bloc).
+        "/api/ram" => {
+            let (used, total) = sysinfo::ram_usage_mb();
+            auth::json(StatusCode::OK, &json!({ "used": used, "total": total }))
+        }
+        // Jauges des cartes : un seul nvidia-smi partagé par tous les onglets.
+        "/api/vram" => {
+            let gpus: Vec<_> = sysinfo::gpu_stats_cached()
+                .await
+                .into_iter()
+                .map(|g| {
+                    json!({ "name": g.name, "used": g.used, "total": g.total, "util": g.util, "temp": g.temp })
+                })
+                .collect();
+            auth::json(StatusCode::OK, &json!(gpus))
         }
         _ => not_found(),
     }

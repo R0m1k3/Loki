@@ -65,3 +65,18 @@ async fn routes_portees_protegees_par_la_cle() {
         assert_eq!(code, StatusCode::OK, "{path}");
     }
 }
+
+#[tokio::test]
+async fn ram_et_vram() {
+    let t = tempfile::tempdir().unwrap();
+    let (f, go, _stop) = fakego::start(t.path().into()).await;
+    let (code, _, body) = fakego::get(f, "/api/ram", &[]).await;
+    assert_eq!(code, StatusCode::OK);
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(v["used"].is_i64() && v["total"].is_i64(), "{v}");
+    let (code, _, body) = fakego::get(f, "/api/vram", &[]).await;
+    assert_eq!(code, StatusCode::OK);
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(v.is_array(), "{v}");
+    assert!(go.relayed.lock().unwrap().is_empty());
+}
