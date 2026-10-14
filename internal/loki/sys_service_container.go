@@ -38,6 +38,12 @@ func pidFilePath() string { return filepath.Join(LokiHome(), serviceName()+".pid
 func logFilePath() string { return filepath.Join(LokiHome(), serviceName()+".log") }
 
 func userSvcAction(action string) error {
+	// Supervision confiée à loki-rs quand il est là (sys_service_rust_linux.go).
+	if rs := rustEngineSupervisor(); rs != "" {
+		if handled, err := rustUserSvcAction(rs, action); handled {
+			return err
+		}
+	}
 	switch action {
 	case "start":
 		return userSvcStart()

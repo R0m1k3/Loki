@@ -4,10 +4,11 @@
 //! loki-rs serve         façade sur LOKI_WEB_PORT (8090), Go sur 127.0.0.1:LOKI_GO_PORT (8091)
 //! loki-rs self-update   met à jour les binaires dans $LOKI_HOME/bin (jamais bloquant)
 //! loki-rs which-bin     dossier d'où prendre loki et loki-rs
+//! loki-rs engine <start|stop|restart|status>   supervision du moteur (conteneur)
 //! loki-rs version
 //! ```
 
-use loki_rs::{auth, child, proxy, update};
+use loki_rs::{auth, child, engine, proxy, update};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -17,6 +18,19 @@ fn main() -> ExitCode {
     let cmd = std::env::args().nth(1).unwrap_or_default();
     match cmd.as_str() {
         "serve" => serve(),
+        "engine" => {
+            let action = std::env::args().nth(2).unwrap_or_default();
+            let go_bin = child::go_bin(std::env::var("LOKI_GO_BIN").ok(), &exe());
+            let opts = engine::Opts::new(go_bin);
+            match engine::run(&action, &engine::Paths::from_env(), &opts) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    // Dernière ligne de stderr : le Go en fait son message d'erreur.
+                    eprintln!("[loki-rs engine] {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         "self-update" => {
             let outcome = update::run(&update::UpdateConfig::from_env());
             eprintln!("[loki-rs update] {}", outcome.message());
@@ -44,7 +58,9 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         _ => {
-            eprintln!("usage : loki-rs serve | self-update | which-bin | version");
+            eprintln!(
+                "usage : loki-rs serve | engine <action> | self-update | which-bin | version"
+            );
             ExitCode::from(2)
         }
     }
