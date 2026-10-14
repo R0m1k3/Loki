@@ -14,7 +14,7 @@
 //! (`Store::config`) : ce module ne parle pas à la base.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use crate::engine::Paths;
@@ -295,9 +295,13 @@ mod linux {
         if model.is_empty() {
             return -1;
         }
-        let models = paths.home.join("models");
-        let extra = extra_model_dirs(stored_dirs);
-        let Some(path) = resolve_serve_model_path(model, &models, &extra) else {
+        let env_dirs = std::env::var(crate::gguf::MODEL_DIRS_ENV).ok();
+        let Ok(path) = crate::gguf::resolve_serve_model_path(
+            model,
+            &paths.home,
+            stored_dirs,
+            env_dirs.as_deref(),
+        ) else {
             return -1;
         };
         let size = model_total_size(&path);
@@ -377,191 +381,9 @@ fn go_parse_int64(s: &str) -> i64 {
 // --- Résolution du modèle (port local de backend_model_dirs.go, le temps que
 // `crate::paths` le porte en entier) -----------------------------------------
 
-/// Séparateur de `$LOKI_MODEL_DIRS` (':' sous Unix, ';' sous Windows).
-fn model_dirs_list_sep() -> char {
-    if cfg!(windows) { ';' } else { ':' }
-}
-
-/// `extraModelDirs` : dossiers enregistrés en base puis `$LOKI_MODEL_DIRS`,
-/// vides retirés, rendus absolus. Les doublons ne sont pas retirés : ils ne
-/// changent ni « premier dossier qui contient le fichier » ni « chemin dans un
-/// des dossiers ».
-pub fn extra_model_dirs(stored: &[String]) -> Vec<PathBuf> {
-    let mut raw: Vec<String> = stored.to_vec();
-    if let Ok(v) = std::env::var("LOKI_MODEL_DIRS")
-        && !v.is_empty()
-    {
-        raw.extend(v.split(model_dirs_list_sep()).map(str::to_string));
-    }
-    raw.iter()
-        .map(|d| d.trim())
-        .filter(|d| !d.is_empty())
-        .filter_map(|d| std::path::absolute(d).ok())
-        .collect()
-}
-
-/// `resolveServeModelPath` : MODEL= (nom de fichier ou chemin absolu) → chemin
-/// du .gguf à lancer ; `None` = nom invalide ou chemin absolu refusé.
-pub fn resolve_serve_model_path(name: &str, models: &Path, extra: &[PathBuf]) -> Option<PathBuf> {
-    let s = name.trim().trim_matches('"').trim();
-    if s.is_empty() || !s.to_lowercase().ends_with(".gguf") {
-        return None;
-    }
-    let dirs: Vec<&Path> = std::iter::once(models)
-        .chain(extra.iter().map(PathBuf::as_path))
-        .collect();
-    if Path::new(s).is_absolute() {
-        let abs = clean(s);
-        // resolveModelPath : dans un des dossiers déclarés, existant ou non.
-        if dirs.iter().any(|d| path_within(&d.to_string_lossy(), &abs)) {
-            return Some(PathBuf::from(abs));
-        }
-        // resolveServeModelPath : ailleurs, seulement un fichier qui existe.
-        return std::fs::metadata(&abs)
-            .ok()
-            .filter(|m| !m.is_dir())
-            .map(|_| PathBuf::from(abs));
-    }
-    let base = base_name(s);
-    if base.is_empty() || base == "." {
-        return None;
-    }
-    for d in &dirs {
-        let p = d.join(base);
-        if std::fs::metadata(&p).is_ok_and(|m| !m.is_dir()) {
-            return Some(p);
-        }
-    }
-    Some(models.join(base)) // introuvable : la taille dira -1
-}
-
-/// `filepath.Clean` (forme Unix ; sous Windows, '\' est d'abord unifié en '/').
-fn clean(p: &str) -> String {
-    let p = if cfg!(windows) {
-        p.replace('\\', "/")
-    } else {
-        p.to_string()
-    };
-    if p.is_empty() {
-        return ".".into();
-    }
-    let rooted = p.starts_with('/');
-    let mut out: Vec<&str> = Vec::new();
-    for seg in p.split('/') {
-        match seg {
-            "" | "." => {}
-            ".." => match out.last() {
-                Some(&last) if last != ".." => {
-                    out.pop();
-                }
-                _ if !rooted => out.push(".."),
-                _ => {}
-            },
-            s => out.push(s),
-        }
-    }
-    let body = out.join("/");
-    if rooted {
-        format!("/{body}")
-    } else if body.is_empty() {
-        ".".into()
-    } else {
-        body
-    }
-}
-
-/// `normDir` : chemin comparable (Clean, séparateurs unifiés, casse neutralisée
-/// sous Windows).
-fn norm_dir(p: &str) -> String {
-    let p = clean(p.trim()).replace('\\', "/");
-    if cfg!(windows) { p.to_lowercase() } else { p }
-}
-
-/// `pathWithin` : le fichier `p` est-il dans le dossier `dir` ?
-fn path_within(dir: &str, p: &str) -> bool {
-    let (d, f) = (norm_dir(dir), norm_dir(p));
-    f == d || f.starts_with(&format!("{d}/"))
-}
-
-/// `baseName` : nom de fichier en acceptant les DEUX séparateurs.
-fn base_name(p: &str) -> &str {
-    let p = p.trim().trim_end_matches(['/', '\\']);
-    match p.rfind(['/', '\\']) {
-        Some(i) => &p[i + 1..],
-        None => p,
-    }
-}
-
-/// `shardInfo` : rang (1-based) et nombre total d'une tranche
-/// `<base>-00001-of-00003.gguf` ; `None` pour un fichier simple ou une
-/// numérotation incohérente.
-pub fn shard_info(name: &str) -> Option<(u32, u32)> {
-    let (_, idx, total, _) = shard_match(base_name(name))?;
-    let (idx, total): (u32, u32) = (idx.parse().ok()?, total.parse().ok()?);
-    if idx < 1 || total < 1 || idx > total {
-        return None;
-    }
-    Some((idx, total))
-}
-
-/// `shardRe` (`(?i)-(\d{2,5})-of-(\d{2,5})\.gguf$`) : (préfixe avant le rang,
-/// rang, total, suffixe après le total).
-fn shard_match(name: &str) -> Option<(&str, &str, &str, &str)> {
-    let n = name.len();
-    if n < 5 || !name.is_char_boundary(n - 5) || !name[n - 5..].eq_ignore_ascii_case(".gguf") {
-        return None;
-    }
-    let digits_before = |end: usize| {
-        name.as_bytes()[..end]
-            .iter()
-            .rev()
-            .take_while(|b| b.is_ascii_digit())
-            .count()
-    };
-    let t_end = n - 5;
-    let t_len = digits_before(t_end);
-    if !(2..=5).contains(&t_len) {
-        return None;
-    }
-    let t_start = t_end - t_len;
-    if t_start < 4 || !name.as_bytes()[t_start - 4..t_start].eq_ignore_ascii_case(b"-of-") {
-        return None;
-    }
-    let i_end = t_start - 4;
-    let i_len = digits_before(i_end);
-    if !(2..=5).contains(&i_len) {
-        return None;
-    }
-    let i_start = i_end - i_len;
-    if i_start < 1 || name.as_bytes()[i_start - 1] != b'-' {
-        return None;
-    }
-    Some((
-        &name[..i_start],
-        &name[i_start..i_end],
-        &name[t_start..t_end],
-        &name[t_end..],
-    ))
-}
-
-/// `shardFamily` : les noms de TOUTES les tranches de la famille de `name`, en
-/// gardant la largeur de la numérotation ; un fichier simple se renvoie
-/// lui-même.
-pub fn shard_family(name: &str) -> Vec<String> {
-    let base = base_name(name);
-    let (Some((_, total)), Some((pre, idx, tot, suf))) = (shard_info(base), shard_match(base))
-    else {
-        return vec![base.to_string()];
-    };
-    let width = idx.len();
-    (1..=total)
-        .map(|i| format!("{pre}{i:0width$}-of-{tot}{suf}"))
-        .collect()
-}
-
 /// `shardFamilySize` : somme des tranches PRÉSENTES dans `dir`.
 pub fn shard_family_size(dir: &Path, name: &str) -> i64 {
-    shard_family(name)
+    crate::gguf::shard_family(name)
         .iter()
         .filter_map(|n| std::fs::metadata(dir.join(n)).ok())
         .filter(|m| !m.is_dir())
@@ -793,60 +615,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn resolution_du_modele() {
-        let dir = tempfile::tempdir().unwrap();
-        let models = dir.path().join("models");
-        let extra = dir.path().join("ailleurs");
-        std::fs::create_dir_all(&models).unwrap();
-        std::fs::create_dir_all(&extra).unwrap();
-        std::fs::write(extra.join("x.gguf"), b"12345").unwrap();
-        let extras = vec![extra.clone()];
-        assert_eq!(
-            resolve_serve_model_path(" \"x.gguf\" ", &models, &extras),
-            Some(extra.join("x.gguf"))
-        );
-        assert_eq!(
-            resolve_serve_model_path("y.gguf", &models, &extras),
-            Some(models.join("y.gguf")),
-            "introuvable : models/ par défaut"
-        );
-        assert_eq!(resolve_serve_model_path("y.bin", &models, &extras), None);
-        assert_eq!(resolve_serve_model_path("  ", &models, &extras), None);
-        assert_eq!(model_total_size(&extra.join("x.gguf")), 5);
-        assert_eq!(model_total_size(&models.join("y.gguf")), 0);
-    }
-
-    /// TestShardInfo (backend_models_shards_test.go).
-    #[test]
-    fn shard_info_cas() {
-        let cases: [(&str, Option<(u32, u32)>); 6] = [
-            ("Laguna-S-2.1-UD-IQ4_XS-00001-of-00003.gguf", Some((1, 3))),
-            ("Laguna-S-2.1-UD-IQ4_XS-00002-of-00003.gguf", Some((2, 3))),
-            ("m-01-of-03.gguf", Some((1, 3))),
-            ("Qwen2.5-7B-Instruct-Q4_K_M.gguf", None),
-            ("bidon-00004-of-00003.gguf", None), // numérotation incohérente
-            ("pas-un-gguf-00001-of-00002.bin", None),
-        ];
-        for (name, want) in cases {
-            assert_eq!(shard_info(name), want, "shard_info({name:?})");
-        }
-    }
-
-    /// TestShardFamilyGardeLaLargeur (backend_models_shards_test.go).
-    #[test]
-    fn shard_family_garde_la_largeur() {
-        assert_eq!(
-            shard_family("Laguna-00002-of-00003.gguf"),
-            [
-                "Laguna-00001-of-00003.gguf",
-                "Laguna-00002-of-00003.gguf",
-                "Laguna-00003-of-00003.gguf",
-            ]
-        );
-        assert_eq!(shard_family("simple.gguf"), ["simple.gguf"]);
-    }
-
     /// TestShardFamilyTailleEtManquantes, partie taille
     /// (backend_models_shards_test.go) ; et modelTotalSize sur la famille.
     #[test]
@@ -859,19 +627,6 @@ mod tests {
             model_total_size(&dir.path().join("m-00001-of-00003.gguf")),
             400
         );
-    }
-
-    #[test]
-    fn chemins_comme_go() {
-        assert_eq!(clean("/a/b/../c/./d/"), "/a/c/d");
-        assert_eq!(clean("/../a"), "/a");
-        assert_eq!(clean("a/../../b"), "../b");
-        assert_eq!(clean(""), ".");
-        assert!(path_within("/data/models", "/data/models/x.gguf"));
-        assert!(path_within("/data/models/", "/data/models/sub/../x.gguf"));
-        assert!(!path_within("/data/models", "/data/models2/x.gguf"));
-        assert_eq!(base_name(r"C:\models\x.gguf"), "x.gguf");
-        assert_eq!(base_name("/m/x.gguf/ "), "x.gguf");
     }
 
     // --- healthCheck --------------------------------------------------------

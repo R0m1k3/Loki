@@ -233,7 +233,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 /// JSON comme `sendJSON` du Go (json.Encoder : saut de ligne final).
-pub fn json(status: StatusCode, v: &serde_json::Value) -> Response<Body> {
+pub fn json<T: serde::Serialize + ?Sized>(status: StatusCode, v: &T) -> Response<Body> {
     let mut s = serde_json::to_string(v).unwrap_or_else(|_| "{}".into());
     s.push('\n');
     let mut r = Response::new(Full::new(Bytes::from(s)).map_err(|n| match n {}).boxed());

@@ -208,7 +208,7 @@ async fn backend_absent_donne_502() {
         .unwrap();
     let (f, _stop) = facade(dead).await;
     // Route relayée au Go (« / » est servie par la façade elle-même).
-    let req = Request::get(format!("http://{f}/api/status"))
+    let req = Request::get(format!("http://{f}/api/relayee-au-go"))
         .body(Full::new(Bytes::new()))
         .unwrap();
     let resp = client().request(req).await.unwrap();

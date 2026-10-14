@@ -14,7 +14,7 @@ use crate::auth::{self, HostEnv, InternalClient};
 use crate::engine;
 use crate::proxy::Body;
 use crate::store::{BK_STATE, Store};
-use crate::sysinfo;
+use crate::{engstatus, gguf, paths, presets, sysinfo};
 use std::collections::BTreeMap;
 
 /// Ce dont les routes ont besoin, partagé par toutes les connexions.
@@ -42,7 +42,15 @@ impl Ctx {
 pub fn handles(_method: &Method, path: &str) -> bool {
     matches!(
         path,
-        "/api/ping" | "/api/config" | "/api/engine/cmdline" | "/api/ram" | "/api/vram"
+        "/api/ping"
+            | "/api/config"
+            | "/api/engine/cmdline"
+            | "/api/ram"
+            | "/api/vram"
+            | "/api/status"
+            | "/api/service/log"
+            | "/api/paths"
+            | "/api/model/layers"
     )
 }
 
@@ -85,8 +93,189 @@ pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
                 .collect();
             auth::json(StatusCode::OK, &json!(gpus))
         }
+        "/api/status" => status(ctx, version).await,
+        // Fin du journal du moteur : POURQUOI un modèle ne charge pas.
+        "/api/service/log" => {
+            let n = query_param(&parts.uri, "n")
+                .and_then(|v| v.parse::<usize>().ok())
+                .filter(|k| (1..=500).contains(k))
+                .unwrap_or(80);
+            let paths = ctx.engine.clone();
+            let log = blocking(move || engstatus::service_log_tail(&paths, n)).await;
+            auth::json(StatusCode::OK, &json!({ "log": log }))
+        }
+        // Bloc « Emplacements » de l'UI.
+        "/api/paths" => {
+            let project = ctx
+                .store
+                .get_str(BK_STATE, paths::ST_ACTIVE_PROJECT_KEY)
+                .await;
+            let home = ctx.engine.home.clone();
+            let p = blocking(move || {
+                let exe = std::env::current_exe().unwrap_or_default();
+                let go_exe = crate::child::go_bin(std::env::var("LOKI_GO_BIN").ok(), &exe);
+                let ws = std::env::var(paths::WORKSPACE_ENV).ok();
+                paths::current_paths(&home, &go_exe, &project, ws.as_deref())
+            })
+            .await;
+            auth::json(StatusCode::OK, &p)
+        }
+        // Nombre de couches du modèle, lu dans l'en-tête GGUF.
+        "/api/model/layers" => {
+            let q = query_param(&parts.uri, "model");
+            let cfg_model = ctx.store.config().await.remove("MODEL");
+            let stored = stored_model_dirs(ctx).await;
+            let home = ctx.engine.home.clone();
+            let v = blocking(move || {
+                let env = std::env::var(gguf::MODEL_DIRS_ENV).ok();
+                gguf::model_layers_json(
+                    q.as_deref(),
+                    cfg_model.as_deref(),
+                    &home,
+                    &stored,
+                    env.as_deref(),
+                )
+            })
+            .await;
+            auth::json(StatusCode::OK, &v)
+        }
         _ => not_found(),
     }
+}
+
+/// `handleStatus` : état du moteur pour l'en-tête de l'UI.
+async fn status(ctx: &Ctx, version: String) -> Response<Body> {
+    let cfg = ctx.store.config().await;
+    let stored = stored_model_dirs(ctx).await;
+    let order = presets::parse_preset_order(
+        ctx.store
+            .get(BK_STATE, presets::PRESET_ORDER_KEY)
+            .await
+            .ok()
+            .flatten()
+            .as_deref(),
+    );
+    let paths = ctx.engine.clone();
+    let pid = engine::read_pid(&paths.pid());
+    let mut active = pid_alive(pid);
+    let mut state = if active { "active" } else { "inactive" };
+    let mut health = active && engstatus::health_check(&cfg).await;
+    // Preset externe : pas de moteur local, mais le chat EST prêt.
+    let external = engstatus::is_external(&cfg);
+    if external {
+        (active, state, health) = (true, "active", true);
+    }
+    let ctx_len = cfg
+        .get("CTX")
+        .and_then(|v| v.parse::<i64>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(32768);
+    let port = engstatus::llm_port(&cfg);
+    let home = paths.home.clone();
+    let (load_err, load_pct, preset, data_warn) = {
+        let (cfg, stored) = (cfg.clone(), stored.clone());
+        blocking(move || {
+            let mut load_err = String::new();
+            let mut load_pct = -1;
+            if !health {
+                load_err =
+                    engstatus::model_load_error_from(&engstatus::service_log_tail(&paths, 200));
+                if active && load_err.is_empty() {
+                    load_pct = engstatus::engine_load_pct_dirs(&paths, &cfg, &stored);
+                }
+            }
+            let preset = presets::active_preset_id(&home, &cfg, &order);
+            (load_err, load_pct, preset, sysinfo::data_volume_warning())
+        })
+        .await
+    };
+    // appWarning() n'a de contenu que sous macOS : en conteneur, seule
+    // l'alerte de volume compte.
+    let warn = data_warn;
+    let home = ctx.engine.home.clone();
+    let hint = sysinfo::storage_fuse_hint(move || async move {
+        let env = std::env::var(gguf::MODEL_DIRS_ENV).ok();
+        gguf::model_dirs(&home, &stored, env.as_deref())
+    })
+    .await;
+    auth::json(
+        StatusCode::OK,
+        &json!({
+            "state": state,
+            "active": active,
+            "health": health,
+            "port": port,
+            "ctx": ctx_len,
+            "version": version,
+            "warn": warn,
+            "load_error": load_err,
+            "load_pct": load_pct,
+            "external": external,
+            "preset": preset,
+            "hint": hint,
+        }),
+    )
+}
+
+/// Dossiers de modèles déclarés dans l'UI (`state/model_dirs`).
+async fn stored_model_dirs(ctx: &Ctx) -> Vec<String> {
+    gguf::parse_stored_model_dirs(
+        ctx.store
+            .get(BK_STATE, gguf::STATE_MODEL_DIRS_KEY)
+            .await
+            .ok()
+            .flatten()
+            .as_deref(),
+    )
+}
+
+/// E/S de fichiers hors du runtime asynchrone.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+    tokio::task::spawn_blocking(f)
+        .await
+        .expect("tâche bloquante interrompue")
+}
+
+#[cfg(target_os = "linux")]
+fn pid_alive(pid: i32) -> bool {
+    engine::proctree::linux::pid_alive(pid)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn pid_alive(_: i32) -> bool {
+    false
+}
+
+/// Paramètre de requête décodé comme `url.Query().Get` (`+` = espace).
+pub fn query_param(uri: &hyper::Uri, key: &str) -> Option<String> {
+    uri.query()?.split('&').find_map(|kv| {
+        let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
+        (pct_decode(k) == key).then(|| pct_decode(v))
+    })
+}
+
+fn pct_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'+' => out.push(b' '),
+            b'%' if i + 2 < b.len() => {
+                match u8::from_str_radix(std::str::from_utf8(&b[i + 1..i + 3]).unwrap_or("zz"), 16)
+                {
+                    Ok(v) => {
+                        out.push(v);
+                        i += 2;
+                    }
+                    Err(_) => out.push(b'%'),
+                }
+            }
+            c => out.push(c),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn not_found() -> Response<Body> {

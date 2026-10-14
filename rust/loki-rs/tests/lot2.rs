@@ -189,11 +189,11 @@ async fn api_interne_fermee_de_l_exterieur() {
 #[tokio::test]
 async fn jeton_entrant_efface_avant_relais() {
     let b = banc(Some("")).await;
-    let (code, _, body) = get(&b, "/api/status", &[("x-loki-internal", JETON)]).await;
+    let (code, _, body) = get(&b, "/api/relayee-au-go", &[("x-loki-internal", JETON)]).await;
     assert_eq!(code, StatusCode::OK);
-    assert_eq!(&body[..], b"go:/api/status");
+    assert_eq!(&body[..], b"go:/api/relayee-au-go");
     let vus = b.etat.vus.lock().unwrap().clone();
-    assert_eq!(vus, vec![("/api/status".to_string(), None)]);
+    assert_eq!(vus, vec![("/api/relayee-au-go".to_string(), None)]);
 }
 
 #[tokio::test]
