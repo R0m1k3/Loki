@@ -62,6 +62,30 @@ impl Store {
             .map_err(|_| "store : délai dépassé".to_string())?
     }
 
+    /// Appel JSON à une autre route de l'API interne du Go (`/internal/v1/…`).
+    /// Code HTTP autre que 2xx → `Err`.
+    pub async fn internal_json(
+        &self,
+        method: Method,
+        path_and_query: &str,
+        body: Option<&serde_json::Value>,
+    ) -> Result<serde_json::Value, String> {
+        let body = body
+            .map(|b| serde_json::to_vec(b).unwrap_or_default())
+            .unwrap_or_default();
+        let (status, bytes) = self.call(method, path_and_query, body).await?;
+        if !status.is_success() {
+            return Err(format!(
+                "{path_and_query} : {status} {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+        }
+        if bytes.is_empty() {
+            return Ok(serde_json::Value::Null);
+        }
+        serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+    }
+
     /// Valeur brute ; `Ok(None)` = absente, `Err` = pas pu lire (à distinguer
     /// pour les secrets : comme `getBytesErr`).
     pub async fn get(&self, bucket: &str, key: &str) -> Result<Option<Vec<u8>>, String> {

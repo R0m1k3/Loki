@@ -30,6 +30,7 @@ use tokio::net::TcpListener;
 use crate::api;
 use crate::auth::{HostEnv, INTERNAL_HEADER, InternalClient};
 use crate::engine;
+use crate::oai;
 use crate::store::Store;
 use crate::ui;
 
@@ -62,6 +63,8 @@ pub struct Config {
 
 struct Proxy {
     client: Client<HttpConnector, Incoming>,
+    /// Vers le moteur (llama-server / Strata), pour `/v1`.
+    engine: oai::EngineClient,
     backend: SocketAddr,
     ctx: api::Ctx,
 }
@@ -75,6 +78,7 @@ pub async fn serve(
     let client = Client::builder(TokioExecutor::new()).build_http();
     let proxy = Arc::new(Proxy {
         client,
+        engine: Client::builder(TokioExecutor::new()).build_http(),
         backend: cfg.backend,
         ctx: api::Ctx {
             store: Store::new(cfg.backend, cfg.internal_token.clone()),
@@ -130,6 +134,10 @@ impl Proxy {
         }
         if let Some(resp) = ui::serve(req.method(), path, req.headers()) {
             return resp;
+        }
+        // Surface OpenAI : relayée au moteur, décisions demandées au Go.
+        if path.starts_with("/v1/") {
+            return oai::serve(&self.ctx, &self.engine, req).await;
         }
         if api::handles(req.method(), path) {
             return api::serve(&self.ctx, req).await;

@@ -24,6 +24,12 @@ pub struct FakeGo {
     pub broken: Mutex<bool>,
     /// Chemins relayés (hors API interne).
     pub relayed: Mutex<Vec<String>>,
+    /// /v1 : port du faux moteur, second slot en service, refus à renvoyer
+    /// par begin, journal des begin/end.
+    pub engine_port: Mutex<u16>,
+    pub side_live: Mutex<bool>,
+    pub refuse: Mutex<Option<serde_json::Value>>,
+    pub oai_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -94,6 +100,39 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/auth" => {
             let key = st.get("state", "web_key").unwrap_or_default();
             resp(200, format!(r#"{{"web_key":"{key}","version":"0.15.0"}}"#))
+        }
+        "/internal/v1/oai/route" => {
+            let key = st.get("state", "api_key").unwrap_or_default();
+            let v = serde_json::json!({
+                "port": *st.engine_port.lock().unwrap(),
+                "strata": false,
+                "key": key,
+                "key_ok": true,
+                "max_body": 1024,
+                "side_live": *st.side_live.lock().unwrap(),
+            });
+            resp(200, v.to_string())
+        }
+        "/internal/v1/oai/begin" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log.lock().unwrap().push(format!(
+                "begin read={} side={} post_v1={}",
+                v["read"], v["side"], v["post_v1"]
+            ));
+            if let Some(r) = st.refuse.lock().unwrap().clone() {
+                return resp(200, serde_json::json!({ "refuse": r }).to_string());
+            }
+            resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/oai/end" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log
+                .lock()
+                .unwrap()
+                .push(format!("end {}", v["ticket"]));
+            resp(204, "")
         }
         "/internal/v1/store/all" => {
             let s = st.store.lock().unwrap();
