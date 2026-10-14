@@ -63,6 +63,12 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalStore(w, r)
 		case "/internal/v1/store/all":
 			handleInternalStoreAll(w, r)
+		case "/internal/v1/oai/route":
+			handleInternalOAIRoute(w, r)
+		case "/internal/v1/oai/begin":
+			handleInternalOAIBegin(w, r)
+		case "/internal/v1/oai/end":
+			handleInternalOAIEnd(w, r)
 		default:
 			http.NotFound(w, r)
 		}
