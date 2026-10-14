@@ -2,9 +2,12 @@ package loki
 
 import (
 	"crypto/subtle"
+	"io"
 	"net/http"
 	"os"
 	"strings"
+
+	bolt "go.etcd.io/bbolt"
 )
 
 // API interne entre la façade Rust (rust/loki-rs) et ce serveur.
@@ -56,10 +59,105 @@ func withInternalAPI(next http.Handler) http.Handler {
 		switch r.URL.Path {
 		case "/internal/v1/auth":
 			handleInternalAuth(w, r)
+		case "/internal/v1/store":
+			handleInternalStore(w, r)
+		case "/internal/v1/store/all":
+			handleInternalStoreAll(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
+}
+
+// --- Store ----------------------------------------------------------------
+//
+// Accès générique à la base pour les routes déjà portées en Rust (lot 4) : le
+// Go reste l'unique propriétaire du fichier bbolt jusqu'au lot qui le
+// migrera ; Rust lit et écrit À TRAVERS lui. Les écritures passent par
+// putBytes/update, donc invalident le cache de ce process comme une écriture
+// locale.
+//
+//	GET    /internal/v1/store?bucket=B&key=K   200 + valeur brute | 404 absente
+//	PUT    /internal/v1/store?bucket=B&key=K   corps = valeur      → 204
+//	DELETE /internal/v1/store?bucket=B&key=K                       → 204
+//	GET    /internal/v1/store/all?bucket=B     200 + {"clé":"valeur",…}
+//
+// Base illisible : 503 — l'appelant distingue « rien » de « pas pu lire »,
+// comme getBytesErr.
+
+// internalStoreMaxPut borne une écriture : la plus grosse valeur légitime (le
+// journal d'une discussion) reste très en dessous.
+const internalStoreMaxPut = 64 << 20
+
+func handleInternalStore(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	bucket, key := q.Get("bucket"), q.Get("key")
+	if bucket == "" || key == "" {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "bucket et key requis"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		var val []byte
+		var found bool
+		err := view(bucket, func(b *bolt.Bucket) error {
+			if v := b.Get([]byte(key)); v != nil {
+				val, found = append([]byte(nil), v...), true
+			}
+			return nil
+		})
+		if err != nil {
+			sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
+			return
+		}
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Write(val)
+	case http.MethodPut:
+		val, err := io.ReadAll(io.LimitReader(r.Body, internalStoreMaxPut+1))
+		if err != nil || len(val) > internalStoreMaxPut {
+			sendJSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "valeur trop grande ou illisible"})
+			return
+		}
+		if err := putBytes(bucket, key, val); err != nil {
+			sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	case http.MethodDelete:
+		err := update(bucket, func(b *bolt.Bucket) error { return b.Delete([]byte(key)) })
+		if err != nil {
+			sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		w.Header().Set("Allow", "GET, PUT, DELETE")
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "méthode non permise"})
+	}
+}
+
+func handleInternalStoreAll(w http.ResponseWriter, r *http.Request) {
+	bucket := r.URL.Query().Get("bucket")
+	if r.Method != http.MethodGet || bucket == "" {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "GET ?bucket= attendu"})
+		return
+	}
+	m := map[string]string{}
+	err := view(bucket, func(b *bolt.Bucket) error {
+		return b.ForEach(func(k, v []byte) error {
+			m[string(k)] = string(v)
+			return nil
+		})
+	})
+	if err != nil {
+		sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, http.StatusOK, m)
 }
 
 // handleInternalAuth : de quoi authentifier une requête de pilotage côté Rust.

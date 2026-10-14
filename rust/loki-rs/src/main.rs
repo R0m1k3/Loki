@@ -135,6 +135,7 @@ fn serve() -> ExitCode {
             backend,
             internal_token: token,
             host_env: auth::HostEnv::from_env(),
+            engine: engine::Paths::from_env(),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

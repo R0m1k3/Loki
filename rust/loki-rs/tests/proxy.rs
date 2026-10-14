@@ -95,6 +95,10 @@ async fn facade(backend: SocketAddr) -> (SocketAddr, oneshot::Sender<()>) {
         backend,
         internal_token: "jeton-de-test".into(),
         host_env: Default::default(),
+        engine: loki_rs::engine::Paths {
+            home: std::env::temp_dir(),
+            service: "loki-engine".into(),
+        },
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

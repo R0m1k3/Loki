@@ -1,5 +1,5 @@
 //! Façade HTTP : reçoit tout le trafic public. Les routes déjà réécrites en
-//! Rust sont servies ici (lot 2 : UI statique, `/api/ping`) ; tout le reste
+//! Rust sont servies ici (UI statique, routes de `api.rs`) ; tout le reste
 //! est relayé au serveur Go (`loki web` sur 127.0.0.1).
 //!
 //! Règles, héritées de `web_server.go` :
@@ -27,7 +27,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
-use crate::auth::{self, HostEnv, INTERNAL_HEADER, InternalClient};
+use crate::api;
+use crate::auth::{HostEnv, INTERNAL_HEADER, InternalClient};
+use crate::engine;
+use crate::store::Store;
 use crate::ui;
 
 pub type Body = BoxBody<Bytes, hyper::Error>;
@@ -53,13 +56,14 @@ pub struct Config {
     /// Jeton de l'API interne du Go (`LOKI_INTERNAL_TOKEN`).
     pub internal_token: String,
     pub host_env: HostEnv,
+    /// `$LOKI_HOME` et service moteur, pour les routes portées.
+    pub engine: engine::Paths,
 }
 
 struct Proxy {
     client: Client<HttpConnector, Incoming>,
     backend: SocketAddr,
-    internal: InternalClient,
-    host_env: HostEnv,
+    ctx: api::Ctx,
 }
 
 /// Sert la façade sur `listener` jusqu'à ce que `shutdown` se termine.
@@ -72,8 +76,12 @@ pub async fn serve(
     let proxy = Arc::new(Proxy {
         client,
         backend: cfg.backend,
-        internal: InternalClient::new(cfg.backend, cfg.internal_token),
-        host_env: cfg.host_env,
+        ctx: api::Ctx {
+            store: Store::new(cfg.backend, cfg.internal_token.clone()),
+            internal: InternalClient::new(cfg.backend, cfg.internal_token),
+            host_env: cfg.host_env,
+            engine: cfg.engine,
+        },
     });
     tokio::pin!(shutdown);
     loop {
@@ -123,24 +131,10 @@ impl Proxy {
         if let Some(resp) = ui::serve(req.method(), path, req.headers()) {
             return resp;
         }
-        if path == "/api/ping" {
-            return self.ping(req.headers()).await;
+        if api::handles(req.method(), path) {
+            return api::serve(&self.ctx, req).await;
         }
         self.forward(req).await
-    }
-
-    /// `/api/ping` : vérifie la connectivité ET la clé (200 = bonne clé,
-    /// 401 = mauvaise clé), comme `handlePing`.
-    async fn ping(&self, headers: &HeaderMap) -> Response<Body> {
-        let info = self.internal.auth().await;
-        if let Some(refus) = auth::authorize(headers, &info, &self.host_env) {
-            return refus;
-        }
-        let version = info.map(|i| i.version).unwrap_or_default();
-        auth::json(
-            StatusCode::OK,
-            &serde_json::json!({ "ok": true, "service": "loki", "version": version }),
-        )
     }
 
     /// Relais vers le Go (HTTP, SSE, WebSocket).

@@ -89,6 +89,10 @@ async fn banc(cle: Option<&str>) -> Banc {
             hostname: None,
             trusted: vec!["loki.exemple.fr".into()],
         },
+        engine: loki_rs::engine::Paths {
+            home: std::env::temp_dir(),
+            service: "loki-engine".into(),
+        },
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;
