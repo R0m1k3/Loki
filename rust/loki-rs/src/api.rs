@@ -13,7 +13,8 @@ use serde_json::json;
 use crate::auth::{self, HostEnv, InternalClient};
 use crate::engine;
 use crate::proxy::Body;
-use crate::store::Store;
+use crate::store::{BK_STATE, Store};
+use std::collections::BTreeMap;
 
 /// Ce dont les routes ont besoin, partagé par toutes les connexions.
 pub struct Ctx {
@@ -38,7 +39,7 @@ impl Ctx {
 
 /// Cette route est-elle servie par Rust ?
 pub fn handles(_method: &Method, path: &str) -> bool {
-    matches!(path, "/api/ping")
+    matches!(path, "/api/ping" | "/api/config" | "/api/engine/cmdline")
 }
 
 pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
@@ -53,6 +54,17 @@ pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
             StatusCode::OK,
             &json!({ "ok": true, "service": "loki", "version": version }),
         ),
+        // ReadConfig() du Go : json.Encoder trie les clés d'une map, d'où le
+        // BTreeMap (un HashMap sortirait dans un ordre aléatoire).
+        "/api/config" => {
+            let cfg: BTreeMap<String, String> = ctx.store.config().await.into_iter().collect();
+            auth::json(StatusCode::OK, &json!(cfg))
+        }
+        // Commande du dernier lancement du moteur (engine_cmdline.go).
+        "/api/engine/cmdline" => {
+            let cmdline = ctx.store.get_str(BK_STATE, "engine_cmdline").await;
+            auth::json(StatusCode::OK, &json!({ "ok": true, "cmdline": cmdline }))
+        }
         _ => not_found(),
     }
 }

@@ -2,6 +2,8 @@
 //! journalise les chemins demandés.
 #![allow(dead_code)]
 
+pub mod fakego;
+
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::{Request, Response, StatusCode, body::Incoming, service::service_fn};
