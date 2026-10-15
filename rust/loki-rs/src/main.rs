@@ -21,8 +21,17 @@ fn main() -> ExitCode {
         "engine" => {
             let action = std::env::args().nth(2).unwrap_or_default();
             let go_bin = child::go_bin(std::env::var("LOKI_GO_BIN").ok(), &exe());
-            let opts = engine::Opts::new(go_bin);
-            match engine::run(&action, &engine::Paths::from_env(), &opts) {
+            let paths = engine::Paths::from_env();
+            // La ligne de commande du moteur composée ici (lot 14) : lancée
+            // par le superviseur quand LOKI_SERVE=rust.
+            if action == "serve" {
+                return loki_rs::serve::run::run(&go_bin, &paths.home);
+            }
+            let mut opts = engine::Opts::new(go_bin);
+            if held_by_facade("LOKI_SERVE") {
+                opts.serve = (exe(), vec!["engine".into(), "serve".into()]);
+            }
+            match engine::run(&action, &paths, &opts) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(e) => {
                     // Dernière ligne de stderr : le Go en fait son message d'erreur.
@@ -136,7 +145,12 @@ fn serve() -> ExitCode {
         // LOKI_MEM=rust : la mémoire (pages, index, trackers, mode mémoire,
         // interrupteurs du mode agent).
         let mem_rust = held_by_facade("LOKI_MEM");
-        let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
+        let mut env = vec![
+            (auth::INTERNAL_ENV.to_string(), token.clone()),
+            // Adresse de l'API interne du Go, héritée par ses enfants :
+            // « loki-rs engine serve » (LOKI_SERVE=rust) y lit la configuration.
+            ("LOKI_GO_ADDR".to_string(), backend.to_string()),
+        ];
         let held = [
             ("LOKI_CHAT", chat_rust),
             ("LOKI_MODELS", models_rust),

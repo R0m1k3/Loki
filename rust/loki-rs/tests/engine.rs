@@ -30,6 +30,7 @@ fn faux_go(dir: &Path, corps: &str) -> PathBuf {
 
 fn opts(go: PathBuf) -> Opts {
     Opts {
+        serve: (go.clone(), vec!["serve".into()]),
         go_bin: go,
         check_delay: Duration::from_millis(500),
         grace: Duration::from_secs(2),

@@ -30,6 +30,7 @@ pub mod paths;
 pub mod presets;
 pub mod proxy;
 pub mod push;
+pub mod serve;
 pub mod settings;
 pub mod store;
 pub mod sysinfo;

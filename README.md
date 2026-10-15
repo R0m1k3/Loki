@@ -234,6 +234,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_FILES` | `rust` : les fichiers de la discussion — dépôt, panneau Fichiers, archive .zip, téléchargement, images et vignettes — sont servis par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_PUSH` | `rust` : les notifications Web Push (clé VAPID, abonnements, envoi « réponse prête ») sont tenues par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_MEM` | `rust` : la mémoire (éditeur des pages, index, déplacement entre projets, trackers, mode mémoire, interrupteurs du mode agent) est tenue par la façade Rust ; le chiffrement reste au Go (expérimental, migration en cours) | Go |
+| `LOKI_SERVE` | `rust` : la ligne de commande de llama-server est composée par la façade Rust (`loki-rs engine serve`) au lieu de `loki serve` ; Strata et l'optimiseur restent au Go (expérimental, migration en cours) | Go |
 
 **Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
 hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse
