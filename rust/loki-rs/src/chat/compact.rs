@@ -115,14 +115,9 @@ const CTX_UPD_CLOSE: &str = "</context_update>";
 
 // ---- configuration -------------------------------------------------------
 
-/// Politique de raisonnement renvoyé (`echoPolicy`, REASONING_ECHO) : ce qui
-/// décide si le raisonnement rangé compte dans le contexte. Défaut : coupé.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct EchoPolicy {
-    pub on: bool,
-    pub model: String,
-    pub keeps_past: bool,
-}
+/// Politique de raisonnement renvoyé : celle de `wire.rs` (même port de
+/// `echoPolicy`).
+pub use super::wire::EchoPolicy;
 
 /// Instantané de l'état global Go que lit la compaction.
 #[derive(Debug, Clone, PartialEq)]
@@ -289,25 +284,6 @@ pub fn msg_tokens(m: &Message) -> i64 {
     n + m.img_tokens
 }
 
-/// `hasBody` : texte ou appels d'outils.
-fn has_body(m: &Message) -> bool {
-    if !m.tool_calls.is_empty() {
-        return true;
-    }
-    match &m.content {
-        None | Some(Value::Null) => false,
-        Some(Value::String(s)) => !s.is_empty(),
-        Some(_) => true,
-    }
-}
-
-fn echoable(m: &Message, p: &EchoPolicy) -> bool {
-    p.on && m.role == "assistant"
-        && !m.reasoning_content.is_empty()
-        && m.reasoning_model == p.model
-        && has_body(m)
-}
-
 /// `echoTokens` : jetons que le raisonnement renvoyé ajoute, message par
 /// message (`None` = aucun).
 fn echo_tokens(msgs: &[Message], p: &EchoPolicy) -> Option<Vec<i64>> {
@@ -317,20 +293,9 @@ fn echo_tokens(msgs: &[Message], p: &EchoPolicy) -> Option<Vec<i64>> {
     echo_tokens_for(msgs, p)
 }
 
+/// `echoTokensFor` de `wire.rs`, en i64 (unité des comptes de ce module).
 fn echo_tokens_for(msgs: &[Message], p: &EchoPolicy) -> Option<Vec<i64>> {
-    if !p.on {
-        return None;
-    }
-    let last_user = msgs.iter().rposition(|m| m.role == "user");
-    let mut out: Option<Vec<i64>> = None;
-    for (i, m) in msgs.iter().enumerate() {
-        let before_last = last_user.is_some_and(|lu| i < lu);
-        if !echoable(m, p) || (before_last && !p.keeps_past) {
-            continue;
-        }
-        out.get_or_insert_with(|| vec![0; msgs.len()])[i] = m.reasoning_content.len() as i64 / 4;
-    }
-    out
+    super::wire::echo_tokens_for(msgs, p).map(|v| v.into_iter().map(|n| n as i64).collect())
 }
 
 /// `estimateTokens` : taille estimée de l'historique, raisonnement renvoyé
