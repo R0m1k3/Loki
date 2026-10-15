@@ -171,7 +171,7 @@ func TestPariteModeles(t *testing.T) {
 	}
 	var files []hfFile
 	for _, f := range fx.Classify.Files {
-		files = append(files, hfFile{Path: f.Path, Size: f.Size})
+		files = append(files, hfFile(f))
 	}
 	fx.Classify.Out = hfClassify(fx.Classify.Repo, files)
 
