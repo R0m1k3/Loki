@@ -60,3 +60,27 @@ func TestOutilInterneAppelIllisible(t *testing.T) {
 		t.Fatalf("GET : %d", w.Code)
 	}
 }
+
+// Ce que la boucle tire du résultat après l'exécution : capture de la bulle,
+// image relayée au modèle — rien après une erreur.
+func TestOutilInterneSuitesDuResultat(t *testing.T) {
+	testHome(t)
+	image, shot, relay := toolStepExtras("web_screenshot", "", toolExecResult{
+		Result: "Capture : ![page](/api/chat/image?path=captures/a.png)",
+	})
+	if image != "captures/a.png" || shot != "" || relay != nil {
+		t.Fatalf("capture : %q %q %v (vision coupée : pas de relais)", image, shot, relay)
+	}
+	img := map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:image/png;base64,AA=="}}
+	_, _, relay = toolStepExtras("see_image", "photo.png", toolExecResult{Result: "ok", VisionImg: img})
+	if relay == nil || relay.Role != "user" {
+		t.Fatalf("see_image : %v", relay)
+	}
+	b, _ := json.Marshal(relay)
+	if !strings.Contains(string(b), "Image demandée (photo.png)") || !strings.Contains(string(b), "data:image/png") {
+		t.Fatalf("relais : %s", b)
+	}
+	if _, shot, _ := toolStepExtras("browser_click", "x", toolExecResult{Result: "[erreur] rien"}); shot != "" {
+		t.Fatalf("aperçu après une erreur : %q", shot)
+	}
+}

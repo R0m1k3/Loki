@@ -83,6 +83,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalLeaseRelease(w, r)
 		case "/internal/v1/engine/stop":
 			handleInternalEngineStop(w, r)
+		case "/internal/v1/recall/archive":
+			handleInternalRecallArchive(w, r)
 		default:
 			http.NotFound(w, r)
 		}
