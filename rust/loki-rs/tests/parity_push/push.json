@@ -1,0 +1,126 @@
+{
+  "durations": {
+    "-5s": "0s",
+    "0s": "0s",
+    "1h0m0s": "1 h 00 mn",
+    "1h12m10s": "1 h 12 mn",
+    "3m5s": "3 mn 05s",
+    "400ms": "0s",
+    "42s": "42s",
+    "600ms": "1s"
+  },
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/push/key",
+      "status": 200,
+      "out": {
+        "key": "{{CLE}}",
+        "ok": true
+      },
+      "subs": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/subscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"p256dh\":\"BAAA\",\"auth\":\"x1\"}}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x1\",\"p256dh\":\"BAAA\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/subscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"p256dh\":\"BBBB\",\"auth\":\"x2\"},\"expirationTime\":null}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x1\",\"p256dh\":\"BAAA\"}},{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/subscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"p256dh\":\"BCCC\",\"auth\":\"x3\"}}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x3\",\"p256dh\":\"BCCC\"}},{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/subscribe",
+      "body": "{\"keys\":{\"p256dh\":\"B\",\"auth\":\"y\"}}",
+      "status": 400,
+      "out": {
+        "error": "abonnement invalide",
+        "ok": false
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x3\",\"p256dh\":\"BCCC\"}},{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/subscribe",
+      "body": "pas du json",
+      "status": 400,
+      "out": {
+        "error": "abonnement invalide",
+        "ok": false
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x3\",\"p256dh\":\"BCCC\"}},{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/unsubscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/inconnu\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/a\",\"keys\":{\"auth\":\"x3\",\"p256dh\":\"BCCC\"}},{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/unsubscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/a\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/unsubscribe",
+      "body": "pas du json",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[{\"endpoint\":\"https://push.exemple.fr/b\",\"keys\":{\"auth\":\"x2\",\"p256dh\":\"BBBB\"}}]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push/unsubscribe",
+      "body": "{\"endpoint\":\"https://push.exemple.fr/b\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "subs": "[]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/push/key",
+      "status": 200,
+      "out": {
+        "key": "{{CLE}}",
+        "ok": true
+      },
+      "subs": "[]"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ pub mod oai;
 pub mod paths;
 pub mod presets;
 pub mod proxy;
+pub mod push;
 pub mod settings;
 pub mod store;
 pub mod sysinfo;

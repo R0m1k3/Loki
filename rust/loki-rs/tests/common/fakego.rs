@@ -473,6 +473,7 @@ pub struct Opts {
     pub dictate: Option<Arc<loki_rs::dictate::Dictation>>,
     pub settings: bool,
     pub files: Option<Arc<loki_rs::convfiles::ConvFiles>>,
+    pub push: Option<Arc<loki_rs::push::Push>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -566,6 +567,7 @@ pub async fn start_with(
         dictate: opts.dictate,
         settings: opts.settings,
         files: opts.files,
+        push: opts.push,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

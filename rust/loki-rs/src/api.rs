@@ -36,6 +36,8 @@ pub struct Ctx {
     pub settings: bool,
     /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
     pub files: Option<std::sync::Arc<crate::convfiles::ConvFiles>>,
+    /// Notifications Web Push tenues par la façade (`LOKI_PUSH=rust`).
+    pub push: Option<std::sync::Arc<crate::push::Push>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -49,6 +51,7 @@ impl Ctx {
             || self.dictate.is_some()
             || self.settings
             || self.files.is_some()
+            || self.push.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

@@ -232,6 +232,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_DICTATE` | `rust` : la dictée vocale (`/api/transcribe`, `/api/dictate/*`) et son serveur de transcription sont tenus par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_SETTINGS` | `rust` : les réglages partagés — préférences d'affichage, prompt système, intensité du raisonnement, adresse publique — sont servis par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_FILES` | `rust` : les fichiers de la discussion — dépôt, panneau Fichiers, archive .zip, téléchargement, images et vignettes — sont servis par la façade Rust (expérimental, migration en cours) | Go |
+| `LOKI_PUSH` | `rust` : les notifications Web Push (clé VAPID, abonnements, envoi « réponse prête ») sont tenues par la façade Rust (expérimental, migration en cours) | Go |
 
 **Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
 hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse

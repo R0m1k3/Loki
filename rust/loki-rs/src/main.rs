@@ -130,6 +130,9 @@ fn serve() -> ExitCode {
         // LOKI_FILES=rust : les fichiers de la discussion (dépôt, panneau
         // Fichiers, archive, téléchargement, images).
         let files_rust = held_by_facade("LOKI_FILES");
+        // LOKI_PUSH=rust : les notifications Web Push (le Go lui délègue ses
+        // envois de fin de tour et de fin de tâche).
+        let push_rust = held_by_facade("LOKI_PUSH");
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
@@ -146,7 +149,10 @@ fn serve() -> ExitCode {
         if files_rust {
             env.push(("LOKI_FILES".into(), "rust".into()));
         }
-        if chat_rust || models_rust || dictate_rust || settings_rust || files_rust {
+        if push_rust {
+            env.push(("LOKI_PUSH".into(), "rust".into()));
+        }
+        if chat_rust || models_rust || dictate_rust || settings_rust || files_rust || push_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -216,6 +222,7 @@ fn serve() -> ExitCode {
             dictate,
             settings: settings_rust,
             files,
+            push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

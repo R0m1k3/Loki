@@ -150,6 +150,10 @@ func hasPushSubs() bool { return len(loadSubs()) > 0 }
 // abonnement rejeté définitivement (404/410) est purgé pour ne pas s'accumuler.
 // Appelé depuis la goroutine de génération, à turn_done — jamais bloquant pour l'UI.
 func sendPushToAll(title, body string) {
+	// Notifications tenues par la façade (LOKI_PUSH=rust) : c'est elle qui pousse.
+	if facadePushSend(title, body) {
+		return
+	}
 	subs := loadSubs()
 	if len(subs) == 0 {
 		fmt.Printf("[push] fin de tour : aucun abonné enregistré (rien à envoyer)\n")

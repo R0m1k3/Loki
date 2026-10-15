@@ -73,6 +73,8 @@ pub struct Config {
     pub settings: bool,
     /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
     pub files: Option<Arc<crate::convfiles::ConvFiles>>,
+    /// Notifications Web Push tenues par la façade (`LOKI_PUSH=rust`).
+    pub push: Option<Arc<crate::push::Push>>,
 }
 
 struct Proxy {
@@ -104,6 +106,7 @@ pub async fn serve(
             dictate: cfg.dictate,
             settings: cfg.settings,
             files: cfg.files,
+            push: cfg.push,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -160,6 +163,12 @@ impl Proxy {
             return chatapi::serve_internal(chat, req).await;
         }
         if from_go
+            && let Some(p) = &self.ctx.push
+            && path == crate::push::INTERNAL_SEND
+        {
+            return crate::push::serve_internal(self.ctx.store.clone(), p.clone(), req).await;
+        }
+        if from_go
             && let Some(d) = &self.ctx.dictate
             && path == crate::dictate::INTERNAL_STOP
         {
@@ -184,6 +193,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(p) = &self.ctx.push
+            && crate::push::handles(path)
+        {
+            return crate::push::serve(&self.ctx, p, req, from_go).await;
         }
         if let Some(f) = &self.ctx.files
             && crate::convfiles::handles(path)

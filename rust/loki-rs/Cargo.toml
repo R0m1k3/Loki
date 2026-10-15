@@ -18,6 +18,7 @@ hyper-util = { version = "0.1.21", features = ["tokio", "server", "client-legacy
 regex = "1.13.1"
 url = "2.5.8"
 zip = { version = "2.4.2", default-features = false, features = ["deflate-flate2", "flate2"] }
+ring = { version = "0.17.14", optional = true }
 reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "stream", "http2"] }
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"], optional = true }
 serde = { version = "1.0.229", features = ["derive"] }
@@ -32,7 +33,7 @@ tokio-tungstenite = "0.30.0"
 # Crypto TLS (ring) pour les API externes en HTTPS. Activée par défaut ; le
 # contrôle croisé Linux sous Windows s'en passe (pas d'en-têtes libc Linux).
 default = ["tls"]
-tls = ["dep:rustls"]
+tls = ["dep:rustls", "dep:ring"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

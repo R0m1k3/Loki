@@ -484,3 +484,30 @@ func TestFacadeFichiers(t *testing.T) {
 		t.Fatalf(".part gardé sans la variable : %v", err)
 	}
 }
+
+// LOKI_PUSH=rust : les routes des notifications partent à la façade, et les
+// envois de ce process (fin de tour, fin de tâche) lui sont délégués.
+func TestFacadeNotifications(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	t.Setenv(facadePushEnv, "rust")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadePushRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	sendPushToAll("Loki", "Réponse prête · 3s")
+	got := f.recu()
+	if len(got) != len(facadePushRoutes)+1 || got[len(got)-1] != `POST /internal/facade/v1/push/send jeton {"body":"Réponse prête · 3s","title":"Loki"}` {
+		t.Fatalf("reçu par la façade : %v", got)
+	}
+	t.Setenv(facadePushEnv, "")
+	sendPushToAll("Loki", "x") // aucun abonné : rien à envoyer, rien de délégué
+	if n := len(f.recu()); n != len(facadePushRoutes)+1 {
+		t.Fatalf("envoi délégué sans la variable (%d appels)", n)
+	}
+}
