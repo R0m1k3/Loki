@@ -30,6 +30,7 @@ tls = ["dep:rustls"]
 libc = "0.2"
 
 [dev-dependencies]
+tokio = { version = "1.53.2", features = ["test-util"] }
 futures-util = "0.3.34"
 tempfile = "3.27.0"
 tokio-tungstenite = "0.30.0"

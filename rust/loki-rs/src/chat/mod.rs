@@ -12,15 +12,19 @@
 //!   abonnés) ;
 //! - [`persist`] : format en base, index des discussions, écrivain unique ;
 //! - [`sessions`] : plusieurs discussions (index, bascules, chargement) ;
-//! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go).
+//! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go) ;
+//! - [`nudges`] : budget d'outils, rappels, appels répétés, aperçus ;
+//! - [`turn`] : la boucle d'un tour (complétions, outils, filets).
 
 pub mod compact;
 pub mod conv;
 pub mod engine;
 pub mod journal;
 pub mod lease;
+pub mod nudges;
 pub mod persist;
 pub mod sessions;
 pub mod stream;
+pub mod turn;
 pub mod types;
 pub mod wire;
