@@ -118,17 +118,17 @@ fn serve() -> ExitCode {
         // sait (il remet alors à la façade le trafic de chat du tunnel) et
         // connaît son adresse locale.
         let chat_rust = chat_held_by_facade();
-        // LOKI_DOWNLOADS=rust : les téléchargements de modèles aussi (le Go
-        // remet alors leurs routes du tunnel et ne vide plus les .part).
-        let downloads_rust = downloads_held_by_facade();
+        // LOKI_MODELS=rust : les routes des modèles aussi (le Go remet alors
+        // celles du tunnel et ne vide plus les .part).
+        let models_rust = models_held_by_facade();
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
         }
-        if downloads_rust {
-            env.push(("LOKI_DOWNLOADS".into(), "rust".into()));
+        if models_rust {
+            env.push(("LOKI_MODELS".into(), "rust".into()));
         }
-        if chat_rust || downloads_rust {
+        if chat_rust || models_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -161,8 +161,8 @@ fn serve() -> ExitCode {
         } else {
             None
         };
-        let downloads = if downloads_rust {
-            Some(start_downloads(backend, &token, &engine_paths.home).await)
+        let models = if models_rust {
+            Some(start_models(backend, &token, &engine_paths.home).await)
         } else {
             None
         };
@@ -183,7 +183,7 @@ fn serve() -> ExitCode {
             host_env: auth::HostEnv::from_env(),
             engine: engine_paths,
             chat,
-            downloads,
+            models,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -203,18 +203,18 @@ fn chat_held_by_facade() -> bool {
     std::env::var("LOKI_CHAT").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
 }
 
-/// `LOKI_DOWNLOADS=rust` : téléchargements de modèles tenus par la façade.
-fn downloads_held_by_facade() -> bool {
-    std::env::var("LOKI_DOWNLOADS").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+/// `LOKI_MODELS=rust` : routes des modèles tenues par la façade.
+fn models_held_by_facade() -> bool {
+    std::env::var("LOKI_MODELS").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
 }
 
 /// Les `.part` d'un téléchargement tué ne reprendront jamais : vidés au
 /// démarrage (le Go ne le fait plus quand la façade les tient).
-async fn start_downloads(
+async fn start_models(
     backend: SocketAddr,
     token: &str,
     home: &std::path::Path,
-) -> std::sync::Arc<loki_rs::downloads::Downloads> {
+) -> std::sync::Arc<loki_rs::models::Models> {
     use loki_rs::{downloads, gguf, store};
     let st = store::Store::new(backend, token.to_string());
     let stored = gguf::parse_stored_model_dirs(
@@ -230,8 +230,8 @@ async fn start_downloads(
         std::env::var(gguf::MODEL_DIRS_ENV).ok().as_deref(),
     );
     let _ = tokio::task::spawn_blocking(move || downloads::clean_stale_part_files(&dirs)).await;
-    eprintln!("[loki-rs] téléchargements de modèles tenus par la façade (LOKI_DOWNLOADS=rust)");
-    std::sync::Arc::new(downloads::Downloads::new())
+    eprintln!("[loki-rs] modèles tenus par la façade (LOKI_MODELS=rust)");
+    std::sync::Arc::new(loki_rs::models::Models::new())
 }
 
 /// Le Go garde-t-il la conversation ? (quelques essais : il vient de démarrer)

@@ -63,9 +63,9 @@ pub struct Config {
     /// Conversation tenue par la façade (`LOKI_CHAT=rust`) : ses routes sont
     /// servies ici ; `None` : relayées au Go.
     pub chat: Option<Arc<crate::chat::generate::ChatService>>,
-    /// Téléchargements de modèles tenus par la façade (`LOKI_DOWNLOADS=rust`) :
-    /// leurs routes sont servies ici ; `None` : relayées au Go.
-    pub downloads: Option<Arc<crate::downloads::Downloads>>,
+    /// Routes des modèles tenues par la façade (`LOKI_MODELS=rust`) : servies
+    /// ici ; `None` : relayées au Go.
+    pub models: Option<Arc<crate::models::Models>>,
 }
 
 struct Proxy {
@@ -93,7 +93,7 @@ pub async fn serve(
             host_env: cfg.host_env,
             engine: cfg.engine,
             chat: cfg.chat,
-            downloads: cfg.downloads,
+            models: cfg.models,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -133,9 +133,9 @@ pub async fn serve(
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
         // Le Go (et lui seul : jeton tiré à chaque démarrage) remet à la
-        // façade le trafic de chat et de téléchargements qui lui arrive sans
-        // passer par elle.
-        let from_go = (self.ctx.chat.is_some() || self.ctx.downloads.is_some())
+        // façade le trafic du chat et des modèles qui lui arrive sans passer
+        // par elle.
+        let from_go = (self.ctx.chat.is_some() || self.ctx.models.is_some())
             && self.ctx.from_go(req.headers());
         // Jamais de confiance accordée sur la foi d'un en-tête du client :
         // ni « je viens du tunnel », ni « je suis la façade ».
@@ -169,10 +169,10 @@ impl Proxy {
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
         }
-        if let Some(dl) = &self.ctx.downloads
-            && crate::downloads::handles(path)
+        if let Some(m) = &self.ctx.models
+            && crate::models::handles(path)
         {
-            return crate::downloads::serve(&self.ctx, dl, req, from_go).await;
+            return crate::models::serve(&self.ctx, m, req, from_go).await;
         }
         self.forward(req).await
     }

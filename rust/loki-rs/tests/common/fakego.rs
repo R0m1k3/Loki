@@ -427,16 +427,17 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None, false).await;
+    let (f, st, tx, _) = start_opts(home, false, None, None).await;
     (f, st, tx)
 }
 
-/// Comme [`start`], avec les téléchargements de modèles tenus par la façade
-/// (`LOKI_DOWNLOADS=rust`).
-pub async fn start_downloads(
+/// Comme [`start`], avec les routes des modèles tenues par la façade
+/// (`LOKI_MODELS=rust`) ; `hf` : adresse du faux Hugging Face.
+pub async fn start_models(
     home: std::path::PathBuf,
+    hf: &str,
 ) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None, true).await;
+    let (f, st, tx, _) = start_opts(home, false, None, Some(hf.to_string())).await;
     (f, st, tx)
 }
 
@@ -451,7 +452,7 @@ pub async fn start_chat(
     oneshot::Sender<()>,
     Arc<loki_rs::chat::generate::ChatService>,
 ) {
-    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port), false).await;
+    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port), None).await;
     (f, st, tx, chat.unwrap())
 }
 
@@ -459,7 +460,7 @@ async fn start_opts(
     home: std::path::PathBuf,
     with_chat: bool,
     engine_port: Option<u16>,
-    with_downloads: bool,
+    models_hf: Option<String>,
 ) -> (
     SocketAddr,
     Arc<FakeGo>,
@@ -516,7 +517,12 @@ async fn start_opts(
             service: "loki-engine".into(),
         },
         chat: chat.clone(),
-        downloads: with_downloads.then(|| Arc::new(loki_rs::downloads::Downloads::new())),
+        models: models_hf.map(|hf| {
+            Arc::new(loki_rs::models::Models {
+                downloads: Arc::new(loki_rs::downloads::Downloads::new()),
+                hf: loki_rs::hf::HfClient::new(&hf),
+            })
+        }),
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

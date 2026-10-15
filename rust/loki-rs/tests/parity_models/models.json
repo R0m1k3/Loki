@@ -1,0 +1,933 @@
+{
+  "quant": {
+    "Qwen3-8B-Q4_K_M.gguf": "Q4_K_M",
+    "a-4bpw.gguf": "4BPW",
+    "m-IQ4_XS-00001-of-00002.gguf": "IQ4_XS",
+    "m-Q4.gguf": "Q4",
+    "m-Q4_K_XL-Q5_K_M.gguf": "Q4_K_XL",
+    "mmproj-F16.GGUF": "F16",
+    "model-bf16.gguf": "BF16",
+    "noext": "",
+    "plain.gguf": "",
+    "x.Q8_0.gguf": "Q8_0"
+  },
+  "split_args": [
+    {
+      "in": "",
+      "out": []
+    },
+    {
+      "in": "--mmproj /a/b.gguf -ngl 99",
+      "out": [
+        "--mmproj",
+        "/a/b.gguf",
+        "-ngl",
+        "99"
+      ]
+    },
+    {
+      "in": "--chat-template-file \"/etc/x y.jinja\" --x ''",
+      "out": [
+        "--chat-template-file",
+        "/etc/x y.jinja",
+        "--x",
+        ""
+      ]
+    },
+    {
+      "in": "a\tb\nc",
+      "out": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "in": "'un \"deux\"' trois",
+      "out": [
+        "un \"deux\"",
+        "trois"
+      ]
+    },
+    {
+      "in": "--mmproj",
+      "out": [
+        "--mmproj"
+      ]
+    }
+  ],
+  "mask": {
+    "": "",
+    "  ": "",
+    "  hf_padded_token  ": "hf_…oken",
+    "abc": "…bc",
+    "hf_12345678": "hf_…5678",
+    "hf_abcdefghijklmnop": "hf_…mnop"
+  },
+  "gated": [
+    {
+      "in": true,
+      "out": true
+    },
+    {
+      "in": false,
+      "out": false
+    },
+    {
+      "in": "auto",
+      "out": true
+    },
+    {
+      "in": "manual",
+      "out": true
+    },
+    {
+      "in": "false",
+      "out": false
+    },
+    {
+      "in": "",
+      "out": false
+    },
+    {
+      "in": "None",
+      "out": false
+    },
+    {
+      "in": null,
+      "out": false
+    },
+    {
+      "in": 1,
+      "out": false
+    }
+  ],
+  "classify": {
+    "repo": "unsloth/Qwen3-8B-GGUF",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 1000
+      },
+      {
+        "path": "Qwen3-8B-Q8_0.gguf",
+        "size": 8589934592
+      },
+      {
+        "path": "Qwen3-8B-Q4_K_M.gguf",
+        "size": 5368709120
+      },
+      {
+        "path": "mmproj-F16.gguf",
+        "size": 943718400
+      },
+      {
+        "path": "mmproj-Q8_0.gguf",
+        "size": 629145600
+      },
+      {
+        "path": "mtp-Qwen3-8B-Q8_0.gguf",
+        "size": 314572800
+      },
+      {
+        "path": "BF16/Qwen3-8B-BF16-00001-of-00002.gguf",
+        "size": 9663676416
+      },
+      {
+        "path": "BF16/Qwen3-8B-BF16-00002-of-00002.gguf",
+        "size": 7516192768
+      },
+      {
+        "path": "Q2/Qwen3-8B-BF16-00001-of-00002.gguf",
+        "size": 1073741824
+      },
+      {
+        "path": "dossier avec espace/Qwen3 8B Q3.gguf",
+        "size": 4294967296
+      }
+    ],
+    "out": {
+      "repo": "unsloth/Qwen3-8B-GGUF",
+      "gated": false,
+      "models": [
+        {
+          "name": "Qwen3-8B-BF16-00001-of-00002.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/Q2/Qwen3-8B-BF16-00001-of-00002.gguf",
+          "size": 1073741824,
+          "quant": "BF16",
+          "shards": 2
+        },
+        {
+          "name": "Qwen3 8B Q3.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/dossier%20avec%20espace/Qwen3%208B%20Q3.gguf",
+          "size": 4294967296,
+          "quant": "",
+          "shards": 1
+        },
+        {
+          "name": "Qwen3-8B-Q4_K_M.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf",
+          "size": 5368709120,
+          "quant": "Q4_K_M",
+          "shards": 1
+        },
+        {
+          "name": "Qwen3-8B-Q8_0.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf",
+          "size": 8589934592,
+          "quant": "Q8_0",
+          "shards": 1
+        },
+        {
+          "name": "Qwen3-8B-BF16-00001-of-00002.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/BF16/Qwen3-8B-BF16-00001-of-00002.gguf",
+          "size": 17179869184,
+          "quant": "BF16",
+          "shards": 2
+        }
+      ],
+      "projectors": [
+        {
+          "name": "mmproj-Q8_0.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/mmproj-Q8_0.gguf",
+          "size": 629145600,
+          "quant": "Q8_0",
+          "shards": 1
+        },
+        {
+          "name": "mmproj-F16.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/mmproj-F16.gguf",
+          "size": 943718400,
+          "quant": "F16",
+          "shards": 1
+        }
+      ],
+      "drafts": [
+        {
+          "name": "mtp-Qwen3-8B-Q8_0.gguf",
+          "url": "https://huggingface.co/unsloth/Qwen3-8B-GGUF/resolve/main/mtp-Qwen3-8B-Q8_0.gguf",
+          "size": 314572800,
+          "quant": "Q8_0",
+          "shards": 1
+        }
+      ]
+    }
+  },
+  "projector": [
+    {
+      "in": null,
+      "name": ""
+    },
+    {
+      "in": [
+        {
+          "name": "mmproj-F16.gguf",
+          "url": "",
+          "size": 900,
+          "quant": "F16",
+          "shards": 0
+        },
+        {
+          "name": "mmproj-BF16.gguf",
+          "url": "",
+          "size": 800,
+          "quant": "BF16",
+          "shards": 0
+        }
+      ],
+      "name": "mmproj-BF16.gguf"
+    },
+    {
+      "in": [
+        {
+          "name": "mmproj-F16.gguf",
+          "url": "",
+          "size": 900,
+          "quant": "F16",
+          "shards": 0
+        },
+        {
+          "name": "mmproj-q8_0.gguf",
+          "url": "",
+          "size": 950,
+          "quant": "q8_0",
+          "shards": 0
+        }
+      ],
+      "name": "mmproj-q8_0.gguf"
+    }
+  ],
+  "verdicts": [
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 64,
+        "vram_gb": 24,
+        "gpus": [
+          {
+            "name": "RTX",
+            "vram_gb": 24
+          }
+        ]
+      },
+      "weights": 5368709120,
+      "mmproj": 0,
+      "ctx": 32768,
+      "verdict": "ok",
+      "why": "5.0 Go de poids + ~0.2 Go de contexte (estimation) = ~5.2 Go pour 24.0 Go de VRAM"
+    },
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 64,
+        "vram_gb": 24,
+        "gpus": [
+          {
+            "name": "RTX",
+            "vram_gb": 24
+          }
+        ]
+      },
+      "weights": 21474836480,
+      "mmproj": 629145600,
+      "ctx": 32768,
+      "verdict": "ok",
+      "why": "20.0 Go de poids + 0.6 Go de projecteur + ~1.0 Go de contexte (estimation) = ~21.6 Go pour 24.0 Go de VRAM"
+    },
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 64,
+        "vram_gb": 24,
+        "gpus": [
+          {
+            "name": "RTX",
+            "vram_gb": 24
+          }
+        ]
+      },
+      "weights": 23622320128,
+      "mmproj": 0,
+      "ctx": 32768,
+      "verdict": "juste",
+      "why": "ça passe de justesse : 22.0 Go de poids + ~1.1 Go de contexte (estimation) = ~23.1 Go pour 24.0 Go de VRAM"
+    },
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 64,
+        "vram_gb": 24,
+        "gpus": [
+          {
+            "name": "RTX",
+            "vram_gb": 24
+          }
+        ]
+      },
+      "weights": 32212254720,
+      "mmproj": 0,
+      "ctx": 0,
+      "verdict": "trop",
+      "why": "ne tient pas : 30.0 Go de poids + ~1.5 Go de contexte (estimation) = ~31.5 Go pour 24.0 Go de VRAM"
+    },
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 16,
+        "vram_gb": 0,
+        "gpus": null
+      },
+      "weights": 8589934592,
+      "mmproj": 0,
+      "ctx": 131072,
+      "verdict": "ok",
+      "why": "8.0 Go de poids + ~1.6 Go de contexte (estimation) = ~9.6 Go pour 16.0 Go de RAM"
+    },
+    {
+      "hardware": {
+        "os": "linux",
+        "arch": "amd64",
+        "ram_gb": 0,
+        "vram_gb": 0,
+        "gpus": null
+      },
+      "weights": 1073741824,
+      "mmproj": 0,
+      "ctx": 4096,
+      "verdict": "",
+      "why": ""
+    }
+  ],
+  "scenario": {
+    "files": {
+      "disque/a-Q4_K_M.gguf": 100,
+      "disque/ext.GGUF": 400,
+      "models/a-Q4_K_M.gguf": 100,
+      "models/actif.gguf": 50,
+      "models/b.gguf": 200,
+      "models/m-00001-of-00002.gguf": 10,
+      "models/m-00002-of-00002.gguf": 20,
+      "models/notes.txt": 3,
+      "models/sous-dossier.gguf": -1,
+      "models/t-00001-of-00003.gguf": 5,
+      "models/t-00003-of-00003.gguf": 7,
+      "models/vision-mmproj.gguf": 30
+    },
+    "extra": [
+      "{{HOME}}/disque",
+      "{{HOME}}/absent"
+    ],
+    "presets": {
+      "alpha": "NAME=Alpha\nMODEL=a-Q4_K_M.gguf\nMMPROJ=vision-mmproj.gguf\n",
+      "beta": "NAME=Beta\nMODEL={{HOME}}/disque/ext.GGUF\n",
+      "delta": "NAME=Delta\nMODEL=m-00001-of-00002.gguf\n",
+      "gamma": "NAME=Gamma\nMODEL=b.gguf\nEXTRA_ARGS=--mmproj \"vision-mmproj.gguf\" -ngl 99 --mmproj b.gguf\n"
+    },
+    "config": {
+      "MODEL": "actif.gguf",
+      "MODEL_DRAFT": "{{HOME}}/disque/a-Q4_K_M.gguf"
+    },
+    "calls": [
+      {
+        "method": "GET",
+        "path": "/api/models",
+        "status": 200,
+        "out": [
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "a-Q4_K_M.gguf",
+            "path": "{{HOME}}/models/a-Q4_K_M.gguf",
+            "size": 100,
+            "used": [
+              "Alpha"
+            ],
+            "value": "a-Q4_K_M.gguf"
+          },
+          {
+            "active": true,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "actif.gguf",
+            "path": "{{HOME}}/models/actif.gguf",
+            "size": 50,
+            "value": "actif.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "b.gguf",
+            "path": "{{HOME}}/models/b.gguf",
+            "size": 200,
+            "used": [
+              "Gamma"
+            ],
+            "value": "b.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "m-00001-of-00002.gguf",
+            "path": "{{HOME}}/models/m-00001-of-00002.gguf",
+            "shards": 2,
+            "size": 30,
+            "used": [
+              "Delta"
+            ],
+            "value": "m-00001-of-00002.gguf"
+          },
+          {
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "missing": [
+              "t-00002-of-00003.gguf"
+            ],
+            "name": "t-00001-of-00003.gguf",
+            "path": "{{HOME}}/models/t-00001-of-00003.gguf",
+            "shards": 3,
+            "size": 12,
+            "value": "t-00001-of-00003.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "vision-mmproj.gguf",
+            "path": "{{HOME}}/models/vision-mmproj.gguf",
+            "size": 30,
+            "used": [
+              "Alpha",
+              "Gamma"
+            ],
+            "value": "vision-mmproj.gguf"
+          },
+          {
+            "active": true,
+            "dir": "{{HOME}}/disque",
+            "home": false,
+            "name": "a-Q4_K_M.gguf",
+            "path": "{{HOME}}/disque/a-Q4_K_M.gguf",
+            "size": 100,
+            "value": "{{HOME}}/disque/a-Q4_K_M.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/disque",
+            "home": false,
+            "name": "ext.GGUF",
+            "path": "{{HOME}}/disque/ext.GGUF",
+            "size": 400,
+            "used": [
+              "Beta"
+            ],
+            "value": "{{HOME}}/disque/ext.GGUF"
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/api/models/dirs",
+        "status": 200,
+        "out": {
+          "dirs": [
+            {
+              "count": 6,
+              "exists": true,
+              "free": "…",
+              "free_exact": "…",
+              "home": true,
+              "path": "{{HOME}}/models"
+            },
+            {
+              "count": 2,
+              "exists": true,
+              "free": "…",
+              "free_exact": "…",
+              "home": false,
+              "path": "{{HOME}}/disque"
+            },
+            {
+              "count": -1,
+              "exists": false,
+              "free": "…",
+              "free_exact": "…",
+              "home": false,
+              "path": "{{HOME}}/absent"
+            }
+          ],
+          "env": false,
+          "ok": true
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"actif.gguf\"}",
+        "status": 409,
+        "out": {
+          "active": true,
+          "error": "modèle en service — bascule sur un autre preset avant de le supprimer",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/b.gguf",
+          "models/m-00001-of-00002.gguf",
+          "models/m-00002-of-00002.gguf",
+          "models/notes.txt",
+          "models/t-00001-of-00003.gguf",
+          "models/t-00003-of-00003.gguf",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"a-Q4_K_M.gguf\"}",
+        "status": 409,
+        "out": {
+          "error": "modèle utilisé par : Alpha",
+          "ok": false,
+          "used": [
+            "Alpha"
+          ]
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/b.gguf",
+          "models/m-00001-of-00002.gguf",
+          "models/m-00002-of-00002.gguf",
+          "models/notes.txt",
+          "models/t-00001-of-00003.gguf",
+          "models/t-00003-of-00003.gguf",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"{{HOME}}/disque/a-Q4_K_M.gguf\"}",
+        "status": 409,
+        "out": {
+          "active": true,
+          "error": "modèle en service — bascule sur un autre preset avant de le supprimer",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/b.gguf",
+          "models/m-00001-of-00002.gguf",
+          "models/m-00002-of-00002.gguf",
+          "models/notes.txt",
+          "models/t-00001-of-00003.gguf",
+          "models/t-00003-of-00003.gguf",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"b.gguf\",\"force\":true}",
+        "status": 200,
+        "out": {
+          "freed": 200,
+          "ok": true,
+          "used": [
+            "Gamma"
+          ]
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/m-00001-of-00002.gguf",
+          "models/m-00002-of-00002.gguf",
+          "models/notes.txt",
+          "models/t-00001-of-00003.gguf",
+          "models/t-00003-of-00003.gguf",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"m-00001-of-00002.gguf\",\"force\":true}",
+        "status": 200,
+        "out": {
+          "freed": 30,
+          "ok": true,
+          "used": [
+            "Delta"
+          ]
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/t-00001-of-00003.gguf",
+          "models/t-00003-of-00003.gguf",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"t-00001-of-00003.gguf\"}",
+        "status": 200,
+        "out": {
+          "freed": 12,
+          "ok": true,
+          "used": null
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"inconnu.gguf\"}",
+        "status": 400,
+        "out": {
+          "error": "modèle introuvable: inconnu.gguf",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"/etc/passwd.gguf\"}",
+        "status": 400,
+        "out": {
+          "error": "dossier non autorisé : /etc — ajoute-le dans « Dossiers de modèles »",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"notes.txt\"}",
+        "status": 400,
+        "out": {
+          "error": "le modèle doit être un fichier .gguf",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/delete",
+        "body": "{\"name\":\"\"}",
+        "status": 400,
+        "out": {
+          "error": "nom de modèle invalide",
+          "ok": false
+        },
+        "files": [
+          "disque/a-Q4_K_M.gguf",
+          "disque/ext.GGUF",
+          "models/a-Q4_K_M.gguf",
+          "models/actif.gguf",
+          "models/notes.txt",
+          "models/vision-mmproj.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"\"}",
+        "status": 400,
+        "out": {
+          "error": "chemin vide",
+          "ok": false
+        },
+        "stored": [
+          "{{HOME}}/disque",
+          "{{HOME}}/absent"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"{{HOME}}/nulle-part\"}",
+        "status": 400,
+        "out": {
+          "error": "dossier introuvable : {{HOME}}/nulle-part",
+          "ok": false
+        },
+        "stored": [
+          "{{HOME}}/disque",
+          "{{HOME}}/absent"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"{{HOME}}/models/sous-dossier.gguf\"}",
+        "status": 200,
+        "out": {
+          "ok": true
+        },
+        "stored": [
+          "{{HOME}}/disque",
+          "{{HOME}}/absent",
+          "{{HOME}}/models/sous-dossier.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"{{HOME}}/disque/\",\"action\":\"remove\"}",
+        "status": 200,
+        "out": {
+          "ok": true
+        },
+        "stored": [
+          "{{HOME}}/absent",
+          "{{HOME}}/models/sous-dossier.gguf"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"{{HOME}}/disque/../disque\",\"action\":\"add\"}",
+        "status": 200,
+        "out": {
+          "ok": true
+        },
+        "stored": [
+          "{{HOME}}/absent",
+          "{{HOME}}/models/sous-dossier.gguf",
+          "{{HOME}}/disque"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/models/dirs",
+        "body": "{\"path\":\"{{HOME}}/models\",\"action\":\"add\"}",
+        "status": 200,
+        "out": {
+          "ok": true
+        },
+        "stored": [
+          "{{HOME}}/absent",
+          "{{HOME}}/models/sous-dossier.gguf",
+          "{{HOME}}/disque"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/api/models",
+        "status": 200,
+        "out": [
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "a-Q4_K_M.gguf",
+            "path": "{{HOME}}/models/a-Q4_K_M.gguf",
+            "size": 100,
+            "used": [
+              "Alpha"
+            ],
+            "value": "a-Q4_K_M.gguf"
+          },
+          {
+            "active": true,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "actif.gguf",
+            "path": "{{HOME}}/models/actif.gguf",
+            "size": 50,
+            "value": "actif.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/models",
+            "home": true,
+            "name": "vision-mmproj.gguf",
+            "path": "{{HOME}}/models/vision-mmproj.gguf",
+            "size": 30,
+            "used": [
+              "Alpha",
+              "Gamma"
+            ],
+            "value": "vision-mmproj.gguf"
+          },
+          {
+            "active": true,
+            "dir": "{{HOME}}/disque",
+            "home": false,
+            "name": "a-Q4_K_M.gguf",
+            "path": "{{HOME}}/disque/a-Q4_K_M.gguf",
+            "size": 100,
+            "value": "{{HOME}}/disque/a-Q4_K_M.gguf"
+          },
+          {
+            "active": false,
+            "dir": "{{HOME}}/disque",
+            "home": false,
+            "name": "ext.GGUF",
+            "path": "{{HOME}}/disque/ext.GGUF",
+            "size": 400,
+            "used": [
+              "Beta"
+            ],
+            "value": "{{HOME}}/disque/ext.GGUF"
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/api/models/dirs",
+        "status": 200,
+        "out": {
+          "dirs": [
+            {
+              "count": 3,
+              "exists": true,
+              "free": "…",
+              "free_exact": "…",
+              "home": true,
+              "path": "{{HOME}}/models"
+            },
+            {
+              "count": -1,
+              "exists": false,
+              "free": "…",
+              "free_exact": "…",
+              "home": false,
+              "path": "{{HOME}}/absent"
+            },
+            {
+              "count": 0,
+              "exists": true,
+              "free": "…",
+              "free_exact": "…",
+              "home": false,
+              "path": "{{HOME}}/models/sous-dossier.gguf"
+            },
+            {
+              "count": 2,
+              "exists": true,
+              "free": "…",
+              "free_exact": "…",
+              "home": false,
+              "path": "{{HOME}}/disque"
+            }
+          ],
+          "env": false,
+          "ok": true
+        }
+      }
+    ]
+  }
+}

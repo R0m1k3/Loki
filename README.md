@@ -228,7 +228,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_FACADE` | `0` : sans façade Rust, le Go sert directement le port public (porte de sortie) | `1` |
 | `LOKI_GO_PORT` | port local (127.0.0.1) du serveur Go derrière la façade | `8091` |
 | `LOKI_CHAT` | `rust` : la conversation est tenue par la façade Rust (expérimental, migration en cours), outils fichiers et shell compris. Le Go garde les autres outils, les pièces jointes, les fichiers et l'export. Avec `PROJ_SNAPSHOT`, `KEEP_TURN_IMAGES`, `NUDGE_IN_TOOL`, `SIDE_SLOT`, `SLOT_PERSIST`, `PREWARM` ou des motifs `retry_patterns`, le Go garde la conversation (décidé au démarrage) | Go |
-| `LOKI_DOWNLOADS` | `rust` : les téléchargements de modèles (`/api/models/download*`) sont menés par la façade Rust (expérimental, migration en cours). Le Go garde les autres routes des modèles | Go |
+| `LOKI_MODELS` | `rust` : les routes des modèles — liste, dossiers, suppression, téléchargements, catalogue Hugging Face — sont servies par la façade Rust (expérimental, migration en cours) | Go |
 
 **Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
 hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse

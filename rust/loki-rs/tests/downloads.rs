@@ -1,4 +1,4 @@
-//! Lot « modèles » : téléchargements tenus par la façade (`LOKI_DOWNLOADS=rust`).
+//! Lot 8 : téléchargements de modèles tenus par la façade (`LOKI_MODELS=rust`).
 //!
 //! - les fonctions pures rejouent le journal tiré du Go
 //!   (`internal/loki/parity_dl_test.go` → `tests/parity_models/download.json`) ;
@@ -572,7 +572,7 @@ async fn routes_servies_par_la_facade() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path().canonicalize().unwrap();
-    let (facade, go, _stop) = fakego::start_downloads(home.clone()).await;
+    let (facade, go, _stop) = fakego::start_models(home.clone(), "http://127.0.0.1:1").await;
     let url = format!("http://{addr}/u/r/resolve/main/m.gguf");
     let body = format!(r#"{{"url":"{url}","dir":""}}"#);
 

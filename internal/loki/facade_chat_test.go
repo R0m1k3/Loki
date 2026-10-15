@@ -306,30 +306,31 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 	}
 }
 
-// LOKI_DOWNLOADS=rust : les routes des téléchargements de modèles partent à la
-// façade (avec ou sans LOKI_CHAT), les autres routes des modèles restent ici ;
-// sans la variable, rien ne change. Façade muette : erreur qui le dit.
-func TestFacadeRelaieLesTelechargements(t *testing.T) {
+// LOKI_MODELS=rust : les routes des modèles partent à la façade (avec ou sans
+// LOKI_CHAT), les autres restent ici ; sans la variable, rien ne change.
+// Façade muette : erreur qui le dit.
+func TestFacadeRelaieLesModeles(t *testing.T) {
 	testHome(t)
 	f := demarrerFacade(t)
 	t.Setenv(facadeChatEnv, "")
-	t.Setenv(facadeDownloadsEnv, "rust")
+	t.Setenv(facadeModelsEnv, "rust")
 	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
 
-	for _, p := range []string{"/api/models/download", "/api/models/download/probe",
-		"/api/models/download/status", "/api/models/download/cancel"} {
+	routes := []string{"/api/models/download", "/api/models/download/probe",
+		"/api/models/download/status", "/api/models/download/cancel", "/api/models",
+		"/api/models/delete", "/api/models/dirs", "/api/hf/search", "/api/hf/files", "/api/hf/token"}
+	for _, p := range routes {
 		w := httptest.NewRecorder()
 		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader(`{"url":"u"}`)))
 		if w.Body.String() != f.reply {
 			t.Fatalf("%s : réponse %q", p, w.Body.String())
 		}
 	}
-	if got := f.recu(); len(got) != 4 || got[0] != `POST /api/models/download jeton {"url":"u"}` {
+	if got := f.recu(); len(got) != len(routes) || got[0] != `POST /api/models/download jeton {"url":"u"}` {
 		t.Fatalf("reçu par la façade : %v", got)
 	}
-	// Le chat, lui, reste ici (LOKI_CHAT absent), et les autres routes des
-	// modèles aussi.
-	for _, p := range []string{"/api/chat/send", "/api/models", "/api/models/delete"} {
+	// Le chat, lui, reste ici (LOKI_CHAT absent), et les routes voisines aussi.
+	for _, p := range []string{"/api/chat/send", "/api/model/layers", "/api/presets"} {
 		w := httptest.NewRecorder()
 		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
 		if w.Body.String() != "go" {
@@ -340,11 +341,11 @@ func TestFacadeRelaieLesTelechargements(t *testing.T) {
 	f.srv.Close()
 	w := httptest.NewRecorder()
 	withFacadeChat("/api/models/download/status", local)(w, httptest.NewRequest("GET", "/api/models/download/status", nil))
-	if w.Code != http.StatusBadGateway || !strings.Contains(w.Body.String(), "téléchargements indisponibles : ") {
+	if w.Code != http.StatusBadGateway || !strings.Contains(w.Body.String(), "modèles indisponibles : ") {
 		t.Fatalf("façade muette : %d %s", w.Code, w.Body.String())
 	}
-	// Sans LOKI_DOWNLOADS=rust : tout reste ici.
-	t.Setenv(facadeDownloadsEnv, "")
+	// Sans LOKI_MODELS=rust : tout reste ici.
+	t.Setenv(facadeModelsEnv, "")
 	w = httptest.NewRecorder()
 	withFacadeChat("/api/models/download", local)(w, httptest.NewRequest("POST", "/api/models/download", nil))
 	if w.Body.String() != "go" {
@@ -353,7 +354,7 @@ func TestFacadeRelaieLesTelechargements(t *testing.T) {
 }
 
 // Les .part orphelins ne sont plus vidés par ce Go quand la façade tient les
-// téléchargements : elle les vide à son démarrage, et un Go relancé seul
+// modèles : elle les vide à son démarrage, et un Go relancé seul
 // effacerait celui qu'elle mène.
 func TestFacadeTelechargementsGardeLesPart(t *testing.T) {
 	home := testHome(t)
@@ -367,12 +368,12 @@ func TestFacadeTelechargementsGardeLesPart(t *testing.T) {
 	}
 	t.Setenv(internalTokenEnv, jetonTest)
 	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
-	t.Setenv(facadeDownloadsEnv, "rust")
+	t.Setenv(facadeModelsEnv, "rust")
 	cleanStartupPartFiles()
 	if _, err := os.Stat(part); err != nil {
 		t.Fatalf(".part effacé alors que la façade tient les téléchargements : %v", err)
 	}
-	t.Setenv(facadeDownloadsEnv, "")
+	t.Setenv(facadeModelsEnv, "")
 	cleanStartupPartFiles()
 	if _, err := os.Stat(part); !os.IsNotExist(err) {
 		t.Fatalf(".part orphelin gardé : %v", err)

@@ -131,7 +131,7 @@ func newWebMux() *http.ServeMux {
 	MCPPrewarm()
 	// Un téléchargement de modèle coupé net (crash, restart du service) laisse un
 	// .part orphelin non reprenable : on nettoie au démarrage (sauf quand la
-	// façade tient les téléchargements, facade_downloads.go).
+	// façade tient les modèles, facade_models.go).
 	cleanStartupPartFiles()
 	// Les fichiers des versions précédentes vivaient dans un pot commun : on les
 	// range dans le dossier de leur discussion (une fois par process).
@@ -219,9 +219,8 @@ func newWebMux() *http.ServeMux {
 	mountOAI(mux)
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
 	// withFacadeChat : routes du chat remises à la façade quand elle tient la
-	// conversation (LOKI_CHAT=rust, facade_chat.go), celles des téléchargements
-	// de modèles quand elle les tient (LOKI_DOWNLOADS=rust,
-	// facade_downloads.go) ; sans effet sinon.
+	// conversation (LOKI_CHAT=rust, facade_chat.go), celles des modèles quand
+	// elle les tient (LOKI_MODELS=rust, facade_models.go) ; sans effet sinon.
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(withFacadeChat(path, h))) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)

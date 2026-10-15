@@ -19,6 +19,8 @@ pub mod downloads;
 pub mod engine;
 pub mod engstatus;
 pub mod gguf;
+pub mod hf;
+pub mod models;
 pub mod oai;
 pub mod paths;
 pub mod presets;

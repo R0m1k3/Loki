@@ -141,15 +141,15 @@ var facadeChatRoutes = map[string]bool{
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la
-// conversation — ou les téléchargements de modèles (facade_downloads.go).
+// conversation — ou les routes des modèles (facade_models.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 	held, unavailable := facadeChat, "conversation indisponible : "
 	switch {
 	case facadeChatRoutes[path]:
-	case facadeDownloadRoutes[path]:
-		held, unavailable = facadeDownloads, "téléchargements indisponibles : "
+	case facadeModelRoutes[path]:
+		held, unavailable = facadeModels, "modèles indisponibles : "
 	default:
 		return h
 	}

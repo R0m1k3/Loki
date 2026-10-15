@@ -2,7 +2,7 @@
 //! des téléchargements de `backend_models.go`, `backend_models_shards.go`,
 //! `backend_model_dirs.go` et `backend_hf.go` (lot 8 de la migration).
 //!
-//! Tenus par la façade quand `LOKI_DOWNLOADS=rust` (expérimental ; le Go
+//! Tenus par la façade quand `LOKI_MODELS=rust` (expérimental ; le Go
 //! par défaut) : `POST /api/models/download`, `/probe`, `/cancel`,
 //! `GET /api/models/download/status`. Le Go remet alors à la façade ces
 //! routes quand elles lui arrivent par le tunnel du relais, et ne vide plus

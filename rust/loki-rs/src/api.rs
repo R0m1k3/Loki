@@ -26,9 +26,10 @@ pub struct Ctx {
     pub engine: engine::Paths,
     /// Conversation tenue par la façade (`LOKI_CHAT=rust`) ; `None` : au Go.
     pub chat: Option<std::sync::Arc<crate::chat::generate::ChatService>>,
-    /// Téléchargements de modèles tenus par la façade (`LOKI_DOWNLOADS=rust`) ;
+    /// Routes des modèles (liste, dossiers, suppression, téléchargements,
+    /// catalogue Hugging Face) tenues par la façade (`LOKI_MODELS=rust`) ;
     /// `None` : au Go.
-    pub downloads: Option<std::sync::Arc<crate::downloads::Downloads>>,
+    pub models: Option<std::sync::Arc<crate::models::Models>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
