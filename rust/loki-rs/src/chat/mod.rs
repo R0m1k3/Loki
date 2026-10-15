@@ -11,6 +11,7 @@
 //! - [`conv`] : la discussion en mémoire (état, epoch, verrou du tour,
 //!   abonnés) ;
 //! - [`persist`] : format en base, index des discussions, écrivain unique ;
+//! - [`sessions`] : plusieurs discussions (index, bascules, chargement) ;
 //! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go).
 
 pub mod compact;
@@ -19,6 +20,7 @@ pub mod engine;
 pub mod journal;
 pub mod lease;
 pub mod persist;
+pub mod sessions;
 pub mod stream;
 pub mod types;
 pub mod wire;

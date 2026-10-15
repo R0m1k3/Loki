@@ -73,7 +73,7 @@ fn opened(go: &fakego::FakeGo, bucket: &str, key: &str) -> Option<Vec<u8>> {
 #[tokio::test]
 async fn discussion_scellee_contenu_et_index() {
     let (st, go, _stop, _t) = store().await;
-    let p = Persister::new(StoreSink { store: st });
+    let p = Persister::new(StoreSink::new(st));
     let body = ConvState {
         seq: 3,
         ..Default::default()
@@ -114,7 +114,7 @@ async fn discussion_scellee_contenu_et_index() {
 #[tokio::test]
 async fn memoire_verrouillee_rien_en_clair() {
     let (st, go, _stop, _t) = store().await;
-    let p = Persister::new(StoreSink { store: st });
+    let p = Persister::new(StoreSink::new(st));
     *go.locked.lock().unwrap() = true;
     p.enqueue_tool_res(ToolResJob {
         key: "c1.ab".into(),
@@ -139,7 +139,7 @@ async fn memoire_verrouillee_rien_en_clair() {
 async fn index_illisible_jamais_reecrit() {
     let (st, go, _stop, _t) = store().await;
     go.set(BK_CHAT, CK_INDEX, "SCELLE:pas du json");
-    let p = Persister::new(StoreSink { store: st });
+    let p = Persister::new(StoreSink::new(st));
     p.persist(snap("c1", p.next_seq(), "t", b"{}".to_vec()))
         .await;
     assert_eq!(opened(&go, BK_CHAT, "conv:c1").unwrap(), b"{}");
@@ -240,4 +240,178 @@ async fn moteur_tenu_par_une_tache_go() {
         .await
         .unwrap();
     lease.release().await;
+}
+
+// ---- plusieurs discussions ----
+
+use loki_rs::chat::conv::Conversation;
+use loki_rs::chat::sessions::{SessionError, SessionHooks, Sessions};
+use std::sync::Mutex as StdMutex;
+
+#[derive(Default, Clone)]
+struct Crochets(Arc<StdMutex<Vec<String>>>);
+
+impl SessionHooks for Crochets {
+    async fn dropped(&self, id: &str) {
+        self.0.lock().unwrap().push(format!("dropped {id}"));
+    }
+    async fn switched(&self, id: &str) {
+        self.0.lock().unwrap().push(format!("switched {id}"));
+    }
+}
+
+async fn sessions() -> (
+    Sessions<Crochets>,
+    Crochets,
+    Arc<fakego::FakeGo>,
+    tokio::sync::oneshot::Sender<()>,
+    tempfile::TempDir,
+) {
+    let (st, go, stop, t) = store().await;
+    let h = Crochets::default();
+    (
+        Sessions::new(st, Conversation::new(), h.clone()),
+        h,
+        go,
+        stop,
+        t,
+    )
+}
+
+fn dire(s: &Sessions<Crochets>, texte: &str) {
+    let c = s.conv();
+    c.append_delta(
+        c.epoch(),
+        serde_json::from_value(serde_json::json!({"user": texte})).unwrap(),
+    );
+    c.with_state(|st| {
+        st.messages.push(loki_rs::chat::types::Message {
+            role: "user".into(),
+            content: Some(serde_json::json!(texte)),
+            ..Default::default()
+        })
+    });
+}
+
+fn textes(s: &Sessions<Crochets>) -> Vec<String> {
+    s.conv().with_state(|st| {
+        st.messages
+            .iter()
+            .filter_map(|m| m.content.as_ref()?.as_str().map(str::to_string))
+            .collect()
+    })
+}
+
+#[tokio::test]
+async fn demarrage_sur_base_neuve() {
+    let (s, _h, go, _stop, _t) = sessions().await;
+    s.load().await.unwrap();
+    let id = s.conv().id();
+    assert!(id.starts_with('c'));
+    assert_eq!(go.get(BK_CHAT, "active").unwrap(), id);
+    let (list, active) = s.list().await.unwrap();
+    assert_eq!(active, id);
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].project, "generale");
+    // Rechargé : même discussion, rien de recréé.
+    s.load().await.unwrap();
+    assert_eq!(s.read_index().await.len(), 1);
+}
+
+#[tokio::test]
+async fn demarrage_reprend_le_fil_unique() {
+    let (s, _h, go, _stop, _t) = sessions().await;
+    go.set(
+        BK_CHAT,
+        "conversation",
+        r#"{"messages":[{"role":"user","content":"ancien fil"}],"log":null,"seq":0,"ctx_used":0}"#,
+    );
+    s.load().await.unwrap();
+    assert_eq!(textes(&s), ["ancien fil"]);
+    assert!(
+        go.get(BK_CHAT, "conversation").is_some(),
+        "clé d'origine gardée"
+    );
+}
+
+#[tokio::test]
+async fn demarrage_base_illisible_n_ecrit_rien() {
+    let (s, _h, go, _stop, _t) = sessions().await;
+    *go.broken.lock().unwrap() = true;
+    assert!(s.load().await.is_err());
+    *go.broken.lock().unwrap() = false;
+    assert!(
+        go.store.lock().unwrap().is_empty(),
+        "écrit malgré la base illisible"
+    );
+    assert_eq!(s.conv().id(), "");
+}
+
+#[tokio::test]
+async fn creer_basculer_renommer() {
+    let (s, h, _go, _stop, _t) = sessions().await;
+    s.load().await.unwrap();
+    let a = s.conv().id();
+    dire(&s, "seulement dans A");
+    let b = s.new_conv().await.unwrap();
+    assert_ne!(a, b);
+    assert!(textes(&s).is_empty());
+    dire(&s, "seulement dans B");
+    s.switch(&a).await.unwrap();
+    assert_eq!(textes(&s), ["seulement dans A"]);
+    s.switch(&b).await.unwrap();
+    assert_eq!(textes(&s), ["seulement dans B"]);
+    assert_eq!(
+        *h.0.lock().unwrap(),
+        [format!("switched {a}"), format!("switched {b}")]
+    );
+    // L'index porte les titres déduits.
+    let idx = s.read_index().await;
+    let titre = |id: &str| idx.iter().find(|m| m.id == id).unwrap().title.clone();
+    assert_eq!(titre(&a), "seulement dans A");
+    assert_eq!(s.switch("inconnue").await, Err(SessionError::NotFound));
+    assert_eq!(s.switch("").await, Err(SessionError::Missing));
+    s.rename(&a, "  Mon fil ").await.unwrap();
+    assert_eq!(
+        s.read_index()
+            .await
+            .iter()
+            .find(|m| m.id == a)
+            .unwrap()
+            .title,
+        "Mon fil"
+    );
+    assert_eq!(s.rename(&a, " ").await, Err(SessionError::Missing));
+}
+
+#[tokio::test]
+async fn supprimer_l_ouverte_puis_la_derniere() {
+    let (s, h, go, _stop, _t) = sessions().await;
+    s.load().await.unwrap();
+    let a = s.conv().id();
+    dire(&s, "fil A");
+    s.persist().await;
+    let b = s.new_conv().await.unwrap();
+    dire(&s, "fil B");
+    s.persist_async().await; // une écriture en attente qui vise B
+    s.delete(&b).await.unwrap();
+    assert!(
+        go.get(BK_CHAT, &format!("conv:{b}")).is_none(),
+        "contenu de B resté"
+    );
+    assert!(!s.read_index().await.iter().any(|m| m.id == b));
+    assert_eq!(s.conv().id(), a, "bascule sur la plus récente restante");
+    assert_eq!(textes(&s), ["fil A"]);
+    assert!(h.0.lock().unwrap().contains(&format!("dropped {b}")));
+    // B ne renaît pas, même après une écriture.
+    s.persist().await;
+    assert!(go.get(BK_CHAT, &format!("conv:{b}")).is_none());
+
+    s.delete(&a).await.unwrap();
+    let c = s.conv().id();
+    assert!(c != a && !c.is_empty(), "toujours une discussion active");
+    let idx = s.read_index().await;
+    assert_eq!(idx.len(), 1);
+    assert_eq!(idx[0].id, c);
+    assert_eq!(s.delete("inconnue").await, Err(SessionError::NotFound));
 }

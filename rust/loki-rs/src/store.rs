@@ -127,6 +127,31 @@ impl Store {
         }
     }
 
+    /// `getStoreBytesErr` : lit et ouvre une valeur scellée. Absente, ou
+    /// illisible (mémoire verrouillée, autre clé) → `Ok(None)` ; `Err`
+    /// seulement si la base n'a pas pu être lue (« rien » et « pas pu lire »
+    /// ne veulent pas dire la même chose).
+    pub async fn get_open(&self, bucket: &str, key: &str) -> Result<Option<Vec<u8>>, String> {
+        match self.get(bucket, key).await? {
+            Some(raw) if !raw.is_empty() => Ok(self.open(raw).await.ok()),
+            _ => Ok(None),
+        }
+    }
+
+    /// `putStoreBytes` : scelle puis écrit. Mémoire verrouillée : rien n'est
+    /// écrit (jamais en clair).
+    pub async fn put_seal(
+        &self,
+        bucket: &str,
+        key: &str,
+        plain: Vec<u8>,
+    ) -> Result<(), CryptError> {
+        let sealed = self.seal(plain).await?;
+        self.put(bucket, key, sealed)
+            .await
+            .map_err(CryptError::Other)
+    }
+
     /// Exécute un appel d'outil par le Go (`/internal/v1/tool/exec`) : même
     /// fonction que sa boucle de chat. `caps` : objet JSON des capacités du
     /// tour (champs Go : Agent, Internet, Mem, Code, Role, ComputerUse).

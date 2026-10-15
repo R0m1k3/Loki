@@ -97,7 +97,7 @@ pub fn tool_res_conv(key: &str) -> &str {
     }
 }
 
-fn now_unix() -> i64 {
+pub(crate) fn now_unix() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -783,16 +783,30 @@ async fn run<S: PersistSink>(sh: Arc<Shared<S>>) {
 #[derive(Clone)]
 pub struct StoreSink {
     pub store: Store,
+    /// Sérialise les lectures-modifications-écritures de l'index
+    /// (`convIndexMu`) : celles de l'écrivain et celles des opérations sur
+    /// les discussions ([`super::sessions`]), qui partagent ce verrou.
+    pub index_lock: Arc<tokio::sync::Mutex<()>>,
+}
+
+impl StoreSink {
+    pub fn new(store: Store) -> Self {
+        StoreSink {
+            store,
+            index_lock: Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
 }
 
 impl PersistSink for StoreSink {
-    fn commit(
+    async fn commit(
         &self,
         snaps: Vec<ConvSnap>,
         res: Vec<ToolResJob>,
         gate: ResGate,
-    ) -> impl Future<Output = CommitOutcome> + Send {
-        commit_batch(&self.store, snaps, res, gate, now_unix())
+    ) -> CommitOutcome {
+        let _index = self.index_lock.lock().await;
+        commit_batch(&self.store, snaps, res, gate, now_unix()).await
     }
 }
 
