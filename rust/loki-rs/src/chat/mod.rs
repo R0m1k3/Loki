@@ -8,10 +8,13 @@
 //!   d'outils, statistiques) ;
 //! - [`compact`] : estimation du contexte et compactage de l'historique ;
 //! - [`journal`] : journal d'affichage (compactage, rejeu, pagination) ;
+//! - [`conv`] : la discussion en mémoire (état, epoch, verrou du tour,
+//!   abonnés) ;
 //! - [`persist`] : format en base, index des discussions, écrivain unique ;
 //! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go).
 
 pub mod compact;
+pub mod conv;
 pub mod engine;
 pub mod journal;
 pub mod lease;
