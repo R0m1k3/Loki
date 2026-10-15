@@ -799,6 +799,51 @@ async fn tour_de_bout_en_bout() {
     assert!(again.dup);
 }
 
+/// Lot 7 : un `read` s'exécute dans la façade, dans le dossier de travail que
+/// lui donne le Go, et la lecture est notée dans le suivi du Go.
+#[tokio::test]
+async fn outil_execute_par_la_facade() {
+    let ws = tempfile::tempdir().unwrap();
+    std::fs::write(ws.path().join("notes.txt"), "première\nseconde\n").unwrap();
+    let script = vec![
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"read","arguments":"{\"file\":\"notes.txt\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content": "lu"}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}]}),
+        ]),
+    ];
+    let (url, seen) = fake_engine(script).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+        "cwd": ws.path(),
+        "memory_dir": ws.path().join("memory"),
+        "target": "",
+    }));
+    svc.send(serde_json::json!({"message": "lis", "cid": "b1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    let tool = deltas(&svc, "tool_used")
+        .into_iter()
+        .find(|t| t["done"] == true)
+        .unwrap();
+    assert_eq!(tool["result"], "1: première\n2: seconde");
+    // Le résultat est reparti vers le moteur, sans passer par /tool/exec.
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(
+        seen[1].1["messages"].as_array().unwrap().last().unwrap()["content"],
+        "1: première\n2: seconde"
+    );
+    let notes = ws.path().join("notes.txt");
+    assert_eq!(
+        *go.tracker_log.lock().unwrap(),
+        [format!("read {}", notes.display())]
+    );
+}
+
 #[tokio::test]
 async fn message_en_file_injecte_dans_le_tour() {
     let gate = Arc::new(tokio::sync::Semaphore::new(0));

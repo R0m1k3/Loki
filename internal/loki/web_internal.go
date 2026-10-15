@@ -71,6 +71,12 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIEnd(w, r)
 		case "/internal/v1/tool/exec":
 			handleInternalToolExec(w, r)
+		case "/internal/v1/tool/context":
+			handleInternalToolContext(w, r)
+		case "/internal/v1/tool/tracker":
+			handleInternalToolTracker(w, r)
+		case "/internal/v1/tool/wrote":
+			handleInternalToolWrote(w, r)
 		case "/internal/v1/crypt/seal":
 			handleInternalCrypt(w, r, true)
 		case "/internal/v1/crypt/open":

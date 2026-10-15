@@ -46,6 +46,10 @@ pub struct FakeGo {
     pub turn_log: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
+    /// Contexte des outils exécutés par la façade (None : 404, le Go les
+    /// exécute), et journal du suivi (lectures, écritures, contrôles).
+    pub tool_ctx: Mutex<Option<serde_json::Value>>,
+    pub tracker_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -233,6 +237,23 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             st.lease_log.lock().unwrap().push("stop".into());
             *st.go_busy.lock().unwrap() = None;
             resp(204, "")
+        }
+        "/internal/v1/tool/context" => match st.tool_ctx.lock().unwrap().clone() {
+            Some(v) => resp(200, v.to_string()),
+            None => resp(404, "404 page not found"),
+        },
+        "/internal/v1/tool/tracker" | "/internal/v1/tool/wrote" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let op = v["op"].as_str().unwrap_or("wrote").to_string();
+            let path = v["path"].as_str().unwrap_or("").to_string();
+            st.tracker_log.lock().unwrap().push(format!("{op} {path}"));
+            let out = if op == "check" {
+                serde_json::json!({ "refusal": "" })
+            } else {
+                serde_json::json!({ "lsp": "" })
+            };
+            resp(200, out.to_string())
         }
         "/internal/v1/tool/exec" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

@@ -24,5 +24,6 @@ pub mod presets;
 pub mod proxy;
 pub mod store;
 pub mod sysinfo;
+pub mod tools;
 pub mod ui;
 pub mod update;

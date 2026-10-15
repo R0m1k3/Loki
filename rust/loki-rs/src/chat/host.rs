@@ -2,8 +2,10 @@
 //!
 //! - envoi au moteur par [`EngineHttp`] (clé de CET endpoint), pannes
 //!   classées et formulées comme `friendlyLLMError` ;
-//! - outils exécutés par le Go (`/internal/v1/tool/exec`), avec ce qu'il tire
-//!   du résultat (capture de la bulle, aperçu du navigateur, image relayée) ;
+//! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
+//!   tenu par le Go) ; les autres par le Go (`/internal/v1/tool/exec`), avec
+//!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
+//!   image relayée) ;
 //! - résultats complets (« voir plus ») confiés à l'écrivain des discussions ;
 //! - compaction par [`Compactor`] : résumé demandé au moteur
 //!   ([`EngineSummarizer`]), blocs archivés pour recall par le Go
@@ -390,6 +392,21 @@ impl TurnHost for GoTurnHost {
     }
 
     async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {
+        // Outils fichiers et shell : ici (lot 7), l'état partagé restant au Go.
+        if crate::tools::is_local(name) {
+            let st = crate::tools::GoToolState {
+                store: self.shared.store.clone(),
+                caps: self.caps.clone(),
+            };
+            let code = self
+                .caps
+                .get("Code")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if let Some(out) = crate::tools::exec_local(&st, code, name, args, label).await {
+                return out;
+            }
+        }
         match self
             .shared
             .store
