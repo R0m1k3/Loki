@@ -7,11 +7,13 @@
 //! - [`stream`] : analyse du flux SSE du moteur (texte, raisonnement, appels
 //!   d'outils, statistiques) ;
 //! - [`compact`] : estimation du contexte et compactage de l'historique ;
-//! - [`journal`] : journal d'affichage (compactage, rejeu, pagination).
+//! - [`journal`] : journal d'affichage (compactage, rejeu, pagination) ;
+//! - [`persist`] : format en base, index des discussions, écrivain unique.
 
 pub mod compact;
 pub mod engine;
 pub mod journal;
+pub mod persist;
 pub mod stream;
 pub mod types;
 pub mod wire;

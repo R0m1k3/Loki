@@ -98,7 +98,7 @@ const THINK_CLOSE: &str = "</think>";
 // Rappels de loki (llm_injected.go) : reconnus pour ne pas les prendre pour
 // une demande de l'utilisateur.
 const LOKI_NOTE_PREFIX: &str = "[system] ";
-const THINK_NUDGE_FIRST: &str = "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.";
+pub(crate) const THINK_NUDGE_FIRST: &str = "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.";
 const THINK_NUDGE_STUCK: &str = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant.";
 const RETRY_CORRECTIVE_LEAD: &str =
     "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed:\n";
@@ -110,8 +110,8 @@ const BUDGET_NUDGE_ENDS: [&str; 3] = [
 ];
 
 // Blocs <context_update> (chat_projsnap.go).
-const CTX_UPD_OPEN: &str = "<context_update from=\"loki\"";
-const CTX_UPD_CLOSE: &str = "</context_update>";
+pub(crate) const CTX_UPD_OPEN: &str = "<context_update from=\"loki\"";
+pub(crate) const CTX_UPD_CLOSE: &str = "</context_update>";
 
 // ---- configuration -------------------------------------------------------
 
@@ -391,7 +391,7 @@ pub fn log_compact(
 // ---- rappels de loki, images gardées, blocs projet ------------------------
 
 /// `isLokiInjected` : un message `user` venu de loki, pas de l'utilisateur.
-fn is_loki_injected(m: &Message) -> bool {
+pub(crate) fn is_loki_injected(m: &Message) -> bool {
     if m.role != "user" {
         return false;
     }
@@ -462,7 +462,7 @@ fn strip_ctx_upd_text(s: &str) -> (String, bool) {
 
 /// `withoutCtxUpdate` : le message sans son bloc <context_update> de tête
 /// (seulement un message `user` marqué `ctx_upd`).
-fn without_ctx_update(m: &Message) -> Option<Message> {
+pub(crate) fn without_ctx_update(m: &Message) -> Option<Message> {
     if m.role != "user" || !m.ctx_upd {
         return None;
     }
