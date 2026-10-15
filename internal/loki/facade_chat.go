@@ -123,8 +123,8 @@ func handleInternalChatHolder(w http.ResponseWriter, r *http.Request) {
 func facadeAddr() string { return strings.TrimSpace(os.Getenv(facadeAddrEnv)) }
 
 // facadeChatRoutes : les routes que la façade sert quand elle tient la
-// conversation (chatapi.rs). Le reste (mode Code, critères, pièces jointes,
-// fichiers, export) reste ici.
+// conversation (chatapi.rs, chatx.rs). Le reste du mode Code (indice, travaux
+// de fond, outil criteria) reste ici et lit les mêmes clés.
 var facadeChatRoutes = map[string]bool{
 	"/api/chat":                 true,
 	"/api/chat/send":            true,
@@ -138,6 +138,10 @@ var facadeChatRoutes = map[string]bool{
 	"/api/conversations/switch": true,
 	"/api/conversations/rename": true,
 	"/api/conversations/delete": true,
+	// Lot 19 : export, mode Code et critères de la discussion ouverte.
+	"/api/chat/export":   true,
+	"/api/chat/mode":     true,
+	"/api/chat/criteria": true,
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la

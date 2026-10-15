@@ -1352,8 +1352,8 @@ async fn routes_du_chat_par_la_facade() {
     let (_, list) = call(facade, "GET", "/api/conversations", "").await;
     assert_eq!(list["conversations"][0]["title"], "Mon fil");
 
-    // Mode Code : servi par le Go, qui pousse son événement au journal d'ici
-    // par l'API interne de la façade (jeton interne exigé).
+    // Mode Code : servi par la façade (lot 19), son événement au journal
+    // d'ici, sans passer par le Go.
     assert_eq!(
         call(facade, "POST", "/api/chat/mode", r#"{"mode":"code"}"#)
             .await
@@ -1361,11 +1361,14 @@ async fn routes_du_chat_par_la_facade() {
         200
     );
     assert!(
-        go.relayed
+        !go.relayed
             .lock()
             .unwrap()
             .contains(&"/api/chat/mode".to_string())
     );
+    assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    // Le Go pousse encore ses propres événements (indice de code, outil
+    // criteria) par l'API interne de la façade (jeton interne exigé).
     let (code, _) = call(
         facade,
         "POST",
@@ -1376,7 +1379,10 @@ async fn routes_du_chat_par_la_facade() {
     assert_eq!(code, 404, "sans le jeton, l'API interne n'existe pas");
     let code = call_internal(facade, "/internal/facade/v1/delta", r#"{"mode":"code"}"#).await;
     assert_eq!(code, 204);
-    assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    assert_eq!(
+        deltas(&chat, "mode"),
+        [serde_json::json!("code"), serde_json::json!("code")]
+    );
     // Fil déjà rempli : le déverrouillage ne le recharge pas.
     assert_eq!(
         call_internal(facade, "/internal/facade/v1/reload", "").await,

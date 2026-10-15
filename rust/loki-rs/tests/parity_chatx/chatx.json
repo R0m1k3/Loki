@@ -1,0 +1,1317 @@
+{
+  "conversation": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "\u003ccontext_update from=\"loki\" v=\"1\"\u003eprojet\u003c/context_update\u003e\n\nBonjour \u003cb\u003e \u0026 Cie",
+        "ctx_upd": true
+      },
+      {
+        "role": "user",
+        "content": "\u003ccontext_update from=\"loki\" v=\"2\"\u003etapé\u003c/context_update\u003e par l'utilisateur"
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "c1",
+            "type": "function",
+            "function": {
+              "name": "bash",
+              "arguments": "{\"cmd\":\"ls\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "content": "a.txt\nb.txt",
+        "tool_call_id": "c1"
+      },
+      {
+        "role": "assistant",
+        "content": "Voilà.",
+        "reasoning_content": "je liste",
+        "reasoning_model": "m"
+      },
+      {
+        "role": "user",
+        "content": "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act."
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "Regarde",
+            "type": "text"
+          },
+          {
+            "image_url": {
+              "detail": "low",
+              "url": "data:image/png;base64,QUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJD"
+            },
+            "type": "image_url"
+          },
+          {
+            "image_url": {
+              "url": "https://x/y.png"
+            },
+            "type": "image_url"
+          },
+          "brut"
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Une image."
+      },
+      {
+        "role": "user",
+        "content": "Dernier tour"
+      },
+      {
+        "role": "assistant",
+        "content": "Fin."
+      }
+    ],
+    "log": [
+      {
+        "seq": 1,
+        "ts": 1001,
+        "delta": {
+          "files": [
+            {
+              "name": "rapport.pdf",
+              "size": 10
+            },
+            {
+              "name": ""
+            },
+            "x"
+          ],
+          "user": "Bonjour \u003cb\u003e \u0026 Cie"
+        }
+      },
+      {
+        "seq": 2,
+        "ts": 1002,
+        "delta": {
+          "reasoning_content": "je "
+        }
+      },
+      {
+        "seq": 3,
+        "ts": 1003,
+        "delta": {
+          "reasoning_content": "liste\n"
+        }
+      },
+      {
+        "seq": 4,
+        "ts": 1004,
+        "delta": {
+          "tool_used": {
+            "done": true,
+            "label": "ls *.txt\n[a]",
+            "name": "bash",
+            "result": "a.txt\nb.txt\n\n"
+          }
+        }
+      },
+      {
+        "seq": 5,
+        "ts": 1005,
+        "delta": {
+          "tool_used": {
+            "done": true,
+            "name": "mem_read",
+            "result": "   "
+          }
+        }
+      },
+      {
+        "seq": 5,
+        "ts": 1005,
+        "delta": {
+          "tool_used": {
+            "done": true,
+            "label": "  `--oneline` [main]  ",
+            "name": "git_`log`"
+          }
+        }
+      },
+      {
+        "seq": 5,
+        "ts": 1005,
+        "delta": {
+          "tool_used": {
+            "label": "pas fini",
+            "name": "en_cours"
+          }
+        }
+      },
+      {
+        "seq": 6,
+        "ts": 1006,
+        "delta": {
+          "content": "Voi"
+        }
+      },
+      {
+        "seq": 7,
+        "ts": 1007,
+        "delta": {
+          "content": "là.\n"
+        }
+      },
+      {
+        "seq": 8,
+        "ts": 1008,
+        "delta": {
+          "stats": {
+            "tok_s": 12.5
+          }
+        }
+      },
+      {
+        "seq": 9,
+        "ts": 1009,
+        "delta": {
+          "compacted": true
+        }
+      },
+      {
+        "seq": 10,
+        "ts": 1010,
+        "delta": {
+          "files": [
+            {
+              "name": "photo.png"
+            }
+          ],
+          "user": ""
+        }
+      },
+      {
+        "seq": 11,
+        "ts": 1011,
+        "delta": {
+          "content": "Une image."
+        }
+      },
+      {
+        "seq": 12,
+        "ts": 1012,
+        "delta": {
+          "user": "Dernier tour"
+        }
+      },
+      {
+        "seq": 13,
+        "ts": 1013,
+        "delta": {
+          "tool_used": {
+            "label": "https://ex.com/a_b*c",
+            "name": "web_open",
+            "result": "titre"
+          }
+        }
+      },
+      {
+        "seq": 14,
+        "ts": 1014,
+        "delta": {
+          "content": "Fin."
+        }
+      }
+    ],
+    "seq": 14,
+    "ctx_used": 4321
+  },
+  "empty_json": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 0,\n  \"messages\": []\n}",
+  "empty_md": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Conversation vide._\n",
+  "exports": [
+    {
+      "query": "",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\",\n          \"result\": \"a.txt\\nb.txt\\n\\n\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\",\n          \"result\": \"   \"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "format=md",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "format=JSON",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "reasoning=0",
+      "opts": {
+        "format": "md",
+        "reasoning": false,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : raisonnements retirés._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "reasoning=true&tools=off",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": false,
+        "tools": false,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : appels d'outils retirés._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "tools=0",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": false,
+        "tools": false,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : appels d'outils retirés._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "tools=0&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": false,
+        "tools": false,
+        "turns": 0
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "results=0",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": false,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : sorties d'outils retirées._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "results=0&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": false,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "reasoning=0&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": false,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\",\n          \"result\": \"a.txt\\nb.txt\\n\\n\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\",\n          \"result\": \"   \"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "turns=1",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 1
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : 1 derniers échanges seulement._\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "turns=2&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 2
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "turns=9",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 9
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : 9 derniers échanges seulement._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "turns=0",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "turns=-2",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "turns=abc",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n```\na.txt\nb.txt\n```\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n\n```\ntitre\n```\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "turns=1&results=0&reasoning=0",
+      "opts": {
+        "format": "md",
+        "reasoning": false,
+        "results": false,
+        "tools": true,
+        "turns": 1
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : 1 derniers échanges seulement, raisonnements retirés, sorties d'outils retirées._\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "tools=on&results=yes",
+      "opts": {
+        "format": "md",
+        "reasoning": true,
+        "results": false,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "# Conversation Loki\n\nExportée le {{DATE}} par Loki {{VERSION}}.\n\n_Export partiel : sorties d'outils retirées._\n\n---\n\n## Vous\n\nBonjour <b> & Cie\n\nFichiers joints : rapport.pdf\n\n## Loki\n\n<details>\n<summary>Raisonnement</summary>\n\nje liste\n\n</details>\n\n> 🔧 **bash** — ls \\*.txt \\[a\\]\n\n> 🔧 **mem\\_read** — mem\\_read\n\n> 🔧 **git\\_\\`log\\`** — \\`--oneline\\` \\[main\\]\n\nVoilà.\n\n_(contexte compacté à cet endroit : les tours précédents ont été résumés pour le modèle, le fil ci-dessus reste complet)_\n\n---\n\n## Vous\n\n\n\nFichiers joints : photo.png\n\n## Loki\n\nUne image.\n\n---\n\n## Vous\n\nDernier tour\n\n## Loki\n\nFin.\n\n> 🔧 **web\\_open** — https://ex.com/a\\_b\\*c\n",
+      "filename_ext": "md"
+    },
+    {
+      "query": "format=json&format=md",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 0
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\",\n          \"result\": \"a.txt\\nb.txt\\n\\n\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\",\n          \"result\": \"   \"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "turns=3&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 3
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\",\n          \"result\": \"a.txt\\nb.txt\\n\\n\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\",\n          \"result\": \"   \"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    },
+    {
+      "query": "turns=4&format=json",
+      "opts": {
+        "format": "json",
+        "reasoning": true,
+        "results": true,
+        "tools": true,
+        "turns": 4
+      },
+      "body": "{\n  \"loki_version\": \"{{VERSION}}\",\n  \"exported_at\": \"{{DATE}}\",\n  \"ctx_used\": 4321,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"\\u003ccontext_update from=\\\"loki\\\" v=\\\"2\\\"\\u003etapé\\u003c/context_update\\u003e par l'utilisateur\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"\",\n      \"tool_calls\": [\n        {\n          \"id\": \"c1\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"bash\",\n            \"arguments\": \"{\\\"cmd\\\":\\\"ls\\\"}\"\n          }\n        }\n      ]\n    },\n    {\n      \"role\": \"tool\",\n      \"content\": \"a.txt\\nb.txt\",\n      \"tool_call_id\": \"c1\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Voilà.\",\n      \"reasoning_content\": \"je liste\",\n      \"reasoning_model\": \"m\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"text\": \"Regarde\",\n          \"type\": \"text\"\n        },\n        {\n          \"image_url\": {\n            \"detail\": \"low\",\n            \"url\": \"data:image/png;base64,\\u003célidé — 2400 o\\u003e\"\n          },\n          \"type\": \"image_url\"\n        },\n        {\n          \"image_url\": {\n            \"url\": \"https://x/y.png\"\n          },\n          \"type\": \"image_url\"\n        },\n        \"brut\"\n      ]\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Une image.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Dernier tour\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Fin.\"\n    }\n  ],\n  \"log\": [\n    {\n      \"seq\": 1,\n      \"ts\": 1001,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"rapport.pdf\",\n            \"size\": 10\n          },\n          {\n            \"name\": \"\"\n          },\n          \"x\"\n        ],\n        \"user\": \"Bonjour \\u003cb\\u003e \\u0026 Cie\"\n      }\n    },\n    {\n      \"seq\": 2,\n      \"ts\": 1002,\n      \"delta\": {\n        \"reasoning_content\": \"je \"\n      }\n    },\n    {\n      \"seq\": 3,\n      \"ts\": 1003,\n      \"delta\": {\n        \"reasoning_content\": \"liste\\n\"\n      }\n    },\n    {\n      \"seq\": 4,\n      \"ts\": 1004,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"ls *.txt\\n[a]\",\n          \"name\": \"bash\",\n          \"result\": \"a.txt\\nb.txt\\n\\n\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"name\": \"mem_read\",\n          \"result\": \"   \"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"done\": true,\n          \"label\": \"  `--oneline` [main]  \",\n          \"name\": \"git_`log`\"\n        }\n      }\n    },\n    {\n      \"seq\": 5,\n      \"ts\": 1005,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"pas fini\",\n          \"name\": \"en_cours\"\n        }\n      }\n    },\n    {\n      \"seq\": 6,\n      \"ts\": 1006,\n      \"delta\": {\n        \"content\": \"Voi\"\n      }\n    },\n    {\n      \"seq\": 7,\n      \"ts\": 1007,\n      \"delta\": {\n        \"content\": \"là.\\n\"\n      }\n    },\n    {\n      \"seq\": 8,\n      \"ts\": 1008,\n      \"delta\": {\n        \"stats\": {\n          \"tok_s\": 12.5\n        }\n      }\n    },\n    {\n      \"seq\": 9,\n      \"ts\": 1009,\n      \"delta\": {\n        \"compacted\": true\n      }\n    },\n    {\n      \"seq\": 10,\n      \"ts\": 1010,\n      \"delta\": {\n        \"files\": [\n          {\n            \"name\": \"photo.png\"\n          }\n        ],\n        \"user\": \"\"\n      }\n    },\n    {\n      \"seq\": 11,\n      \"ts\": 1011,\n      \"delta\": {\n        \"content\": \"Une image.\"\n      }\n    },\n    {\n      \"seq\": 12,\n      \"ts\": 1012,\n      \"delta\": {\n        \"user\": \"Dernier tour\"\n      }\n    },\n    {\n      \"seq\": 13,\n      \"ts\": 1013,\n      \"delta\": {\n        \"tool_used\": {\n          \"label\": \"https://ex.com/a_b*c\",\n          \"name\": \"web_open\",\n          \"result\": \"titre\"\n        }\n      }\n    },\n    {\n      \"seq\": 14,\n      \"ts\": 1014,\n      \"delta\": {\n        \"content\": \"Fin.\"\n      }\n    }\n  ]\n}",
+      "filename_ext": "json"
+    }
+  ],
+  "steps": [
+    {
+      "name": "mode par défaut",
+      "method": "GET",
+      "path": "/api/chat/mode",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "mode": "chat",
+        "ok": true
+      },
+      "mode": "",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "mode code",
+      "method": "POST",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":\"code\"}",
+      "status": 200,
+      "out": {
+        "mode": "code",
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": [
+        {
+          "mode": "code"
+        }
+      ]
+    },
+    {
+      "name": "mode relu",
+      "method": "GET",
+      "path": "/api/chat/mode",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "mode": "code",
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "mode inconnu",
+      "method": "POST",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":\"Code\"}",
+      "status": 400,
+      "out": {
+        "error": "mode inconnu (chat|code)",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "mode corps illisible",
+      "method": "POST",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":",
+      "status": 400,
+      "out": {
+        "error": "unexpected EOF",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "mode type faux",
+      "method": "POST",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":true}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal bool into Go struct field .mode of type string",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "mode en PUT",
+      "method": "PUT",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":\"chat\"}",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "mode": "code",
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critères en GET",
+      "method": "GET",
+      "path": "/api/chat/criteria",
+      "status": 405,
+      "out": {
+        "error": "POST attendu",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critères",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"text\":\"compile\"},{\"id\":5,\"text\":\"tests <ok> & verts\",\"status\":\"passed\",\"note\":\"vu\"},{\"text\":\"  \"},{\"id\":0,\"text\":\"doc\",\"status\":\"bizarre\"},{\"id\":2,\"text\":\"lint\",\"status\":\"failed\"},{\"text\":\"perf\",\"status\":\"completed\"}]}",
+      "status": 200,
+      "out": {
+        "criteria": [
+          {
+            "id": 1,
+            "status": "pending",
+            "text": "compile"
+          },
+          {
+            "id": 5,
+            "note": "vu",
+            "status": "passed",
+            "text": "tests <ok> & verts"
+          },
+          {
+            "id": 6,
+            "status": "pending",
+            "text": "doc"
+          },
+          {
+            "id": 2,
+            "status": "failed",
+            "text": "lint"
+          },
+          {
+            "id": 7,
+            "status": "pending",
+            "text": "perf"
+          }
+        ],
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": [
+        {
+          "id": 1,
+          "status": "pending",
+          "text": "compile"
+        },
+        {
+          "id": 5,
+          "note": "vu",
+          "status": "passed",
+          "text": "tests <ok> & verts"
+        },
+        {
+          "id": 6,
+          "status": "pending",
+          "text": "doc"
+        },
+        {
+          "id": 2,
+          "status": "failed",
+          "text": "lint"
+        },
+        {
+          "id": 7,
+          "status": "pending",
+          "text": "perf"
+        }
+      ],
+      "deltas": [
+        {
+          "criteria": [
+            {
+              "id": 1,
+              "status": "pending",
+              "text": "compile"
+            },
+            {
+              "id": 5,
+              "note": "vu",
+              "status": "passed",
+              "text": "tests <ok> & verts"
+            },
+            {
+              "id": 6,
+              "status": "pending",
+              "text": "doc"
+            },
+            {
+              "id": 2,
+              "status": "failed",
+              "text": "lint"
+            },
+            {
+              "id": 7,
+              "status": "pending",
+              "text": "perf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mode relu avec critères",
+      "method": "GET",
+      "path": "/api/chat/mode",
+      "status": 200,
+      "out": {
+        "criteria": [
+          {
+            "id": 1,
+            "status": "pending",
+            "text": "compile"
+          },
+          {
+            "id": 5,
+            "note": "vu",
+            "status": "passed",
+            "text": "tests <ok> & verts"
+          },
+          {
+            "id": 6,
+            "status": "pending",
+            "text": "doc"
+          },
+          {
+            "id": 2,
+            "status": "failed",
+            "text": "lint"
+          },
+          {
+            "id": 7,
+            "status": "pending",
+            "text": "perf"
+          }
+        ],
+        "mode": "code",
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": [
+        {
+          "id": 1,
+          "status": "pending",
+          "text": "compile"
+        },
+        {
+          "id": 5,
+          "note": "vu",
+          "status": "passed",
+          "text": "tests <ok> & verts"
+        },
+        {
+          "id": 6,
+          "status": "pending",
+          "text": "doc"
+        },
+        {
+          "id": 2,
+          "status": "failed",
+          "text": "lint"
+        },
+        {
+          "id": 7,
+          "status": "pending",
+          "text": "perf"
+        }
+      ],
+      "deltas": null
+    },
+    {
+      "name": "critères au-delà de vingt",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"text\":\"ca\"},{\"text\":\"cb\"},{\"text\":\"cc\"},{\"text\":\"cd\"},{\"text\":\"ce\"},{\"text\":\"cf\"},{\"text\":\"cg\"},{\"text\":\"ch\"},{\"text\":\"ci\"},{\"text\":\"cj\"},{\"text\":\"ck\"},{\"text\":\"cl\"},{\"text\":\"cm\"},{\"text\":\"cn\"},{\"text\":\"co\"},{\"text\":\"cp\"},{\"text\":\"cq\"},{\"text\":\"cr\"},{\"text\":\"cs\"},{\"text\":\"ct\"},{\"text\":\"cu\"},{\"text\":\"cv\"},{\"text\":\"cw\"},{\"text\":\"cx\"},{\"text\":\"cy\"}]}",
+      "status": 200,
+      "out": {
+        "criteria": [
+          {
+            "id": 1,
+            "status": "pending",
+            "text": "ca"
+          },
+          {
+            "id": 2,
+            "status": "pending",
+            "text": "cb"
+          },
+          {
+            "id": 3,
+            "status": "pending",
+            "text": "cc"
+          },
+          {
+            "id": 4,
+            "status": "pending",
+            "text": "cd"
+          },
+          {
+            "id": 5,
+            "status": "pending",
+            "text": "ce"
+          },
+          {
+            "id": 6,
+            "status": "pending",
+            "text": "cf"
+          },
+          {
+            "id": 7,
+            "status": "pending",
+            "text": "cg"
+          },
+          {
+            "id": 8,
+            "status": "pending",
+            "text": "ch"
+          },
+          {
+            "id": 9,
+            "status": "pending",
+            "text": "ci"
+          },
+          {
+            "id": 10,
+            "status": "pending",
+            "text": "cj"
+          },
+          {
+            "id": 11,
+            "status": "pending",
+            "text": "ck"
+          },
+          {
+            "id": 12,
+            "status": "pending",
+            "text": "cl"
+          },
+          {
+            "id": 13,
+            "status": "pending",
+            "text": "cm"
+          },
+          {
+            "id": 14,
+            "status": "pending",
+            "text": "cn"
+          },
+          {
+            "id": 15,
+            "status": "pending",
+            "text": "co"
+          },
+          {
+            "id": 16,
+            "status": "pending",
+            "text": "cp"
+          },
+          {
+            "id": 17,
+            "status": "pending",
+            "text": "cq"
+          },
+          {
+            "id": 18,
+            "status": "pending",
+            "text": "cr"
+          },
+          {
+            "id": 19,
+            "status": "pending",
+            "text": "cs"
+          },
+          {
+            "id": 20,
+            "status": "pending",
+            "text": "ct"
+          }
+        ],
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": [
+        {
+          "id": 1,
+          "status": "pending",
+          "text": "ca"
+        },
+        {
+          "id": 2,
+          "status": "pending",
+          "text": "cb"
+        },
+        {
+          "id": 3,
+          "status": "pending",
+          "text": "cc"
+        },
+        {
+          "id": 4,
+          "status": "pending",
+          "text": "cd"
+        },
+        {
+          "id": 5,
+          "status": "pending",
+          "text": "ce"
+        },
+        {
+          "id": 6,
+          "status": "pending",
+          "text": "cf"
+        },
+        {
+          "id": 7,
+          "status": "pending",
+          "text": "cg"
+        },
+        {
+          "id": 8,
+          "status": "pending",
+          "text": "ch"
+        },
+        {
+          "id": 9,
+          "status": "pending",
+          "text": "ci"
+        },
+        {
+          "id": 10,
+          "status": "pending",
+          "text": "cj"
+        },
+        {
+          "id": 11,
+          "status": "pending",
+          "text": "ck"
+        },
+        {
+          "id": 12,
+          "status": "pending",
+          "text": "cl"
+        },
+        {
+          "id": 13,
+          "status": "pending",
+          "text": "cm"
+        },
+        {
+          "id": 14,
+          "status": "pending",
+          "text": "cn"
+        },
+        {
+          "id": 15,
+          "status": "pending",
+          "text": "co"
+        },
+        {
+          "id": 16,
+          "status": "pending",
+          "text": "cp"
+        },
+        {
+          "id": 17,
+          "status": "pending",
+          "text": "cq"
+        },
+        {
+          "id": 18,
+          "status": "pending",
+          "text": "cr"
+        },
+        {
+          "id": 19,
+          "status": "pending",
+          "text": "cs"
+        },
+        {
+          "id": 20,
+          "status": "pending",
+          "text": "ct"
+        }
+      ],
+      "deltas": [
+        {
+          "criteria": [
+            {
+              "id": 1,
+              "status": "pending",
+              "text": "ca"
+            },
+            {
+              "id": 2,
+              "status": "pending",
+              "text": "cb"
+            },
+            {
+              "id": 3,
+              "status": "pending",
+              "text": "cc"
+            },
+            {
+              "id": 4,
+              "status": "pending",
+              "text": "cd"
+            },
+            {
+              "id": 5,
+              "status": "pending",
+              "text": "ce"
+            },
+            {
+              "id": 6,
+              "status": "pending",
+              "text": "cf"
+            },
+            {
+              "id": 7,
+              "status": "pending",
+              "text": "cg"
+            },
+            {
+              "id": 8,
+              "status": "pending",
+              "text": "ch"
+            },
+            {
+              "id": 9,
+              "status": "pending",
+              "text": "ci"
+            },
+            {
+              "id": 10,
+              "status": "pending",
+              "text": "cj"
+            },
+            {
+              "id": 11,
+              "status": "pending",
+              "text": "ck"
+            },
+            {
+              "id": 12,
+              "status": "pending",
+              "text": "cl"
+            },
+            {
+              "id": 13,
+              "status": "pending",
+              "text": "cm"
+            },
+            {
+              "id": 14,
+              "status": "pending",
+              "text": "cn"
+            },
+            {
+              "id": 15,
+              "status": "pending",
+              "text": "co"
+            },
+            {
+              "id": 16,
+              "status": "pending",
+              "text": "cp"
+            },
+            {
+              "id": 17,
+              "status": "pending",
+              "text": "cq"
+            },
+            {
+              "id": 18,
+              "status": "pending",
+              "text": "cr"
+            },
+            {
+              "id": 19,
+              "status": "pending",
+              "text": "cs"
+            },
+            {
+              "id": 20,
+              "status": "pending",
+              "text": "ct"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "critères vidés",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[]}",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": [
+        {
+          "criteria": []
+        }
+      ]
+    },
+    {
+      "name": "critères absents",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": [
+        {
+          "criteria": []
+        }
+      ]
+    },
+    {
+      "name": "critères null",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":null}",
+      "status": 200,
+      "out": {
+        "criteria": null,
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": [
+        {
+          "criteria": []
+        }
+      ]
+    },
+    {
+      "name": "critères corps vide",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "status": 400,
+      "out": {
+        "error": "EOF",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critères illisibles",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[",
+      "status": 400,
+      "out": {
+        "error": "unexpected EOF",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critère id texte",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"id\":\"2\",\"text\":\"x\"}]}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal string into Go struct field Criterion.criteria.id of type int",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critère texte nombre",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"text\":3}]}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field Criterion.criteria.text of type string",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critères pas une liste",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":\"a\"}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal string into Go struct field .criteria of type []loki.Criterion",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critère pas un objet",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[\"a\",{\"text\":\"b\"}]}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal string into Go struct field .criteria of type loki.Criterion",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critère id décimal",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"id\":1.5,\"text\":\"x\"}]}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number 1.5 into Go struct field Criterion.criteria.id of type int",
+        "ok": false
+      },
+      "mode": "code",
+      "criteria": null,
+      "deltas": null
+    },
+    {
+      "name": "critère clés en majuscules",
+      "method": "POST",
+      "path": "/api/chat/criteria",
+      "body": "{\"criteria\":[{\"ID\":3,\"TEXT\":\"maj\",\"Status\":\"passed\"},null]}",
+      "status": 200,
+      "out": {
+        "criteria": [
+          {
+            "id": 3,
+            "status": "passed",
+            "text": "maj"
+          }
+        ],
+        "ok": true
+      },
+      "mode": "code",
+      "criteria": [
+        {
+          "id": 3,
+          "status": "passed",
+          "text": "maj"
+        }
+      ],
+      "deltas": [
+        {
+          "criteria": [
+            {
+              "id": 3,
+              "status": "passed",
+              "text": "maj"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mode chat",
+      "method": "POST",
+      "path": "/api/chat/mode",
+      "body": "{\"mode\":\"chat\"}",
+      "status": 200,
+      "out": {
+        "mode": "chat",
+        "ok": true
+      },
+      "mode": "",
+      "criteria": [
+        {
+          "id": 3,
+          "status": "passed",
+          "text": "maj"
+        }
+      ],
+      "deltas": [
+        {
+          "mode": "chat"
+        }
+      ]
+    }
+  ]
+}

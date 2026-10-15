@@ -14,6 +14,7 @@ pub mod api;
 pub mod auth;
 pub mod chat;
 pub mod chatapi;
+pub mod chatx;
 pub mod child;
 pub mod convfiles;
 pub mod dictate;

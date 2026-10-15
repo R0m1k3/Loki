@@ -207,6 +207,11 @@ impl Proxy {
             return api::serve(&self.ctx, req).await;
         }
         if let Some(chat) = &self.ctx.chat
+            && crate::chatx::handles(path)
+        {
+            return crate::chatx::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(chat) = &self.ctx.chat
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;

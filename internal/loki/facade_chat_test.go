@@ -96,17 +96,25 @@ func TestFacadeRelaieLesRoutesDuChat(t *testing.T) {
 	if got := f.recu(); len(got) != 1 || got[0] != `POST /api/chat/send jeton {"message":"salut"}` {
 		t.Fatalf("reçu par la façade : %v", got)
 	}
-	// Mode Code : reste au Go.
+	// Mode Code, critères, export : à la façade aussi (lot 19).
+	for _, p := range []string{"/api/chat/mode", "/api/chat/criteria", "/api/chat/export"} {
+		w = httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s non relayé : %q", p, w.Body.String())
+		}
+	}
+	// L'aperçu du navigateur piloté reste ici.
 	w = httptest.NewRecorder()
-	withFacadeChat("/api/chat/mode", local)(w, httptest.NewRequest("POST", "/api/chat/mode", nil))
+	withFacadeChat("/api/chat/cushot", local)(w, httptest.NewRequest("GET", "/api/chat/cushot", nil))
 	if w.Body.String() != "go" {
-		t.Fatalf("mode relayé : %q", w.Body.String())
+		t.Fatalf("aperçu relayé : %q", w.Body.String())
 	}
 	// Sans LOKI_CHAT=rust : tout reste ici.
 	t.Setenv(facadeChatEnv, "")
 	w = httptest.NewRecorder()
 	withFacadeChat("/api/chat/send", local)(w, httptest.NewRequest("POST", "/api/chat/send", nil))
-	if w.Body.String() != "go" || len(f.recu()) != 1 {
+	if w.Body.String() != "go" || len(f.recu()) != 4 {
 		t.Fatalf("relayé sans la variable : %q", w.Body.String())
 	}
 }
