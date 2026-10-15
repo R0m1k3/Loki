@@ -432,12 +432,19 @@ impl TurnHost for GoTurnHost {
 
     async fn compact(&self, phase: CompactPhase, msgs: &[Message]) -> Option<Vec<Message>> {
         let recall = StoreRecall(self.shared.store.clone());
+        // Mode Code : l'état des critères au moment du résumé (le Go les relit
+        // aussi à chaque compaction — l'outil criteria a pu les changer).
+        let criteria = if self.compact.caps.code {
+            live_criteria(&self.shared.store, &self.compact.main_conv).await
+        } else {
+            self.compact.criteria.clone()
+        };
         let c = Compactor {
             cfg: &self.compact.cfg,
             summarizer: &self.summarizer,
             recall: &recall,
             memory: &self.shared.compact_memory,
-            criteria: &self.compact.criteria,
+            criteria: &criteria,
         };
         let (out, changed) = match phase {
             CompactPhase::Reactive | CompactPhase::FullWindow => {
@@ -506,6 +513,11 @@ impl TurnHost for GoTurnHost {
     fn preflight(&self) -> Option<PreflightFn> {
         None
     }
+}
+
+/// Les critères du mode Code rendus pour le résumé ("" : aucun).
+pub(crate) async fn live_criteria(store: &crate::store::Store, conv_id: &str) -> String {
+    super::verify::crit_render(&super::verify::crit_list(store, conv_id).await)
 }
 
 #[cfg(test)]

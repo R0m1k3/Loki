@@ -97,6 +97,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalTurnView(w, r)
 		case "/internal/v1/turn/done":
 			handleInternalTurnDone(w, r)
+		case "/internal/v1/turn/verifier":
+			handleInternalTurnVerifier(w, r)
 		case "/internal/v1/conv/active":
 			handleInternalConvActive(w, r)
 		case "/internal/v1/conv/dropped":

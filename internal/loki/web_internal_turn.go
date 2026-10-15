@@ -21,6 +21,8 @@ import (
 //	POST /internal/v1/turn/view    {"caps":{…}}  → {head, prefix, tools}
 //	  409 : PROJ_SNAPSHOT actif (le bloc projet figé reste au Go)
 //	POST /internal/v1/turn/done    {"ms":N}      → 204 (Web Push si abonnés)
+//	POST /internal/v1/turn/verifier {"caps":{…}} → {system, tools, caps}
+//	  (passe de vérification du mode Code : contexte ISOLÉ, rôle verifier)
 //	POST /internal/v1/conv/active  {"id":…}      → 204 (discussion active des outils)
 //	POST /internal/v1/conv/dropped {"id":…}      → 204 (fichiers, jobs, critères,
 //	                                                   mode, résultats d'outils ;
@@ -107,6 +109,26 @@ func handleInternalTurnView(w http.ResponseWriter, r *http.Request) {
 		tools = []Tool{}
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"head": head, "prefix": injectPrefix(caps, tools), "tools": tools})
+}
+
+// handleInternalTurnVerifier : ce que runVerifyPass envoie au moteur hors de
+// l'historique — le prompt du rôle verifier suivi des faits de la machine, et
+// le jeu d'outils fermé de la vérification. caps : celles du tour, rôle
+// remplacé (le Go s'y fie pour laisser l'outil criteria marquer « passed »).
+func handleInternalTurnVerifier(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Caps Caps `json:"caps"`
+	}
+	if !readInternalJSON(w, r, &in) {
+		return
+	}
+	vcaps := in.Caps
+	vcaps.Role = "verifier"
+	sendJSON(w, http.StatusOK, map[string]any{
+		"system": rolePrompt("verifier") + "\n\n" + machineSystemPrompt(vcaps),
+		"tools":  EnabledTools(vcaps),
+		"caps":   vcaps,
+	})
 }
 
 func handleInternalTurnDone(w http.ResponseWriter, r *http.Request) {

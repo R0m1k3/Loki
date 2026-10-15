@@ -18,11 +18,13 @@
 //! enregistrée, et la file — abandonnée après un stop, sinon le message
 //! suivant part (ou la notification Web Push s'il n'y en a pas).
 //!
-//! Écarts assumés (restent au Go, à porter au lot 7) : boucle de
-//! vérification du mode Code (`codeVerifyLoop`), critères rendus pour la
-//! compaction, PROJ_SNAPSHOT et KEEP_TURN_IMAGES (refusés par
-//! `/turn/view`), préchauffage, télémétrie, motifs `retry_patterns`
-//! personnalisés.
+//! Mode Code : la boucle du contrat (vérification isolée, relances et
+//! corrections du builder) suit le tour, avant la compaction de fin
+//! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
+//!
+//! Écarts assumés (restent au Go) : PROJ_SNAPSHOT et KEEP_TURN_IMAGES
+//! (refusés par `/turn/view`), préchauffage, télémétrie, motifs
+//! `retry_patterns` personnalisés.
 
 use std::collections::VecDeque;
 use std::future::Future;
@@ -146,7 +148,7 @@ struct Queue {
     recent: VecDeque<String>,
 }
 
-fn obj(k: &str, v: impl Into<Value>) -> Delta {
+pub(super) fn obj(k: &str, v: impl Into<Value>) -> Delta {
     let mut d = Map::new();
     d.insert(k.into(), v.into());
     d
@@ -155,13 +157,13 @@ fn obj(k: &str, v: impl Into<Value>) -> Delta {
 type BoxFut = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 /// Ce qu'un tour lit une fois au départ.
-struct TurnEnv {
-    cfg: std::collections::HashMap<String, String>,
-    ep: super::wire::ChatEndpoint,
-    echo: super::wire::EchoPolicy,
-    ccfg: CompactConfig,
-    port: u16,
-    summarizer: EngineSummarizer,
+pub(super) struct TurnEnv {
+    pub(super) cfg: std::collections::HashMap<String, String>,
+    pub(super) ep: super::wire::ChatEndpoint,
+    pub(super) echo: super::wire::EchoPolicy,
+    pub(super) ccfg: CompactConfig,
+    pub(super) port: u16,
+    pub(super) summarizer: EngineSummarizer,
 }
 
 /// Le chat tenu par la façade : la discussion ouverte, ses tours et sa file.
@@ -423,12 +425,17 @@ impl ChatService {
         let conv = self.sessions.conv();
         conv.append_delta(epoch, obj("compacting", true));
         let recall = StoreRecall(self.shared.store.clone());
+        let criteria = if caps.code {
+            super::host::live_criteria(&self.shared.store, &conv.id()).await
+        } else {
+            String::new()
+        };
         let c = Compactor {
             cfg: ccfg,
             summarizer,
             recall: &recall,
             memory: &self.shared.compact_memory,
-            criteria: "",
+            criteria: &criteria,
         };
         let (compacted, changed) = c.compact_messages_noted(msgs, caps, opt).await;
         conv.append_delta(epoch, obj("compacting", false));
@@ -456,8 +463,33 @@ impl ChatService {
         Some(compacted)
     }
 
+    /// `/internal/v1/turn/view` : tête (prompt du preset, consignes,
+    /// projet), préambule et outils du tour ; `Err` : le message à journaliser.
+    pub(super) async fn turn_view(
+        &self,
+        caps: &Value,
+    ) -> Result<(Vec<Message>, String, Vec<Tool>), String> {
+        match self
+            .shared
+            .store
+            .internal_post("/internal/v1/turn/view", &json!({ "caps": caps }))
+            .await
+        {
+            Ok((s, v)) if s.as_u16() == 200 => Ok((
+                serde_json::from_value::<Vec<Message>>(v["head"].clone()).unwrap_or_default(),
+                v["prefix"].as_str().unwrap_or("").to_string(),
+                serde_json::from_value::<Vec<Tool>>(v["tools"].clone()).unwrap_or_default(),
+            )),
+            Ok((_, v)) => Err(v["error"]
+                .as_str()
+                .unwrap_or("vue du tour refusée")
+                .to_string()),
+            Err(e) => Err(e),
+        }
+    }
+
     /// Configuration, point de chat et résumeur d'un tour (lus une fois).
-    async fn turn_env(&self) -> TurnEnv {
+    pub(super) async fn turn_env(&self) -> TurnEnv {
         let store = &self.shared.store;
         let cfg = store.config().await;
         let local_key = store.get_str(BK_STATE, "api_key").await;
@@ -603,7 +635,7 @@ impl ChatService {
     ) {
         let turn_start = Instant::now();
         let conv = self.sessions.conv().clone();
-        let store = self.shared.store.clone();
+        let env = self.turn_env().await;
         let TurnEnv {
             cfg,
             ep,
@@ -611,7 +643,15 @@ impl ChatService {
             ccfg,
             port,
             summarizer,
-        } = self.turn_env().await;
+        } = &env;
+        let (cfg, ep, echo, ccfg, port, summarizer) = (
+            cfg.clone(),
+            ep.clone(),
+            echo.clone(),
+            ccfg.clone(),
+            *port,
+            summarizer.clone(),
+        );
         let local = !ep.external;
         let conv_id = conv.id();
         let agent = prep.cap("Agent");
@@ -680,23 +720,9 @@ impl ChatService {
 
         // Vue d'envoi : tête du Go (prompt du preset, consignes, projet),
         // l'historique sans bloc <context_update>, le préambule.
-        let view = store
-            .internal_post("/internal/v1/turn/view", &json!({ "caps": prep.turn_caps }))
-            .await;
-        let (head, prefix, tools) = match view {
-            Ok((s, v)) if s.as_u16() == 200 => (
-                serde_json::from_value::<Vec<Message>>(v["head"].clone()).unwrap_or_default(),
-                v["prefix"].as_str().unwrap_or("").to_string(),
-                serde_json::from_value::<Vec<Tool>>(v["tools"].clone()).unwrap_or_default(),
-            ),
-            other => {
-                let e = match other {
-                    Ok((_, v)) => v["error"]
-                        .as_str()
-                        .unwrap_or("vue du tour refusée")
-                        .to_string(),
-                    Err(e) => e,
-                };
+        let (head, prefix, tools) = match self.turn_view(&prep.turn_caps).await {
+            Ok(v) => v,
+            Err(e) => {
                 conv.append_delta(epoch, obj("error", e));
                 self.finish(epoch, &cancel, lease, turn_start).await;
                 return;
@@ -760,6 +786,7 @@ impl ChatService {
         let mut final_echo: Option<ReasoningEcho> = None;
         let mut saw_usage = false;
         let mut turn_peak = 0i64;
+        let mut asked = false;
         let mut cb = |ev: StreamEvent| -> bool {
             match ev {
                 StreamEvent::Err(e) => {
@@ -793,6 +820,8 @@ impl ChatService {
                     );
                 }
                 StreamEvent::Ask(a) => {
+                    // Question structurée (outil ask) : carte à boutons.
+                    asked = true;
                     conv.append_delta(
                         epoch,
                         obj("ask", serde_json::to_value(&a).unwrap_or_default()),
@@ -852,7 +881,7 @@ impl ChatService {
             let msgs = st.messages.clone();
             (ctx_now(st, &msgs), st.gen_peak, msgs)
         });
-        let Some((mut ctx_used, peak, msgs)) = after else {
+        let Some((mut ctx_used, mut peak, mut msgs)) = after else {
             lease.release().await;
             return; // reset pendant le tour : il a déjà enregistré le fil vide
         };
@@ -866,6 +895,35 @@ impl ChatService {
             });
             conv.append_delta(epoch, obj("ctx_used", est));
             ctx_used = est;
+        }
+
+        // Boucle du contrat (mode Code) : vérification indépendante des
+        // critères, corrections, re-vérification — AVANT de rendre la main
+        // (verify.rs). Rien hors mode Code ou sans critères.
+        if !cancel.is_cancelled() {
+            let pe = super::verify::PassEnv {
+                env: &env,
+                turn_caps: &prep.turn_caps,
+                temperature,
+                reasoning: &reasoning,
+                ccaps,
+                conv_id: &conv_id,
+            };
+            let mut run = super::verify::PassRun {
+                lease: &mut lease,
+                cancel: &cancel,
+                cancel_tx: &cancel_tx,
+            };
+            self.code_verify_loop(&pe, epoch, asked, &mut run).await;
+            let after = conv.with_state_if(epoch, |st| {
+                let m = st.messages.clone();
+                (ctx_now(st, &m), st.gen_peak, m)
+            });
+            let Some(a) = after else {
+                lease.release().await;
+                return; // reset pendant la vérification
+            };
+            (ctx_used, peak, msgs) = a;
         }
 
         // Compaction de fin de tour : la jauge retombe tout de suite, le tour

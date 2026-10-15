@@ -127,3 +127,34 @@ func TestTourInterneDiscussions(t *testing.T) {
 		t.Fatalf("corps illisible : %d %q", w.Code, w.Body.String())
 	}
 }
+
+// La passe de vérification de la façade reçoit exactement le contexte isolé
+// de runVerifyPass : prompt du rôle et faits de la machine, outils fermés,
+// rôle verifier (seul autorisé à marquer un critère « passed »).
+func TestTourInterneVerificateur(t *testing.T) {
+	testHome(t)
+	t.Setenv(internalTokenEnv, jetonTest)
+	got := turnJSON(t, "/internal/v1/turn/verifier", `{"caps":{"Agent":true,"Code":true,"Mem":"off","Role":"builder"}}`, 200)
+	vcaps := Caps{Agent: true, Code: true, Mem: MemOff, Role: "verifier"}
+	if got["system"] != rolePrompt("verifier")+"\n\n"+machineSystemPrompt(vcaps) {
+		t.Fatalf("système : %v", got["system"])
+	}
+	caps, _ := got["caps"].(map[string]any)
+	if caps["Role"] != "verifier" || caps["Code"] != true {
+		t.Fatalf("caps : %v", caps)
+	}
+	tools, _ := got["tools"].([]any)
+	var names []string
+	for _, tl := range tools {
+		f, _ := tl.(map[string]any)["function"].(map[string]any)
+		names = append(names, f["name"].(string))
+	}
+	var want []string
+	for _, tl := range EnabledTools(vcaps) {
+		want = append(want, tl.Function.Name)
+	}
+	if strings.Join(names, ",") != strings.Join(want, ",") || !strings.Contains(strings.Join(names, ","), "criteria") {
+		t.Fatalf("outils : %v, attendu %v", names, want)
+	}
+	turnJSON(t, "/internal/v1/turn/verifier", `{`, 400)
+}

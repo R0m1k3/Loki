@@ -33,4 +33,5 @@ pub mod sessions;
 pub mod stream;
 pub mod turn;
 pub mod types;
+pub mod verify;
 pub mod wire;

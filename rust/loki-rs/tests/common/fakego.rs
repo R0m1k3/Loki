@@ -50,6 +50,10 @@ pub struct FakeGo {
     /// exécute), et journal du suivi (lectures, écritures, contrôles).
     pub tool_ctx: Mutex<Option<serde_json::Value>>,
     pub tracker_log: Mutex<Vec<String>>,
+    /// Tours en mode Code, et outils exécutés (« nom rôle »). L'outil
+    /// criteria (action=set) modifie les critères rangés (chat/crit:*).
+    pub code: Mutex<bool>,
+    pub tool_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -213,7 +217,8 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             if msg.trim().is_empty() {
                 return resp(400, r#"{"error":"message vide"}"#);
             }
-            let caps = serde_json::json!({"Agent": true, "Mem": "off", "Code": false, "Role": ""});
+            let code = *st.code.lock().unwrap();
+            let caps = serde_json::json!({"Agent": true, "Mem": "off", "Code": code, "Role": ""});
             let out = serde_json::json!({
                 "files": [], "caps": caps, "turn_caps": caps,
                 "content": msg, "model": "m1", "code_hint": false,
@@ -226,6 +231,19 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 "head": [{"role": "system", "content": "Tu es Loki."}],
                 "prefix": "PRÉAMBULE",
                 "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/turn/verifier" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.turn_log.lock().unwrap().push("verifier".into());
+            let mut caps = v["caps"].clone();
+            caps["Role"] = "verifier".into();
+            let out = serde_json::json!({
+                "system": "VÉRIFICATEUR",
+                "tools": [{"type": "function", "function": {"name": "criteria", "description": "", "parameters": {"type": "object"}}}],
+                "caps": caps,
             });
             resp(200, out.to_string())
         }
@@ -258,6 +276,27 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/tool/exec" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let name = v["name"].as_str().unwrap_or_default();
+            st.tool_log.lock().unwrap().push(format!(
+                "{name} {}",
+                v["caps"]["Role"].as_str().unwrap_or_default()
+            ));
+            if name == "criteria" && v["args"]["action"] == "set" {
+                let mut chat = st.store.lock().unwrap();
+                for (k, val) in chat.entry("chat".into()).or_default().iter_mut() {
+                    if !k.starts_with("crit:") {
+                        continue;
+                    }
+                    let mut list: Vec<serde_json::Value> =
+                        serde_json::from_slice(val).unwrap_or_default();
+                    for c in &mut list {
+                        if c["id"] == v["args"]["id"] {
+                            c["status"] = v["args"]["status"].clone();
+                        }
+                    }
+                    *val = serde_json::to_vec(&list).unwrap();
+                }
+            }
             let result = st
                 .tool_result
                 .lock()

@@ -55,6 +55,22 @@ retrouve le même journal. Le test Go échoue si le comportement Go change
 - `mkdir` en échec : le chemin cité est le dossier parent visé, pas le
   composant qui a échoué.
 
+## Étape 2 — boucle du contrat du mode Code (fait)
+
+`codeVerifyLoop` porté (`rust/loki-rs/src/chat/verify.rs`) : à la fin d'un
+tour de build en mode Code, relances du builder sur les critères encore
+ouverts, passe de vérification sur un contexte isolé (`POST
+/internal/v1/turn/verifier` : prompt du rôle et faits de la machine, outils
+fermés, rôle `verifier` qui seul peut marquer `passed`), corrections, abandon
+dit dans le fil après deux corrections. Mêmes deltas que le Go (`role`,
+`verify_done`, mesures `ctx_isolated`). Les critères sont lus en base
+(`chat/crit:<id>`) ; l'outil `criteria` reste au Go. Toute compaction en mode
+Code rend leur état au résumé, comme `compactMessages`.
+
+Écart assumé : l'isolation du slot du moteur après la vérification
+(`engineSideJob`) reste au Go, qui ne voit pas passer les requêtes de la
+façade.
+
 ## Étapes suivantes
 
 1. Web (`web_search`, `web_open`, `web_read`, `web_grep`, `web_images`) :

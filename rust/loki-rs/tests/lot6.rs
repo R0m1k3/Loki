@@ -799,6 +799,179 @@ async fn tour_de_bout_en_bout() {
     assert!(again.dup);
 }
 
+/// Contenu seul, fin normale, avec l'usage (une mesure par complétion).
+fn answer(text: &str) -> String {
+    sse(&[
+        serde_json::json!({"choices":[{"delta":{"content": text}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":40,"completion_tokens":2}}),
+    ])
+}
+
+fn contents_of(msgs: &[loki_rs::chat::types::Message]) -> Vec<String> {
+    msgs.iter()
+        .map(|m| {
+            let c = m.content.as_ref().and_then(|c| c.as_str()).unwrap_or("");
+            format!("{}:{}", m.role, c.lines().next().unwrap_or(""))
+        })
+        .collect()
+}
+
+/// Lot 7 : contrat du mode Code tenu. Critère déclaré fait par le builder →
+/// passe de vérification sur un contexte isolé, qui le marque « passed » ; sa
+/// trace ne rejoint pas l'historique.
+#[tokio::test]
+async fn contrat_verifie_par_la_facade() {
+    let (url, seen) = fake_engine(vec![
+        answer("fait"),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"v1","type":"function","function":{"name":"criteria","arguments":"{\"action\":\"set\",\"id\":1,\"status\":\"passed\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]),
+        answer("vérifié"),
+    ])
+    .await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    *go.code.lock().unwrap() = true;
+    let id = svc.sessions.conv().id();
+    go.set(
+        "chat",
+        &format!("crit:{id}"),
+        r#"[{"id":1,"text":"les tests passent","status":"completed"}]"#,
+    );
+    svc.send(serde_json::json!({"message": "fais-le", "cid": "v1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 3);
+    let v = &seen[1].1;
+    assert_eq!(v["messages"][0]["content"], "VÉRIFICATEUR");
+    assert_eq!(
+        v["messages"][1]["content"],
+        "Task:\nfais-le\n\nAcceptance criteria:\n[~] #1 les tests passent\n\n\
+         Verify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool."
+    );
+    assert_eq!(v["tools"][0]["function"]["name"], "criteria");
+    assert_eq!(*go.tool_log.lock().unwrap(), ["criteria verifier"]);
+    assert_eq!(
+        deltas(&svc, "role"),
+        [serde_json::json!("verifier"), serde_json::json!("")]
+    );
+    assert_eq!(deltas(&svc, "verify_done"), [serde_json::json!("passed")]);
+    // Mesures du vérificateur, et elles seules : à part (la jauge de la
+    // discussion n'en dit rien).
+    let (inside, outside) = svc.sessions.conv().with_state(|st| {
+        let (mut verifier, mut inside, mut outside) = (false, 0, 0);
+        for e in &st.log {
+            if let Some(r) = e.delta.get("role") {
+                verifier = r == "verifier";
+            }
+            if e.delta.contains_key("stats") {
+                let iso = e.delta.get("ctx_isolated") == Some(&serde_json::json!(true));
+                assert_eq!(iso, verifier, "{:?}", e.delta);
+                if verifier {
+                    inside += 1;
+                } else {
+                    outside += 1;
+                }
+            }
+        }
+        (inside, outside)
+    });
+    assert!(inside > 0 && outside > 0);
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    assert_eq!(contents_of(&msgs), ["user:fais-le", "assistant:fait"]);
+}
+
+/// Lot 7 : contrat jamais tenu. Deux relances du builder sur les critères
+/// ouverts, puis trois vérifications séparées par deux corrections, et
+/// l'abandon dit dans le fil. Les relances et corrections rejoignent
+/// l'historique ; les vérifications non.
+#[tokio::test]
+async fn contrat_abandonne_apres_deux_corrections() {
+    let script = ["r0", "r1", "r2", "v1", "r3", "v2", "r4", "v3"]
+        .iter()
+        .map(|t| answer(t))
+        .collect();
+    let (url, seen) = fake_engine(script).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    *go.code.lock().unwrap() = true;
+    let id = svc.sessions.conv().id();
+    go.set(
+        "chat",
+        &format!("crit:{id}"),
+        r#"[{"id":1,"text":"build ok","status":"pending"}]"#,
+    );
+    svc.send(serde_json::json!({"message": "construis", "cid": "v2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 8);
+    // Relance : historique + consigne, même tête (préambule fusionné).
+    let r1 = &seen[1].1["messages"];
+    assert_eq!(r1[0]["content"], "PRÉAMBULE\n\nTu es Loki.");
+    let last = r1.as_array().unwrap().last().unwrap()["content"]
+        .as_str()
+        .unwrap();
+    assert!(
+        last.starts_with(
+            "Not done yet — these acceptance criteria are still open:\n[ ] #1 build ok\n\n"
+        ),
+        "{last}"
+    );
+    assert_eq!(seen[3].1["messages"][0]["content"], "VÉRIFICATEUR");
+    let fix = seen[4].1["messages"].as_array().unwrap().last().unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        fix.starts_with("Verification failed on these criteria:\n[ ] #1 build ok\n\nFix the code"),
+        "{fix}"
+    );
+
+    assert_eq!(deltas(&svc, "verify_done"), [serde_json::json!("gave_up")]);
+    let roles: Vec<String> = deltas(&svc, "role")
+        .iter()
+        .map(|r| r.as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        roles,
+        [
+            "builder", "", "builder", "", "verifier", "", "builder", "", "verifier", "", "builder",
+            "", "verifier", ""
+        ]
+    );
+    let content = deltas(&svc, "content");
+    assert_eq!(
+        content.last().unwrap(),
+        "\n\n_(vérification : 1 critère(s) non satisfaits après 2 corrections — voir le panneau des critères)_"
+    );
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    assert_eq!(
+        contents_of(&msgs),
+        [
+            "user:construis",
+            "assistant:r0",
+            "user:Not done yet — these acceptance criteria are still open:",
+            "assistant:r1",
+            "user:Not done yet — these acceptance criteria are still open:",
+            "assistant:r2",
+            "user:Verification failed on these criteria:",
+            "assistant:r3",
+            "user:Verification failed on these criteria:",
+            "assistant:r4",
+        ]
+    );
+    // Enregistrée telle quelle.
+    let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
+    assert_eq!(decode_state(&body).messages.len(), 10);
+}
+
 /// Lot 7 : un `read` s'exécute dans la façade, dans le dossier de travail que
 /// lui donne le Go, et la lecture est notée dans le suivi du Go.
 #[tokio::test]
