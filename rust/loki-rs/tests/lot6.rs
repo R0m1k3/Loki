@@ -258,6 +258,9 @@ impl SessionHooks for Crochets {
     async fn switched(&self, id: &str) {
         self.0.lock().unwrap().push(format!("switched {id}"));
     }
+    async fn activated(&self, id: &str) {
+        self.0.lock().unwrap().push(format!("activated {id}"));
+    }
 }
 
 async fn sessions() -> (
@@ -361,9 +364,19 @@ async fn creer_basculer_renommer() {
     assert_eq!(textes(&s), ["seulement dans A"]);
     s.switch(&b).await.unwrap();
     assert_eq!(textes(&s), ["seulement dans B"]);
+    let switched: Vec<String> =
+        h.0.lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("switched"))
+            .cloned()
+            .collect();
+    assert_eq!(switched, [format!("switched {a}"), format!("switched {b}")]);
+    let log = h.0.lock().unwrap().clone();
     assert_eq!(
-        *h.0.lock().unwrap(),
-        [format!("switched {a}"), format!("switched {b}")]
+        log[log.len() - 2..],
+        [format!("activated {b}"), format!("switched {b}")],
+        "la discussion active suit chaque bascule"
     );
     // L'index porte les titres déduits.
     let idx = s.read_index().await;
@@ -609,4 +622,28 @@ async fn tour_complet_par_le_go() {
         })
         .collect();
     assert_eq!(answer, "Voilà.");
+}
+
+#[tokio::test]
+async fn crochets_go_des_discussions() {
+    let (st, go, _stop, _t) = store().await;
+    let s = Sessions::new(
+        st.clone(),
+        Conversation::new(),
+        loki_rs::chat::sessions::GoSessionHooks(st),
+    );
+    s.load().await.unwrap();
+    let a = s.conv().id();
+    let b = s.new_conv().await.unwrap();
+    s.delete(&b).await.unwrap();
+    let log = go.conv_log.lock().unwrap().clone();
+    assert_eq!(
+        log,
+        [
+            format!("active {a}"),
+            format!("active {b}"),
+            format!("dropped {b}"),
+            format!("active {a}")
+        ]
+    );
 }

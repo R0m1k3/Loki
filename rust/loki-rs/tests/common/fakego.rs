@@ -40,6 +40,8 @@ pub struct FakeGo {
     /// Résultat imposé à tout outil (sinon « exec:<nom> »), et archive recall.
     pub tool_result: Mutex<Option<String>>,
     pub recall: Mutex<Vec<String>>,
+    /// Discussion active annoncée et discussions supprimées.
+    pub conv_log: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
 }
@@ -178,6 +180,16 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 200,
                 serde_json::json!({"id": format!("r{}", r.len())}).to_string(),
             )
+        }
+        "/internal/v1/conv/active" | "/internal/v1/conv/dropped" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let what = path.rsplit('/').next().unwrap();
+            st.conv_log
+                .lock()
+                .unwrap()
+                .push(format!("{what} {}", v["id"].as_str().unwrap_or_default()));
+            resp(204, "")
         }
         "/internal/v1/engine/stop" => {
             st.lease_log.lock().unwrap().push("stop".into());

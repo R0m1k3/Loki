@@ -14,7 +14,8 @@
 //!
 //! Ce qui vit hors de la conversation reste derrière [`SessionHooks`] : les
 //! fichiers, travaux, critères et mode d'une discussion supprimée, ses
-//! résultats d'outils, et le préchauffage après une bascule. Le changement de
+//! résultats d'outils, le préchauffage après une bascule, et la discussion
+//! active vue par les outils du Go ([`GoSessionHooks`]). Le changement de
 //! projet (`projectSwitch`) reste au Go pour l'instant.
 
 use std::future::Future;
@@ -44,6 +45,44 @@ pub trait SessionHooks: Send + Sync + 'static {
     fn dropped(&self, id: &str) -> impl Future<Output = ()> + Send;
     /// Bascule faite (`prewarmAfterSwitch`).
     fn switched(&self, id: &str) -> impl Future<Output = ()> + Send;
+    /// La discussion ouverte a changé (chargement, création, bascule) : ce
+    /// qui lit l'identifiant actif ailleurs (outils du Go) doit suivre.
+    fn activated(&self, _id: &str) -> impl Future<Output = ()> + Send {
+        async {}
+    }
+}
+
+/// Les effets réels, par l'API interne du Go.
+pub struct GoSessionHooks(pub Store);
+
+impl SessionHooks for GoSessionHooks {
+    async fn dropped(&self, id: &str) {
+        let body = serde_json::json!({ "id": id });
+        if let Err(e) = self
+            .0
+            .internal_json(
+                hyper::Method::POST,
+                "/internal/v1/conv/dropped",
+                Some(&body),
+            )
+            .await
+        {
+            eprintln!("[conv] nettoyage de la discussion {id} non fait : {e}");
+        }
+    }
+
+    async fn switched(&self, _id: &str) {}
+
+    async fn activated(&self, id: &str) {
+        let body = serde_json::json!({ "id": id });
+        if let Err(e) = self
+            .0
+            .internal_json(hyper::Method::POST, "/internal/v1/conv/active", Some(&body))
+            .await
+        {
+            eprintln!("[conv] discussion active non transmise au Go ({id}) : {e}");
+        }
+    }
 }
 
 /// Refus d'une opération sur les discussions.
@@ -169,6 +208,7 @@ impl<H: SessionHooks> Sessions<H> {
             match self.store.get_open(BK_CHAT, &conv_key(&id)).await {
                 Ok(body) => {
                     self.conv.load_from(&id, &body.unwrap_or_default());
+                    self.hooks.activated(&id).await;
                     return Ok(());
                 }
                 Err(e) => last_err = e,
@@ -241,6 +281,7 @@ impl<H: SessionHooks> Sessions<H> {
             .flatten()
             .unwrap_or_default();
         self.conv.load_from(id, &body);
+        self.hooks.activated(id).await;
         Ok(())
     }
 
