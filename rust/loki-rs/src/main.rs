@@ -114,12 +114,30 @@ fn serve() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        let sup = child::Supervisor::spawn(
-            go_bin,
-            go_port,
-            vec![(auth::INTERNAL_ENV.to_string(), token.clone())],
-        );
+        // LOKI_CHAT=rust : la conversation est tenue par la façade. Le Go le
+        // sait (il remet alors à la façade le trafic de chat du tunnel) et
+        // connaît son adresse locale.
+        let chat_rust = chat_held_by_facade();
+        let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
+        if chat_rust {
+            env.push(("LOKI_CHAT".into(), "rust".into()));
+            env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
+        }
+        let sup = child::Supervisor::spawn(go_bin, go_port, env);
         wait_for(backend, Duration::from_secs(30)).await;
+        let engine_paths = engine::Paths::from_env();
+        let chat = if chat_rust {
+            match start_chat(backend, &token, &engine_paths.home).await {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    eprintln!("[loki-rs] conversation : {e}");
+                    sup.shutdown(Duration::from_secs(10)).await;
+                    return ExitCode::FAILURE;
+                }
+            }
+        } else {
+            None
+        };
 
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
@@ -135,7 +153,8 @@ fn serve() -> ExitCode {
             backend,
             internal_token: token,
             host_env: auth::HostEnv::from_env(),
-            engine: engine::Paths::from_env(),
+            engine: engine_paths,
+            chat,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -148,6 +167,33 @@ fn serve() -> ExitCode {
             }
         }
     })
+}
+
+/// `LOKI_CHAT=rust` : conversation tenue par la façade (Go par défaut).
+fn chat_held_by_facade() -> bool {
+    std::env::var("LOKI_CHAT").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+}
+
+/// Charge la discussion active et prépare le service des tours.
+async fn start_chat(
+    backend: SocketAddr,
+    token: &str,
+    home: &std::path::Path,
+) -> Result<std::sync::Arc<loki_rs::chat::generate::ChatService>, String> {
+    use loki_rs::chat::{conv::Conversation, generate::ChatService, host::ChatShared, sessions};
+    let store = loki_rs::store::Store::new(backend, token.to_string());
+    let s = sessions::Sessions::new(
+        store.clone(),
+        Conversation::new(),
+        sessions::GoSessionHooks(store.clone()),
+    );
+    s.load().await?;
+    let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+    eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=rust)");
+    Ok(ChatService::new(
+        std::sync::Arc::new(s),
+        std::sync::Arc::new(shared),
+    ))
 }
 
 fn internal_token() -> Result<String, getrandom::Error> {

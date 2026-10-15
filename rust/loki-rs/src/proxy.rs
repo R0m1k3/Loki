@@ -29,6 +29,7 @@ use tokio::net::TcpListener;
 
 use crate::api;
 use crate::auth::{HostEnv, INTERNAL_HEADER, InternalClient};
+use crate::chatapi;
 use crate::engine;
 use crate::oai;
 use crate::store::Store;
@@ -59,6 +60,9 @@ pub struct Config {
     pub host_env: HostEnv,
     /// `$LOKI_HOME` et service moteur, pour les routes portées.
     pub engine: engine::Paths,
+    /// Conversation tenue par la façade (`LOKI_CHAT=rust`) : ses routes sont
+    /// servies ici ; `None` : relayées au Go.
+    pub chat: Option<Arc<crate::chat::generate::ChatService>>,
 }
 
 struct Proxy {
@@ -85,6 +89,7 @@ pub async fn serve(
             internal: InternalClient::new(cfg.backend, cfg.internal_token),
             host_env: cfg.host_env,
             engine: cfg.engine,
+            chat: cfg.chat,
         },
     });
     tokio::pin!(shutdown);
@@ -141,6 +146,16 @@ impl Proxy {
         }
         if api::handles(req.method(), path) {
             return api::serve(&self.ctx, req).await;
+        }
+        if let Some(chat) = &self.ctx.chat {
+            if chatapi::handles(path) {
+                return chatapi::serve(&self.ctx, chat, req).await;
+            }
+            if chatapi::relays_delta(path) {
+                let (method, path) = (req.method().clone(), path.to_string());
+                let resp = self.forward(req).await;
+                return chatapi::after_forward(chat, &method, &path, resp).await;
+            }
         }
         self.forward(req).await
     }

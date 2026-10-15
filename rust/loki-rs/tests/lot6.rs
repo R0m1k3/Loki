@@ -572,6 +572,7 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
+        notice: Box::new(|_| {}),
     };
     let bash = Tool {
         kind: "function".into(),
@@ -871,4 +872,200 @@ async fn moteur_pas_pret_et_message_vide() {
         .send(serde_json::json!({"message": " ", "cid": "c2"}))
         .await;
     assert_eq!(r.unwrap_err().status, 400);
+}
+
+// ---- les routes du chat servies par la façade (LOKI_CHAT=rust) ----
+
+async fn call(
+    facade: std::net::SocketAddr,
+    method: &str,
+    path: &str,
+    body: &str,
+) -> (u16, serde_json::Value) {
+    use http_body_util::{BodyExt, Full};
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+        .build_http::<Full<bytes::Bytes>>();
+    let req = hyper::Request::builder()
+        .method(method)
+        .uri(format!("http://{facade}{path}"))
+        .body(Full::new(bytes::Bytes::from(body.to_string())))
+        .unwrap();
+    let resp = client.request(req).await.unwrap();
+    let status = resp.status().as_u16();
+    let b = resp.into_body().collect().await.unwrap().to_bytes();
+    (
+        status,
+        serde_json::from_slice(&b).unwrap_or(serde_json::Value::String(
+            String::from_utf8_lossy(&b).into(),
+        )),
+    )
+}
+
+/// Ouvre le flux SSE et lit jusqu'à `caught_up` : rend les événements.
+async fn read_stream(
+    facade: std::net::SocketAddr,
+    body: &str,
+) -> (hyper::HeaderMap, Vec<serde_json::Value>) {
+    use http_body_util::{BodyExt, Full};
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+        .build_http::<Full<bytes::Bytes>>();
+    let req = hyper::Request::builder()
+        .method("POST")
+        .uri(format!("http://{facade}/api/chat"))
+        .body(Full::new(bytes::Bytes::from(body.to_string())))
+        .unwrap();
+    let resp = client.request(req).await.unwrap();
+    let headers = resp.headers().clone();
+    let mut body = resp.into_body();
+    let mut text = String::new();
+    let mut events = Vec::new();
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while let Some(Ok(f)) = body.frame().await {
+            if let Some(d) = f.data_ref() {
+                text.push_str(&String::from_utf8_lossy(d));
+            }
+            while let Some(i) = text.find("\n\n") {
+                let frame: String = text.drain(..i + 2).collect();
+                if let Some(data) = frame.trim().strip_prefix("data: ") {
+                    let v: serde_json::Value = serde_json::from_str(data).unwrap();
+                    let delta = v["choices"][0]["delta"].clone();
+                    let done = delta.get("caught_up").is_some();
+                    events.push(delta);
+                    if done {
+                        return;
+                    }
+                }
+            }
+        }
+    })
+    .await
+    .expect("flux sans caught_up");
+    (headers, events)
+}
+
+#[tokio::test]
+async fn routes_du_chat_par_la_facade() {
+    let (url, _seen) = fake_engine(tool_then_answer("voilà")).await;
+    let t = tempfile::tempdir().unwrap();
+    let port: u16 = port_of(&url).parse().unwrap();
+    let (facade, go, _stop, chat) = fakego::start_chat(t.path().into(), port).await;
+
+    // Envoi, puis le flux rejoue le tour jusqu'à caught_up.
+    let (code, v) = call(
+        facade,
+        "POST",
+        "/api/chat/send",
+        r#"{"message":"salut","cid":"r1"}"#,
+    )
+    .await;
+    assert_eq!(
+        (code, v.clone()),
+        (200, serde_json::json!({"ok": true, "queued": false})),
+        "{v}"
+    );
+    until_done(&chat, 1).await;
+    let (headers, evs) = read_stream(facade, r#"{"from":0,"tail":20}"#).await;
+    assert_eq!(headers["content-type"], "text/event-stream");
+    assert!(evs.iter().any(|e| e["user"] == "salut"));
+    assert!(evs.iter().any(|e| e["content"] == "voilà"));
+    assert!(evs.iter().any(|e| e.get("turn_done").is_some()));
+    // Les routes du chat ne partent plus au Go.
+    assert!(
+        !go.relayed
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|p| p.starts_with("/api/chat"))
+    );
+
+    let (_, st) = call(facade, "GET", "/api/chat/state", "").await;
+    assert_eq!(
+        (st["generating"].clone(), st["turns"].clone()),
+        (serde_json::json!(false), serde_json::json!(1))
+    );
+    let (code, v) = call(facade, "POST", "/api/chat/send", "{").await;
+    assert_eq!((code, v["ok"].clone()), (400, serde_json::json!(false)));
+    assert_eq!(
+        call(facade, "GET", "/api/chat/tool-result", "").await.0,
+        400
+    );
+    assert_eq!(
+        call(facade, "GET", "/api/chat/tool-result?id=c9.zz", "")
+            .await
+            .0,
+        404
+    );
+
+    // Discussions.
+    let (_, list) = call(facade, "GET", "/api/conversations", "").await;
+    let a = list["active"].as_str().unwrap().to_string();
+    assert_eq!(list["conversations"].as_array().unwrap().len(), 1);
+    assert_eq!(list["busy"], false);
+    let (_, n) = call(facade, "POST", "/api/conversations/new", "").await;
+    let b = n["id"].as_str().unwrap().to_string();
+    assert_ne!(a, b);
+    let (code, _) = call(
+        facade,
+        "POST",
+        "/api/conversations/switch",
+        &format!(r#"{{"id":"{a}"}}"#),
+    )
+    .await;
+    assert_eq!(code, 200);
+    let (code, v) = call(
+        facade,
+        "POST",
+        "/api/conversations/switch",
+        r#"{"id":"inconnue"}"#,
+    )
+    .await;
+    assert_eq!(
+        (code, v["error"].clone()),
+        (400, serde_json::json!("discussion introuvable"))
+    );
+    assert_eq!(
+        call(
+            facade,
+            "POST",
+            "/api/conversations/rename",
+            &format!(r#"{{"id":"{a}","title":"Mon fil"}}"#)
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(
+        call(
+            facade,
+            "POST",
+            "/api/conversations/delete",
+            &format!(r#"{{"id":"{b}"}}"#)
+        )
+        .await
+        .0,
+        200
+    );
+    let (_, list) = call(facade, "GET", "/api/conversations", "").await;
+    assert_eq!(list["conversations"][0]["title"], "Mon fil");
+
+    // Bascule du mode Code : relayée au Go, journalisée ici.
+    let (code, v) = call(facade, "POST", "/api/chat/mode", r#"{"mode":"code"}"#).await;
+    assert_eq!((code, v["mode"].clone()), (200, serde_json::json!("code")));
+    assert!(
+        go.relayed
+            .lock()
+            .unwrap()
+            .contains(&"/api/chat/mode".to_string())
+    );
+    assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+
+    // Reset : fil vide, fichiers de la discussion effacés par le Go.
+    assert_eq!(call(facade, "POST", "/api/chat/reset", "").await.0, 200);
+    assert!(chat.sessions.conv().with_state(|st| st.log.is_empty()));
+    assert!(
+        go.conv_log
+            .lock()
+            .unwrap()
+            .contains(&format!("dropped {a}"))
+    );
 }

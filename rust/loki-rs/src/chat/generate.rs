@@ -154,6 +154,16 @@ fn obj(k: &str, v: impl Into<Value>) -> Delta {
 
 type BoxFut = Pin<Box<dyn Future<Output = ()> + Send>>;
 
+/// Ce qu'un tour lit une fois au départ.
+struct TurnEnv {
+    cfg: std::collections::HashMap<String, String>,
+    ep: super::wire::ChatEndpoint,
+    echo: super::wire::EchoPolicy,
+    ccfg: CompactConfig,
+    port: u16,
+    summarizer: EngineSummarizer,
+}
+
 /// Le chat tenu par la façade : la discussion ouverte, ses tours et sa file.
 pub struct ChatService {
     pub sessions: Arc<Sessions<GoSessionHooks>>,
@@ -446,6 +456,142 @@ impl ChatService {
         Some(compacted)
     }
 
+    /// Configuration, point de chat et résumeur d'un tour (lus une fois).
+    async fn turn_env(&self) -> TurnEnv {
+        let store = &self.shared.store;
+        let cfg = store.config().await;
+        let local_key = store.get_str(BK_STATE, "api_key").await;
+        let ep = resolve_chat_endpoint(&cfg, &local_key);
+        let echo = echo_policy_for(&cfg, &self.shared.echo_refusals, None);
+        let ccfg = CompactConfig::from_config(&cfg, echo.clone());
+        let port = llm_port(&cfg);
+        let summarizer = EngineSummarizer {
+            http: self.shared.http.clone(),
+            ep: ep.clone(),
+            cfg: cfg.clone(),
+            patterns: self.shared.patterns.clone(),
+            port,
+        };
+        TurnEnv {
+            cfg,
+            ep,
+            echo,
+            ccfg,
+            port,
+            summarizer,
+        }
+    }
+
+    /// `/api/chat/reset` : fil vide pour tous les appareils, tour arrêté et
+    /// verrou rendu, file vidée, fichiers de la discussion effacés.
+    pub async fn reset(&self) {
+        let conv = self.sessions.conv();
+        conv.reset();
+        self.queue().items.clear();
+        let body = json!({ "id": conv.id(), "files_only": true });
+        if let Err(e) = self
+            .shared
+            .store
+            .internal_json(
+                hyper::Method::POST,
+                "/internal/v1/conv/dropped",
+                Some(&body),
+            )
+            .await
+        {
+            eprintln!("[chat] fichiers de la discussion non effacés : {e}");
+        }
+        self.sessions.persist().await;
+    }
+
+    /// `/api/chat/compact` (`CompactNow`) : compaction manuelle, en tâche de
+    /// fond ; la progression passe par le journal.
+    pub async fn compact_now(self: &Arc<Self>) -> Result<(), Refused> {
+        if !self.engine_ready().await {
+            return Err(Refused {
+                status: 503,
+                error: ERR_MODEL_LOADING.into(),
+            });
+        }
+        let conv = self.sessions.conv().clone();
+        let epoch = conv.begin_turn(Box::new(|| {})).map_err(|_| Refused {
+            status: 409,
+            error: ERR_BUSY.into(),
+        })?;
+        let lease = match EngineLease::acquire(self.shared.store.clone(), self.lease_ttl).await {
+            Ok(l) => l,
+            Err(e) => {
+                conv.release_turn(epoch);
+                return Err(match e {
+                    LeaseError::Busy { error, .. } => Refused { status: 409, error },
+                    LeaseError::Other(error) => Refused { status: 503, error },
+                });
+            }
+        };
+        let me = self.clone();
+        tokio::spawn(async move {
+            let env = me.turn_env().await;
+            let local = !env.ep.external;
+            let snap = conv.with_state_if(epoch, |st| {
+                let msgs = st.messages.clone();
+                let used = if local {
+                    ctx_pending(st.ctx_used, st.ctx_used_len, &msgs, &env.echo)
+                } else {
+                    st.ctx_used
+                };
+                (msgs, used)
+            });
+            if let Some((msgs, used)) = snap {
+                let changed = me
+                    .compact_and_publish(
+                        &env.summarizer,
+                        &env.ccfg,
+                        CompactCaps::default(),
+                        true,
+                        epoch,
+                        "manuel",
+                        &msgs,
+                        used,
+                        &CompactOpts::default(),
+                    )
+                    .await
+                    .is_some();
+                if changed {
+                    me.sessions.persist().await;
+                }
+            }
+            conv.release_turn(epoch);
+            lease.release().await;
+        });
+        Ok(())
+    }
+
+    /// `/api/chat/tool-result` (`loadToolResult`) : le résultat complet d'un
+    /// outil — en mémoire tant qu'il n'est pas écrit, sinon en base.
+    pub async fn tool_result(&self, id: &str) -> Option<String> {
+        if id.contains(['/', '\\']) {
+            return None;
+        }
+        if let Some(s) = self.shared.persister.tool_res_pending(id) {
+            return Some(s.to_string());
+        }
+        let b = self
+            .shared
+            .store
+            .get_open(super::persist::BK_TOOL_RES, id)
+            .await
+            .ok()
+            .flatten()?;
+        Some(String::from_utf8_lossy(&b).into_owned())
+    }
+
+    /// Un événement d'affichage né hors d'un tour (bascule du mode Code,
+    /// critères édités), sur le fil courant.
+    pub fn push_delta(&self, d: Delta) {
+        let conv = self.sessions.conv();
+        conv.append_delta(conv.epoch(), d);
+    }
+
     /// `generate` : un tour complet, détaché — seul l'arrêt l'interrompt.
     async fn generate(
         self: Arc<Self>,
@@ -458,26 +604,21 @@ impl ChatService {
         let turn_start = Instant::now();
         let conv = self.sessions.conv().clone();
         let store = self.shared.store.clone();
-        let cfg = store.config().await;
-        let local_key = store.get_str(BK_STATE, "api_key").await;
-        let ep = resolve_chat_endpoint(&cfg, &local_key);
+        let TurnEnv {
+            cfg,
+            ep,
+            echo,
+            ccfg,
+            port,
+            summarizer,
+        } = self.turn_env().await;
         let local = !ep.external;
-        let echo = echo_policy_for(&cfg, &self.shared.echo_refusals, None);
-        let ccfg = CompactConfig::from_config(&cfg, echo.clone());
-        let port = llm_port(&cfg);
         let conv_id = conv.id();
         let agent = prep.cap("Agent");
         let mem_off = prep.turn_caps.get("Mem").and_then(Value::as_str) == Some("off");
         let ccaps = CompactCaps {
             agent,
             code: prep.cap("Code"),
-        };
-        let summarizer = EngineSummarizer {
-            http: self.shared.http.clone(),
-            ep: ep.clone(),
-            cfg: cfg.clone(),
-            patterns: self.shared.patterns.clone(),
-            port,
         };
         let ctx_now = |st: &super::persist::ConvState, msgs: &[Message]| {
             if local {
@@ -611,6 +752,12 @@ impl ChatService {
                 kwargs: reasoning.kwargs.clone().unwrap_or_default(),
             },
             queued: Box::new(move || me.drain_queued(epoch)),
+            notice: {
+                let conv = conv.clone();
+                Box::new(move |d| {
+                    conv.append_delta(epoch, d);
+                })
+            },
         };
 
         // Chaque événement devient un delta du journal.

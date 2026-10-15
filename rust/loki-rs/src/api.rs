@@ -24,6 +24,8 @@ pub struct Ctx {
     pub host_env: HostEnv,
     /// `$LOKI_HOME` et nom du service moteur (fichiers PID / journal).
     pub engine: engine::Paths,
+    /// Conversation tenue par la façade (`LOKI_CHAT=rust`) ; `None` : au Go.
+    pub chat: Option<std::sync::Arc<crate::chat::generate::ChatService>>,
 }
 
 impl Ctx {

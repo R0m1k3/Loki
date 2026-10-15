@@ -99,6 +99,7 @@ async fn facade(backend: SocketAddr) -> (SocketAddr, oneshot::Sender<()>) {
             home: std::env::temp_dir(),
             service: "loki-engine".into(),
         },
+        chat: None,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

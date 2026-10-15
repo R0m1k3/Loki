@@ -102,6 +102,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
     let path = req.uri().path().to_string();
     if !path.starts_with("/internal/") {
         st.relayed.lock().unwrap().push(path.clone());
+        if path == "/api/chat/mode" && req.method() == Method::POST {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            return resp(
+                200,
+                serde_json::json!({"ok": true, "mode": v["mode"]}).to_string(),
+            );
+        }
         return resp(200, format!("go:{path}"));
     }
     if req.headers().get("x-loki-internal").map(|v| v.as_bytes()) != Some(JETON.as_bytes()) {
@@ -326,7 +334,39 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let (f, st, tx, _) = start_opts(home, false, None).await;
+    (f, st, tx)
+}
+
+/// Comme [`start`], avec la conversation tenue par la façade
+/// (`LOKI_CHAT=rust`) ; `engine_port` : port du faux moteur (config PORT).
+pub async fn start_chat(
+    home: std::path::PathBuf,
+    engine_port: u16,
+) -> (
+    SocketAddr,
+    Arc<FakeGo>,
+    oneshot::Sender<()>,
+    Arc<loki_rs::chat::generate::ChatService>,
+) {
+    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port)).await;
+    (f, st, tx, chat.unwrap())
+}
+
+async fn start_opts(
+    home: std::path::PathBuf,
+    with_chat: bool,
+    engine_port: Option<u16>,
+) -> (
+    SocketAddr,
+    Arc<FakeGo>,
+    oneshot::Sender<()>,
+    Option<Arc<loki_rs::chat::generate::ChatService>>,
+) {
     let st = Arc::new(FakeGo::default());
+    if let Some(p) = engine_port {
+        st.set("config", "PORT", &p.to_string());
+    }
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let backend = l.local_addr().unwrap();
     *st.backend.lock().unwrap() = Some(backend);
@@ -345,6 +385,22 @@ pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, onesho
             });
         }
     });
+    let chat = if with_chat {
+        use loki_rs::chat::{
+            conv::Conversation, generate::ChatService, host::ChatShared, sessions,
+        };
+        let store = loki_rs::store::Store::new(backend, JETON.into());
+        let s = sessions::Sessions::new(
+            store.clone(),
+            Conversation::new(),
+            sessions::GoSessionHooks(store.clone()),
+        );
+        s.load().await.unwrap();
+        let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+        Some(ChatService::new(Arc::new(s), Arc::new(shared)))
+    } else {
+        None
+    };
     let fl = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let facade = fl.local_addr().unwrap();
     let (tx, rx) = oneshot::channel::<()>();
@@ -356,11 +412,12 @@ pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, onesho
             home,
             service: "loki-engine".into(),
         },
+        chat: chat.clone(),
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
     }));
-    (facade, st, tx)
+    (facade, st, tx, chat)
 }
 
 /// GET via la façade : (code, en-têtes, corps).
