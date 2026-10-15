@@ -1,0 +1,4484 @@
+{
+  "seed": {
+    "active": "generale",
+    "convs": [
+      "a1:alpha",
+      "a2:alpha",
+      "a3:alpha",
+      "g1:generale",
+      "o1:",
+      "x1:ailleurs"
+    ],
+    "projects": [
+      {
+        "created_at": 0,
+        "name": "Générale",
+        "slug": "generale"
+      }
+    ],
+    "trackers": [
+      "alpha/pas",
+      "alpha/sommeil",
+      "alphabet/x",
+      "generale/poids"
+    ],
+    "tree": [
+      "memory/",
+      "memory/generale/",
+      "memory/generale/.cache.md",
+      "memory/generale/MEMORY.md",
+      "memory/generale/a.md",
+      "memory/generale/b.MD",
+      "memory/generale/notes.txt",
+      "memory/generale/sous/",
+      "memory/generale/sous/page.md",
+      "memory/generale/z.md"
+    ]
+  },
+  "seed_mem": {
+    "memory/generale/.cache.md": "# .cache.md\n",
+    "memory/generale/MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n",
+    "memory/generale/a.md": "# a.md\n",
+    "memory/generale/b.MD": "# b.MD\n",
+    "memory/generale/notes.txt": "# notes.txt\n",
+    "memory/generale/sous/page.md": "# sous/page.md\n",
+    "memory/generale/z.md": "# z.md\n"
+  },
+  "seed_store": {
+    "chat/conv:a1": "{\"id\":\"a1\",\"log\":[]}",
+    "chat/conv:a2": "{\"id\":\"a2\",\"log\":[]}",
+    "chat/conv:a3": "{\"id\":\"a3\",\"log\":[]}",
+    "chat/conv:g1": "{\"id\":\"g1\",\"log\":[]}",
+    "chat/conv:o1": "{\"id\":\"o1\",\"log\":[]}",
+    "chat/conv:x1": "{\"id\":\"x1\",\"log\":[]}",
+    "chat/index": "[{\"id\":\"g1\",\"title\":\"g1\",\"created\":1,\"updated\":10,\"turns\":0,\"project\":\"generale\"},{\"id\":\"o1\",\"title\":\"o1\",\"created\":2,\"updated\":20,\"turns\":0},{\"id\":\"a1\",\"title\":\"a1\",\"created\":3,\"updated\":30,\"turns\":0,\"project\":\"alpha\"},{\"id\":\"a2\",\"title\":\"a2\",\"created\":4,\"updated\":50,\"turns\":0,\"project\":\"alpha\"},{\"id\":\"a3\",\"title\":\"a3\",\"created\":5,\"updated\":40,\"turns\":0,\"project\":\"alpha\"},{\"id\":\"x1\",\"title\":\"x1\",\"created\":6,\"updated\":60,\"turns\":0,\"project\":\"ailleurs\"}]",
+    "state/active_project": "generale",
+    "state/projects": "[{\"slug\":\"generale\",\"name\":\"Générale\",\"created_at\":1}]",
+    "tracker/alpha/pas": "{\"name\":\"alpha/pas\",\"events\":[]}",
+    "tracker/alpha/sommeil": "{\"name\":\"alpha/sommeil\",\"events\":[]}",
+    "tracker/alphabet/x": "{\"name\":\"alphabet/x\",\"events\":[]}",
+    "tracker/generale/poids": "{\"name\":\"generale/poids\",\"events\":[]}"
+  },
+  "steps": [
+    {
+      "name": "liste",
+      "method": "GET",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md"
+        ]
+      }
+    },
+    {
+      "name": "création",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"Alpha\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md"
+        ]
+      }
+    },
+    {
+      "name": "création, même nom",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"Alpha\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md"
+        ]
+      }
+    },
+    {
+      "name": "création translittérée",
+      "method": "POST",
+      "body": "{\"action\":\" CREATE \",\"name\":\"  Réseau NAS — ça ñ  \"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "création sans lettres",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"!!!\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "création sans lettres bis",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"???\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "création longue",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "création très longue",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "création vide",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":\"   \"}",
+      "status": 400,
+      "out": {
+        "error": "nom vide",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "renommage",
+      "method": "POST",
+      "body": "{\"action\":\"rename\",\"slug\":\" alpha-2 \",\"name\":\"  Bêta  \"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "renommage vide",
+      "method": "POST",
+      "body": "{\"action\":\"rename\",\"slug\":\"alpha-2\",\"name\":\"\"}",
+      "status": 400,
+      "out": {
+        "error": "nom vide",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "renommage inconnu",
+      "method": "POST",
+      "body": "{\"action\":\"rename\",\"slug\":\"nope\",\"name\":\"X\"}",
+      "status": 400,
+      "out": {
+        "error": "projet introuvable",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "description",
+      "method": "POST",
+      "body": "{\"action\":\"desc\",\"slug\":\"alpha\",\"desc\":\"  Le projet Alpha.  \"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "description longue",
+      "method": "POST",
+      "body": "{\"action\":\"desc\",\"slug\":\"alpha-2\",\"desc\":\"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé  fin\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "desc": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "description coupée sur une espace",
+      "method": "POST",
+      "body": "{\"action\":\"desc\",\"slug\":\"projet\",\"desc\":\"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé  suite\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "desc": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "description effacée",
+      "method": "POST",
+      "body": "{\"action\":\"desc\",\"slug\":\"alpha-2\",\"desc\":\"   \"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "description inconnue",
+      "method": "POST",
+      "body": "{\"action\":\"desc\",\"slug\":\"nope\",\"desc\":\"x\"}",
+      "status": 400,
+      "out": {
+        "error": "projet introuvable",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule",
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"alpha\"}",
+      "status": 200,
+      "out": {
+        "active": "alpha",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": true,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule sur l'actif",
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"alpha\"}",
+      "status": 200,
+      "out": {
+        "active": "alpha",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": true,
+            "convs": 3,
+            "created": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "pages": 0,
+            "slug": "alpha",
+            "trackers": 2
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule inconnue",
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"nope\"}",
+      "status": 400,
+      "out": {
+        "error": "projet introuvable",
+        "ok": false
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule pendant une génération",
+      "generating": true,
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"generale\"}",
+      "status": 409,
+      "out": {
+        "error": "une génération est en cours",
+        "ok": false
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression pendant une génération",
+      "generating": true,
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"alpha\"}",
+      "status": 409,
+      "out": {
+        "error": "une génération est en cours",
+        "ok": false
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression inconnue pendant une génération",
+      "generating": true,
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"nope\"}",
+      "status": 409,
+      "out": {
+        "error": "une génération est en cours",
+        "ok": false
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule inconnue pendant une génération",
+      "generating": true,
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"nope\"}",
+      "status": 409,
+      "out": {
+        "error": "une génération est en cours",
+        "ok": false
+      },
+      "after": {
+        "active": "alpha",
+        "convs": [
+          "a1:alpha",
+          "a2:alpha",
+          "a3:alpha",
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "desc": "Le projet Alpha.",
+            "name": "Alpha",
+            "slug": "alpha"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alpha/pas",
+          "alpha/sommeil",
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/alpha/",
+          "memory/alpha/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression de l'actif",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"alpha\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "pages": 0,
+            "slug": "projet",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression inconnue",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"nope\"}",
+      "status": 400,
+      "out": {
+        "error": "projet introuvable",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "desc": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "name": "!!!",
+            "slug": "projet"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/projet/",
+          "memory/projet/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"projet\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "bascule vers un projet sans discussion",
+      "method": "POST",
+      "body": "{\"action\":\"switch\",\"slug\":\"projet-2\"}",
+      "status": 200,
+      "out": {
+        "active": "projet-2",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Bêta",
+            "pages": 0,
+            "slug": "alpha-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": true,
+            "convs": 1,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Bêta",
+            "slug": "alpha-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/alpha-2/",
+          "memory/alpha-2/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression bis",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"alpha-2\"}",
+      "status": 200,
+      "out": {
+        "active": "projet-2",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Réseau NAS — ça ñ",
+            "pages": 0,
+            "slug": "reseau-nas-ca-n",
+            "trackers": 0
+          },
+          {
+            "active": true,
+            "convs": 1,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Réseau NAS — ça ñ",
+            "slug": "reseau-nas-ca-n"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/reseau-nas-ca-n/",
+          "memory/reseau-nas-ca-n/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression ter",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"reseau-nas-ca-n\"}",
+      "status": 200,
+      "out": {
+        "active": "projet-2",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": true,
+            "convs": 1,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "liste après",
+      "method": "GET",
+      "status": 200,
+      "out": {
+        "active": "projet-2",
+        "ok": true,
+        "projects": [
+          {
+            "active": false,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": true,
+            "convs": 1,
+            "created": 0,
+            "name": "???",
+            "pages": 0,
+            "slug": "projet-2",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "action inconnue",
+      "method": "POST",
+      "body": "{\"action\":\"Nuke\",\"slug\":\"generale\"}",
+      "status": 400,
+      "out": {
+        "error": "action inconnue : \"Nuke\"",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "action vide",
+      "method": "POST",
+      "body": "{}",
+      "status": 400,
+      "out": {
+        "error": "action inconnue : \"\"",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "corps vide",
+      "method": "POST",
+      "status": 400,
+      "out": {
+        "error": "EOF",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "corps illisible",
+      "method": "POST",
+      "body": "{\"action\":\"create\"",
+      "status": 400,
+      "out": {
+        "error": "unexpected EOF",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "type faux",
+      "method": "POST",
+      "body": "{\"action\":\"create\",\"name\":7}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field .name of type string",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "méthode refusée",
+      "method": "PUT",
+      "body": "{}",
+      "status": 405,
+      "out": {
+        "error": "méthode non autorisée",
+        "ok": false
+      },
+      "after": {
+        "active": "projet-2",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs",
+          "{{NEW}}:projet-2"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "???",
+            "slug": "projet-2"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/projet-2/",
+          "memory/projet-2/MEMORY.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression de projet-2",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"projet-2\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "pages": 0,
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+            "trackers": 0
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-Ab-",
+            "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/",
+          "memory/ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a/MEMORY.md",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression de ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-a\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          },
+          {
+            "active": false,
+            "convs": 0,
+            "created": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "pages": 0,
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "trackers": 0
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          },
+          {
+            "created_at": 0,
+            "name": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "slug": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/",
+          "memory/uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu/MEMORY.md"
+        ]
+      }
+    },
+    {
+      "name": "suppression de uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu\"}",
+      "status": 200,
+      "out": {
+        "active": "generale",
+        "ok": true,
+        "projects": [
+          {
+            "active": true,
+            "convs": 2,
+            "created": 0,
+            "name": "Générale",
+            "pages": 3,
+            "slug": "generale",
+            "trackers": 1
+          }
+        ]
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md"
+        ]
+      }
+    },
+    {
+      "name": "dernier projet",
+      "method": "POST",
+      "body": "{\"action\":\"delete\",\"slug\":\"generale\"}",
+      "status": 400,
+      "out": {
+        "error": "impossible de supprimer le dernier projet",
+        "ok": false
+      },
+      "after": {
+        "active": "generale",
+        "convs": [
+          "g1:generale",
+          "o1:",
+          "x1:ailleurs"
+        ],
+        "projects": [
+          {
+            "created_at": 0,
+            "name": "Générale",
+            "slug": "generale"
+          }
+        ],
+        "trackers": [
+          "alphabet/x",
+          "generale/poids"
+        ],
+        "tree": [
+          "memory/",
+          "memory/generale/",
+          "memory/generale/.cache.md",
+          "memory/generale/MEMORY.md",
+          "memory/generale/a.md",
+          "memory/generale/b.MD",
+          "memory/generale/notes.txt",
+          "memory/generale/sous/",
+          "memory/generale/sous/page.md",
+          "memory/generale/z.md"
+        ]
+      }
+    }
+  ]
+}

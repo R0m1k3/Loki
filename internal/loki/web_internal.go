@@ -125,6 +125,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalCDPShutdown(w, r)
 		case "/internal/v1/service/action":
 			handleInternalServiceAction(w, r)
+		case "/internal/v1/project/switch":
+			handleInternalProjectSwitch(w, r)
+		case "/internal/v1/project/drop-convs":
+			handleInternalProjectDropConvs(w, r)
 		default:
 			http.NotFound(w, r)
 		}

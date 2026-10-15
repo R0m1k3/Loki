@@ -48,7 +48,7 @@ pub const MEM_INDEX_FILE: &str = "MEMORY.md";
 /// Magic des contenus chiffrés (`memPageMagic`).
 pub const PAGE_MAGIC: &[u8] = b"LOKIMEMv1";
 pub const BK_TRACKER: &str = "tracker";
-const ST_PROJECTS: &str = "projects";
+pub(crate) const ST_PROJECTS: &str = "projects";
 const ST_ACTIVE_PROJECT: &str = "active_project";
 const ST_AGENT: &str = "agent";
 const DEFAULT_PROJECT_SLUG: &str = "generale";
@@ -400,7 +400,7 @@ pub fn parse_when(when: &str, now_ms: i64, tz: Tz) -> Result<(i64, bool), String
     ))
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_millis() as i64)

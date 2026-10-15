@@ -758,3 +758,72 @@ func TestFacadeRelaisGardeHote(t *testing.T) {
 		t.Fatalf("hôte %q, schéma %q", host, proto)
 	}
 }
+
+// Le hub des projets (LOKI_PROJECTS=rust, lot 18) part à la façade ; quand le
+// Go tient la conversation, la bascule et les discussions d'un projet
+// supprimé restent ici (API interne).
+func TestFacadeProjets(t *testing.T) {
+	testHome(t)
+	// Le projet actif est gardé en RAM d'un test à l'autre.
+	activeProjMu.Lock()
+	activeProjCache = ""
+	activeProjMu.Unlock()
+	t.Cleanup(func() {
+		activeProjMu.Lock()
+		activeProjCache = ""
+		activeProjMu.Unlock()
+	})
+	ensureDefaultProject()
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/projects", local)(w, httptest.NewRequest("GET", "/api/projects", nil))
+	if w.Body.String() != "go" {
+		t.Fatalf("servi ailleurs sans LOKI_PROJECTS : %q", w.Body.String())
+	}
+	t.Setenv(facadeProjectsEnv, "rust")
+	w = httptest.NewRecorder()
+	withFacadeChat("/api/projects", local)(w, httptest.NewRequest("POST", "/api/projects", strings.NewReader("{}")))
+	if w.Body.String() != f.reply || len(f.recu()) != 1 {
+		t.Fatalf("relais : %q, %d appels", w.Body.String(), len(f.recu()))
+	}
+
+	if _, err := createProject("Alpha"); err != nil {
+		t.Fatal(err)
+	}
+	convIndexSave([]convMeta{{ID: "a1", Project: "alpha", Updated: 1}, {ID: "g1", Project: "generale", Updated: 2}})
+	_ = putBytes(bkChat, convKey("a1"), []byte(`{"id":"a1"}`))
+	_ = putBytes(bkChat, convKey("g1"), []byte(`{"id":"g1"}`))
+	post := func(h http.HandlerFunc, body string) (int, string) {
+		w := httptest.NewRecorder()
+		h(w, httptest.NewRequest("POST", "/internal/v1/project/x", strings.NewReader(body)))
+		return w.Code, strings.TrimSpace(w.Body.String())
+	}
+	if c, b := post(handleInternalProjectSwitch, `{"slug":"nope"}`); c != 400 || b != `{"error":"projet introuvable"}` {
+		t.Fatalf("bascule inconnue : %d %s", c, b)
+	}
+	if c, _ := post(handleInternalProjectSwitch, `{"slug":" alpha "}`); c != 204 || activeProjectSlug() != "alpha" {
+		t.Fatalf("bascule : %d, actif %q", c, activeProjectSlug())
+	}
+	conv.mu.Lock()
+	conv.Generating = true
+	conv.mu.Unlock()
+	c1, _ := post(handleInternalProjectSwitch, `{"slug":"generale"}`)
+	c2, _ := post(handleInternalProjectDropConvs, `{"slug":"alpha"}`)
+	conv.mu.Lock()
+	conv.Generating = false
+	conv.mu.Unlock()
+	if c1 != 409 || c2 != 409 {
+		t.Fatalf("pendant une génération : %d, %d", c1, c2)
+	}
+	if c, b := post(handleInternalProjectDropConvs, `{"slug":"alpha"}`); c != 200 || b != `{"dropped":1}` {
+		t.Fatalf("discussions supprimées : %d %s", c, b)
+	}
+	if n := len(convIndexForProject("alpha")); n != 0 || len(convIndexForProject("generale")) == 0 {
+		t.Fatalf("index après : %d d'Alpha", n)
+	}
+	if c, _ := post(handleInternalProjectDropConvs, `nimp`); c != 400 {
+		t.Fatalf("corps illisible : %d", c)
+	}
+}

@@ -85,6 +85,8 @@ pub struct Config {
     /// Interrupteurs système (internet, navigateur, clé de complétion,
     /// réseau) tenus par la façade (`LOKI_SYSTEM=rust`) ; `None` : au Go.
     pub system: Option<Arc<crate::system::System>>,
+    /// Hub des projets tenu par la façade (`LOKI_PROJECTS=rust`).
+    pub projects: bool,
 }
 
 struct Proxy {
@@ -121,6 +123,7 @@ pub async fn serve(
             presets: cfg.presets,
             engine_ctl: cfg.engine_ctl,
             system: cfg.system,
+            projects: cfg.projects,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -207,6 +210,9 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if self.ctx.projects && crate::projects_api::handles(path) {
+            return crate::projects_api::serve(&self.ctx, req, from_go).await;
         }
         if let Some(s) = &self.ctx.system
             && crate::system::handles(path)

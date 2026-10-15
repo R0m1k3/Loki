@@ -30,6 +30,7 @@ pub mod oai;
 pub mod paths;
 pub mod presets;
 pub mod presets_api;
+pub mod projects_api;
 pub mod proxy;
 pub mod push;
 pub mod serve;

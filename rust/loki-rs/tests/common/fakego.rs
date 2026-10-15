@@ -321,6 +321,59 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             st.set("state", "active_project", &slug);
             resp(204, "")
         }
+        // Conversation tenue par le Go (lot 18) : bascule (projectSwitch) et
+        // discussions d'un projet supprimé (convDelete), sur l'index en base.
+        "/internal/v1/project/switch" | "/internal/v1/project/drop-convs" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let slug = v["slug"].as_str().unwrap_or_default().trim().to_string();
+            if *st.generating.lock().unwrap() {
+                return resp(409, r#"{"error":"une génération est en cours"}"#);
+            }
+            let mut idx: Vec<serde_json::Value> = st
+                .get("chat", "index")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
+            let proj = |m: &serde_json::Value| match m["project"].as_str().unwrap_or("").trim() {
+                "" => "generale".to_string(),
+                s => s.to_string(),
+            };
+            if path.ends_with("drop-convs") {
+                let gone: Vec<String> = idx
+                    .iter()
+                    .filter(|m| proj(m) == slug)
+                    .map(|m| m["id"].as_str().unwrap_or("").to_string())
+                    .collect();
+                idx.retain(|m| proj(m) != slug);
+                st.set("chat", "index", &serde_json::to_string(&idx).unwrap());
+                for id in &gone {
+                    st.del("chat", &format!("conv:{id}"));
+                }
+                return resp(
+                    200,
+                    serde_json::json!({ "dropped": gone.len() }).to_string(),
+                );
+            }
+            let known = st
+                .get("state", "projects")
+                .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+                .unwrap_or_default()
+                .iter()
+                .any(|p| p["slug"] == slug.as_str());
+            if !known {
+                return resp(400, r#"{"error":"projet introuvable"}"#);
+            }
+            if st.get("state", "active_project").as_deref() == Some(slug.as_str()) {
+                return resp(204, "");
+            }
+            st.set("state", "active_project", &slug);
+            if !idx.iter().any(|m| proj(m) == slug) {
+                let id = format!("c{}", idx.len() + 1_000_000);
+                idx.push(serde_json::json!({ "id": id, "title": "", "created": 0, "updated": 0, "turns": 0, "project": slug }));
+                st.set("chat", "index", &serde_json::to_string(&idx).unwrap());
+            }
+            resp(204, "")
+        }
         "/internal/v1/turn/verifier" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
@@ -579,6 +632,7 @@ pub struct Opts {
     pub presets: bool,
     pub engine_ctl: Option<Arc<loki_rs::enginectl::EngineCtl>>,
     pub system: Option<Arc<loki_rs::system::System>>,
+    pub projects: bool,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -677,6 +731,7 @@ pub async fn start_with(
         presets: opts.presets,
         engine_ctl: opts.engine_ctl,
         system: opts.system,
+        projects: opts.projects,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

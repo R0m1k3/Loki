@@ -236,6 +236,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_MEM` | `rust` : la mémoire (éditeur des pages, index, déplacement entre projets, trackers, mode mémoire, interrupteurs du mode agent) est tenue par la façade Rust ; le chiffrement reste au Go (expérimental, migration en cours) | Go |
 | `LOKI_SERVE` | `rust` : la ligne de commande de llama-server est composée par la façade Rust (`loki-rs engine serve`) au lieu de `loki serve` ; Strata et l'optimiseur restent au Go (expérimental, migration en cours) | Go |
 | `LOKI_PRESETS` | `rust` : les presets (liste, éditeur et aperçus, suppression, placement auto, presets externes, bascule) sont tenus par la façade Rust ; l'application au moteur reste au Go (expérimental, migration en cours) | Go |
+| `LOKI_PROJECTS` | `rust` : le hub des projets (liste et comptes, création, renommage, description, suppression, bascule) est tenu par la façade Rust ; les discussions restent à qui tient la conversation (expérimental, migration en cours) | Go |
 | `LOKI_SYSTEM` | `rust` : les interrupteurs système — accès internet et Crawl4AI, pilotage du navigateur, clé de complétion, écoute réseau du moteur — sont tenus par la façade Rust ; le navigateur piloté reste au Go (expérimental, migration en cours) | Go |
 | `LOKI_ENGINE` | `rust` : le pilotage du moteur (démarrage, arrêt, redémarrage, déchargement et rechargement de la VRAM) est tenu par la façade Rust, en conteneur avec son superviseur ; le verrou de l'optimiseur reste au Go (expérimental, migration en cours) | Go |
 

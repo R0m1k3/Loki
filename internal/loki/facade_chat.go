@@ -145,7 +145,8 @@ var facadeChatRoutes = map[string]bool{
 // (facade_dictate.go), les réglages partagés (facade_settings.go), les fichiers
 // de la discussion (facade_files.go), les notifications (facade_push.go), la
 // mémoire (facade_mem.go), les presets (facade_presets.go), le pilotage du
-// moteur (facade_engine.go), les interrupteurs système (facade_system.go).
+// moteur (facade_engine.go), les interrupteurs système (facade_system.go), les
+// projets (facade_projects.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
@@ -170,6 +171,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeEngine, "pilotage du moteur indisponible : "
 	case facadeSystemRoutes[path]:
 		held, unavailable = facadeSystem, "réglages système indisponibles : "
+	case facadeProjectsRoutes[path]:
+		held, unavailable = facadeProjects, "projets indisponibles : "
 	default:
 		return h
 	}

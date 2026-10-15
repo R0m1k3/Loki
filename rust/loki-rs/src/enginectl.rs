@@ -359,7 +359,7 @@ fn pid_alive(_: i32) -> bool {
 
 /// La conversation écrit-elle une réponse ? Celle de la façade si elle la
 /// tient, sinon celle du Go.
-async fn generating(ctx: &Ctx) -> bool {
+pub(crate) async fn generating(ctx: &Ctx) -> bool {
     if let Some(chat) = &ctx.chat {
         return chat.sessions.conv().is_generating();
     }
