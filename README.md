@@ -227,6 +227,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_AUTO_UPDATE` | `0` : pas de mise à jour des binaires au démarrage | `1` |
 | `LOKI_FACADE` | `0` : sans façade Rust, le Go sert directement le port public (porte de sortie) | `1` |
 | `LOKI_GO_PORT` | port local (127.0.0.1) du serveur Go derrière la façade | `8091` |
+| `LOKI_CHAT` | `rust` : la conversation est tenue par la façade Rust (expérimental, migration en cours). Le Go garde le mode Code, les pièces jointes, les fichiers et l'export ; sa boucle de vérification du mode Code et les clés `PROJ_SNAPSHOT`, `KEEP_TURN_IMAGES`, `NUDGE_IN_TOOL`, `SIDE_SLOT`, `SLOT_PERSIST` ne sont pas prises en charge dans ce mode | Go |
 
 **Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
 hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse

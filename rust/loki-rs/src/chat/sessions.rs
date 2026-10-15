@@ -220,6 +220,24 @@ impl<H: SessionHooks> Sessions<H> {
         Err(last_err)
     }
 
+    /// `reloadEncryptedStores` : après le déverrouillage de la mémoire,
+    /// recharge la discussion si elle a été chargée vide (mémoire verrouillée
+    /// au démarrage). Jamais un fil déjà rempli : écraser le tour en cours le
+    /// perdrait. Rend vrai si elle a été rechargée.
+    pub async fn reload_if_empty(&self) -> Result<bool, String> {
+        let _op = self.op.lock().await;
+        if self.conv.is_generating() || !self.conv.with_state(|st| st.log.is_empty()) {
+            return Ok(false);
+        }
+        let id = self.ensure_active_locked().await?;
+        let Some(body) = self.store.get_open(BK_CHAT, &conv_key(&id)).await? else {
+            return Ok(false);
+        };
+        self.conv.load_from(&id, &body);
+        self.hooks.activated(&id).await;
+        Ok(true)
+    }
+
     /// `convEnsureActive` : identifiant de la discussion active, créée au
     /// besoin (reprise silencieuse du fil unique d'avant les discussions).
     pub async fn ensure_active(&self) -> Result<String, String> {

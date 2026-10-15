@@ -752,12 +752,6 @@ impl ChatService {
                 kwargs: reasoning.kwargs.clone().unwrap_or_default(),
             },
             queued: Box::new(move || me.drain_queued(epoch)),
-            notice: {
-                let conv = conv.clone();
-                Box::new(move |d| {
-                    conv.append_delta(epoch, d);
-                })
-            },
         };
 
         // Chaque événement devient un delta du journal.

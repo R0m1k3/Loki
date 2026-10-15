@@ -312,9 +312,6 @@ pub struct GoTurnHost {
     pub compact: TurnCompact,
     /// Messages mis en file par l'utilisateur pendant le tour.
     pub queued: Box<dyn Fn() -> Vec<Message> + Send + Sync>,
-    /// Événement d'affichage né d'un outil hors du flux du modèle (critères
-    /// changés par l'outil `criteria`), à journaliser.
-    pub notice: Box<dyn Fn(Map<String, Value>) + Send + Sync>,
 }
 
 /// `toolResID` : « <discussion>.<24 hex> ».
@@ -399,19 +396,7 @@ impl TurnHost for GoTurnHost {
             .tool_exec(name, &Value::Object(args.clone()), &self.caps)
             .await
         {
-            Ok(v) => {
-                if let Some(list) = v.get("criteria").filter(|l| l.is_array()) {
-                    let ts = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_millis() as i64)
-                        .unwrap_or(0);
-                    let mut d = Map::new();
-                    d.insert("criteria".into(), list.clone());
-                    d.insert("ts".into(), ts.into());
-                    (self.notice)(d);
-                }
-                tool_outcome(&v, label)
-            }
+            Ok(v) => tool_outcome(&v, label),
             Err(e) => ToolOutcome {
                 result: format!("[erreur] exécution de l'outil impossible : {e}"),
                 ..Default::default()

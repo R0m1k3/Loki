@@ -572,7 +572,6 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
-        notice: Box::new(|_| {}),
     };
     let bash = Tool {
         kind: "function".into(),
@@ -901,6 +900,20 @@ async fn call(
     )
 }
 
+/// POST porteur du jeton interne (requête relayée par le Go) : le statut.
+async fn call_internal(facade: std::net::SocketAddr, path: &str, body: &str) -> u16 {
+    use http_body_util::Full;
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+        .build_http::<Full<bytes::Bytes>>();
+    let req = hyper::Request::builder()
+        .method("POST")
+        .uri(format!("http://{facade}{path}"))
+        .header("x-loki-internal", fakego::JETON)
+        .body(Full::new(bytes::Bytes::from(body.to_string())))
+        .unwrap();
+    client.request(req).await.unwrap().status().as_u16()
+}
+
 /// Ouvre le flux SSE et lit jusqu'à `caught_up` : rend les événements.
 async fn read_stream(
     facade: std::net::SocketAddr,
@@ -1048,19 +1061,45 @@ async fn routes_du_chat_par_la_facade() {
     let (_, list) = call(facade, "GET", "/api/conversations", "").await;
     assert_eq!(list["conversations"][0]["title"], "Mon fil");
 
-    // Bascule du mode Code : relayée au Go, journalisée ici.
-    let (code, v) = call(facade, "POST", "/api/chat/mode", r#"{"mode":"code"}"#).await;
-    assert_eq!((code, v["mode"].clone()), (200, serde_json::json!("code")));
+    // Mode Code : servi par le Go, qui pousse son événement au journal d'ici
+    // par l'API interne de la façade (jeton interne exigé).
+    assert_eq!(
+        call(facade, "POST", "/api/chat/mode", r#"{"mode":"code"}"#)
+            .await
+            .0,
+        200
+    );
     assert!(
         go.relayed
             .lock()
             .unwrap()
             .contains(&"/api/chat/mode".to_string())
     );
+    let (code, _) = call(
+        facade,
+        "POST",
+        "/internal/facade/v1/delta",
+        r#"{"mode":"code"}"#,
+    )
+    .await;
+    assert_eq!(code, 404, "sans le jeton, l'API interne n'existe pas");
+    let code = call_internal(facade, "/internal/facade/v1/delta", r#"{"mode":"code"}"#).await;
+    assert_eq!(code, 204);
     assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    // Fil déjà rempli : le déverrouillage ne le recharge pas.
+    assert_eq!(
+        call_internal(facade, "/internal/facade/v1/reload", "").await,
+        200
+    );
+    assert!(!chat.sessions.conv().with_state(|st| st.log.is_empty()));
+
+    // Trafic remis par le Go (tunnel) : déjà authentifié par lui.
+    go.set("state", "web_key", "cle-web");
+    assert_eq!(call(facade, "GET", "/api/chat/state", "").await.0, 401);
+    assert_eq!(call_internal(facade, "/api/chat/state", "").await, 200);
 
     // Reset : fil vide, fichiers de la discussion effacés par le Go.
-    assert_eq!(call(facade, "POST", "/api/chat/reset", "").await.0, 200);
+    assert_eq!(call_internal(facade, "/api/chat/reset", "").await, 200);
     assert!(chat.sessions.conv().with_state(|st| st.log.is_empty()));
     assert!(
         go.conv_log
@@ -1068,4 +1107,27 @@ async fn routes_du_chat_par_la_facade() {
             .unwrap()
             .contains(&format!("dropped {a}"))
     );
+}
+
+#[tokio::test]
+async fn deverrouillage_recharge_la_discussion_chargee_vide() {
+    let (s, _h, go, _stop, _t) = sessions().await;
+    go.set(BK_CHAT, "active", "c1");
+    go.set(
+        BK_CHAT,
+        "conv:c1",
+        r#"SCELLE:{"messages":[{"role":"user","content":"fil chiffré"}],"log":[{"seq":1,"ts":0,"delta":{"user":"fil chiffré"}}],"seq":1,"ctx_used":0}"#,
+    );
+    // Mémoire verrouillée au démarrage : fil vide, rien d'écrasé.
+    *go.locked.lock().unwrap() = true;
+    s.load().await.unwrap();
+    assert_eq!(s.conv().id(), "c1");
+    assert!(textes(&s).is_empty());
+    assert_eq!(s.reload_if_empty().await, Ok(false), "toujours verrouillée");
+    // Déverrouillée : le fil revient.
+    *go.locked.lock().unwrap() = false;
+    assert_eq!(s.reload_if_empty().await, Ok(true));
+    assert_eq!(textes(&s), ["fil chiffré"]);
+    // Déjà rempli : jamais rechargé par-dessus.
+    assert_eq!(s.reload_if_empty().await, Ok(false));
 }

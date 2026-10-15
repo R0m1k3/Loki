@@ -26,6 +26,19 @@ pub struct Ctx {
     pub engine: engine::Paths,
     /// Conversation tenue par la façade (`LOKI_CHAT=rust`) ; `None` : au Go.
     pub chat: Option<std::sync::Arc<crate::chat::generate::ChatService>>,
+    /// Jeton de l'API interne : une requête qui le porte vient du Go.
+    pub internal_token: String,
+}
+
+impl Ctx {
+    /// La requête vient du Go (jeton interne valide) : déjà authentifiée par
+    /// lui (tunnel du relais, redistribution E2E).
+    pub fn from_go(&self, headers: &HeaderMap) -> bool {
+        !self.internal_token.is_empty()
+            && headers.get(crate::auth::INTERNAL_HEADER).is_some_and(|v| {
+                auth::constant_time_eq(v.as_bytes(), self.internal_token.as_bytes())
+            })
+    }
 }
 
 impl Ctx {

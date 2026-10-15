@@ -6,11 +6,11 @@
 //! - `/api/chat/send|stop|reset|state|compact|tool-result` ;
 //! - `/api/conversations{,/new,/switch,/rename,/delete}`.
 //!
-//! `/api/chat/mode` et `/api/chat/criteria` restent au Go (état du mode Code
-//! en base), mais l'événement qu'ils poussent aux abonnés doit atteindre LE
-//! journal tenu ici : la façade relaie la requête puis journalise la réponse
-//! ([`after_forward`]). Pièces jointes, fichiers, images, export : au Go,
-//! qui suit la discussion active.
+//! Le reste (mode Code et critères, pièces jointes, fichiers, images,
+//! export) reste au Go, qui suit la discussion active et pousse ses propres
+//! événements d'affichage dans le journal tenu ici ([`serve_internal`]). Le
+//! trafic de chat qui arrive au Go sans passer par la façade (tunnel du
+//! relais) lui est remis, authentifié par le jeton interne.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,7 +20,7 @@ use http_body_util::{BodyExt, Full, Limited, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::header::{self, HeaderValue};
 use hyper::{Method, Request, Response, StatusCode};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use crate::api::{Ctx, query_param};
@@ -54,9 +54,43 @@ pub fn handles(path: &str) -> bool {
     )
 }
 
-/// Route relayée au Go dont la réponse est journalisée ici.
-pub fn relays_delta(path: &str) -> bool {
-    matches!(path, "/api/chat/mode" | "/api/chat/criteria")
+/// API interne de la façade, pour le Go : un événement d'affichage né chez
+/// lui (bascule du mode Code, critères) à journaliser ici, et le
+/// rechargement de la discussion après le déverrouillage de la mémoire.
+pub fn is_internal(path: &str) -> bool {
+    matches!(
+        path,
+        "/internal/facade/v1/delta" | "/internal/facade/v1/reload"
+    )
+}
+
+pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> Response<Body> {
+    let path = req.uri().path().to_string();
+    if req.method() != Method::POST {
+        return send_json(
+            StatusCode::METHOD_NOT_ALLOWED,
+            &json!({ "error": "POST attendu" }),
+        );
+    }
+    match path.as_str() {
+        "/internal/facade/v1/delta" => match read_json(req.into_body()).await {
+            Ok(Value::Object(d)) if !d.is_empty() => {
+                chat.push_delta(d);
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(Full::new(Bytes::new()).map_err(|n| match n {}).boxed())
+                    .unwrap_or_default()
+            }
+            _ => send_json(
+                StatusCode::BAD_REQUEST,
+                &json!({ "error": "événement illisible" }),
+            ),
+        },
+        _ => match chat.sessions.reload_if_empty().await {
+            Ok(reloaded) => send_json(StatusCode::OK, &json!({ "reloaded": reloaded })),
+            Err(e) => send_json(StatusCode::SERVICE_UNAVAILABLE, &json!({ "error": e })),
+        },
+    }
 }
 
 /// Corps JSON de la requête ; vide → `{}` ; illisible → `Err(message)`.
@@ -94,9 +128,15 @@ fn str_of<'a>(v: &'a Value, k: &str) -> &'a str {
     v.get(k).and_then(Value::as_str).unwrap_or("")
 }
 
-pub async fn serve(ctx: &Ctx, chat: &Arc<ChatService>, req: Request<Incoming>) -> Response<Body> {
+/// `from_go` : relayée par le Go, qui l'a déjà authentifiée.
+pub async fn serve(
+    ctx: &Ctx,
+    chat: &Arc<ChatService>,
+    req: Request<Incoming>,
+    from_go: bool,
+) -> Response<Body> {
     let (parts, body) = req.into_parts();
-    if let Err(refus) = ctx.guard(&parts.headers).await {
+    if !from_go && let Err(refus) = ctx.guard(&parts.headers).await {
         return *refus;
     }
     let path = parts.uri.path().to_string();
@@ -187,45 +227,6 @@ pub async fn serve(ctx: &Ctx, chat: &Arc<ChatService>, req: Request<Incoming>) -
     }
 }
 
-/// Après le relais d'une bascule de mode ou d'une édition de critères au Go :
-/// l'état rendu est journalisé ici, pour que tous les appareils suivent.
-pub async fn after_forward(
-    chat: &ChatService,
-    method: &Method,
-    path: &str,
-    resp: Response<Body>,
-) -> Response<Body> {
-    if *method != Method::POST || resp.status() != StatusCode::OK {
-        return resp;
-    }
-    let (parts, body) = resp.into_parts();
-    let bytes = match body.collect().await {
-        Ok(b) => b.to_bytes(),
-        Err(_) => return plain(StatusCode::BAD_GATEWAY, "réponse du serveur Go interrompue"),
-    };
-    if let Ok(v) = serde_json::from_slice::<Value>(&bytes) {
-        let mut d = Map::new();
-        match path {
-            "/api/chat/mode" if v.get("mode").is_some() => {
-                d.insert("mode".into(), v["mode"].clone());
-            }
-            "/api/chat/criteria" if v.get("criteria").is_some() => {
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|t| t.as_millis() as i64)
-                    .unwrap_or(0);
-                d.insert("criteria".into(), v["criteria"].clone());
-                d.insert("ts".into(), ts.into());
-            }
-            _ => {}
-        }
-        if !d.is_empty() {
-            chat.push_delta(d);
-        }
-    }
-    Response::from_parts(parts, Full::new(bytes).map_err(|n| match n {}).boxed())
-}
-
 /// `handleChat` : le flux d'abonnement. `from` : dernier Seq vu ; `tail` :
 /// échanges à rejouer (absent : ancien client, tout) ; `conv_id` : discussion
 /// affichée.
@@ -306,7 +307,11 @@ mod tests {
     #[test]
     fn routes() {
         assert!(handles("/api/chat") && handles("/api/conversations/delete"));
-        assert!(!handles("/api/chat/upload") && !handles("/api/chat/export"));
-        assert!(relays_delta("/api/chat/mode") && !relays_delta("/api/chat"));
+        assert!(
+            !handles("/api/chat/upload")
+                && !handles("/api/chat/export")
+                && !handles("/api/chat/mode")
+        );
+        assert!(is_internal("/internal/facade/v1/delta") && !is_internal("/internal/v1/auth"));
     }
 }
