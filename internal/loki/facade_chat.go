@@ -49,15 +49,14 @@ func facadeChat() bool {
 // facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
 // en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
 // figé, images gardées, slots du moteur, préchauffage, motifs de relance
-// personnalisés).
+// personnalisés). NUDGE_IN_TOOL n'en est plus (lot 23) : la façade a sa sonde
+// de gabarit.
 func facadeChatBlocker(cfg map[string]string) string {
 	switch {
 	case projSnapEnabled(cfg):
 		return "PROJ_SNAPSHOT"
 	case keepTurnImagesOn(cfg):
 		return "KEEP_TURN_IMAGES"
-	case cfgOn(cfg, "NUDGE_IN_TOOL"):
-		return "NUDGE_IN_TOOL"
 	case sideSlotOn(cfg):
 		return "SIDE_SLOT"
 	case slotPersistOn(cfg):
@@ -68,15 +67,6 @@ func facadeChatBlocker(cfg map[string]string) string {
 		return "retry_patterns"
 	}
 	return ""
-}
-
-// cfgOn : une clé booléenne posée (mêmes valeurs que les autres clés opt-in).
-func cfgOn(cfg map[string]string, k string) bool {
-	switch strings.ToLower(strings.TrimSpace(cfg[k])) {
-	case "on", "1", "true", "yes", "oui":
-		return true
-	}
-	return false
 }
 
 // Décision prise UNE fois par process : passer la conversation d'un détenteur
@@ -242,6 +232,31 @@ func facadePost(path string, body any) error {
 		return fmt.Errorf("façade : %s", resp.Status)
 	}
 	return nil
+}
+
+// facadeTplCaps : le dernier verdict de la sonde de gabarit de la façade,
+// quand elle tient la conversation (c'est elle qui sonde après ses
+// complétions).
+func facadeTplCaps() (tplProbeResult, bool) {
+	req, err := http.NewRequest(http.MethodPost, "http://"+facadeAddr()+"/internal/facade/v1/chat/tpl", strings.NewReader("{}"))
+	if err != nil {
+		return tplProbeResult{}, false
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(internalTokenHeader, internalToken())
+	resp, err := facadeClient.Do(req)
+	if err != nil {
+		return tplProbeResult{}, false
+	}
+	defer resp.Body.Close()
+	var out struct {
+		OK     bool           `json:"ok"`
+		Result tplProbeResult `json:"result"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&out) != nil || !out.OK {
+		return tplProbeResult{}, false
+	}
+	return out.Result, true
 }
 
 // facadeError : refus de la façade, avec son statut (409 : un tour tourne).

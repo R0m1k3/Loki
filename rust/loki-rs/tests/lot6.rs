@@ -497,9 +497,10 @@ use loki_rs::chat::compact::{CompactCaps, CompactConfig, CompactMemory};
 use loki_rs::chat::engine::EngineHttp;
 use loki_rs::chat::host::{ChatShared, EngineSummarizer, GoTurnHost, ImageCache, TurnCompact};
 use loki_rs::chat::stream::RetryPatterns;
+use loki_rs::chat::tplprobe::{ProbeResult, Shape};
 use loki_rs::chat::turn::{Cancel, TurnConfig, run_turn};
 use loki_rs::chat::types::{Message, StreamEvent, Tool, ToolFunction};
-use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TurnReasoning};
+use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TplTri, TurnReasoning};
 
 /// Faux moteur : rend les réponses SSE dans l'ordre, garde les requêtes.
 async fn fake_engine(
@@ -541,6 +542,22 @@ async fn fake_engine_gated(
                             if req.uri().path() == "/health" {
                                 return ok("ok".into());
                             }
+                            // Sonde de gabarit (lancée après chaque complétion
+                            // du fil principal) : un gabarit qui rend toujours
+                            // la même chose. Ses rendus ne comptent pas parmi
+                            // les requêtes vues.
+                            if req.uri().path() == "/props" {
+                                return ok(r#"{"build_info":"b1-x","model_path":"/m/m1.gguf","chat_template":"t"}"#.into());
+                            }
+                            if req.uri().path() == "/apply-template" {
+                                let body = req.into_body().collect().await.unwrap().to_bytes();
+                                let b: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                                PROBE_RENDERS.lock().unwrap().push(b.clone());
+                                return ok(
+                                    serde_json::json!({ "prompt": render_without_reasoning(&b) })
+                                        .to_string(),
+                                );
+                            }
                             let auth = req
                                 .headers()
                                 .get("authorization")
@@ -577,6 +594,34 @@ async fn fake_engine_gated(
     });
     (format!("http://{addr}/v1/chat/completions"), seen)
 }
+
+/// Un gabarit qui ne rend jamais `reasoning_content` : rôle, texte, appels
+/// d'outils, et l'amorce de réponse si elle est demandée.
+fn render_without_reasoning(b: &serde_json::Value) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for m in b["messages"].as_array().into_iter().flatten() {
+        let calls: Vec<&str> = m["tool_calls"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|c| c["function"]["name"].as_str())
+            .collect();
+        out.push(format!(
+            "{}:{}{}",
+            m["role"].as_str().unwrap_or(""),
+            m["content"].as_str().unwrap_or(""),
+            calls.join(",")
+        ));
+    }
+    let mut p = out.join("\n");
+    if b["add_generation_prompt"] == true {
+        p.push_str("\nassistant:");
+    }
+    p
+}
+
+/// Rendus demandés par la sonde de gabarit, tous moteurs confondus.
+static PROBE_RENDERS: StdMutex<Vec<serde_json::Value>> = StdMutex::new(Vec::new());
 
 fn sse(chunks: &[serde_json::Value]) -> String {
     chunks
@@ -620,6 +665,7 @@ async fn tour_complet_par_le_go() {
         compact_memory: CompactMemory::new(),
         images: ImageCache::new(imgdir),
         patterns: RetryPatterns::builtin(),
+        tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
     });
     let cfg = std::collections::HashMap::new();
     let host = GoTurnHost {
@@ -870,6 +916,154 @@ async fn tour_de_bout_en_bout() {
         .await
         .unwrap();
     assert!(again.dup);
+}
+
+/// Lot 23 : après un tour, la façade sonde le gabarit du moteur avec la
+/// forme de la requête (mêmes outils), et range le verdict que le Go relit
+/// pour son résumé des performances.
+#[tokio::test]
+async fn sonde_de_gabarit_apres_un_tour() {
+    let (url, _seen) = fake_engine(tool_then_answer("fini")).await;
+    let (svc, _go, _stop, _t) = service(Some(&url)).await;
+    svc.send(serde_json::json!({"message": "liste", "cid": "s1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| svc.shared.tpl.caps_current(false).is_some()).await;
+    let r = svc.shared.tpl.caps_current(false).unwrap();
+    assert_eq!(r.tools, 1);
+    assert_eq!(r.build, "b1-x");
+    assert_eq!(r.model, "m1.gguf");
+    assert_eq!(r.note, "reasoning_content jamais rendu");
+    assert_eq!(
+        (r.preserves_history, r.prefix_stable, r.renders_reasoning),
+        (TplTri::No, TplTri::Yes, TplTri::No)
+    );
+    let renders = PROBE_RENDERS.lock().unwrap().clone();
+    assert!(
+        renders
+            .iter()
+            .any(|b| b["tools"][0]["function"]["name"] == "bash"
+                && b["parallel_tool_calls"] == false),
+        "{renders:?}"
+    );
+    // Un preset externe : rien d'affiché.
+    assert!(svc.shared.tpl.caps_current(true).is_none());
+}
+
+/// Le verdict de la sonde décide pour l'hôte : rappel dans le résultat
+/// d'outil seulement si le préfixe est instable pour CE modèle ; sonde
+/// lancée pour le fil principal, jamais pour une tâche.
+#[tokio::test]
+async fn hote_et_sonde_de_gabarit() {
+    let (svc, _go, _stop, _t) = service(None).await;
+    let shared = svc.shared.clone();
+    let host = |main: &str, model: &str| {
+        let cfg = std::collections::HashMap::from([("MODEL".to_string(), model.to_string())]);
+        let ep = ChatEndpoint {
+            url: "http://127.0.0.1:1/v1/chat/completions".into(),
+            model: "loki".into(),
+            key: String::new(),
+            external: false,
+        };
+        GoTurnHost {
+            shared: shared.clone(),
+            conv_id: "c1".into(),
+            caps: serde_json::json!({}),
+            cfg: cfg.clone(),
+            port: 1,
+            summarizer: EngineSummarizer {
+                http: shared.http.clone(),
+                ep,
+                cfg,
+                patterns: shared.patterns.clone(),
+                port: 1,
+            },
+            compact: TurnCompact {
+                cfg: CompactConfig::default(),
+                caps: CompactCaps::default(),
+                criteria: String::new(),
+                main_conv: main.into(),
+                tools: vec![],
+                effort: String::new(),
+                kwargs: Default::default(),
+            },
+            queued: Box::new(Vec::new),
+        }
+    };
+    let bash = Tool {
+        kind: "function".into(),
+        function: ToolFunction {
+            name: "bash".into(),
+            description: String::new(),
+            parameters: serde_json::json!({"type":"object"}),
+        },
+    };
+    let tools = vec![bash];
+    let shape = Shape::new(&tools, None, "");
+    let mut r = ProbeResult::unknown("");
+    r.model = "m1.gguf".into();
+    r.prefix_stable = TplTri::No;
+    shared.tpl.remember(&shape, r.clone());
+    use loki_rs::chat::turn::TurnHost;
+    assert!(host("c1", "/m/m1.gguf").prefix_unstable(&tools, None, ""));
+    assert!(!host("c1", "/m/autre.gguf").prefix_unstable(&tools, None, ""));
+    assert!(!host("c1", "/m/m1.gguf").prefix_unstable(&[], None, ""));
+    r.prefix_stable = TplTri::Yes;
+    shared.tpl.remember(&shape, r.clone());
+    assert!(!host("c1", "/m/m1.gguf").prefix_unstable(&tools, None, ""));
+    r.prefix_stable = TplTri::No;
+    r.model = String::new();
+    shared.tpl.remember(&shape, r);
+    assert!(!host("c1", "").prefix_unstable(&tools, None, ""));
+
+    // Une tâche (pas de discussion principale) ne lance pas la sonde.
+    host("", "").completed(&tools, None, "");
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert_eq!(shared.tpl.last_shape(), Shape::default());
+    host("c1", "").completed(&tools, None, "");
+    until(|| shared.tpl.last_shape() == shape).await;
+}
+
+/// REASONING_ECHO : un gabarit qui ne rend jamais le raisonnement (verdict de
+/// la sonde, après le premier tour) coupe l'écho au tour suivant.
+#[tokio::test]
+async fn echo_coupe_par_le_verdict_de_la_sonde() {
+    let reasoned = sse(&[
+        serde_json::json!({"choices":[{"delta":{"reasoning_content": "je réfléchis"}}]}),
+        serde_json::json!({"choices":[{"delta":{"content": "un"}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":40,"completion_tokens":2}}),
+    ]);
+    let (url, seen) = fake_engine(vec![reasoned.clone(), reasoned]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "REASONING_ECHO", "on");
+    go.set("config", "MODEL", "/m/m1.gguf");
+    svc.send(serde_json::json!({"message": "q1", "cid": "e1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| svc.shared.tpl.caps_current(false).is_some()).await;
+    assert_eq!(
+        svc.shared
+            .tpl
+            .caps_current(false)
+            .unwrap()
+            .renders_reasoning,
+        TplTri::No
+    );
+    svc.send(serde_json::json!({"message": "q2", "cid": "e2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let seen = seen.lock().unwrap().clone();
+    let second = &seen.last().unwrap().1;
+    let past = second["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["role"] == "assistant")
+        .unwrap();
+    assert!(past.get("reasoning_content").is_none(), "{past}");
 }
 
 /// Contenu seul, fin normale, avec l'usage (une mesure par complétion).

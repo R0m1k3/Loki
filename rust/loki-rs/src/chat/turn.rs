@@ -24,9 +24,9 @@
 //! l'historique ([`TurnResult::extra`]).
 //!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
-//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, NUDGE_IN_TOOL, SIDE_SLOT (slot et
-//! rejeux « cache KV plein »), SLOT_PERSIST, préchauffage, sonde de gabarit,
-//! télémétrie `perfRecord`, comptage des requêtes en vol du moteur. Avec l'une
+//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, SIDE_SLOT (slot et rejeux « cache KV
+//! plein »), SLOT_PERSIST, préchauffage, télémétrie `perfRecord`, comptage
+//! des requêtes en vol du moteur. Avec l'une
 //! de ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
 //! démarrage).
 
@@ -152,6 +152,20 @@ pub trait TurnHost: Send + Sync {
     }
     /// Messages mis en file par l'utilisateur, à injecter maintenant.
     fn drain_queued(&self) -> Vec<Message>;
+    /// Complétion lue en entier sur le moteur local, outils ni coupés ni
+    /// neutralisés : la sonde de gabarit peut rejouer sa forme
+    /// (`tplProbeKick`).
+    fn completed(&self, _tools: &[Tool], _kwargs: Option<&Map<String, Value>>, _effort: &str) {}
+    /// La sonde a-t-elle conclu « préfixe instable » pour CE modèle et pour
+    /// cette forme de requête (`nudgeInToolOn`, hors clé et preset externe) ?
+    fn prefix_unstable(
+        &self,
+        _tools: &[Tool],
+        _kwargs: Option<&Map<String, Value>>,
+        _effort: &str,
+    ) -> bool {
+        false
+    }
     /// Prépare ce que [`Self::image_data_url`] devra rendre pour ces messages
     /// (lecture et déchiffrement des images rangées), avant chaque requête.
     fn prepare_images(&self, _msgs: &[Message]) -> impl Future<Output = ()> + Send {
@@ -384,7 +398,19 @@ pub async fn run_turn<H: TurnHost>(
         if !nudge.is_empty() {
             s.budget_nudges += 1;
             log_budget(s.tool_runs, budget, s.budget_nudges);
-            append_nudge(&mut messages, &mut extra, &nudge);
+            // NUDGE_IN_TOOL (opt-in, gabarits dont le rendu bouge quand un
+            // message user s'ajoute) : au bout du dernier résultat d'outil.
+            // La sonde ne connaît que la forme normale : une relance d'une
+            // autre forme se replie sur le message à part.
+            let placed = !s.disable_tools
+                && !s.tool_choice_none
+                && super::nudges::nudge_in_tool_key(&tc.cfg)
+                && !ep.external
+                && host.prefix_unstable(&tc.tools, kwargs.as_ref(), &effort)
+                && super::nudges::nudge_into_tool(&mut messages, &mut extra, &nudge);
+            if !placed {
+                append_nudge(&mut messages, &mut extra, &nudge);
+            }
         }
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
@@ -585,6 +611,11 @@ pub async fn run_turn<H: TurnHost>(
         if out.is_complete(read_err.is_some()) {
             // Dernier événement de la complétion : copie complète des stats.
             cb(StreamEvent::Stats(out.stats.clone()));
+            // Sonde de gabarit, en tâche de fond et après coup : rien n'en
+            // revient dans la requête suivante.
+            if !ep.external && !s.disable_tools && !s.tool_choice_none {
+                host.completed(&tc.tools, kwargs.as_ref(), &effort);
+            }
             if !ep.external {
                 s.peak_gen = s.peak_gen.max(out.stats.gen_tokens);
                 if s.last_est > 0 && out.stats.prompt_tokens_total > 0 {

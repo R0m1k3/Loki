@@ -494,7 +494,12 @@ impl ChatService {
         let cfg = store.config().await;
         let local_key = store.get_str(BK_STATE, "api_key").await;
         let ep = resolve_chat_endpoint(&cfg, &local_key);
-        let echo = echo_policy_for(&cfg, &self.shared.echo_refusals, None);
+        let verdict = self
+            .shared
+            .tpl
+            .caps_current(ep.external)
+            .map(|r| r.verdict());
+        let echo = echo_policy_for(&cfg, &self.shared.echo_refusals, verdict.as_ref());
         let ccfg = CompactConfig::from_config(&cfg, echo.clone());
         let port = llm_port(&cfg);
         let summarizer = EngineSummarizer {
@@ -1062,6 +1067,7 @@ impl ChatShared {
             compact_memory: super::compact::CompactMemory::new(),
             images: super::host::ImageCache::new(img_dir),
             patterns: super::stream::RetryPatterns::builtin(),
+            tpl: std::sync::Arc::new(super::tplprobe::TplProbe::new()),
         }
     }
 }

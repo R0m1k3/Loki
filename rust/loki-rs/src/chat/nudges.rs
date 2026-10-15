@@ -75,6 +75,45 @@ pub fn append_nudge(messages: &mut Vec<Message>, extra: &mut Vec<Message>, text:
     }
 }
 
+/// La clé `NUDGE_IN_TOOL` est-elle posée (`nudgeInToolOn`, sans la sonde) ?
+pub fn nudge_in_tool_key(cfg: &std::collections::HashMap<String, String>) -> bool {
+    matches!(
+        cfg.get("NUDGE_IN_TOOL")
+            .map(|v| v.trim().to_lowercase())
+            .as_deref(),
+        Some("on" | "1" | "true" | "yes" | "oui")
+    )
+}
+
+/// `nudgeIntoTool` : le rappel au bout du dernier résultat d'outil, dans la
+/// vue du modèle ET dans l'historique, à l'identique. `false` : dernier
+/// message d'une autre forme, ou historique réécrit entre-temps — l'appelant
+/// passe alors par [`append_nudge`].
+pub fn nudge_into_tool(messages: &mut [Message], extra: &mut [Message], text: &str) -> bool {
+    let (Some(last), Some(kept)) = (messages.last(), extra.last()) else {
+        return false;
+    };
+    let (Some(Value::String(s)), Some(Value::String(ks))) = (&last.content, &kept.content) else {
+        return false;
+    };
+    if s != ks
+        || last.role != "tool"
+        || kept.role != "tool"
+        || last.tool_call_id != kept.tool_call_id
+    {
+        return false;
+    }
+    let mut m = last.clone();
+    m.content = Some(Value::String(format!("{s}\n\n{text}")));
+    if let Some(l) = extra.last_mut() {
+        *l = m.clone();
+    }
+    if let Some(l) = messages.last_mut() {
+        *l = m;
+    }
+    true
+}
+
 /// `steerSystem` : la consigne s'ajoute au système de tête (texte), ou
 /// devient un système en tête — jamais un système en fin de fil, que les
 /// gabarits stricts refusent.
@@ -223,5 +262,55 @@ mod tests {
             (p.chars().count(), n, cut),
             (TOOL_PREVIEW_CHARS, TOOL_PREVIEW_CHARS + 5, true)
         );
+    }
+
+    #[test]
+    fn rappel_dans_le_resultat_d_outil() {
+        let tm = |c: &str| Message {
+            role: "tool".into(),
+            content: Some(Value::String(c.into())),
+            tool_call_id: "t1".into(),
+            ..Default::default()
+        };
+        let um = |c: &str| Message {
+            role: "user".into(),
+            content: Some(Value::String(c.into())),
+            ..Default::default()
+        };
+        let mut msgs = vec![um("q"), tm("res")];
+        let mut extra = vec![tm("res")];
+        assert!(nudge_into_tool(&mut msgs, &mut extra, "[system] stop"));
+        assert_eq!(
+            msgs[1].content,
+            Some(Value::String("res\n\n[system] stop".into()))
+        );
+        assert_eq!(msgs[1], extra[0]);
+        // Dernier message d'une autre forme, ou historique réécrit.
+        let mut m2 = vec![tm("res"), um("img")];
+        assert!(!nudge_into_tool(&mut m2, &mut [tm("res")], "x"));
+        assert!(!nudge_into_tool(&mut [tm("res")], &mut [], "x"));
+        assert!(!nudge_into_tool(&mut [tm("res")], &mut [tm("autre")], "x"));
+        let mut other_id = tm("res");
+        other_id.tool_call_id = "t2".into();
+        assert!(!nudge_into_tool(&mut [tm("res")], &mut [other_id], "x"));
+        let mut empty = tm("");
+        empty.content = None;
+        assert!(!nudge_into_tool(&mut [empty.clone()], &mut [empty], "x"));
+    }
+
+    #[test]
+    fn cle_nudge_in_tool() {
+        for (v, on) in [
+            ("on", true),
+            (" TRUE ", true),
+            ("oui", true),
+            ("off", false),
+            ("", false),
+        ] {
+            let cfg =
+                std::collections::HashMap::from([("NUDGE_IN_TOOL".to_string(), v.to_string())]);
+            assert_eq!(nudge_in_tool_key(&cfg), on, "{v}");
+        }
+        assert!(!nudge_in_tool_key(&std::collections::HashMap::new()));
     }
 }

@@ -298,7 +298,7 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 		t.Fatalf("remis à la façade malgré le réglage : %q %v", rec.Body.String(), f.recu())
 	}
 	for k, want := range map[string]string{
-		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "NUDGE_IN_TOOL", "SIDE_SLOT": "SIDE_SLOT",
+		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "", "SIDE_SLOT": "SIDE_SLOT",
 		"SLOT_PERSIST": "SLOT_PERSIST", "PREWARM": "PREWARM",
 	} {
 		if got := facadeChatBlocker(map[string]string{k: "on"}); got != want {
@@ -1063,4 +1063,42 @@ func TestFacadeBackends(t *testing.T) {
 		t.Fatalf("vue sans façade : %v", v)
 	}
 	lcAppend("perdue") // tracée, sans panique
+}
+
+// Lot 23 : quand la façade tient la conversation, c'est elle qui sonde le
+// gabarit ; le résumé des performances relit son verdict.
+func TestFacadeSondeDeGabarit(t *testing.T) {
+	testHome(t)
+	freshTplProbe(t)
+	oublierDecisionFacade(t)
+	verdict := `{"ok":true,"result":{"preserves_history":"no","prefix_stable":"no","renders_reasoning":"yes","model":"m1.gguf","tools":2,"at":"2026-10-15T20:00:00.5Z"}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(internalTokenHeader) != jetonTest || r.URL.Path != "/internal/facade/v1/chat/tpl" {
+			w.WriteHeader(404)
+			return
+		}
+		io.WriteString(w, verdict)
+	}))
+	defer srv.Close()
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, strings.TrimPrefix(srv.URL, "http://"))
+	t.Setenv(facadeChatEnv, "rust")
+	r, ok := tplCapsCurrent()
+	if !ok || r.PrefixStable != tplNo || r.Model != "m1.gguf" || r.Tools != 2 || r.At.IsZero() {
+		t.Fatalf("verdict de la façade : %+v %v", r, ok)
+	}
+	rec := httptest.NewRecorder()
+	handlePerfSummary(rec, httptest.NewRequest(http.MethodGet, "/api/perf/summary", nil))
+	if !strings.Contains(rec.Body.String(), `"prefix_stable":"no"`) {
+		t.Fatalf("résumé : %s", rec.Body.String())
+	}
+	// Aucun verdict encore, ou façade injoignable : rien.
+	verdict = `{"ok":false}`
+	if _, ok := tplCapsCurrent(); ok {
+		t.Fatal("verdict inventé")
+	}
+	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
+	if _, ok := tplCapsCurrent(); ok {
+		t.Fatal("verdict sans façade")
+	}
 }

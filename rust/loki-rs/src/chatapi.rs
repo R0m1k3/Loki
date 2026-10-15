@@ -65,6 +65,7 @@ pub fn is_internal(path: &str) -> bool {
             | "/internal/facade/v1/reload"
             | "/internal/facade/v1/project/switch"
             | "/internal/facade/v1/project/drop"
+            | "/internal/facade/v1/chat/tpl"
     )
 }
 
@@ -90,6 +91,22 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
                 &json!({ "error": "événement illisible" }),
             ),
         },
+        // Dernier verdict de la sonde de gabarit (`tplCapsCurrent`), pour le
+        // résumé des performances que sert encore le Go.
+        "/internal/facade/v1/chat/tpl" => {
+            let cfg = chat.shared.store.config().await;
+            match chat
+                .shared
+                .tpl
+                .caps_current(crate::engstatus::is_external(&cfg))
+            {
+                Some(r) => send_json(
+                    StatusCode::OK,
+                    &json!({ "ok": true, "result": r.to_json() }),
+                ),
+                None => send_json(StatusCode::OK, &json!({ "ok": false })),
+            }
+        }
         "/internal/facade/v1/project/switch" | "/internal/facade/v1/project/drop" => {
             let v = read_json(req.into_body()).await.unwrap_or_default();
             let slug = str_of(&v, "slug");

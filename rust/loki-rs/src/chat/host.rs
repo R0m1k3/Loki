@@ -39,7 +39,7 @@ use super::wire::{
     ChatEndpoint, ChatPayloadOpts, EchoRefusals, EffortFallbacks, IMG_REF_SCHEME,
     build_chat_payload, content_parts, part_image_url, wire_messages,
 };
-use crate::store::Store;
+use crate::store::{BK_STATE, Store};
 
 /// Taille au-delà de laquelle le cache d'images oublie les plus anciennes
 /// (`imgCacheMax`).
@@ -284,6 +284,8 @@ pub struct ChatShared {
     pub compact_memory: CompactMemory,
     pub images: ImageCache,
     pub patterns: Arc<RetryPatterns>,
+    /// Sonde de gabarit (`chat_tplprobe.go`) : derniers verdicts et cache.
+    pub tpl: Arc<super::tplprobe::TplProbe>,
 }
 
 /// Ce que la compaction sait du tour.
@@ -488,6 +490,39 @@ impl TurnHost for GoTurnHost {
 
     fn drain_queued(&self) -> Vec<Message> {
         (self.queued)()
+    }
+
+    fn prefix_unstable(
+        &self,
+        tools: &[Tool],
+        kwargs: Option<&Map<String, Value>>,
+        effort: &str,
+    ) -> bool {
+        let shape = super::tplprobe::Shape::new(tools, kwargs, effort);
+        self.shared.tpl.caps_for(false, &shape).is_some_and(|r| {
+            r.prefix_stable == super::wire::TplTri::No
+                && !r.model.is_empty()
+                && r.model == super::wire::reasoning_echo_model(&self.cfg)
+        })
+    }
+
+    /// Fil principal seulement (`perfMain`) : une tâche ou un sous-agent ne
+    /// déclenche pas la sonde.
+    fn completed(&self, tools: &[Tool], kwargs: Option<&Map<String, Value>>, effort: &str) {
+        if self.compact.main_conv.is_empty() {
+            return;
+        }
+        let shape = super::tplprobe::Shape::new(tools, kwargs, effort);
+        let (shared, port) = (self.shared.clone(), self.port);
+        tokio::spawn(async move {
+            let key = shared.store.get_str(BK_STATE, "api_key").await;
+            let env = super::tplprobe::Env {
+                external: false,
+                port: port.into(),
+                key,
+            };
+            shared.tpl.kick(env, shape);
+        });
     }
 
     async fn prepare_images(&self, msgs: &[Message]) {

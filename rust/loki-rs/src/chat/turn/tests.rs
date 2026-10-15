@@ -17,6 +17,9 @@ enum Script {
     Cut(Vec<String>),
 }
 
+/// Une complétion signalée à la sonde : (outils, kwargs, effort).
+type Completion = (usize, Option<Map<String, Value>>, String);
+
 #[derive(Default)]
 struct Fake {
     script: Mutex<VecDeque<Script>>,
@@ -29,6 +32,10 @@ struct Fake {
     efforts: Mutex<Vec<(String, String)>>,
     /// L'arrêt à déclencher pendant l'exécution d'un outil.
     stop_on_exec: Mutex<Option<watch::Sender<bool>>>,
+    /// Verdict « préfixe instable » de la sonde (NUDGE_IN_TOOL).
+    unstable: Mutex<bool>,
+    /// Complétions signalées à la sonde : (outils, kwargs, effort).
+    completions: Mutex<Vec<Completion>>,
 }
 
 impl Fake {
@@ -127,6 +134,15 @@ impl TurnHost for Fake {
         self.efforts.lock().unwrap().push((want.into(), got.into()));
     }
     fn echo_refuse(&self, _model: &str) {}
+    fn completed(&self, tools: &[Tool], kwargs: Option<&Map<String, Value>>, effort: &str) {
+        self.completions
+            .lock()
+            .unwrap()
+            .push((tools.len(), kwargs.cloned(), effort.into()));
+    }
+    fn prefix_unstable(&self, _t: &[Tool], _k: Option<&Map<String, Value>>, _e: &str) -> bool {
+        *self.unstable.lock().unwrap()
+    }
 }
 
 fn content(s: &str) -> String {
@@ -339,6 +355,17 @@ async fn erreur_500_tool_choice_none_puis_outils_retires() {
     );
     assert!(host.body(2).get("tools").is_none(), "puis retirés");
     assert_eq!(host.body(2)["messages"][0]["role"], "system");
+    // Une relance outils coupés n'est pas la forme normale : pas de sonde.
+    assert!(host.completions.lock().unwrap().is_empty());
+    // Pas davantage outils neutralisés (tool_choice « none »).
+    let host = Fake::new(vec![
+        Script::Status(500, "parse error".into()),
+        answer("texte"),
+    ]);
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.body(1)["tool_choice"], "none");
+    assert!(host.completions.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -469,6 +496,104 @@ async fn budget_d_outils_rappel() {
             .and_then(Value::as_str)
             .is_some_and(|s| s.contains("2 tool calls"))
     }));
+}
+
+/// NUDGE_IN_TOOL : avec la clé et un gabarit « préfixe instable », le rappel
+/// part au bout du dernier résultat d'outil (envoyé et gardé à l'identique),
+/// sans message user à part ; sans verdict, ou sans la clé, à part.
+#[tokio::test]
+async fn rappel_de_budget_dans_le_resultat() {
+    for (key, unstable, inside) in [
+        ("on", true, true),
+        ("on", false, false),
+        ("", true, false),
+        ("Oui", true, true),
+        ("external", true, false),
+    ] {
+        let mut script: Vec<Script> = (0..3)
+            .map(|i| {
+                tool_step(
+                    &format!("c{i}"),
+                    "bash",
+                    &format!("{{\"command\":\"ls {i}\"}}"),
+                )
+            })
+            .collect();
+        script.push(answer("fin"));
+        let host = Fake::new(script);
+        *host.unstable.lock().unwrap() = unstable;
+        let mut tc = config(&["bash"]);
+        tc.cfg.insert("AGENT_BUDGET".into(), "2".into());
+        if key == "external" {
+            // Preset externe : le rappel reste à part, quoi que dise la sonde.
+            let ext = HashMap::from([
+                ("EXTERNAL".to_string(), "1".to_string()),
+                (
+                    "EXTERNAL_URL".to_string(),
+                    "http://127.0.0.1:1/v1".to_string(),
+                ),
+            ]);
+            tc.ep = resolve_chat_endpoint(&ext, "");
+            tc.cfg.insert("NUDGE_IN_TOOL".into(), "on".into());
+        } else {
+            tc.cfg.insert("NUDGE_IN_TOOL".into(), key.into());
+        }
+        let (r, _) = run(&host, &tc, &Cancel::never()).await;
+        let msgs = host.body(2)["messages"].as_array().unwrap().clone();
+        let last = msgs.last().unwrap();
+        let ctx = format!("{key}/{unstable}");
+        if inside {
+            assert_eq!(last["role"], "tool", "{ctx}");
+            let c = last["content"].as_str().unwrap();
+            assert!(
+                c.starts_with("résultat de bash\n\n") && c.contains("2 tool calls"),
+                "{ctx} : {c}"
+            );
+            assert!(
+                !msgs.iter().any(|m| m["role"] == "user"
+                    && m["content"].as_str().unwrap_or("").contains("2 tool calls")),
+                "{ctx}"
+            );
+            let kept = r.extra.iter().filter(|m| m.role == "tool").nth(1).unwrap();
+            assert_eq!(
+                kept.content.as_ref().and_then(Value::as_str),
+                Some(c),
+                "{ctx} : historique"
+            );
+        } else {
+            assert_eq!(last["role"], "user", "{ctx}");
+            assert!(
+                last["content"].as_str().unwrap().contains("2 tool calls"),
+                "{ctx}"
+            );
+        }
+    }
+}
+
+/// Chaque complétion lue en entier est signalée à la sonde, avec la forme
+/// de la requête ; pas sur un preset externe.
+#[tokio::test]
+async fn completions_signalees_a_la_sonde() {
+    let host = Fake::new(vec![tool_step("c1", "bash", "{}"), answer("fin")]);
+    let mut tc = config(&["bash"]);
+    tc.reasoning.effort = "low".into();
+    let (_, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(
+        *host.completions.lock().unwrap(),
+        vec![(1, None, "low".to_string()), (1, None, "low".to_string())]
+    );
+    let host = Fake::new(vec![answer("fin")]);
+    let mut tc = config(&["bash"]);
+    let mut cfg = HashMap::new();
+    cfg.insert("EXTERNAL".to_string(), "1".to_string());
+    cfg.insert(
+        "EXTERNAL_URL".to_string(),
+        "http://127.0.0.1:1/v1".to_string(),
+    );
+    tc.ep = resolve_chat_endpoint(&cfg, "");
+    assert!(tc.ep.external);
+    let (_, _) = run(&host, &tc, &Cancel::never()).await;
+    assert!(host.completions.lock().unwrap().is_empty());
 }
 
 #[tokio::test]

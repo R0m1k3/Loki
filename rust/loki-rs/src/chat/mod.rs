@@ -17,7 +17,8 @@
 //! - [`turn`] : la boucle d'un tour (complétions, outils, filets) ;
 //! - [`host`] : le tour branché sur le moteur, les outils du Go et la base ;
 //! - [`history`] : début et fin d'un tour côté historique ;
-//! - [`generate`] : un tour de bout en bout (envoi, file, fin de tour).
+//! - [`generate`] : un tour de bout en bout (envoi, file, fin de tour) ;
+//! - [`tplprobe`] : sonde de gabarit (rendus de `/apply-template`).
 
 pub mod compact;
 pub mod conv;
@@ -31,6 +32,7 @@ pub mod nudges;
 pub mod persist;
 pub mod sessions;
 pub mod stream;
+pub mod tplprobe;
 pub mod turn;
 pub mod types;
 pub mod verify;

@@ -1,0 +1,2807 @@
+{
+  "diffs": [
+    {
+      "before": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "after": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "same": true,
+      "detail": ""
+    },
+    {
+      "before": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "after": "\n\u0000--- historique sans raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\n<think>loki-sonde-raisonnement-r1</think>loki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>bash</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "same": false,
+      "detail": "historique sans raisonnement : avant « ⏎--- historique sans raisonnement ---⏎<|im_start|>system⏎loki-sonde-systeme<|im_end|>⏎<|im_start|>u… » / après « ⏎--- historique sans raisonnement ---⏎<tools n=1>⏎<|im_start|>system⏎loki-sonde-systeme<|im_end|>⏎<… »"
+    },
+    {
+      "before": "\n\u0000--- historique sans raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\n<think>loki-sonde-raisonnement-r1</think>loki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>bash</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "after": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "same": false,
+      "detail": "historique sans raisonnement : avant « ⏎--- historique sans raisonnement ---⏎<tools n=1>⏎<|im_start|>system⏎loki-sonde-systeme<|im_end|>⏎<… » / après « ⏎--- historique sans raisonnement ---⏎<|im_start|>system⏎loki-sonde-systeme<|im_end|>⏎<|im_start|>u… »"
+    },
+    {
+      "before": "",
+      "after": "x",
+      "same": false,
+      "detail": "avant «  » / après « x »"
+    },
+    {
+      "before": "x",
+      "after": "",
+      "same": false,
+      "detail": "avant « x » / après «  »"
+    },
+    {
+      "before": "abc",
+      "after": "abd",
+      "same": false,
+      "detail": "avant « abc » / après « abd »"
+    },
+    {
+      "before": "abcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nXabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\n",
+      "after": "abcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nYabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\n",
+      "same": false,
+      "detail": "avant « …abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎Xabcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh… » / après « …abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎Yabcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh… »"
+    },
+    {
+      "before": "\n\u0000--- section ---\néééabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\n",
+      "after": "\n\u0000--- section ---\néèéabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\nabcdéfgh\n",
+      "same": false,
+      "detail": "section : avant « ⏎--- section ---⏎éééabcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéf… » / après « ⏎--- section ---⏎éèéabcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéfgh⏎abcdéf… »"
+    },
+    {
+      "before": "sans\u0000section",
+      "after": "sans\u0000sectioN",
+      "same": false,
+      "detail": "avant « sanssection » / après « sanssectioN »"
+    }
+  ],
+  "hashes": {
+    "deux": "7d6af4eacf1bbee3",
+    "effort": "ad886c3fd3007d8c",
+    "kw-vides": "4e93db7e7cc13779",
+    "kwargs": "4867efbf13d8dfc2",
+    "nue": "c3defaeae2ceb336",
+    "outils": "99dad5b3091c0c71"
+  },
+  "prints": [
+    {
+      "shape": "nue",
+      "mode": "qwen3",
+      "exchanges": [
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        }
+      ],
+      "out": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "err": ""
+    },
+    {
+      "shape": "outils",
+      "mode": "keep",
+      "exchanges": [
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        }
+      ],
+      "out": "\n\u0000--- historique sans raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\n<think>loki-sonde-raisonnement-r1</think>loki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<tools n=1>\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>bash</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "err": ""
+    },
+    {
+      "shape": "kwargs",
+      "mode": "drop",
+      "exchanges": [
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+        }
+      ],
+      "out": "\n\u0000--- historique sans raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- historique avec raisonnement ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n\n\u0000--- tour d'outil ---\n<|im_start|>system\nloki-sonde-systeme<|im_end|>\n<|im_start|>user\nloki-sonde-question-a<|im_end|>\n<|im_start|>assistant\nloki-sonde-reponse-c1<tool_call>lookup</tool_call><|im_end|>\n<|im_start|>tool\nloki-sonde-resultat-t1<|im_end|>\n<|im_start|>user\nloki-sonde-question-b<|im_end|>\n<|im_start|>assistant\n",
+      "err": ""
+    },
+    {
+      "shape": "nue",
+      "mode": "keep",
+      "override": {
+        "/apply-template": [
+          {
+            "method": "",
+            "path": "",
+            "status": 200,
+            "reply": "{\"prompt\":\"a\"}"
+          },
+          {
+            "method": "",
+            "path": "",
+            "status": 500,
+            "reply": "boum"
+          }
+        ]
+      },
+      "exchanges": [
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 200,
+          "reply": "{\"prompt\":\"a\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/apply-template",
+          "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+          "status": 500,
+          "reply": "boum"
+        }
+      ],
+      "out": "",
+      "err": "historique avec raisonnement : HTTP 500 : boum"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "Qwen3, outils et kwargs",
+      "steps": [
+        {
+          "shape": "outils",
+          "mode": "qwen3",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=1 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          }
+        },
+        {
+          "shape": "outils",
+          "mode": "qwen3",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=1 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 1
+          }
+        },
+        {
+          "shape": "nue",
+          "mode": "qwen3",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=0 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "outils",
+          "mode": "qwen3",
+          "template": "qwen3 v2",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3 v2\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=fa3dc45b4bad5ee9 outils=1 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          }
+        },
+        {
+          "shape": "outils",
+          "mode": "qwen3",
+          "template": "qwen3 v2",
+          "build": "b8000-def",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b8000-def\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3 v2\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":false},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d \\u003cb\\u003e \\u0026 é\",\"parameters\":{\"type\":\"object\"}}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=1\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003ebash\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b8000-def",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          },
+          "line": "[tplprobe] build=b8000-def modèle=Qwen3-8B-Q8_0.gguf gabarit=fa3dc45b4bad5ee9 outils=1 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b8000-def",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          },
+          "for": {
+            "build": "b8000-def",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "fa3dc45b4bad5ee9",
+            "tools": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "garde tout",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=yes préfixe_stable=yes raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "deux",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lire\",\"description\":\"\",\"parameters\":{\"properties\":{\"p\":{\"type\":\"string\"}},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"écrire\",\"description\":\"x\",\"parameters\":null}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=2\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lire\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lire\",\"description\":\"\",\"parameters\":{\"properties\":{\"p\":{\"type\":\"string\"}},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"écrire\",\"description\":\"x\",\"parameters\":null}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=2\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elire\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lire\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lire\",\"description\":\"\",\"parameters\":{\"properties\":{\"p\":{\"type\":\"string\"}},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"écrire\",\"description\":\"x\",\"parameters\":null}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=2\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elire\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lire\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"parallel_tool_calls\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lire\",\"description\":\"\",\"parameters\":{\"properties\":{\"p\":{\"type\":\"string\"}},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"écrire\",\"description\":\"x\",\"parameters\":null}}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003ctools n=2\\u003e\\n\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elire\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 2
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=2 historique_raisonnement=yes préfixe_stable=yes raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 2
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "raisonnement jamais rendu",
+      "steps": [
+        {
+          "shape": "kwargs",
+          "mode": "drop",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"drop\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"chat_template_kwargs\":{\"enable_thinking\":true,\"reasoning_effort\":\"high\"},\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": true,
+              "reasoning_effort": "high"
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "reasoning_content jamais rendu",
+            "prefix_stable": "yes",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "f1a2a766dcd55bac",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=f1a2a766dcd55bac outils=0 historique_raisonnement=no préfixe_stable=yes raisonnement_rendu=no (reasoning_content jamais rendu)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": true,
+              "reasoning_effort": "high"
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "reasoning_content jamais rendu",
+            "prefix_stable": "yes",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "f1a2a766dcd55bac",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "chat_template_kwargs": {
+              "enable_thinking": true,
+              "reasoning_effort": "high"
+            },
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "reasoning_content jamais rendu",
+            "prefix_stable": "yes",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "f1a2a766dcd55bac",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "amorce ignorée",
+      "steps": [
+        {
+          "shape": "effort",
+          "mode": "noagp",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"noagp\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"reasoning_effort\":\"low\"}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"reasoning_effort\":\"low\"}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}],\"reasoning_effort\":\"low\"}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}],\"reasoning_effort\":\"low\"}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "add_generation_prompt ignoré par le moteur",
+            "prefix_stable": "unknown",
+            "preserves_history": "yes",
+            "reasoning_effort": "low",
+            "renders_reasoning": "yes",
+            "template_hash": "b0526a71f86b6b26",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=b0526a71f86b6b26 outils=0 historique_raisonnement=yes préfixe_stable=unknown raisonnement_rendu=yes (add_generation_prompt ignoré par le moteur)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "add_generation_prompt ignoré par le moteur",
+            "prefix_stable": "unknown",
+            "preserves_history": "yes",
+            "reasoning_effort": "low",
+            "renders_reasoning": "yes",
+            "template_hash": "b0526a71f86b6b26",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "add_generation_prompt ignoré par le moteur",
+            "prefix_stable": "unknown",
+            "preserves_history": "yes",
+            "reasoning_effort": "low",
+            "renders_reasoning": "yes",
+            "template_hash": "b0526a71f86b6b26",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "route absente",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 404,
+                "reply": "Not Found"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 404,
+                "reply": ""
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 404,
+                "reply": ""
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 404,
+                "reply": ""
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 404,
+              "reply": "Not Found"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 404,
+              "reply": ""
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : HTTP 404 : Not Found ; préfixe : HTTP 404)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : HTTP 404 : Not Found ; préfixe : HTTP 404)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 404 : Not Found ; préfixe : HTTP 404",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "exception du gabarit",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 500,
+                "reply": "{\"error\":{\"code\":500,\"message\":\"Jinja Exception: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 500,
+              "reply": "{\"error\":{\"code\":500,\"message\":\"Jinja Exception: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : {\"error\":{\"code\":500,\"message\":\"Jinja Exception: ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=yes raisonnement_rendu=yes (historique : HTTP 500 : {\"error\":{\"code\":500,\"message\":\"Jinja Exception: ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : {\"error\":{\"code\":500,\"message\":\"Jinja Exception: ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : {\"error\":{\"code\":500,\"message\":\"Jinja Exception: ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "clé exigée, inconnue",
+      "key": "sk-loki-k",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 401,
+              "reply": "{\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}})",
+          "current": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "for": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 401,
+              "reply": "{\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}})",
+          "current": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "for": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 401 : {\"error\":{\"code\":401,\"message\":\"Invalid API Key\"}}",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "clé exigée, connue",
+      "key": "sk-loki-k",
+      "api_key": "sk-loki-k",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "auth": "Bearer sk-loki-k",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "auth": "Bearer sk-loki-k",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "auth": "Bearer sk-loki-k",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "auth": "Bearer sk-loki-k",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "auth": "Bearer sk-loki-k",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "auth": "Bearer sk-loki-k",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=yes préfixe_stable=yes raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "yes",
+            "preserves_history": "yes",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "503 puis rendu",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "qwen3",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "{\"error\":{\"code\":503,\"message\":\"Loading model\"}}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "{\"error\":{\"code\":503,\"message\":\"Loading model\"}}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 503,
+              "reply": "{\"error\":{\"code\":503,\"message\":\"Loading model\"}}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 503,
+              "reply": "{\"error\":{\"code\":503,\"message\":\"Loading model\"}}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=0 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "503 persistant",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "qwen3",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "x"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "x"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "x"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "y"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "y"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "y"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 503,
+              "reply": "x"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 503,
+              "reply": "x"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 503,
+              "reply": "x"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 503,
+              "reply": "y"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 503,
+              "reply": "y"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 503,
+              "reply": "y"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 503 : x ; préfixe : HTTP 503 : y",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : HTTP 503 : x ; préfixe : HTTP 503 : y)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 503 : x ; préfixe : HTTP 503 : y",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 503 : x ; préfixe : HTTP 503 : y",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "nue",
+          "mode": "qwen3",
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"qwen3\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\nloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=718e3d216a6d045f outils=0 historique_raisonnement=no préfixe_stable=no raisonnement_rendu=yes",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "prefix_stable": "no",
+            "preserves_history": "no",
+            "renders_reasoning": "yes",
+            "template_hash": "718e3d216a6d045f",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "messages aux bornes",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 500,
+                "reply": " àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà "
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 500,
+                "reply": "ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 500,
+              "reply": " àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà "
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 500,
+              "reply": "ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà ; préfixe : HTTP 500 : ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù…",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : HTTP 500 : àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà ; préfixe : HTTP 500 : ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù…)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà ; préfixe : HTTP 500 : ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù…",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : àààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààààà ; préfixe : HTTP 500 : ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù…",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "props de travers",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/props": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"build_info\":5}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":5}"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (/props illisible : réponse non JSON)",
+          "current": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "for": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "historique sans la question B",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-reponse-c1\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 loki-sonde-question-b\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-reponse-c1\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 loki-sonde-question-b\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=yes raisonnement_rendu=unknown (historique : rendu incohérent)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "préfixe sans la question B",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-reponse-c1 loki-sonde-question-b\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 suite\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-reponse-c1 loki-sonde-question-b\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 suite\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "préfixe : rendu incohérent ; reasoning_content jamais rendu",
+            "prefix_stable": "unknown",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=no préfixe_stable=unknown raisonnement_rendu=no (préfixe : rendu incohérent ; reasoning_content jamais rendu)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "préfixe : rendu incohérent ; reasoning_content jamais rendu",
+            "prefix_stable": "unknown",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "préfixe : rendu incohérent ; reasoning_content jamais rendu",
+            "prefix_stable": "unknown",
+            "preserves_history": "no",
+            "renders_reasoning": "no",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "historique en erreur, outil rendu",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 500,
+                "reply": "boum"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"loki-sonde-resultat-t1 loki-sonde-question-b\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 500,
+              "reply": "boum"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 amorce\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"loki-sonde-resultat-t1 loki-sonde-question-b\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : boum",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=yes raisonnement_rendu=unknown (historique : HTTP 500 : boum)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : boum",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 500 : boum",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "trop de requêtes",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 429,
+                "reply": "  lent  "
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 429,
+              "reply": "  lent  "
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"\\u003c|im_start|\\u003esystem\\nloki-sonde-systeme\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-a\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003eassistant\\n\\u003cthink\\u003eloki-sonde-raisonnement-r1\\u003c/think\\u003eloki-sonde-reponse-c1\\u003ctool_call\\u003elookup\\u003c/tool_call\\u003e\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003etool\\nloki-sonde-resultat-t1\\u003c|im_end|\\u003e\\n\\u003c|im_start|\\u003euser\\nloki-sonde-question-b\\u003c|im_end|\\u003e\\n\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 429 : lent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=yes raisonnement_rendu=yes (historique : HTTP 429 : lent)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 429 : lent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 429 : lent",
+            "prefix_stable": "yes",
+            "preserves_history": "unknown",
+            "renders_reasoning": "yes",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "props illisible",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/props": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "<html>"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "<html>"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (/props illisible : réponse non JSON)",
+          "current": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "for": {
+            "cacheable": false,
+            "note": "/props illisible : réponse non JSON",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          }
+        },
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/props": [
+              {
+                "method": "",
+                "path": "",
+                "status": 500,
+                "reply": "panne"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 500,
+              "reply": "panne"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 500 : panne",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (/props illisible : HTTP 500 : panne)",
+          "current": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 500 : panne",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "for": {
+            "cacheable": false,
+            "note": "/props illisible : HTTP 500 : panne",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "moteur pas prêt",
+      "steps": [
+        {
+          "shape": "outils",
+          "mode": "keep",
+          "override": {
+            "/health": [
+              {
+                "method": "",
+                "path": "",
+                "status": 503,
+                "reply": "{\"status\":\"loading\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 503,
+              "reply": "{\"status\":\"loading\"}"
+            }
+          ],
+          "result": {
+            "cacheable": false,
+            "note": "moteur pas prêt (/health)",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (moteur pas prêt (/health))",
+          "current": null,
+          "for": null
+        }
+      ]
+    },
+    {
+      "name": "réponse sans prompt",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":null}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "pas du json"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":null}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 200 : réponse sans prompt ; préfixe : HTTP 200 : réponse sans prompt",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : HTTP 200 : réponse sans prompt ; préfixe : HTTP 200 : réponse sans prompt)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 200 : réponse sans prompt ; préfixe : HTTP 200 : réponse sans prompt",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": false,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : HTTP 200 : réponse sans prompt ; préfixe : HTTP 200 : réponse sans prompt",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "rendu incohérent",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"x\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"y\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"z\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"yz\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"x\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"y\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"z\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"yz\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : rendu incohérent ; préfixe : rendu incohérent)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "préfixe incohérent",
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "override": {
+            "/apply-template": [
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"x\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"y\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"z\"}"
+              },
+              {
+                "method": "",
+                "path": "",
+                "status": 200,
+                "reply": "{\"prompt\":\"w\"}"
+              }
+            ]
+          },
+          "exchanges": [
+            {
+              "method": "GET",
+              "path": "/health",
+              "status": 200,
+              "reply": "{\"status\":\"ok\"}"
+            },
+            {
+              "method": "GET",
+              "path": "/props",
+              "status": 200,
+              "reply": "{\"build_info\":\"b7000-abc\",\"model_path\":\"/models/Qwen3-8B-Q8_0.gguf\",\"chat_template\":\"keep\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"x\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"y\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":true,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"z\"}"
+            },
+            {
+              "method": "POST",
+              "path": "/apply-template",
+              "body": "{\"add_generation_prompt\":false,\"messages\":[{\"role\":\"system\",\"content\":\"loki-sonde-systeme\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-a\"},{\"role\":\"assistant\",\"content\":\"loki-sonde-reponse-c1\",\"reasoning_content\":\"loki-sonde-raisonnement-r1\",\"tool_calls\":[{\"id\":\"a1B2c3D4e\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"loki-sonde-resultat-t1\",\"tool_call_id\":\"a1B2c3D4e\"},{\"role\":\"user\",\"content\":\"loki-sonde-question-b\"}]}",
+              "status": 200,
+              "reply": "{\"prompt\":\"w\"}"
+            }
+          ],
+          "result": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=b7000-abc modèle=Qwen3-8B-Q8_0.gguf gabarit=585d7cd75cf6f848 outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (historique : rendu incohérent ; préfixe : rendu incohérent)",
+          "current": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          },
+          "for": {
+            "build": "b7000-abc",
+            "cacheable": true,
+            "model": "Qwen3-8B-Q8_0.gguf",
+            "note": "historique : rendu incohérent ; préfixe : rendu incohérent",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "template_hash": "585d7cd75cf6f848",
+            "tools": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "preset externe",
+      "external": true,
+      "config": {
+        "EXTERNAL": "1",
+        "EXTERNAL_MODEL": "gpt-4o-mini",
+        "EXTERNAL_URL": "http://127.0.0.1:1"
+      },
+      "steps": [
+        {
+          "shape": "nue",
+          "mode": "keep",
+          "exchanges": null,
+          "result": {
+            "cacheable": false,
+            "note": "preset externe : pas de sonde",
+            "prefix_stable": "unknown",
+            "preserves_history": "unknown",
+            "renders_reasoning": "unknown",
+            "tools": 0
+          },
+          "line": "[tplprobe] build=- modèle=- gabarit=- outils=0 historique_raisonnement=unknown préfixe_stable=unknown raisonnement_rendu=unknown (preset externe : pas de sonde)",
+          "current": null,
+          "for": null
+        }
+      ]
+    }
+  ],
+  "shapes": {
+    "deux": {
+      "tools": "[{\"type\":\"function\",\"function\":{\"name\":\"lire\",\"description\":\"\",\"parameters\":{\"type\":\"object\",\"properties\":{\"p\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"écrire\",\"description\":\"x\",\"parameters\":null}}]",
+      "kwargs": null,
+      "effort": ""
+    },
+    "effort": {
+      "tools": "",
+      "kwargs": null,
+      "effort": "low"
+    },
+    "kw-vides": {
+      "tools": "",
+      "kwargs": {},
+      "effort": ""
+    },
+    "kwargs": {
+      "tools": "",
+      "kwargs": {
+        "enable_thinking": true,
+        "reasoning_effort": "high"
+      },
+      "effort": ""
+    },
+    "nue": {
+      "tools": "",
+      "kwargs": null,
+      "effort": ""
+    },
+    "outils": {
+      "tools": "[{\"type\":\"function\",\"function\":{\"name\":\"bash\",\"description\":\"d <b> & é\",\"parameters\":{\"type\":\"object\"}}}]",
+      "kwargs": {
+        "enable_thinking": false
+      },
+      "effort": ""
+    }
+  }
+}
