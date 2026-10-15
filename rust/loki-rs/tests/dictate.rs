@@ -10,7 +10,6 @@
 mod common;
 
 use std::convert::Infallible;
-use std::io::Write;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -467,16 +466,19 @@ while True:
         c.close()
 "#;
 
+/// Écrit par un `sh` à part : si ce process tenait lui-même le fichier ouvert
+/// en écriture, un `fork` lancé au même moment par un test voisin en
+/// hériterait, et l'`exec` du script échouerait sur ETXTBSY.
 fn script(dir: &Path, name: &str, body: &str) -> String {
     let p = dir.join(name);
-    let mut f = std::fs::File::create(&p).unwrap();
-    f.write_all(body.as_bytes()).unwrap();
-    drop(f);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    let ok = std::process::Command::new("sh")
+        .args(["-c", r#"printf '%s' "$1" > "$2" && chmod 755 "$2""#, "sh"])
+        .arg(body)
+        .arg(&p)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "script non écrit");
     p.to_string_lossy().into_owned()
 }
 

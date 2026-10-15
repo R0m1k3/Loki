@@ -9,10 +9,22 @@ use std::time::Duration;
 
 /// Faux binaire Go : `serve` lance un « llama-server » dans sa session et un
 /// « moteur Strata » qui prend SA PROPRE session (comme le vrai), puis attend.
+///
+/// Écrit par un `sh` à part : si ce process tenait lui-même le fichier ouvert
+/// en écriture, un `fork` lancé au même moment par un test voisin (les tests
+/// tournent en parallèle) en hériterait, et l'`exec` du script échouerait sur
+/// ETXTBSY (« Text file busy »).
 fn faux_go(dir: &Path, corps: &str) -> PathBuf {
     let p = dir.join("faux-loki");
-    std::fs::write(&p, format!("#!/bin/sh\n{corps}\n")).unwrap();
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let ok = std::process::Command::new("sh")
+        .args(["-c", r#"printf '%s' "$1" > "$2" && chmod 755 "$2""#, "sh"])
+        .arg(format!("#!/bin/sh\n{corps}\n"))
+        .arg(&p)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "faux binaire non écrit");
+    assert!(std::fs::metadata(&p).unwrap().permissions().mode() & 0o111 != 0);
     p
 }
 
