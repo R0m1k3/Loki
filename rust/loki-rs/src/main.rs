@@ -124,6 +124,9 @@ fn serve() -> ExitCode {
         // LOKI_DICTATE=rust : la dictée vocale aussi (le Go lui demande alors
         // d'arrêter son serveur quand il libère la VRAM).
         let dictate_rust = held_by_facade("LOKI_DICTATE");
+        // LOKI_SETTINGS=rust : les réglages partagés (préférences, prompt
+        // système, intensité du raisonnement, adresse publique).
+        let settings_rust = held_by_facade("LOKI_SETTINGS");
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
@@ -134,7 +137,10 @@ fn serve() -> ExitCode {
         if dictate_rust {
             env.push(("LOKI_DICTATE".into(), "rust".into()));
         }
-        if chat_rust || models_rust || dictate_rust {
+        if settings_rust {
+            env.push(("LOKI_SETTINGS".into(), "rust".into()));
+        }
+        if chat_rust || models_rust || dictate_rust || settings_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -196,6 +202,7 @@ fn serve() -> ExitCode {
             chat,
             models,
             dictate,
+            settings: settings_rust,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

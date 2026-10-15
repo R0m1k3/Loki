@@ -465,6 +465,7 @@ pub struct Opts {
     pub engine_port: Option<u16>,
     pub models_hf: Option<String>,
     pub dictate: Option<Arc<loki_rs::dictate::Dictation>>,
+    pub settings: bool,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -556,6 +557,7 @@ pub async fn start_with(
             })
         }),
         dictate: opts.dictate,
+        settings: opts.settings,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

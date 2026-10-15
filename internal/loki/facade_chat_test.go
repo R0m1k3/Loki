@@ -412,3 +412,29 @@ func TestFacadeDictee(t *testing.T) {
 		t.Fatalf("arrêt demandé à la façade sans la variable (%d appels)", n)
 	}
 }
+
+// LOKI_SETTINGS=rust : les réglages partagés partent à la façade ; sans la
+// variable, ils restent ici.
+func TestFacadeReglages(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	t.Setenv(facadeSettingsEnv, "rust")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadeSettingsRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if n := len(f.recu()); n != len(facadeSettingsRoutes) {
+		t.Fatalf("%d appels reçus par la façade", n)
+	}
+	t.Setenv(facadeSettingsEnv, "")
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/prefs", local)(w, httptest.NewRequest("GET", "/api/prefs", nil))
+	if w.Body.String() != "go" {
+		t.Fatalf("relayé sans la variable : %q", w.Body.String())
+	}
+}

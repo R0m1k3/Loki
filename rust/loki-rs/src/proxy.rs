@@ -69,6 +69,8 @@ pub struct Config {
     /// Dictée vocale tenue par la façade (`LOKI_DICTATE=rust`) : servie ici ;
     /// `None` : relayée au Go.
     pub dictate: Option<Arc<crate::dictate::Dictation>>,
+    /// Réglages partagés tenus par la façade (`LOKI_SETTINGS=rust`).
+    pub settings: bool,
 }
 
 struct Proxy {
@@ -98,6 +100,7 @@ pub async fn serve(
             chat: cfg.chat,
             models: cfg.models,
             dictate: cfg.dictate,
+            settings: cfg.settings,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -137,11 +140,9 @@ pub async fn serve(
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
         // Le Go (et lui seul : jeton tiré à chaque démarrage) remet à la
-        // façade le trafic du chat, des modèles et de la dictée qui lui arrive
-        // sans passer par elle.
-        let from_go =
-            (self.ctx.chat.is_some() || self.ctx.models.is_some() || self.ctx.dictate.is_some())
-                && self.ctx.from_go(req.headers());
+        // façade le trafic des lots qu'elle tient et qui lui arrive sans passer
+        // par elle.
+        let from_go = self.ctx.holds_any() && self.ctx.from_go(req.headers());
         // Jamais de confiance accordée sur la foi d'un en-tête du client :
         // ni « je viens du tunnel », ni « je suis la façade ».
         req.headers_mut().remove(VIA_TUNNEL);
@@ -180,6 +181,9 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if self.ctx.settings && crate::settings::handles(path) {
+            return crate::settings::serve(&self.ctx, req, from_go).await;
         }
         if let Some(d) = &self.ctx.dictate
             && crate::dictate::handles(path)
