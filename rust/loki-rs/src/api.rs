@@ -62,6 +62,9 @@ pub struct Ctx {
     /// Strata (écran, réglages, installation) tenu par la façade
     /// (`LOKI_STRATA=rust`, avec les backends).
     pub strata: Option<std::sync::Arc<crate::strata::api::Strata>>,
+    /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
+    /// façade (`LOKI_TASKS=rust`).
+    pub tasks: Option<std::sync::Arc<crate::tasks::Tasks>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -86,6 +89,7 @@ impl Ctx {
             || self.backends.is_some()
             || self.engineimg.is_some()
             || self.strata.is_some()
+            || self.tasks.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

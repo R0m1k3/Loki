@@ -103,6 +103,20 @@ pub struct Config {
     /// Strata (machine, réglages, installation) tenu par la façade
     /// (`LOKI_STRATA=rust`) ; `None` : au Go.
     pub strata: Option<Arc<crate::strata::api::Strata>>,
+    /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
+    /// façade (`LOKI_TASKS=rust`) ; `None` : au Go.
+    pub tasks: Option<Arc<crate::tasks::Tasks>>,
+}
+
+/// Arrête la tâche de fond tenue à sa sortie de portée.
+struct AbortOnDrop(Option<tokio::task::JoinHandle<()>>);
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        if let Some(h) = &self.0 {
+            h.abort();
+        }
+    }
 }
 
 struct Proxy {
@@ -145,9 +159,18 @@ pub async fn serve(
             backends: cfg.backends,
             engineimg: cfg.engineimg,
             strata: cfg.strata,
+            tasks: cfg.tasks,
             internal_token: cfg.internal_token.clone(),
         },
     });
+    // Le planificateur des tâches tenues ici, arrêté avec la façade.
+    let _sched = AbortOnDrop(
+        proxy
+            .ctx
+            .tasks
+            .clone()
+            .map(|t| tokio::spawn(crate::tasks::sched_loop(proxy.ctx.clone(), t))),
+    );
     tokio::pin!(shutdown);
     loop {
         tokio::select! {
@@ -258,6 +281,11 @@ impl Proxy {
             && crate::strata::api::handles(path)
         {
             return crate::strata::api::serve(&self.ctx, s, req, from_go).await;
+        }
+        if let Some(t) = &self.ctx.tasks
+            && crate::tasks::handles(path)
+        {
+            return crate::tasks::serve(&self.ctx, t, req, from_go).await;
         }
         if let Some(b) = &self.ctx.backends
             && crate::backends::handles(path)

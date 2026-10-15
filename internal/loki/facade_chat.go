@@ -179,6 +179,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeEngineImage, "moteur de l'image indisponible : "
 	case facadeStrataRoutes[path]:
 		held, unavailable = facadeStrata, "Strata indisponible : "
+	case facadeTasksRoutes[path]:
+		held, unavailable = facadeTasks, "tâches indisponibles : "
 	default:
 		return h
 	}

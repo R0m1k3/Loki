@@ -813,7 +813,7 @@ impl Memory {
     // --- mode mémoire ---------------------------------------------------
 
     /// `memMode` : mode du projet actif, repli sur `MEM_MODE`.
-    async fn mem_mode(store: &Store) -> &'static str {
+    pub(crate) async fn mem_mode(store: &Store) -> &'static str {
         let active = active_project(store).await;
         let projects = list_projects(store).await;
         if let Some(p) = projects.iter().find(|p| p.slug == active)

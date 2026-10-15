@@ -180,6 +180,9 @@ fn serve() -> ExitCode {
         if held_by_facade("LOKI_STRATA") && !backends_rust {
             eprintln!("[loki-rs] Strata tenu par le Go (LOKI_BACKENDS=rust requis)");
         }
+        // LOKI_TASKS=rust : les tâches planifiées (routes, planificateur,
+        // tâches script) ; une tâche IA reste exécutée par le Go.
+        let tasks_rust = held_by_facade("LOKI_TASKS");
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -214,6 +217,7 @@ fn serve() -> ExitCode {
             ("LOKI_BACKENDS", backends_rust),
             ("LOKI_ENGINE_IMAGE", engineimg_rust),
             ("LOKI_STRATA", strata_rust),
+            ("LOKI_TASKS", tasks_rust),
         ];
         for (var, on) in held {
             if on {
@@ -345,6 +349,8 @@ fn serve() -> ExitCode {
                 loki_rs::backends::probe::Probe::system(),
             ))
         });
+        let tasks = tasks_rust
+            .then(|| std::sync::Arc::new(loki_rs::tasks::Tasks::new(engine_paths.home.clone())));
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -366,6 +372,7 @@ fn serve() -> ExitCode {
             backends,
             engineimg,
             strata,
+            tasks,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

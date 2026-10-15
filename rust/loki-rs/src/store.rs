@@ -18,6 +18,12 @@ pub const BK_CONFIG: &str = "config";
 pub const BK_PREFS: &str = "prefs";
 pub const BK_STATE: &str = "state";
 
+/// Délai d'un appel à l'API interne (base, chiffrement, petites actions).
+const CALL_LIMIT: Duration = Duration::from_secs(10);
+/// Délai d'un outil exécuté par le Go : le plus long des siens (navigateur,
+/// pages web, MCP) reste bien en deçà.
+const TOOL_LIMIT: Duration = Duration::from_secs(30 * 60);
+
 #[derive(Clone)]
 pub struct Store {
     client: Client<HttpConnector, Full<Bytes>>,
@@ -40,6 +46,18 @@ impl Store {
         path: &str,
         body: Vec<u8>,
     ) -> Result<(StatusCode, Bytes), String> {
+        self.call_within(method, path, body, CALL_LIMIT).await
+    }
+
+    /// Comme `call`, avec le délai donné (un appel qui dure : un outil, une
+    /// tâche IA exécutés par le Go).
+    async fn call_within(
+        &self,
+        method: Method,
+        path: &str,
+        body: Vec<u8>,
+        limit: Duration,
+    ) -> Result<(StatusCode, Bytes), String> {
         let req = Request::builder()
             .method(method)
             .uri(format!("http://{}{path}", self.backend))
@@ -57,7 +75,7 @@ impl Store {
                 .to_bytes();
             Ok((status, body))
         };
-        tokio::time::timeout(Duration::from_secs(10), fut)
+        tokio::time::timeout(limit, fut)
             .await
             .map_err(|_| "store : délai dépassé".to_string())?
     }
@@ -98,6 +116,26 @@ impl Store {
                 Method::POST,
                 path,
                 serde_json::to_vec(body).unwrap_or_default(),
+            )
+            .await?;
+        let v = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        Ok((status, v))
+    }
+
+    /// POST JSON à l'API interne, sans autre délai que `limit` : un appel qui
+    /// dure (une tâche IA exécutée par le Go).
+    pub async fn internal_post_within(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+        limit: Duration,
+    ) -> Result<(StatusCode, serde_json::Value), String> {
+        let (status, bytes) = self
+            .call_within(
+                Method::POST,
+                path,
+                serde_json::to_vec(body).unwrap_or_default(),
+                limit,
             )
             .await?;
         let v = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
@@ -161,12 +199,25 @@ impl Store {
         args: &serde_json::Value,
         caps: &serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        self.internal_json(
-            Method::POST,
-            "/internal/v1/tool/exec",
-            Some(&serde_json::json!({ "name": name, "args": args, "caps": caps })),
-        )
-        .await
+        let body = serde_json::json!({ "name": name, "args": args, "caps": caps });
+        let (status, bytes) = self
+            .call_within(
+                Method::POST,
+                "/internal/v1/tool/exec",
+                serde_json::to_vec(&body).unwrap_or_default(),
+                TOOL_LIMIT,
+            )
+            .await?;
+        if !status.is_success() {
+            return Err(format!(
+                "/internal/v1/tool/exec : {status} {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+        }
+        if bytes.is_empty() {
+            return Ok(serde_json::Value::Null);
+        }
+        serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
 
     /// Archive un bloc verbatim pour l'outil recall (`archiveRecallBlock`,

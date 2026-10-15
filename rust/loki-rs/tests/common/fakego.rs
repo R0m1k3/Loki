@@ -99,6 +99,16 @@ pub struct FakeGo {
     pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
     pub conv_workspace: Mutex<Option<serde_json::Value>>,
+    /// /internal/v1/conv/workspace crée-t-il la discussion active dans
+    /// l'index, s'il est vide (`convEnsureActive`) ?
+    pub conv_ensure: Mutex<bool>,
+    /// /internal/v1/tasks/run reçus (ids) : la tâche IA ne tourne pas (le
+    /// modèle n'est jamais prêt ici).
+    pub task_runs: Mutex<Vec<String>>,
+    /// Durée d'une tâche IA reçue (rien : rendue tout de suite).
+    pub task_run_delay: Mutex<Option<std::time::Duration>>,
+    /// /internal/v1/push/send reçus : (titre, corps).
+    pub push_sends: Mutex<Vec<(String, String)>>,
 }
 
 impl FakeGo {
@@ -472,9 +482,41 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             resp(204, "")
         }
         "/internal/v1/conv/workspace" => match st.conv_workspace.lock().unwrap().clone() {
-            Some(v) => resp(200, v.to_string()),
+            Some(v) => {
+                if *st.conv_ensure.lock().unwrap() && st.get("chat", "index").is_none() {
+                    let id = v["id"].as_str().unwrap_or("actif");
+                    st.set(
+                        "chat",
+                        "index",
+                        &serde_json::json!([{ "id": id }]).to_string(),
+                    );
+                }
+                resp(200, v.to_string())
+            }
             None => resp(404, "404 page not found"),
         },
+        "/internal/v1/tasks/run" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.task_runs
+                .lock()
+                .unwrap()
+                .push(v["id"].as_str().unwrap_or("").to_string());
+            let delay = *st.task_run_delay.lock().unwrap();
+            if let Some(d) = delay {
+                tokio::time::sleep(d).await;
+            }
+            resp(200, r#"{"busy":true}"#)
+        }
+        "/internal/v1/push/send" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.push_sends.lock().unwrap().push((
+                v["title"].as_str().unwrap_or("").to_string(),
+                v["body"].as_str().unwrap_or("").to_string(),
+            ));
+            resp(204, "")
+        }
         "/internal/v1/tool/context" => match st.tool_ctx.lock().unwrap().clone() {
             Some(v) => resp(200, v.to_string()),
             None => resp(404, "404 page not found"),
@@ -662,6 +704,10 @@ pub struct Opts {
     pub backends: Option<Arc<loki_rs::backends::Backends>>,
     pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
     pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
+    pub tasks: Option<Arc<loki_rs::tasks::Tasks>>,
+    /// Base de départ, posée avant que la façade démarre : (bucket, clé,
+    /// valeur).
+    pub seed: Vec<(String, String, String)>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -697,6 +743,9 @@ pub async fn start_with(
     Option<Arc<loki_rs::chat::generate::ChatService>>,
 ) {
     let st = Arc::new(FakeGo::default());
+    for (b, k, v) in &opts.seed {
+        st.set(b, k, v);
+    }
     if let Some(p) = opts.engine_port {
         st.set("config", "PORT", &p.to_string());
     }
@@ -766,6 +815,7 @@ pub async fn start_with(
         backends: opts.backends,
         engineimg: opts.engineimg,
         strata: opts.strata,
+        tasks: opts.tasks,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

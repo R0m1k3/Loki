@@ -263,6 +263,14 @@ async fn delete_project(ctx: &Ctx, slug: &str) -> Result<(), Fail> {
 
 /// `projectDTOs` : le registre et ses comptes, plus le projet actif.
 async fn listing(ctx: &Ctx) -> Value {
+    let active = active_project(&ctx.store).await;
+    let projects = project_dtos(ctx).await;
+    json!({ "ok": true, "projects": projects, "active": active })
+}
+
+/// `projectDTOs` : les projets avec leurs compteurs (discussions, pages,
+/// trackers) et le drapeau du projet actif.
+pub(crate) async fn project_dtos(ctx: &Ctx) -> Vec<Value> {
     let store = &ctx.store;
     let active = active_project(store).await;
     let mut convs: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -311,7 +319,7 @@ async fn listing(ctx: &Ctx) -> Value {
             d
         })
         .collect();
-    json!({ "ok": true, "projects": projects, "active": active })
+    projects
 }
 
 /// Les routes servies par ce module.

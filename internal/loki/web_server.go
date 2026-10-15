@@ -151,8 +151,11 @@ func newWebMux() *http.ServeMux {
 	// attend le déverrouillage (voir handleMemUnlock). Idempotent.
 	resumeMemMigration()
 	// Planificateur des tâches : une goroutine, un tic par minute, dans le process
-	// qui détient la conversation et le modèle (idempotent, cf. sync.Once).
-	StartTaskScheduler()
+	// qui détient la conversation et le modèle (idempotent, cf. sync.Once) — sauf
+	// quand la façade tient les tâches (facade_tasks.go) : c'est elle qui planifie.
+	if !facadeTasks() {
+		StartTaskScheduler()
+	}
 	// Jeton de tentative du décodage spéculatif automatique : effacé dès que le
 	// moteur répond, sans dépendre d'une page ouverte (voir backend_serve_spec.go).
 	startSpecAttemptWatch()

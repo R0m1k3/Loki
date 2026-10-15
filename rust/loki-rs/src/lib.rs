@@ -44,6 +44,8 @@ pub mod strata;
 pub mod sysinfo;
 pub mod system;
 pub mod sysupdate;
+pub mod tasks;
 pub mod tools;
+pub mod tz;
 pub mod ui;
 pub mod update;

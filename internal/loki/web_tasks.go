@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // handleTasks : GET → liste des tâches + état de l'interrupteur maître + si le
@@ -134,7 +133,7 @@ func handleTaskSave(w http.ResponseWriter, r *http.Request) {
 	t.NoMem, t.NoWeb = req.NoMem, req.NoWeb
 	// Recalcule NextRun si la fréquence a changé (ou à la création).
 	if t.Schedule != req.Schedule || t.NextRun == 0 {
-		t.NextRun = computeNextRun(req.Schedule, req.TZ, time.Now())
+		t.NextRun = computeNextRun(req.Schedule, req.TZ, tasksNow())
 	}
 	t.Schedule = req.Schedule
 	if err := saveTask(t); err != nil {
@@ -176,7 +175,7 @@ func handleTaskToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	t.Enabled = req.On
 	if req.On {
-		t.NextRun = computeNextRun(t.Schedule, t.TZ, time.Now())
+		t.NextRun = computeNextRun(t.Schedule, t.TZ, tasksNow())
 	}
 	if err := saveTask(t); err != nil {
 		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})

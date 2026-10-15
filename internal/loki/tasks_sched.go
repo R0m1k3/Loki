@@ -27,7 +27,7 @@ func taskSchedLoop() {
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
 	for range t.C {
-		tickTasks(time.Now())
+		tickTasks(tasksNow())
 	}
 }
 
@@ -35,7 +35,7 @@ func taskSchedLoop() {
 // relativement à maintenant — sinon une tâche à NextRun=0 serait considérée « due »
 // en permanence, ou jamais planifiée selon le sens de la comparaison.
 func primeNextRuns() {
-	now := time.Now()
+	now := tasksNow()
 	for _, t := range listTasks() {
 		if t.Enabled && t.NextRun == 0 {
 			t.NextRun = computeNextRun(t.Schedule, t.TZ, now)

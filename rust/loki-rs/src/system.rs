@@ -84,7 +84,7 @@ impl System {
     /// `crawlReachable` : le serveur Crawl4AI répond-il (moins de 500 sur
     /// `/health` ou `/`, deux secondes en tout) ? Le moteur intégré n'a rien à
     /// joindre.
-    async fn reachable(&self, cfg: &Cfg, key: &str) -> bool {
+    pub(crate) async fn reachable(&self, cfg: &Cfg, key: &str) -> bool {
         if web_engine(cfg) == ENGINE_GO {
             return true;
         }
