@@ -23,7 +23,8 @@ import (
 //	POST /internal/v1/turn/done    {"ms":N}      → 204 (Web Push si abonnés)
 //	POST /internal/v1/conv/active  {"id":…}      → 204 (discussion active des outils)
 //	POST /internal/v1/conv/dropped {"id":…}      → 204 (fichiers, jobs, critères,
-//	                                                   mode, résultats d'outils)
+//	                                                   mode, résultats d'outils ;
+//	                                                   "files_only" : les fichiers)
 
 const internalTurnMaxBody = 8 << 20
 
@@ -147,12 +148,20 @@ func handleInternalConvActive(w http.ResponseWriter, r *http.Request) {
 func handleInternalConvDropped(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		ID string `json:"id"`
+		// FilesOnly : seulement les fichiers (Reset vide la discussion, il ne
+		// la supprime pas).
+		FilesOnly bool `json:"files_only"`
 	}
 	if !readInternalJSON(w, r, &in) {
 		return
 	}
 	if strings.TrimSpace(in.ID) == "" {
 		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "id manquant"})
+		return
+	}
+	if in.FilesOnly {
+		dropConvFiles(in.ID)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	stopConvJobs(in.ID)

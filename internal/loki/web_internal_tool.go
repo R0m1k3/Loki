@@ -58,10 +58,29 @@ func handleInternalToolExec(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, struct {
 		Label string `json:"label"`
 		toolExecResult
-		Image string   `json:"image,omitempty"`
-		Shot  string   `json:"shot,omitempty"`
-		Relay *Message `json:"relay,omitempty"`
-	}{label, res, image, shot, relay})
+		Image    string      `json:"image,omitempty"`
+		Shot     string      `json:"shot,omitempty"`
+		Relay    *Message    `json:"relay,omitempty"`
+		Criteria []Criterion `json:"criteria,omitempty"`
+	}{label, res, image, shot, relay, criteriaAfter(in.Name, in.Args, res)})
+}
+
+// criteriaAfter : la liste des critères après un appel qui l'a changée
+// (critNotify la pousse au journal du Go ; une conversation tenue par la
+// façade la reçoit ici). nil sinon.
+func criteriaAfter(name string, args map[string]any, res toolExecResult) []Criterion {
+	if name != "criteria" || strings.HasPrefix(res.Result, "[erreur]") {
+		return nil
+	}
+	switch a, _ := args["action"].(string); a {
+	case "add", "set", "clear":
+		list := critList(convActiveID())
+		if list == nil {
+			list = []Criterion{}
+		}
+		return list
+	}
+	return nil
 }
 
 // toolStepExtras : ce que runChatLoop tire d'un résultat d'outil après
