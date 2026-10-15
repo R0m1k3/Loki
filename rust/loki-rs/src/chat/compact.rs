@@ -99,7 +99,7 @@ const THINK_CLOSE: &str = "</think>";
 // une demande de l'utilisateur.
 const LOKI_NOTE_PREFIX: &str = "[system] ";
 pub(crate) const THINK_NUDGE_FIRST: &str = "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.";
-const THINK_NUDGE_STUCK: &str = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant.";
+pub(crate) const THINK_NUDGE_STUCK: &str = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant.";
 const RETRY_CORRECTIVE_LEAD: &str =
     "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed:\n";
 const TOOLS_OFF_HINT: &str = "Do not call any more tools. Answer now, directly, in the user's language, using only the information already gathered.";
