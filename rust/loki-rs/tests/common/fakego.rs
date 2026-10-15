@@ -62,6 +62,8 @@ pub struct FakeGo {
     pub turn_view: Mutex<Option<serde_json::Value>>,
     pub turn_verifier: Mutex<Option<serde_json::Value>>,
     pub tool_results: Mutex<HashMap<String, String>>,
+    /// Réponse de /internal/v1/conv/workspace (None : 404).
+    pub conv_workspace: Mutex<Option<serde_json::Value>>,
 }
 
 impl FakeGo {
@@ -291,6 +293,10 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             *st.go_busy.lock().unwrap() = None;
             resp(204, "")
         }
+        "/internal/v1/conv/workspace" => match st.conv_workspace.lock().unwrap().clone() {
+            Some(v) => resp(200, v.to_string()),
+            None => resp(404, "404 page not found"),
+        },
         "/internal/v1/tool/context" => match st.tool_ctx.lock().unwrap().clone() {
             Some(v) => resp(200, v.to_string()),
             None => resp(404, "404 page not found"),
@@ -466,6 +472,7 @@ pub struct Opts {
     pub models_hf: Option<String>,
     pub dictate: Option<Arc<loki_rs::dictate::Dictation>>,
     pub settings: bool,
+    pub files: Option<Arc<loki_rs::convfiles::ConvFiles>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -558,6 +565,7 @@ pub async fn start_with(
         }),
         dictate: opts.dictate,
         settings: opts.settings,
+        files: opts.files,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

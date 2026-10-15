@@ -137,8 +137,9 @@ func newWebMux() *http.ServeMux {
 	// range dans le dossier de leur discussion (une fois par process).
 	migrateConvFiles()
 	// Idem pour un envoi de fichier coupé en plein transfert : les sessions vivent
-	// en mémoire, aucun .part ne survit utilement à l'arrêt du process.
-	cleanStaleUploadParts()
+	// en mémoire, aucun .part ne survit utilement à l'arrêt du process (sauf
+	// quand la façade tient les fichiers, facade_files.go).
+	cleanStartupUploadParts()
 	// Idem pour une installation de moteur : elle meurt avec le process. On
 	// recharge son état pour l'annoncer « interrompue » au lieu de n'afficher
 	// plus rien du tout.
@@ -221,8 +222,9 @@ func newWebMux() *http.ServeMux {
 	// withFacadeChat : routes du chat remises à la façade quand elle tient la
 	// conversation (LOKI_CHAT=rust, facade_chat.go), celles des modèles quand
 	// elle les tient (LOKI_MODELS=rust, facade_models.go), celles de la dictée
-	// (LOKI_DICTATE=rust, facade_dictate.go) et des réglages partagés
-	// (LOKI_SETTINGS=rust, facade_settings.go) ; sans effet sinon.
+	// (LOKI_DICTATE=rust, facade_dictate.go), des réglages partagés
+	// (LOKI_SETTINGS=rust, facade_settings.go) et des fichiers de la
+	// discussion (LOKI_FILES=rust, facade_files.go) ; sans effet sinon.
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(withFacadeChat(path, h))) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)

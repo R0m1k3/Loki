@@ -142,7 +142,8 @@ var facadeChatRoutes = map[string]bool{
 
 // withFacadeChat remet la requête à la façade quand elle tient la
 // conversation — ou les routes des modèles (facade_models.go), la dictée
-// (facade_dictate.go), les réglages partagés (facade_settings.go).
+// (facade_dictate.go), les réglages partagés (facade_settings.go), les fichiers
+// de la discussion (facade_files.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
@@ -155,6 +156,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeDictate, "dictée indisponible : "
 	case facadeSettingsRoutes[path]:
 		held, unavailable = facadeSettings, "réglages indisponibles : "
+	case facadeFilesRoutes[path]:
+		held, unavailable = facadeFiles, "fichiers indisponibles : "
 	default:
 		return h
 	}

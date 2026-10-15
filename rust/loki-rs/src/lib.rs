@@ -15,6 +15,7 @@ pub mod auth;
 pub mod chat;
 pub mod chatapi;
 pub mod child;
+pub mod convfiles;
 pub mod dictate;
 pub mod downloads;
 pub mod engine;

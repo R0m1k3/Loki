@@ -107,6 +107,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalConvActive(w, r)
 		case "/internal/v1/conv/dropped":
 			handleInternalConvDropped(w, r)
+		case "/internal/v1/conv/workspace":
+			handleInternalConvWorkspace(w, r)
 		default:
 			http.NotFound(w, r)
 		}

@@ -127,6 +127,9 @@ fn serve() -> ExitCode {
         // LOKI_SETTINGS=rust : les réglages partagés (préférences, prompt
         // système, intensité du raisonnement, adresse publique).
         let settings_rust = held_by_facade("LOKI_SETTINGS");
+        // LOKI_FILES=rust : les fichiers de la discussion (dépôt, panneau
+        // Fichiers, archive, téléchargement, images).
+        let files_rust = held_by_facade("LOKI_FILES");
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
@@ -140,7 +143,10 @@ fn serve() -> ExitCode {
         if settings_rust {
             env.push(("LOKI_SETTINGS".into(), "rust".into()));
         }
-        if chat_rust || models_rust || dictate_rust || settings_rust {
+        if files_rust {
+            env.push(("LOKI_FILES".into(), "rust".into()));
+        }
+        if chat_rust || models_rust || dictate_rust || settings_rust || files_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -184,6 +190,12 @@ fn serve() -> ExitCode {
             std::sync::Arc::new(loki_rs::dictate::Dictation::new(&engine_paths.home))
         });
 
+        let files = if files_rust {
+            Some(start_files(backend, &token).await)
+        } else {
+            None
+        };
+
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,
@@ -203,6 +215,7 @@ fn serve() -> ExitCode {
             models,
             dictate,
             settings: settings_rust,
+            files,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -256,6 +269,33 @@ async fn start_models(
     let _ = tokio::task::spawn_blocking(move || downloads::clean_stale_part_files(&dirs)).await;
     eprintln!("[loki-rs] modèles tenus par la façade (LOKI_MODELS=rust)");
     std::sync::Arc::new(loki_rs::models::Models::new())
+}
+
+/// Les envois interrompus (process arrêté en plein dépôt) ne reprendront
+/// jamais : leurs `.part` sont vidés au démarrage (le Go ne le fait plus quand
+/// la façade tient les fichiers).
+async fn start_files(
+    backend: SocketAddr,
+    token: &str,
+) -> std::sync::Arc<loki_rs::convfiles::ConvFiles> {
+    let st = loki_rs::store::Store::new(backend, token.to_string());
+    let root = st
+        .internal_json(
+            hyper::Method::POST,
+            "/internal/v1/conv/workspace",
+            Some(&serde_json::json!({})),
+        )
+        .await
+        .ok()
+        .and_then(|v| v.get("root").and_then(|r| r.as_str()).map(str::to_string));
+    if let Some(root) = root {
+        let _ = tokio::task::spawn_blocking(move || {
+            loki_rs::convfiles::clean_stale_upload_parts(&root)
+        })
+        .await;
+    }
+    eprintln!("[loki-rs] fichiers de la discussion tenus par la façade (LOKI_FILES=rust)");
+    std::sync::Arc::new(loki_rs::convfiles::ConvFiles::default())
 }
 
 /// Le Go garde-t-il la conversation ? (quelques essais : il vient de démarrer)

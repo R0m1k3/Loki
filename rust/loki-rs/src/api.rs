@@ -34,6 +34,8 @@ pub struct Ctx {
     pub dictate: Option<std::sync::Arc<crate::dictate::Dictation>>,
     /// Réglages partagés tenus par la façade (`LOKI_SETTINGS=rust`).
     pub settings: bool,
+    /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
+    pub files: Option<std::sync::Arc<crate::convfiles::ConvFiles>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -42,7 +44,11 @@ impl Ctx {
     /// La façade tient-elle au moins un lot (le Go lui remet alors le trafic
     /// de ce lot qui lui arrive par le tunnel) ?
     pub fn holds_any(&self) -> bool {
-        self.chat.is_some() || self.models.is_some() || self.dictate.is_some() || self.settings
+        self.chat.is_some()
+            || self.models.is_some()
+            || self.dictate.is_some()
+            || self.settings
+            || self.files.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

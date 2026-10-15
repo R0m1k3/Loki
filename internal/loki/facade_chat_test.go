@@ -438,3 +438,49 @@ func TestFacadeReglages(t *testing.T) {
 		t.Fatalf("relayé sans la variable : %q", w.Body.String())
 	}
 }
+
+// LOKI_FILES=rust : les routes des fichiers de la discussion partent à la
+// façade ; /internal/v1/conv/workspace lui donne le dossier de la discussion
+// active ; les .part d'envois ne sont plus vidés ici au démarrage.
+func TestFacadeFichiers(t *testing.T) {
+	home := testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	t.Setenv(facadeFilesEnv, "rust")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadeFilesRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	prev := agentWorkspace()
+	workspacePath = filepath.Join(home, "ws")
+	t.Cleanup(func() { workspacePath = prev })
+	convActiveRemember("c-test")
+	w := httptest.NewRecorder()
+	handleInternalConvWorkspace(w, httptest.NewRequest("POST", "/internal/v1/conv/workspace", strings.NewReader("{}")))
+	var ws map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &ws); err != nil {
+		t.Fatal(err)
+	}
+	if ws["dir"] != filepath.Join(home, "ws", "discussions", "c-test") || ws["root"] != filepath.Join(home, "ws") || ws["id"] != "c-test" {
+		t.Fatalf("dossier de la discussion : %v", ws)
+	}
+	if st, err := os.Stat(ws["dir"]); err != nil || !st.IsDir() {
+		t.Fatalf("dossier non créé : %v", err)
+	}
+	part := filepath.Join(ws["dir"], "uploads", ".upload-1.part")
+	_ = os.MkdirAll(filepath.Dir(part), 0o755)
+	_ = os.WriteFile(part, []byte("x"), 0o644)
+	cleanStartupUploadParts()
+	if _, err := os.Stat(part); err != nil {
+		t.Fatalf(".part effacé alors que la façade tient les fichiers : %v", err)
+	}
+	t.Setenv(facadeFilesEnv, "")
+	cleanStartupUploadParts()
+	if _, err := os.Stat(part); !os.IsNotExist(err) {
+		t.Fatalf(".part gardé sans la variable : %v", err)
+	}
+}

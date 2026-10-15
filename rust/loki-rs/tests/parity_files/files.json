@@ -1,0 +1,975 @@
+{
+  "upload_name": {
+    "": "fichier",
+    "  .cache  ": "cache",
+    "..": "fichier",
+    "../../etc/passwd": "passwd",
+    "C:\\Users\\moi\\photo.jpg": "photo.jpg",
+    "a:b*c?d\"e<f>g|h.txt": "a_b_c_d_e_f_g_h.txt",
+    "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn.eeeeeeeeeeeeeeeeeeee": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+    "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn.pdf": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn.pdf",
+    "rapport.pdf": "rapport.pdf",
+    "x\u0001y.txt": "x_y.txt"
+  },
+  "slug": {
+    "": "",
+    "  Rapport_Final.v2 ": "rapport-final-v2",
+    "!!!": "",
+    "--a--": "a",
+    "Déjà   vu": "dj-vu",
+    "abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc ": "abc-abc-abc-abc-abc-abc-abc-abc-abc-abc"
+  },
+  "exif": [
+    {
+      "in": "/9j/4AAGSkZJRv/hACpFeGlmAABJSSoACAAAAAIAEgEDAAEAAAAGAAAADwECAAEAAAAAAAAA/9oAAg==",
+      "out": 6
+    },
+    {
+      "in": "/9j/4AAGSkZJRv/hACpFeGlmAABNTQAqAAAACAACAQ8AAgAAAAEAAAAAARIAAwAAAAEACAAA/9oAAg==",
+      "out": 8
+    },
+    {
+      "in": "/9j/4AAGSkZJRv/hACpFeGlmAABJSSoACAAAAAIADwECAAEAAAAAAAAAEgEDAAEAAAABAAAA/9oAAg==",
+      "out": 1
+    },
+    {
+      "in": "/9j/4AAGSkZJRv/hACpFeGlmAABJSSoACAAAAAIA",
+      "out": 0
+    },
+    {
+      "in": "/9j/2g==",
+      "out": 0
+    },
+    {
+      "in": "cGFzIHVuIGpwZWc=",
+      "out": 0
+    }
+  ],
+  "orient": [
+    {
+      "orient": 1,
+      "out": {
+        "w": 5,
+        "h": 3,
+        "pix": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2S"
+      }
+    },
+    {
+      "orient": 2,
+      "out": {
+        "w": 5,
+        "h": 3,
+        "pix": "W4ClysfsETYzWH2in8TpDgswVXo/ZImuq9D1Ghc8YYaDqM3y7xQ5XiNIbZKPtNn++yBFameMsdbT+B1C"
+      }
+    },
+    {
+      "orient": 3,
+      "out": {
+        "w": 5,
+        "h": 3,
+        "pix": "I0htko+02f77IEVqZ4yx1tP4HUI/ZImuq9D1Ghc8YYaDqM3y7xQ5XluApcrH7BE2M1h9op/E6Q4LMFV6"
+      }
+    },
+    {
+      "orient": 4,
+      "out": {
+        "w": 5,
+        "h": 3,
+        "pix": "0/gdQmeMsdb7IEVqj7TZ/iNIbZLvFDleg6jN8hc8YYar0PUaP2SJrgswVXqfxOkOM1h9osfsETZbgKXK"
+      }
+    },
+    {
+      "orient": 5,
+      "out": {
+        "w": 3,
+        "h": 5,
+        "pix": "CzBVeu8UOV7T+B1Cn8TpDoOozfJnjLHWM1h9ohc8YYb7IEVqx+wRNqvQ9RqPtNn+W4Clyj9kia4jSG2S"
+      }
+    },
+    {
+      "orient": 6,
+      "out": {
+        "w": 3,
+        "h": 5,
+        "pix": "0/gdQu8UOV4LMFV6Z4yx1oOozfKfxOkO+yBFahc8YYYzWH2ij7TZ/qvQ9RrH7BE2I0htkj9kia5bgKXK"
+      }
+    },
+    {
+      "orient": 7,
+      "out": {
+        "w": 3,
+        "h": 5,
+        "pix": "I0htkj9kia5bgKXKj7TZ/qvQ9RrH7BE2+yBFahc8YYYzWH2iZ4yx1oOozfKfxOkO0/gdQu8UOV4LMFV6"
+      }
+    },
+    {
+      "orient": 8,
+      "out": {
+        "w": 3,
+        "h": 5,
+        "pix": "W4Clyj9kia4jSG2Sx+wRNqvQ9RqPtNn+M1h9ohc8YYb7IEVqn8TpDoOozfJnjLHWCzBVeu8UOV7T+B1C"
+      }
+    }
+  ],
+  "orient_in": {
+    "w": 5,
+    "h": 3,
+    "pix": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2S"
+  },
+  "scale": [
+    {
+      "in": {
+        "w": 7,
+        "h": 5,
+        "pix": "gabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5g="
+      },
+      "max": 3,
+      "out": {
+        "w": 3,
+        "h": 2,
+        "pix": "UXabwHmew2iVZV+Eb5S5Xpe8YYZsWH2G"
+      }
+    },
+    {
+      "in": {
+        "w": 5,
+        "h": 9,
+        "pix": "7xQ5XoOozfIXPGGGq9D1Gj9kia7T+B1CZ4yx1vsgRWqPtNn+I0htkrfcASZLcJW63wQpTnOYveIHLFF2m8DlCi9UeZ7D6A0yV3yhxusQNVp/pMnuEzhdgqfM8RY7YIWqz/QZPmOIrdL3HEFmi7DV+h9EaY6z2P0iR2yRttsAJUpvlLneAyhNcpe84QYrUHWav+QJLlN4ncLnDDFWe6DF6g80WX6jyO0SN1yBpsvwFTpfhKnO"
+      },
+      "max": 4,
+      "out": {
+        "w": 2,
+        "h": 4,
+        "pix": "q5B1mnJskYxzmH1ij19ZfntghaqCp6FxdW9pZHV9ho4="
+      }
+    },
+    {
+      "in": {
+        "w": 10,
+        "h": 10,
+        "pix": "THGWu+AFKk90mb7jCC1Sd5zB5gswVXqfxOkOM1h9osfsETZbgKXK7xQ5XoOozfIXPGGGq9D1Gj9kia7T+B1CZ4yx1vsgRWqPtNn+I0htkrfcASZLcJW63wQpTnOYveIHLFF2m8DlCi9UeZ7D6A0yV3yhxusQNVp/pMnuEzhdgqfM8RY7YIWqz/QZPmOIrdL3HEFmi7DV+h9EaY6z2P0iR2yRttsAJUpvlLneAyhNcpe84QYrUHWav+QJLlN4ncLnDDFWe6DF6g80WX6jyO0SN1yBpsvwFTpfhKnO8xg9Yoes0fYbQGWKr9T5HkNojbLX/CFGa5C12v8kSW6TuN0CJ0xxlrvgBSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9w=="
+      },
+      "max": 3,
+      "out": {
+        "w": 3,
+        "h": 3,
+        "pix": "b1uAiICJdWF/eYmZcZaCb4Nvd5yCkYxxkXaGlXhygnx+g3h9"
+      }
+    },
+    {
+      "in": {
+        "w": 3,
+        "h": 2,
+        "pix": "QmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CV"
+      },
+      "max": 5,
+      "out": {
+        "w": 3,
+        "h": 2,
+        "pix": "QmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CV"
+      }
+    }
+  ],
+  "sniff": [
+    {
+      "in": "iVBORw0KGgoAAAANSUhEUg==",
+      "out": "image/png"
+    },
+    {
+      "in": "/9j/4A==",
+      "out": "image/jpeg"
+    },
+    {
+      "in": "R0lGODlhAQA=",
+      "out": "image/gif"
+    },
+    {
+      "in": "UklGRhAAAABXRUJQVlA4IA==",
+      "out": "image/webp"
+    },
+    {
+      "in": "Qk0AAA==",
+      "out": "image/bmp"
+    },
+    {
+      "in": "AAABAAEA",
+      "out": "image/x-icon"
+    },
+    {
+      "in": "PHN2ZyB4bWxucz0neCcvPg==",
+      "out": "text/plain; charset=utf-8"
+    },
+    {
+      "in": "PGh0bWw+PGJvZHk+eA==",
+      "out": "text/html; charset=utf-8"
+    },
+    {
+      "in": "Ym9uam91cg==",
+      "out": "text/plain; charset=utf-8"
+    },
+    {
+      "in": "",
+      "out": "text/plain; charset=utf-8"
+    }
+  ],
+  "workspace": {
+    "dir": "{{HOME}}/workspace/discussions/c-fichiers",
+    "id": "c-fichiers",
+    "root": "{{HOME}}/workspace",
+    "title": ""
+  },
+  "tree": {
+    "workspace/discussions/c-autre/captures/x.jpg": {
+      "data": "anBlZz8=",
+      "mtime": 1700000004
+    },
+    "workspace/discussions/c-fichiers/faux.png": {
+      "data": "PGh0bWw+cGFzIHVuZSBpbWFnZTwvaHRtbD4=",
+      "mtime": 1700000005
+    },
+    "workspace/discussions/c-fichiers/image.png": {
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAYAAAC09K7GAAAAQ0lEQVR4nAAzAMz/AxY7YIWfssTX6fwOobPG2OsAZouw1fofRGmOs9j9IkdskQC22wAlSm+Uud4DKE1yl7zhAQAA//+6OxpmJmJbrAAAAABJRU5ErkJggg==",
+      "mtime": 1700000040
+    },
+    "workspace/discussions/c-fichiers/notes": {
+      "dir": true,
+      "mtime": 1700000020
+    },
+    "workspace/discussions/c-fichiers/notes/a.txt": {
+      "data": "YWxwaGE=",
+      "mtime": 1700000010
+    },
+    "workspace/discussions/c-fichiers/notes/sous": {
+      "dir": true,
+      "mtime": 1700000012
+    },
+    "workspace/discussions/c-fichiers/notes/sous/b.txt": {
+      "data": "YmV0YSEh",
+      "mtime": 1700000011
+    },
+    "workspace/discussions/c-fichiers/rapport.md": {
+      "data": "IyBSYXBwb3J0Cg==",
+      "mtime": 1700000030
+    },
+    "workspace/uploads": {
+      "dir": true,
+      "mtime": 1700000003
+    },
+    "workspace/uploads/ancien.pdf": {
+      "data": "JVBERg==",
+      "mtime": 1700000002
+    },
+    "workspace/vieux.txt": {
+      "data": "b2xk",
+      "mtime": 1700000001
+    }
+  },
+  "calls": [
+    {
+      "method": "GET",
+      "url": "/api/chat/files",
+      "status": 200,
+      "out": {
+        "at_root": true,
+        "count": 5,
+        "dir": "",
+        "entries": [
+          {
+            "dir": true,
+            "image": false,
+            "items": 2,
+            "mod": 1700000020,
+            "name": "notes",
+            "path": "notes",
+            "size": 11
+          },
+          {
+            "dir": false,
+            "image": true,
+            "mod": 1700000040,
+            "name": "image.png",
+            "path": "image.png",
+            "size": 124
+          },
+          {
+            "dir": false,
+            "image": false,
+            "mod": 1700000030,
+            "name": "rapport.md",
+            "path": "rapport.md",
+            "size": 10
+          },
+          {
+            "dir": false,
+            "image": true,
+            "mod": 1700000005,
+            "name": "faux.png",
+            "path": "faux.png",
+            "size": 26
+          }
+        ],
+        "legacy": 2,
+        "ok": true,
+        "parent": "",
+        "root": "{{HOME}}/workspace/discussions/c-fichiers",
+        "scope": "",
+        "total": 171
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files?dir=notes",
+      "status": 200,
+      "out": {
+        "at_root": false,
+        "count": 5,
+        "dir": "notes",
+        "entries": [
+          {
+            "dir": true,
+            "image": false,
+            "items": 1,
+            "mod": 1700000012,
+            "name": "sous",
+            "path": "notes/sous",
+            "size": 6
+          },
+          {
+            "dir": false,
+            "image": false,
+            "mod": 1700000010,
+            "name": "a.txt",
+            "path": "notes/a.txt",
+            "size": 5
+          }
+        ],
+        "legacy": 2,
+        "ok": true,
+        "parent": "",
+        "root": "{{HOME}}/workspace/discussions/c-fichiers",
+        "scope": "",
+        "total": 171
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files?dir=notes/sous/",
+      "status": 200,
+      "out": {
+        "at_root": false,
+        "count": 5,
+        "dir": "notes/sous",
+        "entries": [
+          {
+            "dir": false,
+            "image": false,
+            "mod": 1700000011,
+            "name": "b.txt",
+            "path": "notes/sous/b.txt",
+            "size": 6
+          }
+        ],
+        "legacy": 2,
+        "ok": true,
+        "parent": "notes",
+        "root": "{{HOME}}/workspace/discussions/c-fichiers",
+        "scope": "",
+        "total": 171
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files?dir=../../..",
+      "status": 403,
+      "out": {
+        "error": "hors du dossier de travail",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files?dir=rapport.md",
+      "status": 404,
+      "out": {
+        "error": "dossier introuvable",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files?scope=legacy",
+      "status": 200,
+      "out": {
+        "at_root": true,
+        "count": 8,
+        "dir": "",
+        "entries": [
+          {
+            "dir": true,
+            "image": false,
+            "items": 1,
+            "mod": 1700000003,
+            "name": "uploads",
+            "path": "uploads",
+            "size": 4
+          },
+          {
+            "dir": false,
+            "image": false,
+            "mod": 1700000001,
+            "name": "vieux.txt",
+            "path": "vieux.txt",
+            "size": 3
+          }
+        ],
+        "legacy": 2,
+        "ok": true,
+        "parent": "",
+        "root": "{{HOME}}/workspace",
+        "scope": "legacy",
+        "total": 183
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=rapport.md&meta=1",
+      "status": 200,
+      "out": {
+        "e2e": false,
+        "name": "rapport.md",
+        "ok": true,
+        "size": 10
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=rapport.md&b64=1&offset=2&len=4",
+      "status": 200,
+      "out": {
+        "data": "UmFwcA==",
+        "eof": false,
+        "name": "rapport.md",
+        "offset": 2,
+        "ok": true,
+        "size": 10
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=rapport.md&b64=1&offset=5",
+      "status": 200,
+      "out": {
+        "data": "cG9ydAo=",
+        "eof": true,
+        "name": "rapport.md",
+        "offset": 5,
+        "ok": true,
+        "size": 10
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=rapport.md&b64=1&offset=99",
+      "status": 400,
+      "out": {
+        "error": "position hors du fichier",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=../../vieux.txt",
+      "status": 403,
+      "out": {
+        "error": "hors du dossier de travail",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=absent.txt",
+      "status": 404,
+      "out": {
+        "error": "fichier introuvable",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=",
+      "status": 400,
+      "out": {
+        "error": "chemin manquant",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=captures/c-autre/x.jpg&meta=1",
+      "status": 200,
+      "out": {
+        "e2e": false,
+        "name": "x.jpg",
+        "ok": true,
+        "size": 5
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=uploads/ancien.pdf&meta=1",
+      "status": 200,
+      "out": {
+        "e2e": false,
+        "name": "ancien.pdf",
+        "ok": true,
+        "size": 4
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=notes",
+      "status": 404,
+      "out": {
+        "error": "fichier introuvable",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/file?path=/notes/a.txt",
+      "status": 200,
+      "raw": "YWxwaGE=",
+      "headers": {
+        "Content-Disposition": "attachment; filename*=UTF-8''a.txt",
+        "Content-Type": "application/octet-stream",
+        "X-Content-Type-Options": "nosniff"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/image?path=faux.png",
+      "status": 415,
+      "out": {
+        "error": "ce fichier n'est pas une image",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/image?path=image.png",
+      "status": 200,
+      "raw": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAYAAAC09K7GAAAAQ0lEQVR4nAAzAMz/AxY7YIWfssTX6fwOobPG2OsAZouw1fofRGmOs9j9IkdskQC22wAlSm+Uud4DKE1yl7zhAQAA//+6OxpmJmJbrAAAAABJRU5ErkJggg==",
+      "headers": {
+        "Content-Disposition": "inline; filename*=UTF-8''image.png",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Content-Type": "image/png",
+        "X-Content-Type-Options": "nosniff"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/image?path=image.png&thumb=2",
+      "status": 200,
+      "headers": {
+        "Cache-Control": "private, max-age=3600",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Content-Type": "image/jpeg",
+        "X-Content-Type-Options": "nosniff"
+      },
+      "thumb": [
+        4,
+        3
+      ]
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/image?path=rapport.md&thumb=64",
+      "status": 415,
+      "out": {
+        "error": "ce fichier n'est pas une image",
+        "ok": false
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"name\":\"../Mon fichier?.txt\",\"data\":\"aGVsbG8=\"}",
+      "status": 200,
+      "out": {
+        "abs": "{{HOME}}/workspace/discussions/c-fichiers/uploads/Mon fichier_.txt",
+        "ok": true,
+        "path": "uploads/Mon fichier_.txt",
+        "size": 5
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_.txt": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"name\":\"Mon fichier?.txt\",\"data\":\"aGVsbG8gIQ==\"}",
+      "status": 200,
+      "out": {
+        "abs": "{{HOME}}/workspace/discussions/c-fichiers/uploads/Mon fichier_-2.txt",
+        "ok": true,
+        "path": "uploads/Mon fichier_-2.txt",
+        "size": 7
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"name\":\"gros.bin\",\"data\":\"AAEC\",\"more\":true,\"size\":5}",
+      "status": 200,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true,
+        "received": 3
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/.upload-{{N}}.part": 3,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"id\":\"{{ID}}\",\"data\":\"data:application/octet-stream;base64,AwQ=\",\"more\":false}",
+      "status": 200,
+      "out": {
+        "abs": "{{HOME}}/workspace/discussions/c-fichiers/uploads/gros.bin",
+        "ok": true,
+        "path": "uploads/gros.bin",
+        "size": 5
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"id\":\"inconnu\",\"data\":\"AA==\"}",
+      "status": 409,
+      "out": {
+        "error": "envoi expiré — recommence le fichier",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"name\":\"vide.txt\",\"data\":\"\"}",
+      "status": 400,
+      "out": {
+        "error": "fichier vide",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "{\"name\":\"x\",\"data\":\"!!!\"}",
+      "status": 400,
+      "out": {
+        "error": "contenu illisible (base64 attendu)",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/upload",
+      "body": "pas du json",
+      "status": 400,
+      "out": {
+        "error": "morceau trop gros ou requête invalide",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"\"}",
+      "status": 400,
+      "out": {
+        "error": "chemin manquant",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\".\"}",
+      "status": 403,
+      "out": {
+        "error": "le dossier de travail lui-même ne se supprime pas",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"../..\"}",
+      "status": 403,
+      "out": {
+        "error": "hors du dossier de travail",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"discussions\",\"scope\":\"legacy\"}",
+      "status": 403,
+      "out": {
+        "error": "les dossiers des discussions se suppriment discussion par discussion",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"absent\"}",
+      "status": 404,
+      "out": {
+        "error": "introuvable",
+        "ok": false
+      },
+      "tree": {
+        "faux.png": 26,
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"faux.png\"}",
+      "status": 200,
+      "out": {
+        "freed": 26,
+        "ok": true
+      },
+      "tree": {
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "notes/sous/b.txt": 6,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/chat/file/delete",
+      "body": "{\"path\":\"notes/sous\"}",
+      "status": 200,
+      "out": {
+        "freed": 6,
+        "ok": true
+      },
+      "tree": {
+        "image.png": 124,
+        "notes/a.txt": 5,
+        "rapport.md": 10,
+        "uploads/Mon fichier_-2.txt": 7,
+        "uploads/Mon fichier_.txt": 5,
+        "uploads/gros.bin": 5
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip",
+      "status": 404,
+      "out": {
+        "error": "archive absente — redemande la fiche (meta=1) d'abord",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip?meta=1",
+      "status": 200,
+      "out": {
+        "e2e": false,
+        "files": 6,
+        "name": "loki-c-fichiers-{{DATE}}.zip",
+        "ok": true,
+        "size": "…"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip?b64=1&offset=0&len=99999999",
+      "status": 200,
+      "out": {
+        "data": "…",
+        "eof": true,
+        "name": "loki-c-fichiers-{{DATE}}.zip",
+        "offset": 0,
+        "ok": true,
+        "size": "…"
+      },
+      "zip": {
+        "image.png": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAYAAAC09K7GAAAAQ0lEQVR4nAAzAMz/AxY7YIWfssTX6fwOobPG2OsAZouw1fofRGmOs9j9IkdskQC22wAlSm+Uud4DKE1yl7zhAQAA//+6OxpmJmJbrAAAAABJRU5ErkJggg==",
+        "notes/a.txt": "YWxwaGE=",
+        "rapport.md": "IyBSYXBwb3J0Cg==",
+        "uploads/Mon fichier_-2.txt": "aGVsbG8gIQ==",
+        "uploads/Mon fichier_.txt": "aGVsbG8=",
+        "uploads/gros.bin": "AAECAwQ="
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip?b64=1&offset=-1",
+      "status": 400,
+      "out": {
+        "error": "position hors du fichier",
+        "ok": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip?meta=1&scope=legacy",
+      "status": 200,
+      "out": {
+        "e2e": false,
+        "files": 2,
+        "name": "loki-hors-discussion-{{DATE}}.zip",
+        "ok": true,
+        "size": "…"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/api/chat/files/zip?b64=1&scope=legacy",
+      "status": 200,
+      "out": {
+        "data": "…",
+        "eof": true,
+        "name": "loki-hors-discussion-{{DATE}}.zip",
+        "offset": 0,
+        "ok": true,
+        "size": "…"
+      },
+      "zip": {
+        "uploads/ancien.pdf": "JVBERg==",
+        "vieux.txt": "b2xk"
+      }
+    }
+  ]
+}

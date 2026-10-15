@@ -71,6 +71,8 @@ pub struct Config {
     pub dictate: Option<Arc<crate::dictate::Dictation>>,
     /// Réglages partagés tenus par la façade (`LOKI_SETTINGS=rust`).
     pub settings: bool,
+    /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
+    pub files: Option<Arc<crate::convfiles::ConvFiles>>,
 }
 
 struct Proxy {
@@ -101,6 +103,7 @@ pub async fn serve(
             models: cfg.models,
             dictate: cfg.dictate,
             settings: cfg.settings,
+            files: cfg.files,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -181,6 +184,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(f) = &self.ctx.files
+            && crate::convfiles::handles(path)
+        {
+            return crate::convfiles::serve(&self.ctx, f, req, from_go).await;
         }
         if self.ctx.settings && crate::settings::handles(path) {
             return crate::settings::serve(&self.ctx, req, from_go).await;
