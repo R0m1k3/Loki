@@ -31,8 +31,12 @@ func serviceAction(action string) error {
 		}
 		tuneReapStale()
 	}
-	return serviceActionOS(action)
+	return serviceActionOSFn(action)
 }
+
+// serviceActionOSFn : serviceActionOS, remplaçable par les tests (une bascule
+// de preset ne doit pas lancer de vrai service depuis `go test`).
+var serviceActionOSFn = serviceActionOS
 
 // preflightEngine vérifie ce sans quoi le moteur ne PEUT pas démarrer, avant de
 // lancer le service. Sinon llama-server sortait en erreur, systemd le relançait

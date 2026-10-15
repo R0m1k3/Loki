@@ -59,6 +59,9 @@ pub struct Ctx {
     /// Panneau « moteur de l'image » tenu par la façade
     /// (`LOKI_ENGINE_IMAGE=rust`, avec les backends).
     pub engineimg: Option<std::sync::Arc<crate::engineimg::EngineImg>>,
+    /// Strata (écran, réglages, installation) tenu par la façade
+    /// (`LOKI_STRATA=rust`, avec les backends).
+    pub strata: Option<std::sync::Arc<crate::strata::api::Strata>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -82,6 +85,7 @@ impl Ctx {
             || self.update
             || self.backends.is_some()
             || self.engineimg.is_some()
+            || self.strata.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

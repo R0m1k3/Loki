@@ -832,7 +832,7 @@ async fn tune_deny(store: &Store) -> Option<Response<Body>> {
 
 /// Applique un preset à la configuration vivante (au Go, voir
 /// `facade_presets.go`).
-async fn preset_apply(store: &Store, path: &Path, mode: &str) -> Result<(), String> {
+pub(crate) async fn preset_apply(store: &Store, path: &Path, mode: &str) -> Result<(), String> {
     let (code, v) = store
         .internal_post(
             "/internal/v1/preset/apply",

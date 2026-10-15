@@ -40,6 +40,7 @@ pub mod push;
 pub mod serve;
 pub mod settings;
 pub mod store;
+pub mod strata;
 pub mod sysinfo;
 pub mod system;
 pub mod sysupdate;

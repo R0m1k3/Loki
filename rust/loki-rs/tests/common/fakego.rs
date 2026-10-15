@@ -661,6 +661,7 @@ pub struct Opts {
     pub update: bool,
     pub backends: Option<Arc<loki_rs::backends::Backends>>,
     pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
+    pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -764,6 +765,7 @@ pub async fn start_with(
         update: opts.update,
         backends: opts.backends,
         engineimg: opts.engineimg,
+        strata: opts.strata,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

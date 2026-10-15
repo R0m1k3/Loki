@@ -100,6 +100,9 @@ pub struct Config {
     /// registre, bascules, rendu du gabarit) tenu par la façade
     /// (`LOKI_ENGINE_IMAGE=rust`) ; `None` : au Go.
     pub engineimg: Option<Arc<crate::engineimg::EngineImg>>,
+    /// Strata (machine, réglages, installation) tenu par la façade
+    /// (`LOKI_STRATA=rust`) ; `None` : au Go.
+    pub strata: Option<Arc<crate::strata::api::Strata>>,
 }
 
 struct Proxy {
@@ -141,6 +144,7 @@ pub async fn serve(
             update: cfg.update,
             backends: cfg.backends,
             engineimg: cfg.engineimg,
+            strata: cfg.strata,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -249,6 +253,11 @@ impl Proxy {
             && crate::engineimg::handles(path)
         {
             return crate::engineimg::serve(&self.ctx, e, req, from_go).await;
+        }
+        if let Some(s) = &self.ctx.strata
+            && crate::strata::api::handles(path)
+        {
+            return crate::strata::api::serve(&self.ctx, s, req, from_go).await;
         }
         if let Some(b) = &self.ctx.backends
             && crate::backends::handles(path)

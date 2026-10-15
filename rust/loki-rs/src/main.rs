@@ -174,6 +174,12 @@ fn serve() -> ExitCode {
         if held_by_facade("LOKI_ENGINE_IMAGE") && !backends_rust {
             eprintln!("[loki-rs] moteur de l'image tenu par le Go (LOKI_BACKENDS=rust requis)");
         }
+        // LOKI_STRATA=rust : l'écran de Strata, ses réglages et son
+        // installation (un job des moteurs : avec les backends seulement).
+        let strata_rust = held_by_facade("LOKI_STRATA") && backends_rust;
+        if held_by_facade("LOKI_STRATA") && !backends_rust {
+            eprintln!("[loki-rs] Strata tenu par le Go (LOKI_BACKENDS=rust requis)");
+        }
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -207,6 +213,7 @@ fn serve() -> ExitCode {
             ("LOKI_UPDATE", update_rust),
             ("LOKI_BACKENDS", backends_rust),
             ("LOKI_ENGINE_IMAGE", engineimg_rust),
+            ("LOKI_STRATA", strata_rust),
         ];
         for (var, on) in held {
             if on {
@@ -332,6 +339,12 @@ fn serve() -> ExitCode {
                 ],
             ))
         });
+        let strata = strata_rust.then(|| {
+            std::sync::Arc::new(loki_rs::strata::api::Strata::new(
+                engine_paths.home.clone(),
+                loki_rs::backends::probe::Probe::system(),
+            ))
+        });
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -352,6 +365,7 @@ fn serve() -> ExitCode {
             update: update_rust,
             backends,
             engineimg,
+            strata,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

@@ -52,11 +52,21 @@ import (
 // autre paquet est remplacé au lancement (strataEnsureEngine).
 const (
 	strataVersion     = "1.0"
-	strataReleaseBase = "https://github.com/nathaninline/ajean/releases/download/moe-v" + strataVersion + "/"
 	strataSrcAsset    = "ajean-moe-src-" + strataVersion + ".tar.gz"
 	strataEngineAsset = "ajean-moe-engine-" + strataVersion + "-linux-x64-cuda12.zip"
 	// strataEngineLocal : le nom sous lequel l'installeur attend le moteur (CUDA12_ASSET).
 	strataEngineLocal = "strata-linux-x64-cuda12.zip"
+)
+
+// strataReleaseBase : la release figée. Une variable pour que les tests la
+// pointent sur un faux serveur.
+var strataReleaseBase = "https://github.com/nathaninline/ajean/releases/download/moe-v" + strataVersion + "/"
+
+// meminfoPath, strataDiskFree : la RAM et la place libre lues sur la machine,
+// remplaçables par les tests (journal de parité de Strata).
+var (
+	meminfoPath    = "/proc/meminfo"
+	strataDiskFree = diskFree
 )
 
 // strataAssetSHA : empreintes des fichiers de la release, vérifiées avant usage.
@@ -154,7 +164,7 @@ const (
 // memAvailableGB : la RAM réellement disponible (MemAvailable : libre + cache
 // récupérable), en Go. Hors Linux ou illisible : la RAM totale.
 func memAvailableGB() float64 {
-	b, err := os.ReadFile("/proc/meminfo")
+	b, err := os.ReadFile(meminfoPath)
 	if err != nil {
 		return totalRAMGB()
 	}
@@ -286,7 +296,7 @@ func strataDetect() strataEnv {
 	env.AvailGB = min(memAvailableGB()+strataEngineRSSGB(), env.RAMGB)
 	// strataHome() et pas LokiHome() : /data/strata peut être un disque à part
 	// (SSD dédié monté dans le conteneur), c'est sa place libre qui compte.
-	if f := diskFree(strataHome()); f > 0 {
+	if f := strataDiskFree(strataHome()); f > 0 {
 		env.DiskFreeGB = float64(f) / 1e9
 	}
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
@@ -1380,25 +1390,33 @@ func handleStrataSettings(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
+	// « Actif » se décide AVANT l'écriture (comme SavePresetApplying) : c'est
+	// l'ancien contenu qui porte l'empreinte de la configuration courante. Lu
+	// après, un réglage changé faisait passer le preset en service pour
+	// inactif, et rien n'était appliqué.
+	active := false
+	if list, err := ListPresets(); err == nil {
+		for _, p := range list {
+			if p.ID == req.Preset && p.Active {
+				active = true
+			}
+		}
+	}
 	path := filepath.Join(presetsDir(), req.Preset+".env")
 	if err := os.WriteFile(path, []byte(next), 0o644); err != nil {
 		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
 	restarted := false
-	if list, err := ListPresets(); err == nil {
-		for _, p := range list {
-			if p.ID == req.Preset && p.Active {
-				if tuneDenyHTTP(w) {
-					return
-				}
-				if err := SwitchToPreset(path); err != nil {
-					sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
-					return
-				}
-				restarted = true
-			}
+	if active {
+		if tuneDenyHTTP(w) {
+			return
 		}
+		if err := SwitchToPreset(path); err != nil {
+			sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		restarted = true
 	}
 	sendJSON(w, 200, map[string]any{"ok": true, "restarted": restarted})
 }
