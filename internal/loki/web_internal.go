@@ -113,6 +113,12 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalPresetApply(w, r)
 		case "/internal/v1/tune/guard":
 			handleInternalTuneGuard(w, r)
+		case "/internal/v1/service/prestart":
+			handleInternalServicePrestart(w, r)
+		case "/internal/v1/chat/generating":
+			handleInternalChatGenerating(w, r)
+		case "/internal/v1/dictate/stop":
+			handleInternalDictateStop(w, r)
 		default:
 			http.NotFound(w, r)
 		}

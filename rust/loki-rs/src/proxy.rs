@@ -79,6 +79,9 @@ pub struct Config {
     pub mem: Option<Arc<crate::memory::Memory>>,
     /// Presets tenus par la façade (`LOKI_PRESETS=rust`).
     pub presets: bool,
+    /// Pilotage du moteur tenu par la façade (`LOKI_ENGINE=rust`) :
+    /// démarrage, arrêt, déchargement de la VRAM ; `None` : au Go.
+    pub engine_ctl: Option<Arc<crate::enginectl::EngineCtl>>,
 }
 
 struct Proxy {
@@ -113,6 +116,7 @@ pub async fn serve(
             push: cfg.push,
             mem: cfg.mem,
             presets: cfg.presets,
+            engine_ctl: cfg.engine_ctl,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -199,6 +203,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(e) = &self.ctx.engine_ctl
+            && crate::enginectl::handles(path)
+        {
+            return crate::enginectl::serve(&self.ctx, e, req, from_go).await;
         }
         if self.ctx.presets && crate::presets_api::handles(path) {
             return crate::presets_api::serve(&self.ctx, req, from_go).await;

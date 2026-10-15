@@ -101,6 +101,7 @@ async fn banc(cle: Option<&str>) -> Banc {
         push: None,
         mem: None,
         presets: false,
+        engine_ctl: None,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

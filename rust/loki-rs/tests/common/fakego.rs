@@ -78,6 +78,12 @@ pub struct FakeGo {
     pub tune_busy: Mutex<Option<String>>,
     /// /internal/v1/preset/apply reçus : (chemin, mode).
     pub preset_applies: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/chat/generating : le Go écrit une réponse.
+    pub generating: Mutex<bool>,
+    /// /internal/v1/service/prestart reçus.
+    pub prestarts: Mutex<u32>,
+    /// /internal/v1/dictate/stop reçus.
+    pub dictate_stops: Mutex<u32>,
     /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
     pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
@@ -336,6 +342,19 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             ),
             None => resp(200, r#"{"busy":false}"#),
         },
+        "/internal/v1/service/prestart" => {
+            *st.prestarts.lock().unwrap() += 1;
+            let e = st.tune_busy.lock().unwrap().clone().unwrap_or_default();
+            resp(200, serde_json::json!({ "error": e }).to_string())
+        }
+        "/internal/v1/chat/generating" => resp(
+            200,
+            serde_json::json!({ "generating": *st.generating.lock().unwrap() }).to_string(),
+        ),
+        "/internal/v1/dictate/stop" => {
+            *st.dictate_stops.lock().unwrap() += 1;
+            resp(204, "")
+        }
         "/internal/v1/preset/apply" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
@@ -530,6 +549,7 @@ pub struct Opts {
     pub push: Option<Arc<loki_rs::push::Push>>,
     pub mem: Option<Arc<loki_rs::memory::Memory>>,
     pub presets: bool,
+    pub engine_ctl: Option<Arc<loki_rs::enginectl::EngineCtl>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -626,6 +646,7 @@ pub async fn start_with(
         push: opts.push,
         mem: opts.mem,
         presets: opts.presets,
+        engine_ctl: opts.engine_ctl,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

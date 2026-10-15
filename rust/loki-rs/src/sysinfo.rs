@@ -107,7 +107,7 @@ pub async fn nvidia_smi_query() -> io::Result<Vec<u8>> {
 }
 
 /// [`nvidia_smi_query`] avec un exécutable choisi (tests).
-async fn nvidia_smi_query_bin(bin: &str) -> io::Result<Vec<u8>> {
+pub(crate) async fn nvidia_smi_query_bin(bin: &str) -> io::Result<Vec<u8>> {
     let mut cmd = tokio::process::Command::new(bin);
     cmd.args([
         "--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu",

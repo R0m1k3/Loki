@@ -19,6 +19,7 @@ pub mod convfiles;
 pub mod dictate;
 pub mod downloads;
 pub mod engine;
+pub mod enginectl;
 pub mod engstatus;
 pub mod gguf;
 pub mod gojson;

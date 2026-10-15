@@ -143,7 +143,9 @@ var facadeChatRoutes = map[string]bool{
 // withFacadeChat remet la requête à la façade quand elle tient la
 // conversation — ou les routes des modèles (facade_models.go), la dictée
 // (facade_dictate.go), les réglages partagés (facade_settings.go), les fichiers
-// de la discussion (facade_files.go), les notifications (facade_push.go).
+// de la discussion (facade_files.go), les notifications (facade_push.go), la
+// mémoire (facade_mem.go), les presets (facade_presets.go), le pilotage du
+// moteur (facade_engine.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
@@ -164,6 +166,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeMem, "mémoire indisponible : "
 	case facadePresetsRoutes[path]:
 		held, unavailable = facadePresets, "presets indisponibles : "
+	case facadeEngineRoutes[path]:
+		held, unavailable = facadeEngine, "pilotage du moteur indisponible : "
 	default:
 		return h
 	}

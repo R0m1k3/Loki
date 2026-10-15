@@ -570,3 +570,78 @@ func TestFacadePresets(t *testing.T) {
 		t.Fatalf("reçu par la façade : %d appels", n)
 	}
 }
+
+// Le pilotage du moteur (LOKI_ENGINE=rust, lot 16) part à la façade, et l'API
+// interne lui rend ce qui reste ici : verrou de l'optimiseur avant un
+// démarrage, génération en cours, arrêt de la dictée.
+func TestFacadeMoteur(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadeEngineRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s servi ailleurs sans LOKI_ENGINE : %q", p, w.Body.String())
+		}
+	}
+	t.Setenv(facadeEngineEnv, "rust")
+	for p := range facadeEngineRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if n := len(f.recu()); n != len(facadeEngineRoutes) {
+		t.Fatalf("reçu par la façade : %d appels", n)
+	}
+
+	// Avant un démarrage : le verrou, puis le ménage.
+	appels := 0
+	old := enginePrestart
+	t.Cleanup(func() { enginePrestart = old })
+	enginePrestart = func() error {
+		appels++
+		if appels == 2 {
+			return errTuneBusy
+		}
+		return nil
+	}
+	for i, want := range []string{`{"error":""}`, `{"error":"` + errTuneBusy.Error() + `"}`} {
+		w := httptest.NewRecorder()
+		handleInternalServicePrestart(w, httptest.NewRequest("POST", "/internal/v1/service/prestart", nil))
+		if got := strings.TrimSpace(w.Body.String()); w.Code != 200 || got != want {
+			t.Fatalf("prestart %d : %d %s", i, w.Code, got)
+		}
+	}
+	w := httptest.NewRecorder()
+	handleInternalServicePrestart(w, httptest.NewRequest("GET", "/internal/v1/service/prestart", nil))
+	if w.Code != 405 || appels != 2 {
+		t.Fatalf("prestart en GET : %d (%d appels)", w.Code, appels)
+	}
+
+	// La génération en cours de la conversation tenue ici.
+	for _, gen := range []bool{false, true} {
+		conv.mu.Lock()
+		conv.Generating = gen
+		conv.mu.Unlock()
+		w := httptest.NewRecorder()
+		handleInternalChatGenerating(w, httptest.NewRequest("GET", "/internal/v1/chat/generating", nil))
+		var out struct{ Generating bool }
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || out.Generating != gen {
+			t.Fatalf("generating=%v : %s", gen, w.Body.String())
+		}
+	}
+	conv.mu.Lock()
+	conv.Generating = false
+	conv.mu.Unlock()
+
+	// L'arrêt de la dictée (rien ne tourne : immédiat).
+	w = httptest.NewRecorder()
+	handleInternalDictateStop(w, httptest.NewRequest("POST", "/internal/v1/dictate/stop", nil))
+	if w.Code != 204 {
+		t.Fatalf("arrêt de la dictée : %d", w.Code)
+	}
+}

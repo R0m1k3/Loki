@@ -665,6 +665,16 @@ pub fn shard_family(name: &str) -> Vec<String> {
     }
 }
 
+/// `shardFamilyMissing` : tranches ABSENTES de `dir` (un dossier du même nom
+/// ne compte pas). Un modèle dont il manque une tranche démarre puis meurt sur
+/// une erreur de tenseur introuvable.
+pub fn shard_family_missing(dir: &Path, name: &str) -> Vec<String> {
+    shard_family(name)
+        .into_iter()
+        .filter(|n| !std::fs::metadata(dir.join(n)).is_ok_and(|m| !m.is_dir()))
+        .collect()
+}
+
 // --- dossiers de modèles (backend_model_dirs.go) ---------------------------
 
 /// `modelsDir()` : `LOKI_HOME/models`.

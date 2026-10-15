@@ -148,6 +148,20 @@ fn serve() -> ExitCode {
         // LOKI_PRESETS=rust : les presets (liste, éditeur, aperçus, externes,
         // bascule ; l'application au moteur reste au Go).
         let presets_rust = held_by_facade("LOKI_PRESETS");
+        // LOKI_ENGINE=rust : le pilotage du moteur (démarrage, arrêt,
+        // déchargement de la VRAM), en conteneur avec le superviseur Rust
+        // seulement — sous systemd, le Go pilote son unité.
+        let engine_rust = held_by_facade("LOKI_ENGINE")
+            && match loki_rs::enginectl::usable(
+                std::env::var("LOKI_CONTAINER").ok().as_deref(),
+                std::env::var("LOKI_ENGINE_SUPERVISOR").ok().as_deref(),
+            ) {
+                Ok(()) => true,
+                Err(why) => {
+                    eprintln!("[loki-rs] pilotage du moteur tenu par le Go ({why})");
+                    false
+                }
+            };
         let mut env = vec![
             (auth::INTERNAL_ENV.to_string(), token.clone()),
             // Adresse de l'API interne du Go, héritée par ses enfants :
@@ -163,6 +177,7 @@ fn serve() -> ExitCode {
             ("LOKI_PUSH", push_rust),
             ("LOKI_MEM", mem_rust),
             ("LOKI_PRESETS", presets_rust),
+            ("LOKI_ENGINE", engine_rust),
         ];
         for (var, on) in held {
             if on {
@@ -172,6 +187,7 @@ fn serve() -> ExitCode {
         if held.iter().any(|(_, on)| *on) {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
+        let go_bin_path = go_bin.clone();
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
         wait_for(backend, Duration::from_secs(30)).await;
         let engine_paths = engine::Paths::from_env();
@@ -230,6 +246,26 @@ fn serve() -> ExitCode {
         };
         eprintln!("[loki-rs] façade : http://{addr} → {backend}");
         let mem_home = engine_paths.home.clone();
+        // Le superviseur reçoit ce que le Go lui passait (rustSvcAction), et de
+        // quoi joindre l'API interne du Go pour « loki-rs engine serve ».
+        let engine_ctl = engine_rust.then(|| {
+            std::sync::Arc::new(loki_rs::enginectl::EngineCtl::new(
+                exe(),
+                vec![
+                    (
+                        "LOKI_GO_BIN".into(),
+                        go_bin_path.to_string_lossy().into_owned(),
+                    ),
+                    (
+                        "LOKI_HOME".into(),
+                        engine_paths.home.to_string_lossy().into_owned(),
+                    ),
+                    ("LOKI_SERVICE".into(), engine_paths.service.clone()),
+                    ("LOKI_GO_ADDR".into(), backend.to_string()),
+                    (auth::INTERNAL_ENV.into(), token.clone()),
+                ],
+            ))
+        });
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -243,6 +279,7 @@ fn serve() -> ExitCode {
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
             mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
             presets: presets_rust,
+            engine_ctl,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
