@@ -1,0 +1,88 @@
+{
+  "name": "erreur_moteur",
+  "cfg": {
+    "MEM_MODE": "off"
+  },
+  "send": {
+    "cid": "c-erreur_moteur",
+    "message": "Bonjour"
+  },
+  "replies": [
+    {
+      "status": 400,
+      "lines": [
+        "{\"error\":{\"code\":400,\"message\":\"requête invalide\",\"type\":\"invalid_request_error\"}}"
+      ]
+    }
+  ],
+  "tool_results": {
+    "bash": "a.txt\nb.txt",
+    "read": "1: ligne"
+  },
+  "start": {
+    "caps": {
+      "Agent": false,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    },
+    "code_hint": false,
+    "content": "Bonjour",
+    "files": [],
+    "model": "",
+    "turn_caps": {
+      "Agent": false,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    }
+  },
+  "view": {
+    "head": [],
+    "prefix": "",
+    "tools": []
+  },
+  "expect": {
+    "requests": [
+      {
+        "messages": [
+          {
+            "content": "Bonjour",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7
+      }
+    ],
+    "log": [
+      {
+        "user": "Bonjour"
+      },
+      {
+        "error": "llama-server a renvoyé 400 : {\"error\":{\"code\":400,\"message\":\"requête invalide\",\"type\":\"invalid_request_error\"}}"
+      },
+      {
+        "ctx_used": 5
+      },
+      {
+        "turn_done": true
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Bonjour"
+      }
+    ],
+    "status": 200
+  }
+}

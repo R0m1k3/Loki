@@ -554,6 +554,17 @@ async fn fake_engine_gated(
                                 g.acquire().await.unwrap().forget();
                             }
                             let out = replies.lock().unwrap().pop_front().unwrap_or_default();
+                            // « STATUS 400\n<corps> » : refus du moteur.
+                            if let Some(rest) = out.strip_prefix("STATUS ")
+                                && let Some((code, body)) = rest.split_once('\n')
+                            {
+                                let mut r = hyper::Response::new(Full::new(bytes::Bytes::from(
+                                    body.to_string(),
+                                )));
+                                *r.status_mut() =
+                                    hyper::StatusCode::from_u16(code.parse().unwrap()).unwrap();
+                                return Ok(r);
+                            }
                             ok(out)
                         }
                     },
@@ -1442,4 +1453,118 @@ async fn deverrouillage_recharge_la_discussion_chargee_vide() {
     assert_eq!(textes(&s), ["fil chiffré"]);
     // Déjà rempli : jamais rechargé par-dessus.
     assert_eq!(s.reload_if_empty().await, Ok(false));
+}
+
+/// Parité d'un tour COMPLET avec le Go (`tests/parity_turn/*.json`, produits
+/// par `TestPariteTourComplet` en passant par la vraie route /api/chat/send) :
+/// le Go de test sert les mêmes réponses de /turn/start et /turn/view que le
+/// vrai, le moteur les mêmes flux, les outils les mêmes résultats. Doivent se
+/// retrouver : le journal d'affichage du tour (mesures masquées), l'historique
+/// rangé, et les corps envoyés au moteur.
+#[tokio::test]
+async fn parite_du_tour_complet() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/parity_turn");
+    let mut paths: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+        .collect();
+    paths.sort();
+    assert!(!paths.is_empty());
+    let mut failures = Vec::new();
+    for p in &paths {
+        let fx: serde_json::Value = serde_json::from_slice(&std::fs::read(p).unwrap()).unwrap();
+        let name = fx["name"].as_str().unwrap().to_string();
+        let replies: Vec<String> = fx["replies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| {
+                let body: String = r["lines"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|l| format!("{}\n\n", l.as_str().unwrap()))
+                    .collect();
+                match r["status"].as_u64().unwrap() {
+                    200 => body,
+                    s => format!("STATUS {s}\n{body}"),
+                }
+            })
+            .collect();
+        let (url, seen) = fake_engine(replies).await;
+        let (svc, go, _stop, _t) = service(Some(&url)).await;
+        *go.turn_start.lock().unwrap() = Some(fx["start"].clone());
+        *go.turn_view.lock().unwrap() = Some(fx["view"].clone());
+        *go.tool_results.lock().unwrap() =
+            serde_json::from_value(fx["tool_results"].clone()).unwrap();
+        if !fx["verifier"].is_null() {
+            *go.turn_verifier.lock().unwrap() = Some(fx["verifier"].clone());
+        }
+        if let Some(c) = fx.get("criteria") {
+            let id = svc.sessions.conv().id();
+            go.set("chat", &format!("crit:{id}"), &c.to_string());
+        }
+        let sent = svc.send(fx["send"].clone()).await;
+        let status = if sent.is_ok() { 200 } else { 0 };
+        until_done(&svc, 1).await;
+        until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+
+        let exp = &fx["expect"];
+        let mut diffs = Vec::new();
+        if status != exp["status"].as_u64().unwrap() {
+            diffs.push(format!("statut {status}, attendu {}", exp["status"]));
+        }
+        let requests: Vec<serde_json::Value> = seen
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, b)| b.clone())
+            .collect();
+        if serde_json::Value::Array(requests.clone()) != exp["requests"] {
+            diffs.push(format!(
+                "requêtes :\n  obtenu  {}\n  attendu {}",
+                serde_json::Value::Array(requests),
+                exp["requests"]
+            ));
+        }
+        let log: Vec<serde_json::Value> = svc.sessions.conv().with_state(|st| {
+            st.log
+                .iter()
+                .map(|e| {
+                    let mut d = e.delta.clone();
+                    d.remove("ts0");
+                    if d.contains_key("stats") {
+                        d.insert("stats".into(), serde_json::json!("…"));
+                    }
+                    serde_json::Value::Object(d)
+                })
+                .collect()
+        });
+        if serde_json::Value::Array(log.clone()) != exp["log"] {
+            diffs.push(format!(
+                "journal :\n  obtenu  {}\n  attendu {}",
+                serde_json::Value::Array(log),
+                exp["log"]
+            ));
+        }
+        let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+        let msgs = serde_json::to_value(&msgs).unwrap();
+        if msgs != exp["messages"] {
+            diffs.push(format!(
+                "historique :\n  obtenu  {msgs}\n  attendu {}",
+                exp["messages"]
+            ));
+        }
+        if !diffs.is_empty() {
+            failures.push(format!("{name} :\n{}", diffs.join("\n")));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} tour(s) sur {} divergent du Go :\n\n{}",
+        failures.len(),
+        paths.len(),
+        failures.join("\n\n")
+    );
 }

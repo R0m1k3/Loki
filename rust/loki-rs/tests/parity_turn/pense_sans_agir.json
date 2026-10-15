@@ -1,0 +1,836 @@
+{
+  "name": "pense_sans_agir",
+  "cfg": {
+    "MEM_MODE": "off"
+  },
+  "agent": true,
+  "send": {
+    "cid": "c-pense_sans_agir",
+    "message": "Cherche"
+  },
+  "replies": [
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Il faudrait lister.\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Voilà.\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    }
+  ],
+  "tool_results": {
+    "bash": "a.txt\nb.txt",
+    "read": "1: ligne"
+  },
+  "start": {
+    "caps": {
+      "Agent": true,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    },
+    "code_hint": false,
+    "content": "Cherche",
+    "files": [],
+    "model": "",
+    "turn_caps": {
+      "Agent": true,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    }
+  },
+  "view": {
+    "head": [],
+    "prefix": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+    "tools": [
+      {
+        "function": {
+          "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+          "name": "bash",
+          "parameters": {
+            "properties": {
+              "command": {
+                "description": "The command",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Timeout s (default 30, max 300)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+          "name": "write",
+          "parameters": {
+            "properties": {
+              "content": {
+                "description": "Full content",
+                "type": "string"
+              },
+              "file": {
+                "description": "Path",
+                "type": "string"
+              }
+            },
+            "required": [
+              "file",
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+          "name": "edit",
+          "parameters": {
+            "properties": {
+              "file": {
+                "description": "Path",
+                "type": "string"
+              },
+              "new": {
+                "description": "Replacement",
+                "type": "string"
+              },
+              "old": {
+                "description": "Exact text to replace (unique)",
+                "type": "string"
+              }
+            },
+            "required": [
+              "file",
+              "old",
+              "new"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+          "name": "recall",
+          "parameters": {
+            "properties": {
+              "id": {
+                "description": "Block id, e.g. \"r7\".",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+          "name": "recall_search",
+          "parameters": {
+            "properties": {
+              "limit": {
+                "description": "Default 5, max 20",
+                "type": "integer"
+              },
+              "query": {
+                "description": "Keywords describing the block.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+          "name": "task_list",
+          "parameters": {
+            "properties": {
+              "id": {
+                "description": "Show only this task, with its full last report",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+          "name": "task_create",
+          "parameters": {
+            "properties": {
+              "at": {
+                "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                "type": "string"
+              },
+              "enabled": {
+                "description": "Start active (default true)",
+                "type": "boolean"
+              },
+              "in_minutes": {
+                "description": "One-time task, N minutes from now",
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "prompt": {
+                "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                "type": "string"
+              },
+              "schedule": {
+                "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                "type": "string"
+              },
+              "script": {
+                "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Change one or more fields of a scheduled task by id.",
+          "name": "task_update",
+          "parameters": {
+            "properties": {
+              "enabled": {
+                "description": "false pauses, true resumes",
+                "type": "boolean"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "schedule": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Delete a scheduled task by id.",
+          "name": "task_delete",
+          "parameters": {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "expect": {
+    "requests": [
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Cherche",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Cherche",
+            "role": "user"
+          },
+          {
+            "content": "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      }
+    ],
+    "log": [
+      {
+        "user": "Cherche"
+      },
+      {
+        "reasoning_content": "Il faudrait lister.",
+        "seq0": 2,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "drop_reasoning": true
+      },
+      {
+        "content": "Voilà.",
+        "seq0": 7,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "turn_done": true
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Cherche"
+      },
+      {
+        "role": "assistant",
+        "content": "Voilà."
+      }
+    ],
+    "status": 200
+  }
+}
