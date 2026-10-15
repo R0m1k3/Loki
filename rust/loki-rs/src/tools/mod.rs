@@ -1,8 +1,9 @@
 //! Outils de l'agent exécutés par la façade (lot 7 de la migration).
 //!
 //! Quand la façade tient la conversation (`LOKI_CHAT=rust`), les outils
-//! fichiers et le shell s'exécutent ici : `read`, `grep`, `glob`, `write`,
-//! `edit`, `bash`, `ask`. Les autres (mémoire, web, tâches, navigateur, MCP,
+//! fichiers, le shell et git s'exécutent ici : `read`, `grep`, `glob`,
+//! `write`, `edit`, `bash`, `ask`, `git_status`, `git_diff`, `git_clone`. Les
+//! autres (mémoire, web, tâches, navigateur, MCP,
 //! sous-agents, critères…) restent au Go (`/internal/v1/tool/exec`), de même
 //! que `write`/`edit`/`bash` quand l'agent vise un poste distant.
 //!
@@ -14,6 +15,7 @@
 
 pub mod diff;
 pub mod files;
+pub mod git;
 pub mod policy;
 pub mod shell;
 
@@ -55,7 +57,16 @@ pub trait ToolState: Send + Sync {
 pub fn is_local(name: &str) -> bool {
     matches!(
         name,
-        "read" | "grep" | "glob" | "write" | "edit" | "bash" | "ask"
+        "read"
+            | "grep"
+            | "glob"
+            | "write"
+            | "edit"
+            | "bash"
+            | "ask"
+            | "git_status"
+            | "git_diff"
+            | "git_clone"
     )
 }
 
@@ -139,6 +150,11 @@ pub async fn exec_local<S: ToolState>(
                     .unwrap_or_else(|e| e),
             )
         }
+        // git tourne toujours sur cette machine, cible distante ou non (comme
+        // le Go).
+        "git_status" => outcome(git::tool_git_status(&ctx.cwd, args).await),
+        "git_diff" => outcome(git::tool_git_diff(&ctx.cwd, args).await),
+        "git_clone" => outcome(git::tool_git_clone(&ctx.cwd, args).await),
         "ask" => {
             let result = files::tool_ask(args);
             let ask = (!result.starts_with("[erreur]")).then(|| AskEvent {

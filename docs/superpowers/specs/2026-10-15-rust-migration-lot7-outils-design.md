@@ -71,11 +71,23 @@ Code rend leur état au résumé, comme `compactMessages`.
 (`engineSideJob`) reste au Go, qui ne voit pas passer les requêtes de la
 façade.
 
+## Étape 3 — git (fait)
+
+`git_status`, `git_diff`, `git_clone` (`rust/loki-rs/src/tools/git.rs`) :
+dépôt deviné comme le Go (sous-dossier demandé, racine, unique sous-dossier
+dépôt), sorties mêlées et bornées, jamais d'invite, clone limité à https:// et
+git@hôte: et rangé dans le dossier de la discussion. Toujours sur cette
+machine, cible distante ou non (comme le Go). Journal de référence
+`tests/parity_tools/git.json` (`TestPariteOutilsGit`, deux dépôts, aucun appel
+réseau), rejoué par `tests/tools_git.rs`.
+
 ## Étapes suivantes
 
-1. Web (`web_search`, `web_open`, `web_read`, `web_grep`, `web_images`) :
-   configuration seule, pas d'état partagé.
-2. Shell d'arrière-plan (`bash_bg`, `bash_tail`) et git (`git_status`,
-   `git_diff`, `git_clone`) : jobs tenus par le Go aujourd'hui.
-3. Mémoire (`mem_*`, `recall*`) : avec le portage du chiffrement.
-4. Tâches, navigateur (CDP), MCP, sous-agents, critères et mode Code.
+1. Web (`web_search`, `web_open`, `web_read`, `web_grep`, `web_images`) : le
+   cache de pages et la conversion HTML → Markdown (bibliothèques Go) ne se
+   reproduisent pas à l'octet ; à porter avec un journal de référence
+   structurel plutôt qu'exact.
+2. Shell d'arrière-plan (`bash_bg`, `bash_tail`) : ses travaux sont lus par
+   l'optimiseur et la suppression d'une discussion, au Go.
+3. Mémoire (`mem_*`, `recall*`, `tracker`) : avec le portage du chiffrement.
+4. Tâches, navigateur (CDP), MCP, sous-agents, critères.

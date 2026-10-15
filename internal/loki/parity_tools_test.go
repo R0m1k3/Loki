@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -24,7 +25,10 @@ import (
 //
 //	LOKI_PARITY_UPDATE=1 go test ./internal/loki -run TestPariteOutils
 
-const parityToolsFile = "../../rust/loki-rs/tests/parity_tools/outils.json"
+const (
+	parityToolsFile    = "../../rust/loki-rs/tests/parity_tools/outils.json"
+	parityToolsGitFile = "../../rust/loki-rs/tests/parity_tools/git.json"
+)
 
 type parityFile struct {
 	Path    string `json:"path"`
@@ -49,13 +53,24 @@ type parityToolCase struct {
 	Ask     *AskEvent  `json:"ask,omitempty"`
 }
 
+// parityGitCmd : une commande git de préparation, lancée dans Dir (relatif
+// à {{ROOT}}) avant les appels.
+type parityGitCmd struct {
+	Dir  string   `json:"dir"`
+	Args []string `json:"args"`
+}
+
 type parityToolsFixture struct {
 	// Dossier de travail et dossier mémoire, relatifs à {{ROOT}}.
-	Cwd       string            `json:"cwd"`
-	MemoryDir string            `json:"memory_dir"`
-	Files     []parityFile      `json:"files"`
-	Cases     []parityToolCase  `json:"cases"`
-	After     map[string]string `json:"after"`
+	Cwd       string         `json:"cwd"`
+	MemoryDir string         `json:"memory_dir"`
+	Files     []parityFile   `json:"files"`
+	GitSetup  []parityGitCmd `json:"git_setup,omitempty"`
+	// Edits : fichiers écrits APRÈS la préparation git (ce que montreront
+	// status et diff).
+	Edits []parityFile      `json:"edits,omitempty"`
+	Cases []parityToolCase  `json:"cases"`
+	After map[string]string `json:"after"`
 }
 
 func parityToolTree() []parityFile {
@@ -180,6 +195,58 @@ func parityNorm(s, root string) string {
 }
 
 func TestPariteOutils(t *testing.T) {
+	runParityTools(t, parityToolsFile, parityToolsFixture{Files: parityToolTree(), Cases: parityToolCases()})
+}
+
+// Outils git (mode Code) : deux dépôts, l'un avec un commit et des
+// modifications, l'autre vide ; aucun appel ne sort sur le réseau.
+func TestPariteOutilsGit(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git absent")
+	}
+	// Ni configuration globale ni système : sorties de git identiques partout.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	id := []string{"-c", "user.name=Loki", "-c", "user.email=loki@test"}
+	c := func(name, tool string, args map[string]any) parityToolCase {
+		return parityToolCase{Name: name, Tool: tool, Args: args}
+	}
+	fx := parityToolsFixture{
+		Files: []parityFile{
+			{Path: "ws/depot/a.txt", Content: "un\ndeux\ntrois\n", Age: 30},
+			{Path: "ws/depot/b.txt", Content: "bêta\n", Age: 30},
+			{Path: "ws/vide/x.txt", Content: "x\n", Age: 30},
+		},
+		GitSetup: []parityGitCmd{
+			{Dir: "ws/depot", Args: []string{"init", "-q", "-b", "main"}},
+			{Dir: "ws/depot", Args: []string{"add", "a.txt", "b.txt"}},
+			{Dir: "ws/depot", Args: append(append([]string{}, id...), "commit", "-q", "-m", "départ")},
+			{Dir: "ws/vide", Args: []string{"init", "-q", "-b", "main"}},
+		},
+		Edits: []parityFile{
+			{Path: "ws/depot/a.txt", Content: "un\n2\ntrois\n", Age: 10},
+			{Path: "ws/depot/neuf.txt", Content: "neuf\n", Age: 10},
+		},
+		Cases: []parityToolCase{
+			c("statut_ambigu", "git_status", map[string]any{}),
+			c("statut", "git_status", map[string]any{"dir": "depot"}),
+			c("diff", "git_diff", map[string]any{"dir": "depot"}),
+			c("diff_fichier", "git_diff", map[string]any{"dir": "depot", "file": "b.txt"}),
+			c("diff_sans_commit", "git_diff", map[string]any{"dir": "vide"}),
+			c("statut_sans_commit", "git_status", map[string]any{"dir": "vide"}),
+			c("dossier_sortant", "git_status", map[string]any{"dir": "../x"}),
+			c("dossier_absent", "git_status", map[string]any{"dir": "nulle-part"}),
+			c("clone_url_locale", "git_clone", map[string]any{"url": "file:///etc"}),
+			c("clone_commande", "git_clone", map[string]any{"url": "ext::sh -c id"}),
+			c("clone_existant", "git_clone", map[string]any{"url": "https://exemple.invalid/u/depot.git"}),
+			c("clone_dossier_sortant", "git_clone", map[string]any{"url": "git@exemple.invalid:u/r", "dir": "../r"}),
+		},
+	}
+	runParityTools(t, parityToolsGitFile, fx)
+}
+
+func runParityTools(t *testing.T, file string, fx parityToolsFixture) {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("journal tiré sous Unix")
 	}
@@ -190,11 +257,28 @@ func TestPariteOutils(t *testing.T) {
 	t.Setenv("LOKI_HOME", root)
 	ws := filepath.Join(root, "ws")
 	now := time.Now()
-	for _, f := range parityToolTree() {
+	for _, f := range fx.Files {
 		p := filepath.Join(root, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.WriteFile(p, []byte(f.Content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(-time.Duration(f.Age) * time.Second)
+		if err := os.Chtimes(p, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, g := range fx.GitSetup {
+		cmd := exec.Command("git", g.Args...)
+		cmd.Dir = filepath.Join(root, filepath.FromSlash(g.Dir))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v : %v\n%s", g.Args, err, out)
+		}
+	}
+	for _, f := range fx.Edits {
+		p := filepath.Join(root, filepath.FromSlash(f.Path))
 		if err := os.WriteFile(p, []byte(f.Content), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -211,8 +295,10 @@ func TestPariteOutils(t *testing.T) {
 		t.Fatalf("dossier mémoire hors de la racine : %s", mem)
 	}
 
-	fx := parityToolsFixture{Cwd: "ws", MemoryDir: filepath.ToSlash(relMem), Files: parityToolTree()}
-	for _, pc := range parityToolCases() {
+	fx.Cwd, fx.MemoryDir = "ws", filepath.ToSlash(relMem)
+	cases := fx.Cases
+	fx.Cases = nil
+	for _, pc := range cases {
 		args := paritySubst(pc.Args, root, mem).(map[string]any)
 		// Les nombres passent par JSON, comme ceux d'un vrai appel.
 		b, _ := json.Marshal(args)
@@ -235,6 +321,9 @@ func TestPariteOutils(t *testing.T) {
 		if !strings.HasPrefix(rel, "ws/") && rel != "dehors.txt" && rel != "evade.txt" {
 			return nil // base, configuration : propres au Go
 		}
+		if strings.Contains(rel, "/.git/") {
+			return nil // index, objets : datés
+		}
 		b, _ := os.ReadFile(p)
 		fx.After[rel] = string(b)
 		return nil
@@ -244,21 +333,21 @@ func TestPariteOutils(t *testing.T) {
 		t.Fatal(err)
 	}
 	if os.Getenv("LOKI_PARITY_UPDATE") == "1" {
-		if err := os.MkdirAll(filepath.Dir(parityToolsFile), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(parityToolsFile, got, 0o644); err != nil {
+		if err := os.WriteFile(file, got, 0o644); err != nil {
 			t.Fatal(err)
 		}
 		return
 	}
-	want, err := os.ReadFile(parityToolsFile)
+	want, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("journal de référence absent (%v) : LOKI_PARITY_UPDATE=1 pour le créer", err)
 	}
 	if string(got) != string(want) {
 		t.Errorf("les outils ne produisent plus le journal rangé dans %s.\n"+
 			"Si c'est voulu : LOKI_PARITY_UPDATE=1 go test ./internal/loki -run TestPariteOutils,\n"+
-			"puis cargo test --test tools dit si le port Rust suit.\n--- obtenu ---\n%s", parityToolsFile, got)
+			"puis cargo test --test tools dit si le port Rust suit.\n--- obtenu ---\n%s", file, got)
 	}
 }
