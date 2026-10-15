@@ -123,7 +123,7 @@ impl Backends {
     }
 
     /// `providedEngineBin`.
-    fn provided_engine_bin(&self) -> String {
+    pub(crate) fn provided_engine_bin(&self) -> String {
         let env = self
             .engine_bin_env
             .read()
@@ -289,7 +289,7 @@ impl Log<'_> {
 }
 
 /// Le verrou de l'optimiseur (au Go) : le message s'il tient le moteur.
-async fn tune_busy(store: &Store) -> Option<String> {
+pub(crate) async fn tune_busy(store: &Store) -> Option<String> {
     let v = store
         .internal_json(Method::GET, "/internal/v1/tune/guard", None)
         .await
@@ -304,7 +304,7 @@ async fn tune_busy(store: &Store) -> Option<String> {
 
 /// Le service moteur : celui de la façade si elle le pilote, sinon celui du
 /// Go. `if_active` : seulement s'il tourne. Rend (lancé, erreur).
-async fn service(ctx: &Ctx, action: &str, if_active: bool) -> (bool, String) {
+pub(crate) async fn service(ctx: &Ctx, action: &str, if_active: bool) -> (bool, String) {
     if let Some(ctl) = &ctx.engine_ctl {
         if if_active && !crate::enginectl::service_is_active(ctx) {
             return (false, String::new());
@@ -333,6 +333,18 @@ async fn service(ctx: &Ctx, action: &str, if_active: bool) -> (bool, String) {
         ),
         Err(e) => (true, e),
     }
+}
+
+/// Arrête le moteur s'il tourne : (il tournait, erreur de l'arrêt).
+pub(crate) async fn service_stop_if_up(ctx: &Ctx) -> (bool, String) {
+    if ctx.engine_ctl.is_some() {
+        if crate::enginectl::service_is_active(ctx) {
+            return service(ctx, "stop", false).await;
+        }
+        return (false, String::new());
+    }
+    // Côté Go, « arrête-le s'il tourne » dit aussi s'il tournait.
+    service(ctx, "stop", true).await
 }
 
 /// Les routes servies par ce module.
@@ -635,23 +647,11 @@ async fn run_prebuilt(ctx: &Ctx, b: &Backends) {
         jobs: &b.jobs,
         store: &ctx.store,
     };
-    let (svc_was_up, err) = if ctx.engine_ctl.is_some() {
-        if crate::enginectl::service_is_active(ctx) {
-            log.phase("arrêt du service le temps de l'installation…")
-                .await;
-            service(ctx, "stop", false).await
-        } else {
-            (false, String::new())
-        }
-    } else {
-        // Côté Go, « arrête-le s'il tourne » dit aussi s'il tournait.
-        let r = service(ctx, "stop", true).await;
-        if r.0 {
-            log.phase("arrêt du service le temps de l'installation…")
-                .await;
-        }
-        r
-    };
+    let (svc_was_up, err) = service_stop_if_up(ctx).await;
+    if svc_was_up {
+        log.phase("arrêt du service le temps de l'installation…")
+            .await;
+    }
     if svc_was_up && !err.is_empty() {
         log.line(&format!("[warn] impossible d'arrêter le service : {err}"))
             .await;
@@ -770,20 +770,34 @@ pub async fn install(b: &Backends, log: &Log<'_>) -> Result<String, String> {
     Ok(bin)
 }
 
-/// Le téléchargement d'un asset, sa progression au journal du job au fil de
-/// l'eau et dans l'ordre.
+/// Le téléchargement d'un asset, sa progression au journal du job.
 async fn download(
     b: &Backends,
     a: &prebuilt::Asset,
     dest: &Path,
     log: &Log<'_>,
 ) -> Result<(), String> {
+    let rq = b
+        .client
+        .get(&a.url)
+        .header("User-Agent", "Go-http-client/1.1");
+    log_download(log, rq, dest, a.size).await
+}
+
+/// Un téléchargement dont la progression part au journal du job au fil de
+/// l'eau, dans l'ordre.
+pub async fn log_download(
+    log: &Log<'_>,
+    rq: reqwest::RequestBuilder,
+    dest: &Path,
+    total: i64,
+) -> Result<(), String> {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
     let dl = async move {
         let mut logf = |s: String| {
             let _ = tx.send(s);
         };
-        prebuilt::download(&b.client, &a.url, dest, a.size, &mut logf).await
+        prebuilt::download_request(rq, dest, total, &mut logf).await
     };
     let pump = async {
         while let Some(s) = rx.recv().await {

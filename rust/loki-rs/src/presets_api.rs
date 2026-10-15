@@ -870,7 +870,7 @@ async fn live(store: &Store) -> Live {
 
 /// `SavePresetApplying` : enregistre ; si c'était le preset EN SERVICE (avant
 /// l'écriture), l'applique (`mode` : save ou apply).
-async fn save_applying(
+pub(crate) async fn save_applying(
     ctx: &Ctx,
     id: &str,
     name: &str,

@@ -1102,3 +1102,66 @@ func TestFacadeSondeDeGabarit(t *testing.T) {
 		t.Fatal("verdict sans façade")
 	}
 }
+
+// Le panneau « moteur de l'image » part à la façade avec LOKI_ENGINE_IMAGE=rust
+// (lot 24) ; la commande du dernier lancement reste au Go.
+func TestFacadeMoteurImage(t *testing.T) {
+	testHome(t)
+	var mu sync.Mutex
+	var calls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(internalTokenHeader) != jetonTest {
+			w.WriteHeader(403)
+			return
+		}
+		mu.Lock()
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		io.WriteString(w, `{"ok":true,"de":"facade"}`)
+	}))
+	defer srv.Close()
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, strings.TrimPrefix(srv.URL, "http://"))
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+
+	t.Setenv(facadeEngineImageEnv, "")
+	for p := range facadeEngineImageRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != "go" {
+			t.Fatalf("sans LOKI_ENGINE_IMAGE, %s : %q", p, w.Body.String())
+		}
+	}
+	if len(calls) != 0 {
+		t.Fatalf("appels à la façade sans LOKI_ENGINE_IMAGE : %v", calls)
+	}
+
+	t.Setenv(facadeEngineImageEnv, "Rust ")
+	if len(facadeEngineImageRoutes) != 7 {
+		t.Fatalf("routes : %v", facadeEngineImageRoutes)
+	}
+	for p := range facadeEngineImageRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if !strings.Contains(w.Body.String(), "facade") {
+			t.Fatalf("%s non relayé : %q", p, w.Body.String())
+		}
+	}
+	mu.Lock()
+	n := len(calls)
+	mu.Unlock()
+	if n != len(facadeEngineImageRoutes) {
+		t.Fatalf("relais : %v", calls)
+	}
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/engine/cmdline", local)(w, httptest.NewRequest("GET", "/api/engine/cmdline", nil))
+	if w.Body.String() != "go" {
+		t.Fatalf("/api/engine/cmdline doit rester au Go : %q", w.Body.String())
+	}
+
+	// Sans jeton interne, rien ne part.
+	t.Setenv(internalTokenEnv, "")
+	if facadeEngineImage() {
+		t.Fatal("tenu sans jeton interne")
+	}
+}

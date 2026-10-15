@@ -359,6 +359,22 @@ pub fn go_dir(path: &str) -> String {
     format!("{}{dir}", &path[..vol_len])
 }
 
+/// `filepath.Base` : le dernier élément ; "." pour un chemin vide, "/" pour
+/// une suite de séparateurs.
+pub fn go_base(p: &str) -> String {
+    if p.is_empty() {
+        return ".".into();
+    }
+    let t = p.trim_end_matches(|c: char| c == '/' || (cfg!(windows) && c == '\\'));
+    if t.is_empty() {
+        return "/".into();
+    }
+    match t.rfind(|c: char| c == '/' || (cfg!(windows) && c == '\\')) {
+        Some(i) => t[i + 1..].to_string(),
+        None => t.to_string(),
+    }
+}
+
 /// `filepath.IsAbs`.
 pub fn go_is_abs(path: &str) -> bool {
     if !cfg!(windows) {

@@ -1,0 +1,4640 @@
+{
+  "goarch": "amd64",
+  "steps": [
+    {
+      "name": "statut, moteur de l'image",
+      "files": {
+        "image/libggml-cuda.so": "elf",
+        "image/llama-server": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 10450 (abc1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo 'usage';;\nesac\n"
+      },
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/image/llama-server",
+        "build": 10450,
+        "commit": "abc1234",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "{{HOME}}/image/llama-server",
+        "installed": null,
+        "job": {
+          "exists": false
+        },
+        "notice": "moteur b10450 : les points de reprise des modèles hybrides (Qwen3.5/3.6, Qwen3-Next…) y sont évincés trop tôt — jusqu'à ~8 k jetons recalculés à chaque reprise. Corrigé à partir de b10864.",
+        "previous": null,
+        "recommend": {
+          "current": 10450,
+          "gains": [
+            "points de reprise des modèles hybrides (Qwen3.5/3.6, Qwen3-Next…) gardés : plus de ~8 k jetons recalculés à chaque reprise (b10864)",
+            "MTP rapide (graphes CUDA) à partir de b11009",
+            "MTP de qwen4exp à partir de b11331"
+          ],
+          "min": 10864
+        },
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "image",
+        "supported": true,
+        "variant": "server-cuda"
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "dernière version publiée",
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "current": 10450,
+        "latest": 10900,
+        "ok": true,
+        "tag": "server-cuda-b10900",
+        "update": true,
+        "variant": "server-cuda"
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "dernière version sans numéro",
+      "registry": {
+        "version": "",
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf x",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "current": 10450,
+        "latest": 0,
+        "ok": true,
+        "tag": "server-cuda",
+        "update": true,
+        "variant": "server-cuda"
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "jeton illisible",
+      "registry": {
+        "token_body": "{\"token\":\"\"}",
+        "version": "b10900",
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "error": "jeton de lecture illisible",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "manifeste refusé",
+      "registry": {
+        "manifest": 403,
+        "version": "b10900",
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "error": "manifeste server-cuda : HTTP 403",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "manifeste illisible",
+      "registry": {
+        "manifest_body": "{\"mediaType\":",
+        "version": "b10900",
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "error": "manifeste server-cuda illisible : unexpected EOF",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "aucune image pour cette architecture",
+      "registry": {
+        "no_arch": true,
+        "version": "b10900",
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "error": "aucune image linux/amd64 pour server-cuda",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "jeton refusé",
+      "registry": {
+        "token": 500,
+        "version": "b10900",
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/check",
+      "status": 200,
+      "out": {
+        "error": "{{REGHOST}}/token : HTTP 500",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan : dernière version",
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "yes",
+          "suggest": true,
+          "why": "le gabarit chargé retire la réflexion des tours passés ; à partir de b10763 le moteur la lui fait garder, et sans REASONING_ECHO Loki ne la renvoie pas : chaque tour passé serait rendu avec un bloc de réflexion vide. REASONING_PRESERVE=off garde le rendu actuel."
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan : version recommandée",
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{\"recommended\":true}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "yes",
+          "suggest": true,
+          "why": "le gabarit chargé retire la réflexion des tours passés ; à partir de b10763 le moteur la lui fait garder, et sans REASONING_ECHO Loki ne la renvoie pas : chaque tour passé serait rendu avec un bloc de réflexion vide. REASONING_PRESERVE=off garde le rendu actuel."
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan recommandé, build trop ancien",
+      "registry": {
+        "version": "b10800",
+        "fixed": [
+          "server-cuda-b10800"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10800",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{\"recommended\":true}",
+      "status": 200,
+      "out": {
+        "error": "dernier build publié pour server-cuda : b10800, antérieur à la version recommandée b10864",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan recommandé, tag figé absent",
+      "registry": {
+        "version": "b10900",
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{\"recommended\":true}",
+      "status": 200,
+      "out": {
+        "error": "server-cuda-b10900 annoncé mais introuvable sur le registre : version inconnue dans le registre : server-cuda-b10900",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan recommandé, sans numéro",
+      "registry": {
+        "version": "",
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf x",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{\"recommended\":true}",
+      "status": 200,
+      "out": {
+        "error": "le registre n'annonce pas le build du tag « server-cuda » : impossible de vérifier qu'il atteint b10864",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, dernière version sans numéro",
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 0,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "yes",
+          "suggest": true,
+          "why": "le gabarit chargé retire la réflexion des tours passés ; à partir de b10763 le moteur la lui fait garder, et sans REASONING_ECHO Loki ne la renvoie pas : chaque tour passé serait rendu avec un bloc de réflexion vide. REASONING_PRESERVE=off garde le rendu actuel."
+        },
+        "tag": "server-cuda",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan en GET",
+      "method": "GET",
+      "path": "/api/engine/plan",
+      "status": 405,
+      "out": {
+        "error": "POST requis",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, moteur local arrêté",
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "",
+        "build": "",
+        "down": true
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "unknown",
+          "suggest": false,
+          "why": "moteur arrêté ou gabarit illisible : impossible de vérifier. À partir de b10763, un gabarit de type Qwen3.6 rend la réflexion des tours passés, vide puisque Loki ne la renvoie pas (sans REASONING_ECHO) ; REASONING_PRESERVE=off garde le rendu actuel. À l'inverse, sur un gabarit qui la garde déjà (Qwen3.8), off changerait le rendu."
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, REASONING_PRESERVE posée",
+      "config": {
+        "REASONING_PRESERVE": "on"
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "REASONING_PRESERVE=on est posée : le rendu ne dépend pas du défaut du moteur"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {
+        "config/REASONING_PRESERVE": "on"
+      },
+      "tree": null
+    },
+    {
+      "name": "plan, EXTRA_ARGS",
+      "config": {
+        "EXTRA_ARGS": "--reasoning-preserve",
+        "REASONING_PRESERVE": ""
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "EXTRA_ARGS règle déjà preserve_reasoning"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, gabarit sans les variables",
+      "config": {
+        "EXTRA_ARGS": ""
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "simple"
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "le gabarit chargé ne lit pas preserve_thinking / clear_thinking : rendu inchangé"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, gabarit qui garde tout",
+      "local": {
+        "mode": "keep",
+        "build": "b10451-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "le gabarit garde déjà la réflexion des tours passés : rendu inchangé (ne pas poser off)"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, gabarit vide",
+      "local": {
+        "mode": "",
+        "build": "b10452-img"
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "unknown",
+          "suggest": false,
+          "why": "moteur arrêté ou gabarit illisible : impossible de vérifier. À partir de b10763, un gabarit de type Qwen3.6 rend la réflexion des tours passés, vide puisque Loki ne la renvoie pas (sans REASONING_ECHO) ; REASONING_PRESERVE=off garde le rendu actuel. À l'inverse, sur un gabarit qui la garde déjà (Qwen3.8), off changerait le rendu."
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, build antérieur au défaut",
+      "registry": {
+        "version": "b10700",
+        "fixed": [
+          "server-cuda-b10700"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10700",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10700,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "b10700 n'a pas encore preserve_reasoning par défaut (b10763)"
+        },
+        "tag": "server-cuda-b10700",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "plan, preset externe",
+      "config": {
+        "EXTERNAL": "1"
+      },
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10450,
+        "keeps": "",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "preset externe : son gabarit n'est pas rendu par ce moteur"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "mise à jour pendant une optimisation",
+      "config": {
+        "EXTERNAL": ""
+      },
+      "tune": true,
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{}",
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false
+      },
+      "after": {},
+      "tree": null
+    },
+    {
+      "name": "mise à jour, moteur local arrêté",
+      "registry": {
+        "version": "b10920",
+        "fixed": [
+          "server-cuda-b10920"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10920",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "",
+        "build": "",
+        "down": true
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ recherche de la dernière version publiée…",
+          "variante : server-cuda — version visée : server-cuda-b10920",
+          "▶ lecture du manifeste server-cuda-b10920…",
+          "image ggml-org/llama.cpp:server-cuda-b10920 — llama.cpp b10920, 4 couches",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10920/llama-server",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "[warn] rendu du raisonnement : moteur arrêté ou gabarit illisible : impossible de vérifier. À partir de b10763, un gabarit de type Qwen3.6 rend la réflexion des tours passés, vide puisque Loki ne la renvoie pas (sans REASONING_ECHO) ; REASONING_PRESERVE=off garde le rendu actuel. À l'inverse, sur un gabarit qui la garde déjà (Qwen3.8), off changerait le rendu.",
+          "BIN → {{HOME}}/engine/server-cuda-b10920/llama-server",
+          "✓ moteur mis à jour (server-cuda-b10920)"
+        ],
+        "new": "",
+        "next": 12,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10920)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10920/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10920",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10920/libggml-base.so.0.20.0 -rw-r--r-- elf b10920",
+        "f engine/server-cuda-b10920/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10920/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10920/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10920/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10920/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10920/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "retour au moteur de l'image",
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\"image\"}",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/image/llama-server",
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10920/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10920",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10920/llama-server\n",
+        "f engine/server-cuda-b10920/libggml-base.so.0.20.0 -rw-r--r-- elf b10920",
+        "f engine/server-cuda-b10920/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10920/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10920/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10920/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10920/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10920/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "suppression de la version d'essai",
+      "method": "POST",
+      "path": "/api/engine/remove",
+      "body": "{\"tag\":\"server-cuda-b10920\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10920/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10920/llama-server\n"
+      ]
+    },
+    {
+      "name": "mise à jour",
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{}",
+      "wait": true,
+      "after_job": {
+        "mode": "keep",
+        "build": "b10900-new",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "wait_render": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ recherche de la dernière version publiée…",
+          "variante : server-cuda — version visée : server-cuda-b10900",
+          "▶ lecture du manifeste server-cuda-b10900…",
+          "image ggml-org/llama.cpp:server-cuda-b10900 — llama.cpp b10900, 4 couches",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "[warn] rendu du raisonnement : le gabarit chargé retire la réflexion des tours passés ; à partir de b10763 le moteur la lui fait garder, et sans REASONING_ECHO Loki ne la renvoie pas : chaque tour passé serait rendu avec un bloc de réflexion vide. REASONING_PRESERVE=off garde le rendu actuel.",
+          "BIN → {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "vérification du rendu du gabarit une fois le modèle chargé (panneau Moteur, journal [moteur])",
+          "✓ moteur mis à jour (server-cuda-b10900)"
+        ],
+        "new": "",
+        "next": 13,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "render": {
+        "at": "{{T}}",
+        "detail": "historique avec raisonnement : avant « …stion-a<|im_end|>⏎<|im_start|>assistant⏎loki-sonde-reponse-c1<|im_end|>⏎<|im_start|>user⏎loki-sonde-… » / après « …stion-a<|im_end|>⏎<|im_start|>assistant⏎<think>loki-sonde-raisonnement-r1</think>loki-sonde-reponse-… »",
+        "status": "changed",
+        "tag": "server-cuda-b10900"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut après la mise à jour",
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "build": 10900,
+        "commit": "def5678",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "{{HOME}}/image/llama-server",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": true,
+            "tag": "server-cuda-b10900"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": {
+          "bin": "{{HOME}}/image/llama-server",
+          "build": 10450,
+          "source": "image"
+        },
+        "recommend": null,
+        "render_check": {
+          "at": "{{T}}",
+          "detail": "historique avec raisonnement : avant « …stion-a<|im_end|>⏎<|im_start|>assistant⏎loki-sonde-reponse-c1<|im_end|>⏎<|im_start|>user⏎loki-sonde-… » / après « …stion-a<|im_end|>⏎<|im_start|>assistant⏎<think>loki-sonde-raisonnement-r1</think>loki-sonde-reponse-… »",
+          "status": "changed",
+          "tag": "server-cuda-b10900"
+        },
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "downloaded",
+        "supported": true,
+        "variant": "server-cuda"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "plan, déjà à jour",
+      "method": "POST",
+      "path": "/api/engine/plan",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "build": 10900,
+        "current": 10900,
+        "keeps": "server-cuda-b10900",
+        "ok": true,
+        "preserve": {
+          "risk": "no",
+          "suggest": false,
+          "why": "le moteur courant (b10900) a déjà preserve_reasoning par défaut"
+        },
+        "tag": "server-cuda-b10900",
+        "uptodate": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "déjà à jour",
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ recherche de la dernière version publiée…",
+          "✓ déjà à jour (build 10900)"
+        ],
+        "new": "",
+        "next": 2,
+        "old": "",
+        "phase": "déjà à jour (build 10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "retour à la version précédente",
+      "method": "POST",
+      "path": "/api/engine/rollback",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/image/llama-server",
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut après le retour",
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/image/llama-server",
+        "build": 10450,
+        "commit": "abc1234",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "{{HOME}}/image/llama-server",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": false,
+            "tag": "server-cuda-b10900"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "déjà à jour (build 10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "moteur b10450 : les points de reprise des modèles hybrides (Qwen3.5/3.6, Qwen3-Next…) y sont évincés trop tôt — jusqu'à ~8 k jetons recalculés à chaque reprise. Corrigé à partir de b10864.",
+        "previous": {
+          "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+          "build": 10900,
+          "source": "downloaded",
+          "tag": "server-cuda-b10900"
+        },
+        "recommend": {
+          "current": 10450,
+          "gains": [
+            "points de reprise des modèles hybrides (Qwen3.5/3.6, Qwen3-Next…) gardés : plus de ~8 k jetons recalculés à chaque reprise (b10864)",
+            "MTP rapide (graphes CUDA) à partir de b11009",
+            "MTP de qwen4exp à partir de b11331"
+          ],
+          "min": 10864
+        },
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "image",
+        "supported": true,
+        "variant": "server-cuda"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "retour en GET",
+      "method": "GET",
+      "path": "/api/engine/rollback",
+      "status": 405,
+      "out": {
+        "error": "POST requis",
+        "ok": false
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "retour pendant une optimisation",
+      "tune": true,
+      "method": "POST",
+      "path": "/api/engine/rollback",
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false,
+        "tuning": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "bascule vers la version installée",
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\" server-cuda-b10900 \"}",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "bascule vers l'image",
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\"image\"}",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/image/llama-server",
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "bascule vers une version absente",
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\"server-cuda-b1\"}",
+      "status": 400,
+      "out": {
+        "error": "version non installée : server-cuda-b1",
+        "ok": false
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "bascule pendant une optimisation",
+      "tune": true,
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\"image\"}",
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false,
+        "tuning": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "suppression d'une version",
+      "method": "POST",
+      "path": "/api/engine/remove",
+      "body": "{\"tag\":\"../server-cuda-b10900\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      ]
+    },
+    {
+      "name": "suppression d'une version absente",
+      "method": "POST",
+      "path": "/api/engine/remove",
+      "body": "{\"tag\":\"server-cuda-b10900\"}",
+      "status": 400,
+      "out": {
+        "error": "version non installée : server-cuda-b10900",
+        "ok": false
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/image/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      ]
+    },
+    {
+      "name": "mise à jour épinglée, REASONING_PRESERVE=off dans le preset actif",
+      "files": {
+        "presets/actif.env": "PORT={{PORT}}\nBIN={{HOME}}/image/llama-server\n"
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10450-img",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10900\",\"preserve_off\":true}",
+      "wait": true,
+      "after_job": {
+        "mode": "qwen3",
+        "build": "b10900-new",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "wait_render": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10900",
+          "▶ lecture du manifeste server-cuda-b10900…",
+          "image ggml-org/llama.cpp:server-cuda-b10900 — llama.cpp b10900, 4 couches",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "REASONING_PRESERVE=off posée dans le preset « actif »",
+          "BIN → {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "vérification du rendu du gabarit une fois le modèle chargé (panneau Moteur, journal [moteur])",
+          "✓ moteur mis à jour (server-cuda-b10900)"
+        ],
+        "new": "",
+        "next": 12,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "render": {
+        "at": "{{T}}",
+        "status": "same",
+        "tag": "server-cuda-b10900"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "config/REASONING_PRESERVE": "off",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "suppression du moteur utilisé",
+      "method": "POST",
+      "path": "/api/engine/remove",
+      "body": "{\"tag\":\"server-cuda-b10900\"}",
+      "status": 409,
+      "out": {
+        "error": "c'est le moteur utilisé — bascule d'abord sur une autre version",
+        "ok": false
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "config/REASONING_PRESERVE": "off",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "REASONING_PRESERVE déjà posée",
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10900\",\"preserve_off\":true}",
+      "wait": true,
+      "after_job": {
+        "mode": "drop",
+        "build": "b10900-bis",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "wait_render": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10900",
+          "déjà installé : server-cuda-b10900",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "REASONING_PRESERVE=off déjà posée : inchangée",
+          "BIN → {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "vérification du rendu du gabarit une fois le modèle chargé (panneau Moteur, journal [moteur])",
+          "✓ moteur mis à jour (server-cuda-b10900)"
+        ],
+        "new": "",
+        "next": 8,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "render": {
+        "at": "{{T}}",
+        "status": "same",
+        "tag": "server-cuda-b10900"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "config/REASONING_PRESERVE": "off",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "REASONING_PRESERVE=off posée dans la configuration",
+      "files": {
+        "presets/actif.env": "-"
+      },
+      "config": {
+        "REASONING_PRESERVE": ""
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10900\",\"preserve_off\":true}",
+      "wait": true,
+      "after_job": {
+        "mode": "qwen3",
+        "build": "b10900-ter",
+        "template": "{% if preserve_thinking %}garde{% endif %}",
+        "apply": 500
+      },
+      "wait_render": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10900",
+          "déjà installé : server-cuda-b10900",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "REASONING_PRESERVE=off posée dans la configuration active (aucun preset ne lui correspond)",
+          "BIN → {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "vérification du rendu du gabarit une fois le modèle chargé (panneau Moteur, journal [moteur])",
+          "✓ moteur mis à jour (server-cuda-b10900)"
+        ],
+        "new": "",
+        "next": 8,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "render": {
+        "at": "{{T}}",
+        "detail": "rendu impossible sur le nouveau moteur : historique sans raisonnement : HTTP 500 : {\"error\":{\"code\":500,\"message\":\"Jinja Exception: gabarit cassé\"}}",
+        "status": "unknown",
+        "tag": "server-cuda-b10900"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "config/REASONING_PRESERVE": "off",
+        "previous-bin": "{{HOME}}/image/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10900",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/image/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "nouvelle version, ménage",
+      "files": {
+        "engine/server-cuda-b10000/llama-server": "#!/bin/sh\n",
+        "engine/server-cuda-b10001": "/",
+        "engine/server-cuda-b9999/llama-server": "#!/bin/sh\n"
+      },
+      "config": {
+        "REASONING_PRESERVE": ""
+      },
+      "registry": {
+        "version": "b10950",
+        "fixed": [
+          "server-cuda-b10950"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10950",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "size": 10485760,
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "",
+        "build": "",
+        "down": true
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ recherche de la dernière version publiée…",
+          "variante : server-cuda — version visée : server-cuda-b10950",
+          "▶ lecture du manifeste server-cuda-b10950…",
+          "image ggml-org/llama.cpp:server-cuda-b10950 — llama.cpp b10950, 4 couches",
+          "▶ téléchargement du moteur (10 Mo)…",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10950/llama-server",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10950 (0ab1234)",
+          "BIN → {{HOME}}/engine/server-cuda-b10950/llama-server",
+          "version précédente gardée pour revenir en arrière : server-cuda-b10900",
+          "ancienne version supprimée : server-cuda-b9999",
+          "ancienne version supprimée : server-cuda-b10000",
+          "✓ moteur mis à jour (server-cuda-b10950)"
+        ],
+        "new": "",
+        "next": 15,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10950)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut, version précédente téléchargée",
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "build": 10950,
+        "commit": "0ab1234",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "{{HOME}}/image/llama-server",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": false,
+            "tag": "server-cuda-b10900"
+          },
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+            "build": 10950,
+            "in_use": true,
+            "tag": "server-cuda-b10950"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10950)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": {
+          "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+          "build": 10900,
+          "source": "downloaded",
+          "tag": "server-cuda-b10900"
+        },
+        "recommend": null,
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "downloaded",
+        "supported": true,
+        "variant": "server-cuda"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "REASONING_PRESERVE=off inconnue du moteur",
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10950\",\"preserve_off\":true}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "REASONING_PRESERVE=off demandée mais pas posée : le nouveau moteur ne connaît pas --no-reasoning-preserve — moteur courant inchangé ; le nouveau reste installé",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10950",
+          "déjà installé : server-cuda-b10950",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10950 (0ab1234)",
+          "✗ REASONING_PRESERVE=off demandée mais pas posée : le nouveau moteur ne connaît pas --no-reasoning-preserve — moteur courant inchangé ; le nouveau reste installé"
+        ],
+        "new": "",
+        "next": 5,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "version inconnue du registre",
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b1\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "version inconnue dans le registre : server-cuda-b1",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b1",
+          "▶ lecture du manifeste server-cuda-b1…",
+          "✗ version inconnue dans le registre : server-cuda-b1"
+        ],
+        "new": "",
+        "next": 3,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "image sans serveur",
+      "registry": {
+        "version": "b10960",
+        "fixed": [
+          "server-cuda-b10960"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10960",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10960\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "llama-server absent de l'image server-cuda-b10960 — variante inattendue ?",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10960",
+          "▶ lecture du manifeste server-cuda-b10960…",
+          "image ggml-org/llama.cpp:server-cuda-b10960 — llama.cpp b10960, 4 couches",
+          "couche 3 : 1 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "couche 0 ignorée (2147 Mo) : c'est le runtime de l'image, pas le moteur",
+          "✗ llama-server absent de l'image server-cuda-b10960 — variante inattendue ?"
+        ],
+        "new": "",
+        "next": 7,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "manifeste sans couche",
+      "registry": {
+        "version": "b10966",
+        "fixed": [
+          "server-cuda-b10966"
+        ],
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10966\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "manifeste server-cuda-b10966 sans couche",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10966",
+          "▶ lecture du manifeste server-cuda-b10966…",
+          "✗ manifeste server-cuda-b10966 sans couche"
+        ],
+        "new": "",
+        "next": 3,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "image sans version annoncée",
+      "registry": {
+        "version": "",
+        "fixed": [
+          "server-cuda-b10967"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10967",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10967\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "llama-server absent de l'image server-cuda-b10967 — variante inattendue ?",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10967",
+          "▶ lecture du manifeste server-cuda-b10967…",
+          "couche 3 : 1 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "couche 0 ignorée (2147 Mo) : c'est le runtime de l'image, pas le moteur",
+          "✗ llama-server absent de l'image server-cuda-b10967 — variante inattendue ?"
+        ],
+        "new": "",
+        "next": 6,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "couche du runtime au sommet",
+      "registry": {
+        "version": "b10961",
+        "fixed": [
+          "server-cuda-b10961"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10961",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "size": 734003200,
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10961\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "llama-server absent de l'image server-cuda-b10961 — variante inattendue ?",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10961",
+          "▶ lecture du manifeste server-cuda-b10961…",
+          "image ggml-org/llama.cpp:server-cuda-b10961 — llama.cpp b10961, 4 couches",
+          "couche 3 ignorée (734 Mo) : c'est le runtime de l'image, pas le moteur",
+          "✗ llama-server absent de l'image server-cuda-b10961 — variante inattendue ?"
+        ],
+        "new": "",
+        "next": 5,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "moteur qui ne démarre pas",
+      "registry": {
+        "version": "b10962",
+        "fixed": [
+          "server-cuda-b10962"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10962",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 10962 (aaa)';;\n--list-devices) i=0; while [ $i -lt 13 ]; do echo \"trace $i\"; i=$((i+1)); done; echo 'erreur: libcudart.so.13 introuvable'; exit 1;;\n--help) echo '';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10962\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "le moteur ne démarre pas ici : exit status 1\ntrace 2\ntrace 3\ntrace 4\ntrace 5\ntrace 6\ntrace 7\ntrace 8\ntrace 9\ntrace 10\ntrace 11\ntrace 12\nerreur: libcudart.so.13 introuvable\n\nLe moteur courant n'a PAS été touché. Cette version demande sans doute un runtime CUDA plus récent que celui de l'image : reconstruis l'image avec un LLAMACPP_IMAGE récent, ou épingle un build antérieur",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10962",
+          "▶ lecture du manifeste server-cuda-b10962…",
+          "image ggml-org/llama.cpp:server-cuda-b10962 — llama.cpp b10962, 4 couches",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10962/llama-server",
+          "▶ essai du nouveau moteur…",
+          "✗ le moteur ne démarre pas ici : exit status 1\ntrace 2\ntrace 3\ntrace 4\ntrace 5\ntrace 6\ntrace 7\ntrace 8\ntrace 9\ntrace 10\ntrace 11\ntrace 12\nerreur: libcudart.so.13 introuvable\n\nLe moteur courant n'a PAS été touché. Cette version demande sans doute un runtime CUDA plus récent que celui de l'image : reconstruis l'image avec un LLAMACPP_IMAGE récent, ou épingle un build antérieur"
+        ],
+        "new": "",
+        "next": 8,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "moteur qui ne voit aucune carte",
+      "registry": {
+        "version": "b10963",
+        "fixed": [
+          "server-cuda-b10963"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10963",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 10963 (bbb)';;\n--list-devices) echo 'Available devices:';;\n--help) echo '';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10963\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "le moteur téléchargé ne voit aucune carte graphique, alors que le moteur actuel en voit 1 — il tournerait sur le processeur, beaucoup plus lentement\n\nLe moteur courant n'a PAS été touché. Cette version demande sans doute un runtime CUDA plus récent que celui de l'image : reconstruis l'image avec un LLAMACPP_IMAGE récent, ou épingle un build antérieur",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10963",
+          "▶ lecture du manifeste server-cuda-b10963…",
+          "image ggml-org/llama.cpp:server-cuda-b10963 — llama.cpp b10963, 4 couches",
+          "couche 3 : 2 fichiers du moteur",
+          "couche 2 : 5 fichiers du moteur",
+          "moteur installé : {{HOME}}/engine/server-cuda-b10963/llama-server",
+          "▶ essai du nouveau moteur…",
+          "✗ le moteur téléchargé ne voit aucune carte graphique, alors que le moteur actuel en voit 1 — il tournerait sur le processeur, beaucoup plus lentement\n\nLe moteur courant n'a PAS été touché. Cette version demande sans doute un runtime CUDA plus récent que celui de l'image : reconstruis l'image avec un LLAMACPP_IMAGE récent, ou épingle un build antérieur"
+        ],
+        "new": "",
+        "next": 8,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "jeton refusé pendant la mise à jour",
+      "registry": {
+        "token": 401,
+        "version": "b10964",
+        "layers": null
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10964\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "{{REGHOST}}/token : HTTP 401",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10964",
+          "▶ lecture du manifeste server-cuda-b10964…",
+          "✗ {{REGHOST}}/token : HTTP 401"
+        ],
+        "new": "",
+        "next": 3,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "couche introuvable",
+      "registry": {
+        "blob": 404,
+        "version": "b10965",
+        "fixed": [
+          "server-cuda-b10965"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10965",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\"server-cuda-b10965\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "téléchargement de la couche 3 : HTTP 404",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : server-cuda-b10965",
+          "▶ lecture du manifeste server-cuda-b10965…",
+          "image ggml-org/llama.cpp:server-cuda-b10965 — llama.cpp b10965, 4 couches",
+          "✗ téléchargement de la couche 3 : HTTP 404"
+        ],
+        "new": "",
+        "next": 4,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "tag illisible",
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":\".\"}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "version du moteur non précisée",
+        "exists": true,
+        "lines": [
+          "variante : server-cuda — version visée : .",
+          "✗ version du moteur non précisée"
+        ],
+        "new": "",
+        "next": 2,
+        "old": "",
+        "phase": "échec",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "corps illisible, preset externe",
+      "config": {
+        "EXTERNAL": "1"
+      },
+      "registry": {
+        "version": "b10900",
+        "fixed": [
+          "server-cuda-b10900"
+        ],
+        "layers": [
+          {
+            "size": 2147483648,
+            "entries": [
+              {
+                "name": "usr/local/cuda/lib64/libcudart.so",
+                "type": "file",
+                "body": "runtime",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "etc/hosts",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "ancien",
+                "mode": 493
+              },
+              {
+                "name": "app/",
+                "type": "dir",
+                "mode": 493
+              },
+              {
+                "name": "app/libggml-base.so.0.20.0",
+                "type": "file",
+                "body": "elf b10900",
+                "mode": 420
+              },
+              {
+                "name": "app/libggml-base.so",
+                "type": "symlink",
+                "link": "libggml-base.so.0.20.0"
+              },
+              {
+                "name": "app/libllama.so.0.1.0",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/libllama.so",
+                "type": "symlink",
+                "link": "/app/libllama.so.0.1.0"
+              },
+              {
+                "name": "app/libggml-cuda.so",
+                "type": "file",
+                "body": "elf",
+                "mode": 420
+              },
+              {
+                "name": "app/sous/ignoré",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              },
+              {
+                "name": "app/.wh.supprimé",
+                "type": "file",
+                "mode": 420
+              },
+              {
+                "name": "etc/passwd",
+                "type": "file",
+                "body": "x",
+                "mode": 420
+              }
+            ]
+          },
+          {
+            "entries": [
+              {
+                "name": "app/llama",
+                "type": "file",
+                "body": "#!/bin/true\n",
+                "mode": 493
+              },
+              {
+                "name": "app/llama-server",
+                "type": "file",
+                "body": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+                "mode": 448
+              }
+            ]
+          }
+        ]
+      },
+      "local": {
+        "mode": "qwen3",
+        "build": "b10900-ext",
+        "template": "{% if preserve_thinking %}garde{% endif %}"
+      },
+      "method": "POST",
+      "path": "/api/engine/update",
+      "body": "{\"tag\":1}",
+      "wait": true,
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "job": {
+        "action": "engine",
+        "compiled": 0,
+        "ended_at": "{{T}}",
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ recherche de la dernière version publiée…",
+          "variante : server-cuda — version visée : server-cuda-b10900",
+          "déjà installé : server-cuda-b10900",
+          "▶ essai du nouveau moteur…",
+          "moteur testé : build 10900 (def5678)",
+          "BIN → {{HOME}}/engine/server-cuda-b10900/llama-server",
+          "version précédente gardée pour revenir en arrière : server-cuda-b10950",
+          "✓ moteur mis à jour (server-cuda-b10900)"
+        ],
+        "new": "",
+        "next": 8,
+        "old": "",
+        "phase": "moteur mis à jour (server-cuda-b10900)",
+        "running": false,
+        "started_at": "{{T}}"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10950/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10950/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut, moteur compilé",
+      "files": {
+        "custom/llama-server": "#!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 10800 (c0ffee1)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n"
+      },
+      "config": {
+        "BIN": "{{HOME}}/custom/llama-server"
+      },
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/custom/llama-server",
+        "build": 10800,
+        "commit": "c0ffee1",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "{{HOME}}/image/llama-server",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": false,
+            "tag": "server-cuda-b10900"
+          },
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+            "build": 10950,
+            "in_use": false,
+            "tag": "server-cuda-b10950"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": {
+          "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+          "build": 10950,
+          "source": "downloaded",
+          "tag": "server-cuda-b10950"
+        },
+        "recommend": null,
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "custom",
+        "supported": true,
+        "variant": "server"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/custom/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10950/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10950/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "bascule vers l'image, sans moteur d'image",
+      "engine_env": "",
+      "method": "POST",
+      "path": "/api/engine/use",
+      "body": "{\"tag\":\"image\"}",
+      "status": 400,
+      "out": {
+        "error": "cette installation n'a pas de moteur d'image (LOKI_ENGINE_BIN)",
+        "ok": false
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/custom/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10950/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10950/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut final",
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/custom/llama-server",
+        "build": 10800,
+        "commit": "c0ffee1",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": false,
+            "tag": "server-cuda-b10900"
+          },
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+            "build": 10950,
+            "in_use": false,
+            "tag": "server-cuda-b10950"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": {
+          "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+          "build": 10950,
+          "source": "downloaded",
+          "tag": "server-cuda-b10950"
+        },
+        "recommend": null,
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "custom",
+        "supported": true,
+        "variant": "server"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/custom/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10950/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10950/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut sans aucun moteur",
+      "config": {
+        "BIN": ""
+      },
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "",
+        "build": 0,
+        "commit": "",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": false,
+            "tag": "server-cuda-b10900"
+          },
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+            "build": 10950,
+            "in_use": false,
+            "tag": "server-cuda-b10950"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": {
+          "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+          "build": 10950,
+          "source": "downloaded",
+          "tag": "server-cuda-b10950"
+        },
+        "recommend": null,
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "custom",
+        "supported": true,
+        "variant": "server"
+      },
+      "after": {
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10950/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10950/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    },
+    {
+      "name": "statut, version précédente = moteur courant",
+      "files": {
+        "engine/previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "config": {
+        "BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server"
+      },
+      "method": "GET",
+      "path": "/api/engine",
+      "status": 200,
+      "out": {
+        "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "build": 10900,
+        "commit": "def5678",
+        "dir": "{{HOME}}/engine",
+        "image_bin": "",
+        "installed": [
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+            "build": 10900,
+            "in_use": true,
+            "tag": "server-cuda-b10900"
+          },
+          {
+            "bin": "{{HOME}}/engine/server-cuda-b10950/llama-server",
+            "build": 10950,
+            "in_use": false,
+            "tag": "server-cuda-b10950"
+          }
+        ],
+        "job": {
+          "action": "engine",
+          "compiled": 0,
+          "ended_at": "{{T}}",
+          "error": "",
+          "exists": true,
+          "new": "",
+          "old": "",
+          "phase": "moteur mis à jour (server-cuda-b10900)",
+          "running": false,
+          "started_at": "{{T}}"
+        },
+        "notice": "",
+        "previous": null,
+        "recommend": null,
+        "render_check": null,
+        "repo": "{{REGHOST}}/ggml-org/llama.cpp",
+        "source": "downloaded",
+        "supported": true,
+        "variant": "server-cuda"
+      },
+      "after": {
+        "config/BIN": "{{HOME}}/engine/server-cuda-b10900/llama-server",
+        "previous-bin": "{{HOME}}/engine/server-cuda-b10900/llama-server\n"
+      },
+      "tree": [
+        "d engine",
+        "d engine/server-cuda-b10001",
+        "d engine/server-cuda-b10900",
+        "d engine/server-cuda-b10950",
+        "f engine/previous-bin -rw-r--r-- {{HOME}}/engine/server-cuda-b10900/llama-server\n",
+        "f engine/server-cuda-b10900/libggml-base.so.0.20.0 -rw-r--r-- elf b10900",
+        "f engine/server-cuda-b10900/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10900/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10900/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10900, commit def5678)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '--no-reasoning-preserve';;\nesac\n",
+        "f engine/server-cuda-b10950/libggml-base.so.0.20.0 -rw-r--r-- elf b10950",
+        "f engine/server-cuda-b10950/libggml-cuda.so -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/libllama.so.0.1.0 -rw-r--r-- elf",
+        "f engine/server-cuda-b10950/llama -rwxr-xr-x #!/bin/true\n",
+        "f engine/server-cuda-b10950/llama-server -rwxr-xr-x #!/bin/sh\ncase \"$1\" in\n--version) echo 'version: 0.1.0-dev (build 10950, commit 0ab1234)';;\n--list-devices) echo 'Available devices:'; echo '  CUDA0: Carte (1000 MiB, 900 MiB free)';;\n--help) echo '';;\nesac\n",
+        "l engine/server-cuda-b10900/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10900/libllama.so -> libllama.so.0.1.0",
+        "l engine/server-cuda-b10950/libggml-base.so -> libggml-base.so.0.20.0",
+        "l engine/server-cuda-b10950/libllama.so -> libllama.so.0.1.0"
+      ]
+    }
+  ]
+}

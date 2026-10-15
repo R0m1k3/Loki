@@ -96,6 +96,10 @@ pub struct Config {
     /// Backends llama.cpp (statut, précompilé, bascule, GPU) et job des
     /// moteurs tenus par la façade (`LOKI_BACKENDS=rust`) ; `None` : au Go.
     pub backends: Option<Arc<crate::backends::Backends>>,
+    /// Panneau « moteur de l'image » (version, mise à jour depuis le
+    /// registre, bascules, rendu du gabarit) tenu par la façade
+    /// (`LOKI_ENGINE_IMAGE=rust`) ; `None` : au Go.
+    pub engineimg: Option<Arc<crate::engineimg::EngineImg>>,
 }
 
 struct Proxy {
@@ -136,6 +140,7 @@ pub async fn serve(
             mcp: cfg.mcp,
             update: cfg.update,
             backends: cfg.backends,
+            engineimg: cfg.engineimg,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -239,6 +244,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(e) = &self.ctx.engineimg
+            && crate::engineimg::handles(path)
+        {
+            return crate::engineimg::serve(&self.ctx, e, req, from_go).await;
         }
         if let Some(b) = &self.ctx.backends
             && crate::backends::handles(path)

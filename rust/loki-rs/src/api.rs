@@ -56,6 +56,9 @@ pub struct Ctx {
     /// Backends llama.cpp et job des moteurs tenus par la façade
     /// (`LOKI_BACKENDS=rust`).
     pub backends: Option<std::sync::Arc<crate::backends::Backends>>,
+    /// Panneau « moteur de l'image » tenu par la façade
+    /// (`LOKI_ENGINE_IMAGE=rust`, avec les backends).
+    pub engineimg: Option<std::sync::Arc<crate::engineimg::EngineImg>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -78,6 +81,7 @@ impl Ctx {
             || self.mcp.is_some()
             || self.update
             || self.backends.is_some()
+            || self.engineimg.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

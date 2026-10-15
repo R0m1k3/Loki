@@ -167,6 +167,13 @@ fn serve() -> ExitCode {
         // bascule, GPU) et LE job des moteurs, auquel les jobs du Go
         // (compilation, moteur de l'image, Strata) rapportent leurs étapes.
         let backends_rust = held_by_facade("LOKI_BACKENDS");
+        // LOKI_ENGINE_IMAGE=rust : le panneau « moteur de l'image » (mise à
+        // jour depuis le registre officiel), avec les backends seulement : sa
+        // mise à jour est un job, et le job est à eux.
+        let engineimg_rust = held_by_facade("LOKI_ENGINE_IMAGE") && backends_rust;
+        if held_by_facade("LOKI_ENGINE_IMAGE") && !backends_rust {
+            eprintln!("[loki-rs] moteur de l'image tenu par le Go (LOKI_BACKENDS=rust requis)");
+        }
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -199,6 +206,7 @@ fn serve() -> ExitCode {
             ("LOKI_MCP", mcp_rust),
             ("LOKI_UPDATE", update_rust),
             ("LOKI_BACKENDS", backends_rust),
+            ("LOKI_ENGINE_IMAGE", engineimg_rust),
         ];
         for (var, on) in held {
             if on {
@@ -265,6 +273,28 @@ fn serve() -> ExitCode {
             None
         };
 
+        // La sonde de gabarit de la conversation quand la façade la tient :
+        // le relevé du rendu rejoue la forme de ses vraies requêtes.
+        let engineimg = engineimg_rust.then(|| {
+            let probe = chat
+                .as_ref()
+                .map(|c| c.shared.tpl.clone())
+                .unwrap_or_else(|| std::sync::Arc::new(loki_rs::chat::tplprobe::TplProbe::new()));
+            let reg = loki_rs::engineimg::oci::Registry::new(
+                loki_rs::engineimg::oci::base_from_env(
+                    std::env::var("LOKI_OCI_REGISTRY").ok().as_deref(),
+                ),
+                cfg!(target_arch = "aarch64"),
+            );
+            std::sync::Arc::new(loki_rs::engineimg::EngineImg::new(
+                engine_paths.home.clone(),
+                reg,
+                cfg!(target_os = "linux")
+                    && (cfg!(target_arch = "x86_64") || cfg!(target_arch = "aarch64")),
+                probe,
+            ))
+        });
+
         let files = if files_rust {
             Some(start_files(backend, &token).await)
         } else {
@@ -321,6 +351,7 @@ fn serve() -> ExitCode {
             projects: projects_rust,
             update: update_rust,
             backends,
+            engineimg,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

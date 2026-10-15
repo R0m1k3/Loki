@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 pub mod fakego;
+pub mod parity;
 pub mod toolsfx;
 
 use bytes::Bytes;

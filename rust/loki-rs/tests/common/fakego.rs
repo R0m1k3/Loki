@@ -78,6 +78,9 @@ pub struct FakeGo {
     pub tune_busy: Mutex<Option<String>>,
     /// /internal/v1/preset/apply reçus : (chemin, mode).
     pub preset_applies: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/preset/apply écrit-il le preset dans la configuration
+    /// (`applyPresetFile` : clés « appareil » et BIN de la machine gardés) ?
+    pub apply_presets: Mutex<bool>,
     /// /internal/v1/chat/generating : le Go écrit une réponse.
     pub generating: Mutex<bool>,
     /// /internal/v1/service/prestart reçus.
@@ -450,6 +453,21 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             if mode == "refus" || path.ends_with("refus.env") {
                 return resp(500, r#"{"error":"application refusée"}"#);
             }
+            if *st.apply_presets.lock().unwrap() {
+                let text = std::fs::read_to_string(&path).unwrap_or_default();
+                let mut next = loki_rs::presets::parse_env(&text);
+                let mut store = st.store.lock().unwrap();
+                let cur = store.entry("config".into()).or_default();
+                for k in loki_rs::presets::PRESERVED_KEYS {
+                    if let Some(v) = cur.get(*k) {
+                        next.insert(k.to_string(), String::from_utf8_lossy(v).into_owned());
+                    }
+                }
+                if let Some(bin) = cur.get("BIN").filter(|v| !v.is_empty()) {
+                    next.insert("BIN".into(), String::from_utf8_lossy(bin).into_owned());
+                }
+                *cur = next.into_iter().map(|(k, v)| (k, v.into_bytes())).collect();
+            }
             st.preset_applies.lock().unwrap().push((path, mode));
             resp(204, "")
         }
@@ -642,6 +660,7 @@ pub struct Opts {
     pub mcp: Option<Arc<loki_rs::mcp::Mcp>>,
     pub update: bool,
     pub backends: Option<Arc<loki_rs::backends::Backends>>,
+    pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -744,6 +763,7 @@ pub async fn start_with(
         mcp: opts.mcp,
         update: opts.update,
         backends: opts.backends,
+        engineimg: opts.engineimg,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

@@ -214,6 +214,18 @@ async fn list_devices(bin: &str, cvd: &str) -> (String, Option<String>) {
         c.env("CUDA_VISIBLE_DEVICES", cvd)
             .env("CUDA_DEVICE_ORDER", "PCI_BUS_ID");
     }
+    c.stdin(Stdio::null()).kill_on_drop(true);
+    combined(c, bin, Some(LIST_TIMEOUT)).await
+}
+
+/// `cmd.CombinedOutput()` : sorties standard et d'erreur dans le même tube ;
+/// l'erreur au format d'`exec` (`exit status N`, `signal: killed`,
+/// `fork/exec …`). `limit` : délai au-delà duquel le processus est tué.
+pub async fn combined(
+    mut c: tokio::process::Command,
+    bin: &str,
+    limit: Option<Duration>,
+) -> (String, Option<String>) {
     // Sortie standard et d'erreur dans le même tube, comme CombinedOutput.
     let (reader, writer) = match std::io::pipe() {
         Ok(p) => p,
@@ -223,10 +235,7 @@ async fn list_devices(bin: &str, cvd: &str) -> (String, Option<String>) {
         Ok(w) => w,
         Err(e) => return (String::new(), Some(e.to_string())),
     };
-    c.stdin(Stdio::null())
-        .stdout(Stdio::from(writer))
-        .stderr(Stdio::from(writer2))
-        .kill_on_drop(true);
+    c.stdout(Stdio::from(writer)).stderr(Stdio::from(writer2));
     let mut child = match c.spawn() {
         Ok(ch) => ch,
         Err(e) => {
@@ -243,14 +252,16 @@ async fn list_devices(bin: &str, cvd: &str) -> (String, Option<String>) {
         let _ = std::io::Read::read_to_end(&mut r, &mut buf);
         buf
     });
-    let status = tokio::time::timeout(LIST_TIMEOUT, child.wait()).await;
-    let status = match status {
-        Ok(s) => s,
-        Err(_) => {
-            let _ = child.start_kill();
-            let _ = child.wait().await;
-            Err(std::io::Error::other("signal: killed"))
-        }
+    let status = match limit {
+        None => child.wait().await,
+        Some(d) => match tokio::time::timeout(d, child.wait()).await {
+            Ok(s) => s,
+            Err(_) => {
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+                Err(std::io::Error::other("signal: killed"))
+            }
+        },
     };
     let out = read.await.unwrap_or_default();
     let out = crate::system::go_lossy(&out);

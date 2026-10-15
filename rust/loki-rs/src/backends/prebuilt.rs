@@ -312,12 +312,19 @@ pub async fn download(
     total: i64,
     logf: &mut (dyn FnMut(String) + Send),
 ) -> Result<(), String> {
-    let resp = client
-        .get(url)
-        .header("User-Agent", "Go-http-client/1.1")
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let rq = client.get(url).header("User-Agent", "Go-http-client/1.1");
+    download_request(rq, dest, total, logf).await
+}
+
+/// `downloadRequest` : la même chose pour une requête déjà construite — un
+/// registre OCI exige un en-tête d'autorisation, même en lecture anonyme.
+pub async fn download_request(
+    rq: reqwest::RequestBuilder,
+    dest: &Path,
+    total: i64,
+    logf: &mut (dyn FnMut(String) + Send),
+) -> Result<(), String> {
+    let resp = rq.send().await.map_err(|e| e.to_string())?;
     if resp.status().as_u16() != 200 {
         return Err(format!("HTTP {}", resp.status().as_u16()));
     }
@@ -439,7 +446,7 @@ fn mkdir_all(p: &Path) -> Result<(), String> {
 
 /// `applyLinks` : liens symboliques, ou copie de la cible quand le système
 /// les refuse.
-fn apply_links(links: &[(PathBuf, String)]) -> Result<(), String> {
+pub(crate) fn apply_links(links: &[(PathBuf, String)]) -> Result<(), String> {
     for (path, target) in links {
         let _ = std::fs::remove_file(path);
         if let Some(parent) = path.parent() {
