@@ -114,9 +114,9 @@ fn serve() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        // LOKI_CHAT=rust : la conversation est tenue par la façade. Le Go le
-        // sait (il remet alors à la façade le trafic de chat du tunnel) et
-        // connaît son adresse locale.
+        // Conversation tenue par la façade (défaut ; LOKI_CHAT=go pour la
+        // rendre au Go). Le Go le sait (il remet alors à la façade le trafic
+        // de chat du tunnel) et connaît son adresse locale.
         let chat_rust = chat_held_by_facade();
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
@@ -184,9 +184,19 @@ fn serve() -> ExitCode {
     })
 }
 
-/// `LOKI_CHAT=rust` : conversation tenue par la façade (Go par défaut).
+/// Conversation tenue par la façade : c'est le défaut. `LOKI_CHAT=go` (ou
+/// 0/off/false/no) la rend au Go — porte de sortie. Le Go la garde de toute
+/// façon si un réglage que la façade ne sait pas honorer est posé
+/// (`facadeChatBlocker`).
 fn chat_held_by_facade() -> bool {
-    std::env::var("LOKI_CHAT").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+    chat_wanted(std::env::var("LOKI_CHAT").ok().as_deref())
+}
+
+fn chat_wanted(v: Option<&str>) -> bool {
+    !matches!(
+        v.map(|v| v.trim().to_ascii_lowercase()).as_deref(),
+        Some("go" | "0" | "off" | "false" | "no")
+    )
 }
 
 /// Le Go garde-t-il la conversation ? (quelques essais : il vient de démarrer)
@@ -218,7 +228,7 @@ async fn start_chat(
     );
     s.load().await?;
     let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
-    eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=rust)");
+    eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=go pour la rendre au Go)");
     Ok(ChatService::new(
         std::sync::Arc::new(s),
         std::sync::Arc::new(shared),
@@ -263,5 +273,20 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn conversation_tenue_par_la_facade_par_defaut() {
+        use super::chat_wanted;
+        assert!(chat_wanted(None));
+        assert!(chat_wanted(Some("")));
+        assert!(chat_wanted(Some("rust")));
+        assert!(chat_wanted(Some(" RUST ")));
+        for v in ["go", "GO", "0", "off", "false", "no"] {
+            assert!(!chat_wanted(Some(v)), "{v}");
+        }
     }
 }

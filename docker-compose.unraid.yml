@@ -41,6 +41,9 @@ services:
       # sinon l'API répond 403 (protection contre les sites tiers / DNS
       # rebinding). Inutile pour un accès par IP ou nom local.
       - LOKI_TRUSTED_HOSTS=
+      # Conversation tenue par la façade Rust (défaut). « go » la rend au Go si
+      # quelque chose ne va pas — puis Compose Down / Up.
+      # - LOKI_CHAT=go
     volumes:
       # PERFORMANCE — /mnt/user/… passe par la couche FUSE des partages
       # Unraid (shfs) : chaque écriture de la base et chaque page d'un gros
