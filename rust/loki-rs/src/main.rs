@@ -118,9 +118,17 @@ fn serve() -> ExitCode {
         // sait (il remet alors à la façade le trafic de chat du tunnel) et
         // connaît son adresse locale.
         let chat_rust = chat_held_by_facade();
+        // LOKI_DOWNLOADS=rust : les téléchargements de modèles aussi (le Go
+        // remet alors leurs routes du tunnel et ne vide plus les .part).
+        let downloads_rust = downloads_held_by_facade();
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
+        }
+        if downloads_rust {
+            env.push(("LOKI_DOWNLOADS".into(), "rust".into()));
+        }
+        if chat_rust || downloads_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -153,6 +161,11 @@ fn serve() -> ExitCode {
         } else {
             None
         };
+        let downloads = if downloads_rust {
+            Some(start_downloads(backend, &token, &engine_paths.home).await)
+        } else {
+            None
+        };
 
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
@@ -170,6 +183,7 @@ fn serve() -> ExitCode {
             host_env: auth::HostEnv::from_env(),
             engine: engine_paths,
             chat,
+            downloads,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -187,6 +201,37 @@ fn serve() -> ExitCode {
 /// `LOKI_CHAT=rust` : conversation tenue par la façade (Go par défaut).
 fn chat_held_by_facade() -> bool {
     std::env::var("LOKI_CHAT").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+}
+
+/// `LOKI_DOWNLOADS=rust` : téléchargements de modèles tenus par la façade.
+fn downloads_held_by_facade() -> bool {
+    std::env::var("LOKI_DOWNLOADS").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+}
+
+/// Les `.part` d'un téléchargement tué ne reprendront jamais : vidés au
+/// démarrage (le Go ne le fait plus quand la façade les tient).
+async fn start_downloads(
+    backend: SocketAddr,
+    token: &str,
+    home: &std::path::Path,
+) -> std::sync::Arc<loki_rs::downloads::Downloads> {
+    use loki_rs::{downloads, gguf, store};
+    let st = store::Store::new(backend, token.to_string());
+    let stored = gguf::parse_stored_model_dirs(
+        st.get(store::BK_STATE, gguf::STATE_MODEL_DIRS_KEY)
+            .await
+            .ok()
+            .flatten()
+            .as_deref(),
+    );
+    let dirs = gguf::model_dirs(
+        home,
+        &stored,
+        std::env::var(gguf::MODEL_DIRS_ENV).ok().as_deref(),
+    );
+    let _ = tokio::task::spawn_blocking(move || downloads::clean_stale_part_files(&dirs)).await;
+    eprintln!("[loki-rs] téléchargements de modèles tenus par la façade (LOKI_DOWNLOADS=rust)");
+    std::sync::Arc::new(downloads::Downloads::new())
 }
 
 /// Le Go garde-t-il la conversation ? (quelques essais : il vient de démarrer)

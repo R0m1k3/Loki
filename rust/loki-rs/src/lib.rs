@@ -15,6 +15,7 @@ pub mod auth;
 pub mod chat;
 pub mod chatapi;
 pub mod child;
+pub mod downloads;
 pub mod engine;
 pub mod engstatus;
 pub mod gguf;

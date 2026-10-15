@@ -427,7 +427,16 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None).await;
+    let (f, st, tx, _) = start_opts(home, false, None, false).await;
+    (f, st, tx)
+}
+
+/// Comme [`start`], avec les téléchargements de modèles tenus par la façade
+/// (`LOKI_DOWNLOADS=rust`).
+pub async fn start_downloads(
+    home: std::path::PathBuf,
+) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let (f, st, tx, _) = start_opts(home, false, None, true).await;
     (f, st, tx)
 }
 
@@ -442,7 +451,7 @@ pub async fn start_chat(
     oneshot::Sender<()>,
     Arc<loki_rs::chat::generate::ChatService>,
 ) {
-    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port)).await;
+    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port), false).await;
     (f, st, tx, chat.unwrap())
 }
 
@@ -450,6 +459,7 @@ async fn start_opts(
     home: std::path::PathBuf,
     with_chat: bool,
     engine_port: Option<u16>,
+    with_downloads: bool,
 ) -> (
     SocketAddr,
     Arc<FakeGo>,
@@ -506,11 +516,38 @@ async fn start_opts(
             service: "loki-engine".into(),
         },
         chat: chat.clone(),
+        downloads: with_downloads.then(|| Arc::new(loki_rs::downloads::Downloads::new())),
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
     }));
     (facade, st, tx, chat)
+}
+
+/// Requête via la façade (corps JSON) : (code, corps).
+pub async fn send(
+    facade: SocketAddr,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> (StatusCode, Bytes) {
+    use hyper_util::client::legacy::Client;
+    use hyper_util::rt::TokioExecutor;
+    let mut req = Request::builder()
+        .method(method)
+        .uri(format!("http://{facade}{path}"))
+        .header("content-type", "application/json");
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let client: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
+    let r = client
+        .request(req.body(Full::new(Bytes::from(body.to_string()))).unwrap())
+        .await
+        .unwrap();
+    let (parts, body) = r.into_parts();
+    (parts.status, body.collect().await.unwrap().to_bytes())
 }
 
 /// GET via la façade : (code, en-têtes, corps).

@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -301,5 +303,78 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 	t.Setenv(facadeChatEnv, "")
 	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); !strings.Contains(w.Body.String(), "LOKI_CHAT absent") {
 		t.Fatalf("sans la variable : %s", w.Body.String())
+	}
+}
+
+// LOKI_DOWNLOADS=rust : les routes des téléchargements de modèles partent à la
+// façade (avec ou sans LOKI_CHAT), les autres routes des modèles restent ici ;
+// sans la variable, rien ne change. Façade muette : erreur qui le dit.
+func TestFacadeRelaieLesTelechargements(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	t.Setenv(facadeDownloadsEnv, "rust")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+
+	for _, p := range []string{"/api/models/download", "/api/models/download/probe",
+		"/api/models/download/status", "/api/models/download/cancel"} {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader(`{"url":"u"}`)))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if got := f.recu(); len(got) != 4 || got[0] != `POST /api/models/download jeton {"url":"u"}` {
+		t.Fatalf("reçu par la façade : %v", got)
+	}
+	// Le chat, lui, reste ici (LOKI_CHAT absent), et les autres routes des
+	// modèles aussi.
+	for _, p := range []string{"/api/chat/send", "/api/models", "/api/models/delete"} {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s relayé : %q", p, w.Body.String())
+		}
+	}
+	// Façade injoignable : 502 qui nomme ce qui manque.
+	f.srv.Close()
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/models/download/status", local)(w, httptest.NewRequest("GET", "/api/models/download/status", nil))
+	if w.Code != http.StatusBadGateway || !strings.Contains(w.Body.String(), "téléchargements indisponibles : ") {
+		t.Fatalf("façade muette : %d %s", w.Code, w.Body.String())
+	}
+	// Sans LOKI_DOWNLOADS=rust : tout reste ici.
+	t.Setenv(facadeDownloadsEnv, "")
+	w = httptest.NewRecorder()
+	withFacadeChat("/api/models/download", local)(w, httptest.NewRequest("POST", "/api/models/download", nil))
+	if w.Body.String() != "go" {
+		t.Fatalf("relayé sans la variable : %q", w.Body.String())
+	}
+}
+
+// Les .part orphelins ne sont plus vidés par ce Go quand la façade tient les
+// téléchargements : elle les vide à son démarrage, et un Go relancé seul
+// effacerait celui qu'elle mène.
+func TestFacadeTelechargementsGardeLesPart(t *testing.T) {
+	home := testHome(t)
+	dir := filepath.Join(home, "models")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	part := filepath.Join(dir, "m.gguf.part")
+	if err := os.WriteFile(part, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
+	t.Setenv(facadeDownloadsEnv, "rust")
+	cleanStartupPartFiles()
+	if _, err := os.Stat(part); err != nil {
+		t.Fatalf(".part effacé alors que la façade tient les téléchargements : %v", err)
+	}
+	t.Setenv(facadeDownloadsEnv, "")
+	cleanStartupPartFiles()
+	if _, err := os.Stat(part); !os.IsNotExist(err) {
+		t.Fatalf(".part orphelin gardé : %v", err)
 	}
 }

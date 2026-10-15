@@ -141,23 +141,30 @@ var facadeChatRoutes = map[string]bool{
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la
-// conversation. Posé APRÈS requireWebAuth : seule une requête authentifiée
-// ici part, avec le jeton interne qui en tient lieu là-bas.
+// conversation — ou les téléchargements de modèles (facade_downloads.go).
+// Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
+// jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
-	if !facadeChatRoutes[path] {
+	held, unavailable := facadeChat, "conversation indisponible : "
+	switch {
+	case facadeChatRoutes[path]:
+	case facadeDownloadRoutes[path]:
+		held, unavailable = facadeDownloads, "téléchargements indisponibles : "
+	default:
 		return h
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !facadeChat() {
+		if !held() {
 			h(w, r)
 			return
 		}
-		facadeRelay(w, r)
+		facadeRelayAs(w, r, unavailable)
 	}
 }
 
-// facadeRelay : relais transparent (flux compris) vers la façade.
-func facadeRelay(w http.ResponseWriter, r *http.Request) {
+// facadeRelayAs : relais transparent (flux compris) vers la façade ;
+// unavailable préfixe l'erreur si elle ne répond pas.
+func facadeRelayAs(w http.ResponseWriter, r *http.Request, unavailable string) {
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(&url.URL{Scheme: "http", Host: facadeAddr()})
@@ -165,7 +172,7 @@ func facadeRelay(w http.ResponseWriter, r *http.Request) {
 		},
 		FlushInterval: -1, // SSE : chaque trame part aussitôt
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-			sendJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": "conversation indisponible : " + err.Error()})
+			sendJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": unavailable + err.Error()})
 		},
 	}
 	rp.ServeHTTP(w, r)

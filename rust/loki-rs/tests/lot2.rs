@@ -94,6 +94,7 @@ async fn banc(cle: Option<&str>) -> Banc {
             service: "loki-engine".into(),
         },
         chat: None,
+        downloads: None,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

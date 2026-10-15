@@ -1,0 +1,314 @@
+{
+  "normalize": [
+    {
+      "in": "",
+      "err": "lien vide"
+    },
+    {
+      "in": "   ",
+      "err": "lien vide"
+    },
+    {
+      "in": "ftp://h/a.gguf",
+      "err": "lien invalide (http/https attendu)"
+    },
+    {
+      "in": "pas un lien",
+      "err": "lien invalide (http/https attendu)"
+    },
+    {
+      "in": "https://exemple.org/dossier/",
+      "err": "le lien doit pointer vers un fichier .gguf"
+    },
+    {
+      "in": "https://huggingface.co/u/r/blob/main/m.gguf",
+      "url": "https://huggingface.co/u/r/resolve/main/m.gguf",
+      "name": "m.gguf",
+      "urls": [
+        "https://huggingface.co/u/r/resolve/main/m.gguf"
+      ],
+      "names": [
+        "m.gguf"
+      ]
+    },
+    {
+      "in": "https://huggingface.co/u/r/blob/main/blob/m.gguf",
+      "url": "https://huggingface.co/u/r/resolve/main/blob/m.gguf",
+      "name": "m.gguf",
+      "urls": [
+        "https://huggingface.co/u/r/resolve/main/blob/m.gguf"
+      ],
+      "names": [
+        "m.gguf"
+      ]
+    },
+    {
+      "in": "https://huggingface.co/u/r/resolve/main/m-Q4_K_M.gguf?download=true",
+      "url": "https://huggingface.co/u/r/resolve/main/m-Q4_K_M.gguf?download=true",
+      "name": "m-Q4_K_M.gguf",
+      "urls": [
+        "https://huggingface.co/u/r/resolve/main/m-Q4_K_M.gguf?download=true"
+      ],
+      "names": [
+        "m-Q4_K_M.gguf"
+      ]
+    },
+    {
+      "in": "  https://huggingface.co/u/r/blob/main/m.bin  ",
+      "err": "le lien doit pointer vers un fichier .gguf"
+    },
+    {
+      "in": "http://exemple.org/modeles/M.GGUF",
+      "url": "http://exemple.org/modeles/M.GGUF",
+      "name": "M.GGUF",
+      "urls": [
+        "http://exemple.org/modeles/M.GGUF"
+      ],
+      "names": [
+        "M.GGUF"
+      ]
+    },
+    {
+      "in": "https://huggingface.co/u/r/blob/main/Q4/m-Q4-00002-of-00003.gguf",
+      "url": "https://huggingface.co/u/r/resolve/main/Q4/m-Q4-00002-of-00003.gguf",
+      "name": "m-Q4-00002-of-00003.gguf",
+      "urls": [
+        "https://huggingface.co/u/r/resolve/main/Q4/m-Q4-00001-of-00003.gguf",
+        "https://huggingface.co/u/r/resolve/main/Q4/m-Q4-00002-of-00003.gguf",
+        "https://huggingface.co/u/r/resolve/main/Q4/m-Q4-00003-of-00003.gguf"
+      ],
+      "names": [
+        "m-Q4-00001-of-00003.gguf",
+        "m-Q4-00002-of-00003.gguf",
+        "m-Q4-00003-of-00003.gguf"
+      ]
+    },
+    {
+      "in": "https://huggingface.co/u/r/resolve/main/m-00001-of-00012.gguf",
+      "url": "https://huggingface.co/u/r/resolve/main/m-00001-of-00012.gguf",
+      "name": "m-00001-of-00012.gguf",
+      "urls": [
+        "https://huggingface.co/u/r/resolve/main/m-00001-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00002-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00003-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00004-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00005-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00006-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00007-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00008-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00009-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00010-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00011-of-00012.gguf",
+        "https://huggingface.co/u/r/resolve/main/m-00012-of-00012.gguf"
+      ],
+      "names": [
+        "m-00001-of-00012.gguf",
+        "m-00002-of-00012.gguf",
+        "m-00003-of-00012.gguf",
+        "m-00004-of-00012.gguf",
+        "m-00005-of-00012.gguf",
+        "m-00006-of-00012.gguf",
+        "m-00007-of-00012.gguf",
+        "m-00008-of-00012.gguf",
+        "m-00009-of-00012.gguf",
+        "m-00010-of-00012.gguf",
+        "m-00011-of-00012.gguf",
+        "m-00012-of-00012.gguf"
+      ]
+    },
+    {
+      "in": "https://exemple.org/m-1-of-2.gguf",
+      "url": "https://exemple.org/m-1-of-2.gguf",
+      "name": "m-1-of-2.gguf",
+      "urls": [
+        "https://exemple.org/m-1-of-2.gguf"
+      ],
+      "names": [
+        "m-1-of-2.gguf"
+      ]
+    },
+    {
+      "in": "https://exemple.org/m-02-of-01.gguf",
+      "url": "https://exemple.org/m-02-of-01.gguf",
+      "name": "m-02-of-01.gguf",
+      "urls": [
+        "https://exemple.org/m-02-of-01.gguf"
+      ],
+      "names": [
+        "m-02-of-01.gguf"
+      ]
+    }
+  ],
+  "content_range": {
+    "": 0,
+    "bytes 0-0/ 99 ": 99,
+    "bytes 0-0/*": 0,
+    "bytes 0-0/0": 0,
+    "bytes 0-0/12345": 12345
+  },
+  "source": [
+    {
+      "status": 401,
+      "code": "GatedRepo",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "dépôt à accès restreint : accepte ses conditions sur huggingface.co/auteur/depot — puis renseigne le jeton Hugging Face (réglage « Jeton Hugging Face », ou variable d'environnement HF_TOKEN)"
+    },
+    {
+      "status": 401,
+      "code": "GatedRepo",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": true,
+      "err": "dépôt à accès restreint : accepte ses conditions sur huggingface.co/auteur/depot — le jeton Hugging Face enregistré n'y donne pas accès (expiré, ou conditions non acceptées avec ce compte)"
+    },
+    {
+      "status": 403,
+      "code": "RepoNotFound",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "dépôt privé ou inexistant : auteur/depot — puis renseigne le jeton Hugging Face (réglage « Jeton Hugging Face », ou variable d'environnement HF_TOKEN)"
+    },
+    {
+      "status": 401,
+      "code": "GatedRepo",
+      "url": "https://exemple.org/m.gguf",
+      "token_set": false,
+      "err": "dépôt à accès restreint : ses conditions doivent être acceptées sur huggingface.co — puis renseigne le jeton Hugging Face (réglage « Jeton Hugging Face », ou variable d'environnement HF_TOKEN)"
+    },
+    {
+      "status": 403,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": true,
+      "err": "accès refusé par Hugging Face sur auteur/depot — le jeton Hugging Face enregistré n'y donne pas accès (expiré, ou conditions non acceptées avec ce compte)"
+    },
+    {
+      "status": 403,
+      "code": "",
+      "url": "https://exemple.org/m.gguf",
+      "token_set": false,
+      "err": "accès refusé par la source — puis renseigne le jeton Hugging Face (réglage « Jeton Hugging Face », ou variable d'environnement HF_TOKEN)"
+    },
+    {
+      "status": 404,
+      "code": "EntryNotFound",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "fichier « m.gguf » absent du dépôt (HTTP 404) — dépôt réorganisé depuis la copie du lien, ou fragment jamais publié (table PLE livrée à part ?)"
+    },
+    {
+      "status": 404,
+      "code": "EntryNotFound",
+      "url": "https://exemple.org/",
+      "token_set": false,
+      "err": "fichier  absent du dépôt (HTTP 404) — dépôt réorganisé depuis la copie du lien, ou fragment jamais publié (table PLE livrée à part ?)"
+    },
+    {
+      "status": 404,
+      "code": "RevisionNotFound",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "révision introuvable dans le dépôt (HTTP 404)"
+    },
+    {
+      "status": 404,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "lien introuvable (HTTP 404)"
+    },
+    {
+      "status": 416,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "la source refuse la plage d'octets demandée (HTTP 416) — fichier modifié pendant le transfert ?"
+    },
+    {
+      "status": 429,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "trop de requêtes vers la source (HTTP 429) — réessaie dans quelques minutes"
+    },
+    {
+      "status": 502,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "la source est en panne (HTTP 502) — réessaie plus tard"
+    },
+    {
+      "status": 418,
+      "code": "",
+      "url": "https://huggingface.co/auteur/depot/resolve/main/m.gguf",
+      "token_set": false,
+      "err": "HTTP 418 depuis la source"
+    }
+  ],
+  "hf_host": {
+    "HUGGINGFACE.CO:443": true,
+    "cdn-lfs.huggingface.co": true,
+    "evilhuggingface.co": false,
+    "exemple.org": false,
+    "hf.co": true,
+    "huggingface.co": true,
+    "huggingface.co.evil.org": false,
+    "x.hf.co": true
+  },
+  "hf_repo": {
+    "https://exemple.org/a/b/resolve/main/x.gguf": "",
+    "https://huggingface.co/-a/b/resolve/main/x.gguf": "",
+    "https://huggingface.co/a/b": "",
+    "https://huggingface.co/a/b/blob/main/x.gguf": "a/b",
+    "https://huggingface.co/a/b/tree/main": "",
+    "https://huggingface.co/auteur/depot/resolve/main/m.gguf": "auteur/depot"
+  },
+  "dest": [
+    {
+      "name": "a.gguf",
+      "dir": "",
+      "path": "{{HOME}}/models/a.gguf"
+    },
+    {
+      "name": " ../../x.gguf ",
+      "dir": "",
+      "path": "{{HOME}}/models/x.gguf"
+    },
+    {
+      "name": "x.bin",
+      "dir": "",
+      "err": "seuls les fichiers .gguf sont acceptés"
+    },
+    {
+      "name": "",
+      "dir": "",
+      "err": "nom de modèle invalide"
+    },
+    {
+      "name": "/",
+      "dir": "",
+      "err": "nom de modèle invalide"
+    },
+    {
+      "name": "a.gguf",
+      "dir": "/etc",
+      "err": "dossier non autorisé : /etc — ajoute-le dans « Dossiers de modèles »"
+    },
+    {
+      "name": "a.gguf",
+      "dir": "{{HOME}}/disque",
+      "path": "{{HOME}}/disque/a.gguf"
+    },
+    {
+      "name": "a.gguf",
+      "dir": "{{HOME}}/disque/",
+      "path": "{{HOME}}/disque/a.gguf"
+    },
+    {
+      "name": "a.gguf",
+      "dir": "{{HOME}}/models",
+      "path": "{{HOME}}/models/a.gguf"
+    }
+  ]
+}
