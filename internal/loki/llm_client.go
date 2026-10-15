@@ -2360,192 +2360,10 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					extra = append(extra, toolMsg)
 					continue
 				}
-				switch tc.Function.Name {
-				case "see_image":
-					result, visionImg = toolSeeImage(label)
-				case "recall":
-					result = toolRecall(args)
-				case "recall_search":
-					result = toolRecallSearch(args)
-				case "tracker":
-					result = toolTracker(args)
-				case "mem_search":
-					lim := 0
-					if v, ok := args["limit"].(float64); ok {
-						lim = int(v)
-					}
-					hits := MemSearch(label, lim)
-					if len(hits) == 0 {
-						result = "[aucun résultat]"
-					} else {
-						var b strings.Builder
-						for _, h := range hits {
-							fmt.Fprintf(&b, "- %s — %s\n  %s\n", h.File, h.Title, h.Snippet)
-						}
-						result = strings.TrimRight(b.String(), "\n")
-					}
-				case "mem_read":
-					off, lim := 0, 0
-					if v, ok := args["offset"].(float64); ok {
-						off = int(v)
-					}
-					if v, ok := args["limit"].(float64); ok {
-						lim = int(v)
-					}
-					if c, rerr := MemRead(label, off, lim); rerr != nil {
-						result = "[erreur] " + rerr.Error()
-					} else {
-						result = c
-					}
-				case "mem_add":
-					content, _ := args["content"].(string)
-					if werr := MemAdd(label, content); werr != nil {
-						result = "[erreur] " + werr.Error()
-					} else {
-						result = fmt.Sprintf("[ok] page '%s' créée", label)
-						diff, diffAdd = addedDiff(content)
-					}
-				case "mem_edit":
-					oldText, _ := args["old"].(string)
-					newText, _ := args["new"].(string)
-					if werr := MemEdit(label, oldText, newText); errors.Is(werr, errAlreadyApplied) {
-						result = fmt.Sprintf("[ok] page '%s' %s", label, werr.Error())
-					} else if werr != nil {
-						result = "[erreur] " + werr.Error()
-					} else {
-						result = fmt.Sprintf("[ok] page '%s' modifiée", label)
-						diff, diffAdd, diffDel = lineDiff(oldText, newText)
-					}
-				case "write":
-					content, _ := args["content"].(string)
-					if tgt := agentTargetSlug(); tgt != "" {
-						// Cible = un poste distant : on écrit LÀ-BAS. Pas de diff (on
-						// n'a pas l'ancien contenu du fichier distant).
-						result = nodeCall(tgt, nodeCapWrite, map[string]any{"path": label, "content": content})
-					} else if msg := codeWriteGuard(caps, label, true); msg != "" {
-						result = msg
-					} else {
-						result = fileWrite(label, content)
-						if !strings.HasPrefix(result, "[erreur]") {
-							diff, diffAdd = addedDiff(content)
-							trackerNoteWrite(resolveAgentPath(label))
-							result += lspDiagBlock(resolveAgentPath(label), caps)
-						}
-					}
-				case "edit":
-					oldText, _ := args["old"].(string)
-					newText, _ := args["new"].(string)
-					if tgt := agentTargetSlug(); tgt != "" {
-						result = nodeEditRemote(tgt, label, oldText, newText)
-					} else if msg := codeWriteGuard(caps, label, false); msg != "" {
-						result = msg
-					} else {
-						result = fileEdit(label, oldText, newText)
-						// Diff seulement si l'édition a réussi (sinon le fichier n'a pas bougé).
-						if !strings.HasPrefix(result, "[erreur]") {
-							diff, diffAdd, diffDel = lineDiff(oldText, newText)
-							trackerNoteWrite(resolveAgentPath(label))
-							result += lspDiagBlock(resolveAgentPath(label), caps)
-						}
-					}
-				case "read":
-					result = toolRead(args, caps.Code)
-				case "grep":
-					result = toolGrep(args, caps.Code)
-				case "glob":
-					result = toolGlob(args, caps.Code)
-				case "ask":
-					result = toolAsk(args)
-					if !strings.HasPrefix(result, "[erreur]") {
-						q, _ := args["question"].(string)
-						cb(StreamEvent{Ask: &AskEvent{Question: q, Options: askOptions(args)}})
-					}
-				case "bash_bg":
-					result = toolBashBg(args)
-				case "bash_tail":
-					result = toolBashTail(args)
-				case "git_status":
-					result = toolGitStatus(ctx, args)
-				case "git_diff":
-					result = toolGitDiff(ctx, args)
-				case "git_clone":
-					result = toolGitClone(ctx, args)
-				case "criteria":
-					result = toolCriteria(args, caps.Role == "verifier")
-				case "subagent":
-					result = toolSubagent(ctx, args, caps)
-				case "bash":
-					to := 0
-					switch v := args["timeout"].(type) {
-					case float64:
-						to = int(v)
-					case int:
-						to = v
-					}
-					// Politique de sécurité : les commandes catastrophiques sont
-					// refusées AVANT toute exécution, cible distante comprise.
-					if reason := dangerousCommand(label); reason != "" {
-						result = refusedCommandResult(reason)
-						break
-					}
-					// Mode Code : « cmd & » laisse un process orphelin, sans sortie
-					// lisible ni moyen de l'arrêter — bash_bg est fait pour ça.
-					if caps.Code && trailingBackground(label) {
-						result = "[refusé] commande terminée par « & » : lance-la avec bash_bg (sortie consultable avec bash_tail), pas en arrière-plan dans bash."
-						break
-					}
-					if tgt := agentTargetSlug(); tgt != "" {
-						// Cible = un poste distant : la commande s'exécute LÀ-BAS via le
-						// canal du poste (fail-closed : nodeCall renvoie une erreur si le
-						// poste est déconnecté, on n'exécute JAMAIS sur le serveur à sa place).
-						result = nodeCall(tgt, nodeCapShell, map[string]any{"command": label, "timeout": to})
-					} else {
-						result = runShell(ctx, label, to)
-					}
-				case "web_search":
-					result = capWebOutput(toolWebSearch(args))
-				case "web_images":
-					result = capWebOutput(toolWebImages(args))
-				case "web_open":
-					result = capWebOutput(toolWebOpen(args))
-				case "web_read":
-					result = capWebOutput(toolWebRead(args))
-				case "web_grep":
-					result = capWebOutput(toolWebGrep(args))
-				case "web_screenshot":
-					result = toolWebScreenshot(args, caps)
-				case "task_list":
-					result = toolTaskList(args)
-				case "task_create":
-					result = toolTaskCreate(args)
-				case "task_update":
-					result = toolTaskUpdate(args)
-				case "task_delete":
-					result = toolTaskDelete(args)
-				case "browser_open":
-					result = capCUOutput(toolCUOpen(args))
-				case "browser_snapshot":
-					result = capCUOutput(toolCUSnapshot())
-				case "browser_find":
-					result = capCUOutput(toolCUFind(args))
-				case "browser_click":
-					result = capCUOutput(toolCUClick(args))
-				case "browser_click_xy":
-					result = capCUOutput(toolCUClickXY(args))
-				case "browser_type":
-					result = capCUOutput(toolCUType(args))
-				case "browser_key":
-					result = capCUOutput(toolCUKey(args))
-				case "browser_scroll":
-					result = capCUOutput(toolCUScroll(args))
-				case "browser_screenshot":
-					result, visionImg = toolCUScreenshot()
-				default:
-					if isMCPTool(tc.Function.Name) {
-						result = mcpCall(tc.Function.Name, args)
-					} else {
-						result = "[erreur] outil inconnu: " + tc.Function.Name
-					}
+				ex := execTool(ctx, tc.Function.Name, args, label, caps)
+				result, diff, diffAdd, diffDel, visionImg = ex.Result, ex.Diff, ex.Added, ex.Removed, ex.VisionImg
+				if ex.Ask != nil {
+					cb(StreamEvent{Ask: ex.Ask})
 				}
 				// Aperçu en direct du navigateur piloté (repris d'AJEAN) : une
 				// capture après chaque action qui change la page, pour l'UI seule.
@@ -2772,4 +2590,215 @@ func healthCheck() bool {
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode == 200
+}
+
+// toolExecResult : ce que produit l'exécution d'un appel d'outil, hors
+// événements d'interface (que l'appelant émet).
+type toolExecResult struct {
+	Result    string         `json:"result"`
+	Diff      []DiffLine     `json:"diff,omitempty"`
+	Added     int            `json:"added,omitempty"`
+	Removed   int            `json:"removed,omitempty"`
+	VisionImg map[string]any `json:"vision_img,omitempty"`
+	Ask       *AskEvent      `json:"ask,omitempty"`
+}
+
+// execTool exécute UN appel d'outil. Extrait tel quel de runChatLoop (lot 6
+// de la migration Rust) : c'est la frontière par laquelle une boucle de chat
+// écrite en Rust fera exécuter ses outils par ce process, tant qu'ils n'auront
+// pas été portés (API interne /internal/v1/tool/exec). label = toolCallLabel.
+func execTool(ctx context.Context, name string, args map[string]any, label string, caps Caps) toolExecResult {
+	result := ""
+	var diff []DiffLine
+	var diffAdd, diffDel int
+	var visionImg map[string]any
+	var ask *AskEvent
+	switch name {
+	case "see_image":
+		result, visionImg = toolSeeImage(label)
+	case "recall":
+		result = toolRecall(args)
+	case "recall_search":
+		result = toolRecallSearch(args)
+	case "tracker":
+		result = toolTracker(args)
+	case "mem_search":
+		lim := 0
+		if v, ok := args["limit"].(float64); ok {
+			lim = int(v)
+		}
+		hits := MemSearch(label, lim)
+		if len(hits) == 0 {
+			result = "[aucun résultat]"
+		} else {
+			var b strings.Builder
+			for _, h := range hits {
+				fmt.Fprintf(&b, "- %s — %s\n  %s\n", h.File, h.Title, h.Snippet)
+			}
+			result = strings.TrimRight(b.String(), "\n")
+		}
+	case "mem_read":
+		off, lim := 0, 0
+		if v, ok := args["offset"].(float64); ok {
+			off = int(v)
+		}
+		if v, ok := args["limit"].(float64); ok {
+			lim = int(v)
+		}
+		if c, rerr := MemRead(label, off, lim); rerr != nil {
+			result = "[erreur] " + rerr.Error()
+		} else {
+			result = c
+		}
+	case "mem_add":
+		content, _ := args["content"].(string)
+		if werr := MemAdd(label, content); werr != nil {
+			result = "[erreur] " + werr.Error()
+		} else {
+			result = fmt.Sprintf("[ok] page '%s' créée", label)
+			diff, diffAdd = addedDiff(content)
+		}
+	case "mem_edit":
+		oldText, _ := args["old"].(string)
+		newText, _ := args["new"].(string)
+		if werr := MemEdit(label, oldText, newText); errors.Is(werr, errAlreadyApplied) {
+			result = fmt.Sprintf("[ok] page '%s' %s", label, werr.Error())
+		} else if werr != nil {
+			result = "[erreur] " + werr.Error()
+		} else {
+			result = fmt.Sprintf("[ok] page '%s' modifiée", label)
+			diff, diffAdd, diffDel = lineDiff(oldText, newText)
+		}
+	case "write":
+		content, _ := args["content"].(string)
+		if tgt := agentTargetSlug(); tgt != "" {
+			// Cible = un poste distant : on écrit LÀ-BAS. Pas de diff (on
+			// n'a pas l'ancien contenu du fichier distant).
+			result = nodeCall(tgt, nodeCapWrite, map[string]any{"path": label, "content": content})
+		} else if msg := codeWriteGuard(caps, label, true); msg != "" {
+			result = msg
+		} else {
+			result = fileWrite(label, content)
+			if !strings.HasPrefix(result, "[erreur]") {
+				diff, diffAdd = addedDiff(content)
+				trackerNoteWrite(resolveAgentPath(label))
+				result += lspDiagBlock(resolveAgentPath(label), caps)
+			}
+		}
+	case "edit":
+		oldText, _ := args["old"].(string)
+		newText, _ := args["new"].(string)
+		if tgt := agentTargetSlug(); tgt != "" {
+			result = nodeEditRemote(tgt, label, oldText, newText)
+		} else if msg := codeWriteGuard(caps, label, false); msg != "" {
+			result = msg
+		} else {
+			result = fileEdit(label, oldText, newText)
+			// Diff seulement si l'édition a réussi (sinon le fichier n'a pas bougé).
+			if !strings.HasPrefix(result, "[erreur]") {
+				diff, diffAdd, diffDel = lineDiff(oldText, newText)
+				trackerNoteWrite(resolveAgentPath(label))
+				result += lspDiagBlock(resolveAgentPath(label), caps)
+			}
+		}
+	case "read":
+		result = toolRead(args, caps.Code)
+	case "grep":
+		result = toolGrep(args, caps.Code)
+	case "glob":
+		result = toolGlob(args, caps.Code)
+	case "ask":
+		result = toolAsk(args)
+		if !strings.HasPrefix(result, "[erreur]") {
+			q, _ := args["question"].(string)
+			ask = &AskEvent{Question: q, Options: askOptions(args)}
+		}
+	case "bash_bg":
+		result = toolBashBg(args)
+	case "bash_tail":
+		result = toolBashTail(args)
+	case "git_status":
+		result = toolGitStatus(ctx, args)
+	case "git_diff":
+		result = toolGitDiff(ctx, args)
+	case "git_clone":
+		result = toolGitClone(ctx, args)
+	case "criteria":
+		result = toolCriteria(args, caps.Role == "verifier")
+	case "subagent":
+		result = toolSubagent(ctx, args, caps)
+	case "bash":
+		to := 0
+		switch v := args["timeout"].(type) {
+		case float64:
+			to = int(v)
+		case int:
+			to = v
+		}
+		// Politique de sécurité : les commandes catastrophiques sont
+		// refusées AVANT toute exécution, cible distante comprise.
+		if reason := dangerousCommand(label); reason != "" {
+			result = refusedCommandResult(reason)
+			break
+		}
+		// Mode Code : « cmd & » laisse un process orphelin, sans sortie
+		// lisible ni moyen de l'arrêter — bash_bg est fait pour ça.
+		if caps.Code && trailingBackground(label) {
+			result = "[refusé] commande terminée par « & » : lance-la avec bash_bg (sortie consultable avec bash_tail), pas en arrière-plan dans bash."
+			break
+		}
+		if tgt := agentTargetSlug(); tgt != "" {
+			// Cible = un poste distant : la commande s'exécute LÀ-BAS via le
+			// canal du poste (fail-closed : nodeCall renvoie une erreur si le
+			// poste est déconnecté, on n'exécute JAMAIS sur le serveur à sa place).
+			result = nodeCall(tgt, nodeCapShell, map[string]any{"command": label, "timeout": to})
+		} else {
+			result = runShell(ctx, label, to)
+		}
+	case "web_search":
+		result = capWebOutput(toolWebSearch(args))
+	case "web_images":
+		result = capWebOutput(toolWebImages(args))
+	case "web_open":
+		result = capWebOutput(toolWebOpen(args))
+	case "web_read":
+		result = capWebOutput(toolWebRead(args))
+	case "web_grep":
+		result = capWebOutput(toolWebGrep(args))
+	case "web_screenshot":
+		result = toolWebScreenshot(args, caps)
+	case "task_list":
+		result = toolTaskList(args)
+	case "task_create":
+		result = toolTaskCreate(args)
+	case "task_update":
+		result = toolTaskUpdate(args)
+	case "task_delete":
+		result = toolTaskDelete(args)
+	case "browser_open":
+		result = capCUOutput(toolCUOpen(args))
+	case "browser_snapshot":
+		result = capCUOutput(toolCUSnapshot())
+	case "browser_find":
+		result = capCUOutput(toolCUFind(args))
+	case "browser_click":
+		result = capCUOutput(toolCUClick(args))
+	case "browser_click_xy":
+		result = capCUOutput(toolCUClickXY(args))
+	case "browser_type":
+		result = capCUOutput(toolCUType(args))
+	case "browser_key":
+		result = capCUOutput(toolCUKey(args))
+	case "browser_scroll":
+		result = capCUOutput(toolCUScroll(args))
+	case "browser_screenshot":
+		result, visionImg = toolCUScreenshot()
+	default:
+		if isMCPTool(name) {
+			result = mcpCall(name, args)
+		} else {
+			result = "[erreur] outil inconnu: " + name
+		}
+	}
+	return toolExecResult{Result: result, Diff: diff, Added: diffAdd, Removed: diffDel, VisionImg: visionImg, Ask: ask}
 }

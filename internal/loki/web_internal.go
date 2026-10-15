@@ -69,6 +69,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIBegin(w, r)
 		case "/internal/v1/oai/end":
 			handleInternalOAIEnd(w, r)
+		case "/internal/v1/tool/exec":
+			handleInternalToolExec(w, r)
 		default:
 			http.NotFound(w, r)
 		}
