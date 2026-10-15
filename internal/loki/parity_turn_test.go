@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -126,6 +127,22 @@ func runParityTurn(t *testing.T, sc parityTurnScenario) parityTurnFixture {
 	t.Helper()
 	testHome(t)
 	t.Setenv(internalTokenEnv, jetonTest)
+	// Playwright installé ou non selon la machine : web_screenshot entrerait ou
+	// non dans les outils du mode Code. Hors du PATH, le journal ne dépend plus
+	// de la machine qui le tire.
+	for {
+		p, err := exec.LookPath("playwright")
+		if err != nil {
+			break
+		}
+		var keep []string
+		for _, d := range filepath.SplitList(os.Getenv("PATH")) {
+			if filepath.Clean(d) != filepath.Dir(p) {
+				keep = append(keep, d)
+			}
+		}
+		t.Setenv("PATH", strings.Join(keep, string(os.PathListSeparator)))
+	}
 	var (
 		mu       sync.Mutex
 		requests []any

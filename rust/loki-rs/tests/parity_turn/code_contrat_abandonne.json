@@ -617,29 +617,6 @@
           }
         },
         "type": "function"
-      },
-      {
-        "function": {
-          "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-          "name": "web_screenshot",
-          "parameters": {
-            "properties": {
-              "full_page": {
-                "description": "Page entière (lourd). Défaut false.",
-                "type": "boolean"
-              },
-              "url": {
-                "description": "URL complète",
-                "type": "string"
-              }
-            },
-            "required": [
-              "url"
-            ],
-            "type": "object"
-          }
-        },
-        "type": "function"
       }
     ]
   },
@@ -1362,29 +1339,6 @@
               }
             },
             "type": "function"
-          },
-          {
-            "function": {
-              "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-              "name": "web_screenshot",
-              "parameters": {
-                "properties": {
-                  "full_page": {
-                    "description": "Page entière (lourd). Défaut false.",
-                    "type": "boolean"
-                  },
-                  "url": {
-                    "description": "URL complète",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "url"
-                ],
-                "type": "object"
-              }
-            },
-            "type": "function"
           }
         ]
       },
@@ -1915,29 +1869,6 @@
                 "required": [
                   "role",
                   "task"
-                ],
-                "type": "object"
-              }
-            },
-            "type": "function"
-          },
-          {
-            "function": {
-              "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-              "name": "web_screenshot",
-              "parameters": {
-                "properties": {
-                  "full_page": {
-                    "description": "Page entière (lourd). Défaut false.",
-                    "type": "boolean"
-                  },
-                  "url": {
-                    "description": "URL complète",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "url"
                 ],
                 "type": "object"
               }
@@ -2481,29 +2412,6 @@
                 "required": [
                   "role",
                   "task"
-                ],
-                "type": "object"
-              }
-            },
-            "type": "function"
-          },
-          {
-            "function": {
-              "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-              "name": "web_screenshot",
-              "parameters": {
-                "properties": {
-                  "full_page": {
-                    "description": "Page entière (lourd). Défaut false.",
-                    "type": "boolean"
-                  },
-                  "url": {
-                    "description": "URL complète",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "url"
                 ],
                 "type": "object"
               }
@@ -3256,29 +3164,6 @@
                 "required": [
                   "role",
                   "task"
-                ],
-                "type": "object"
-              }
-            },
-            "type": "function"
-          },
-          {
-            "function": {
-              "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-              "name": "web_screenshot",
-              "parameters": {
-                "properties": {
-                  "full_page": {
-                    "description": "Page entière (lourd). Défaut false.",
-                    "type": "boolean"
-                  },
-                  "url": {
-                    "description": "URL complète",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "url"
                 ],
                 "type": "object"
               }
@@ -4039,29 +3924,6 @@
                 "required": [
                   "role",
                   "task"
-                ],
-                "type": "object"
-              }
-            },
-            "type": "function"
-          },
-          {
-            "function": {
-              "description": "Photographie une page web (JS exécuté) pour la MONTRER. La réponse donne la ligne markdown à recopier. Tu ne vois pas l'image.",
-              "name": "web_screenshot",
-              "parameters": {
-                "properties": {
-                  "full_page": {
-                    "description": "Page entière (lourd). Défaut false.",
-                    "type": "boolean"
-                  },
-                  "url": {
-                    "description": "URL complète",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "url"
                 ],
                 "type": "object"
               }
