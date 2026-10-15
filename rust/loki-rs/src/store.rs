@@ -86,6 +86,46 @@ impl Store {
         serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
 
+    /// Scelle un blob avec la clé de la mémoire (gardée par le Go). Clair
+    /// rendu tel quel si le chiffrement est coupé.
+    pub async fn seal(&self, plain: Vec<u8>) -> Result<Vec<u8>, CryptError> {
+        self.crypt("/internal/v1/crypt/seal", plain).await
+    }
+
+    /// Ouvre un blob (un contenu non chiffré passe tel quel).
+    pub async fn open(&self, raw: Vec<u8>) -> Result<Vec<u8>, CryptError> {
+        self.crypt("/internal/v1/crypt/open", raw).await
+    }
+
+    async fn crypt(&self, path: &str, body: Vec<u8>) -> Result<Vec<u8>, CryptError> {
+        match self.call(Method::POST, path, body).await {
+            Ok((StatusCode::OK, b)) => Ok(b.to_vec()),
+            Ok((StatusCode::LOCKED, _)) => Err(CryptError::Locked),
+            Ok((s, b)) => Err(CryptError::Other(format!(
+                "{path} : {s} {}",
+                String::from_utf8_lossy(&b)
+            ))),
+            Err(e) => Err(CryptError::Other(e)),
+        }
+    }
+
+    /// Exécute un appel d'outil par le Go (`/internal/v1/tool/exec`) : même
+    /// fonction que sa boucle de chat. `caps` : objet JSON des capacités du
+    /// tour (champs Go : Agent, Internet, Mem, Code, Role, ComputerUse).
+    pub async fn tool_exec(
+        &self,
+        name: &str,
+        args: &serde_json::Value,
+        caps: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        self.internal_json(
+            Method::POST,
+            "/internal/v1/tool/exec",
+            Some(&serde_json::json!({ "name": name, "args": args, "caps": caps })),
+        )
+        .await
+    }
+
     /// Valeur brute ; `Ok(None)` = absente, `Err` = pas pu lire (à distinguer
     /// pour les secrets : comme `getBytesErr`).
     pub async fn get(&self, bucket: &str, key: &str) -> Result<Option<Vec<u8>>, String> {
@@ -134,6 +174,14 @@ impl Store {
     pub async fn config(&self) -> HashMap<String, String> {
         self.all(BK_CONFIG).await.unwrap_or_default()
     }
+}
+
+/// Échec de chiffrement / déchiffrement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CryptError {
+    /// Mémoire verrouillée : attendre le déverrouillage, ne rien écrire.
+    Locked,
+    Other(String),
 }
 
 /// Encodage d'un paramètre de requête (RFC 3986, caractères non réservés

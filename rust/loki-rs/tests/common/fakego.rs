@@ -30,6 +30,10 @@ pub struct FakeGo {
     pub side_live: Mutex<bool>,
     pub refuse: Mutex<Option<serde_json::Value>>,
     pub oai_log: Mutex<Vec<String>>,
+    /// Mémoire verrouillée : seal/open répondent 423.
+    pub locked: Mutex<bool>,
+    /// Adresse d'écoute du faux Go (pour un client `Store` direct).
+    pub backend: Mutex<Option<SocketAddr>>,
 }
 
 impl FakeGo {
@@ -100,6 +104,29 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/auth" => {
             let key = st.get("state", "web_key").unwrap_or_default();
             resp(200, format!(r#"{{"web_key":"{key}","version":"0.15.0"}}"#))
+        }
+        "/internal/v1/crypt/seal" | "/internal/v1/crypt/open" => {
+            if *st.locked.lock().unwrap() {
+                return resp(423, r#"{"error":"mémoire verrouillée"}"#);
+            }
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            if path.ends_with("seal") {
+                let mut out = b"SCELLE:".to_vec();
+                out.extend_from_slice(&body);
+                resp(200, out)
+            } else {
+                resp(200, body.strip_prefix(b"SCELLE:").unwrap_or(&body).to_vec())
+            }
+        }
+        "/internal/v1/tool/exec" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let out = serde_json::json!({
+                "label": v["args"]["command"],
+                "result": format!("exec:{}", v["name"].as_str().unwrap()),
+                "caps_agent": v["caps"]["Agent"],
+            });
+            resp(200, out.to_string())
         }
         "/internal/v1/oai/route" => {
             let key = st.get("state", "api_key").unwrap_or_default();
@@ -188,6 +215,7 @@ pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, onesho
     let st = Arc::new(FakeGo::default());
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let backend = l.local_addr().unwrap();
+    *st.backend.lock().unwrap() = Some(backend);
     let st2 = st.clone();
     tokio::spawn(async move {
         while let Ok((s, _)) = l.accept().await {
