@@ -25,6 +25,7 @@ pub mod engstatus;
 pub mod gguf;
 pub mod gojson;
 pub mod hf;
+pub mod mcp;
 pub mod memory;
 pub mod models;
 pub mod oai;

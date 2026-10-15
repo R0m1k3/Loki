@@ -53,6 +53,8 @@ WORKDIR /src
 # L'UI est embarquée par build.rs depuis la même source que le go:embed : les
 # deux binaires d'une image servent toujours la même interface.
 COPY internal/loki/ui/ internal/loki/ui/
+# Catalogue MCP embarqué par loki-rs (lot 20), le même que le Go.
+COPY internal/loki/mcp_catalog.json internal/loki/mcp_catalog.json
 COPY rust/ rust/
 RUN cd rust && cargo build --release --locked \
     && mkdir -p /out && cp target/release/loki-rs /out/loki-rs

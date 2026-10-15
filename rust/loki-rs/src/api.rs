@@ -48,6 +48,8 @@ pub struct Ctx {
     pub system: Option<std::sync::Arc<crate::system::System>>,
     /// Hub des projets tenu par la façade (`LOKI_PROJECTS=rust`).
     pub projects: bool,
+    /// Serveurs MCP tenus par la façade (`LOKI_MCP=rust`).
+    pub mcp: Option<std::sync::Arc<crate::mcp::Mcp>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -67,6 +69,7 @@ impl Ctx {
             || self.engine_ctl.is_some()
             || self.system.is_some()
             || self.projects
+            || self.mcp.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

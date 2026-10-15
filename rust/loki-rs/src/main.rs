@@ -156,6 +156,9 @@ fn serve() -> ExitCode {
         let system_rust = held_by_facade("LOKI_SYSTEM");
         // LOKI_PROJECTS=rust : le hub des projets.
         let projects_rust = held_by_facade("LOKI_PROJECTS");
+        // LOKI_MCP=rust : les serveurs MCP (le Go demande alors à la façade
+        // les outils MCP et leurs appels).
+        let mcp_rust = held_by_facade("LOKI_MCP");
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -185,6 +188,7 @@ fn serve() -> ExitCode {
             ("LOKI_ENGINE", engine_rust),
             ("LOKI_SYSTEM", system_rust),
             ("LOKI_PROJECTS", projects_rust),
+            ("LOKI_MCP", mcp_rust),
         ];
         for (var, on) in held {
             if on {
@@ -284,11 +288,13 @@ fn serve() -> ExitCode {
             settings: settings_rust,
             files,
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
-            mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
+            mem: mem_rust
+                .then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home.clone()))),
             presets: presets_rust,
             engine_ctl,
             system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
             projects: projects_rust,
+            mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

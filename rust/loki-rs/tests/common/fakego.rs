@@ -633,6 +633,7 @@ pub struct Opts {
     pub engine_ctl: Option<Arc<loki_rs::enginectl::EngineCtl>>,
     pub system: Option<Arc<loki_rs::system::System>>,
     pub projects: bool,
+    pub mcp: Option<Arc<loki_rs::mcp::Mcp>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -732,6 +733,7 @@ pub async fn start_with(
         engine_ctl: opts.engine_ctl,
         system: opts.system,
         projects: opts.projects,
+        mcp: opts.mcp,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

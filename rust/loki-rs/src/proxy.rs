@@ -87,6 +87,9 @@ pub struct Config {
     pub system: Option<Arc<crate::system::System>>,
     /// Hub des projets tenu par la façade (`LOKI_PROJECTS=rust`).
     pub projects: bool,
+    /// Serveurs MCP (pool de sessions, configuration, catalogue) tenus par la
+    /// façade (`LOKI_MCP=rust`) ; `None` : au Go.
+    pub mcp: Option<Arc<crate::mcp::Mcp>>,
 }
 
 struct Proxy {
@@ -124,6 +127,7 @@ pub async fn serve(
             engine_ctl: cfg.engine_ctl,
             system: cfg.system,
             projects: cfg.projects,
+            mcp: cfg.mcp,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -192,6 +196,12 @@ impl Proxy {
             d.shutdown_fast().await;
             return plain(StatusCode::NO_CONTENT, "");
         }
+        if from_go
+            && let Some(m) = &self.ctx.mcp
+            && crate::mcp::is_internal(path)
+        {
+            return crate::mcp::serve_internal(&self.ctx, m, req).await;
+        }
         // L'API interne du Go n'est jamais joignable de l'extérieur.
         if path.starts_with("/internal/") {
             return plain(StatusCode::NOT_FOUND, "404 page not found");
@@ -215,6 +225,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(m) = &self.ctx.mcp
+            && crate::mcp::handles(path)
+        {
+            return crate::mcp::serve(&self.ctx, m, req, from_go).await;
         }
         if self.ctx.projects && crate::projects_api::handles(path) {
             return crate::projects_api::serve(&self.ctx, req, from_go).await;

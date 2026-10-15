@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // fausseFacade : enregistre ce qui lui arrive ; /api/chat rend un flux.
@@ -833,5 +834,74 @@ func TestFacadeProjets(t *testing.T) {
 	}
 	if c, _ := post(handleInternalProjectDropConvs, `nimp`); c != 400 {
 		t.Fatalf("corps illisible : %d", c)
+	}
+}
+
+// Les serveurs MCP (LOKI_MCP=rust, lot 20) : routes relayées, et le Go
+// demande à la façade les outils MCP et leurs appels (un seul pool).
+func TestFacadeMCP(t *testing.T) {
+	testHome(t)
+	var calls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(internalTokenHeader) != jetonTest {
+			w.WriteHeader(403)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		calls = append(calls, r.URL.Path+" "+string(b))
+		switch r.URL.Path {
+		case "/internal/facade/v1/mcp/tools":
+			io.WriteString(w, `{"tools":[{"type":"function","function":{"name":"mcp__a__t","description":"[MCP: a] d","parameters":{"type":"object"}}}]}`)
+		case "/internal/facade/v1/mcp/call":
+			io.WriteString(w, `{"result":"fait"}`)
+		case "/internal/facade/v1/mcp/prewarm":
+			io.WriteString(w, `{"ok":true}`)
+		default:
+			io.WriteString(w, `{"ok":true,"de":"facade"}`)
+		}
+	}))
+	defer srv.Close()
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, strings.TrimPrefix(srv.URL, "http://"))
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+
+	t.Setenv(facadeMCPEnv, "")
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/mcp", local)(w, httptest.NewRequest("GET", "/api/mcp", nil))
+	if w.Body.String() != "go" || len(calls) != 0 {
+		t.Fatalf("sans LOKI_MCP : %q", w.Body.String())
+	}
+	t.Setenv(facadeMCPEnv, "rust")
+	for p := range facadeMCPRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if !strings.Contains(w.Body.String(), "facade") {
+			t.Fatalf("%s non relayé : %q", p, w.Body.String())
+		}
+	}
+	tools := mcpTools()
+	if len(tools) != 1 || tools[0].Function.Name != "mcp__a__t" || mcpPromptLine(tools) == "" {
+		t.Fatalf("outils : %+v", tools)
+	}
+	if got := mcpCall("mcp__a__t", map[string]any{"x": 1}); got != "fait" {
+		t.Fatalf("appel : %q", got)
+	}
+	if got := mcpCall("mcp__a__t", nil); got != "fait" || !strings.HasSuffix(calls[len(calls)-1], `{"args":{},"name":"mcp__a__t"}`) {
+		t.Fatalf("appel sans arguments : %q (%v)", got, calls)
+	}
+	MCPPrewarm()
+	for i := 0; i < 50 && !strings.HasPrefix(calls[len(calls)-1], "/internal/facade/v1/mcp/prewarm"); i++ {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !strings.HasPrefix(calls[len(calls)-1], "/internal/facade/v1/mcp/prewarm") {
+		t.Fatalf("pré-chauffage non demandé : %v", calls)
+	}
+	// Façade injoignable : une erreur lisible, pas de panique.
+	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
+	if got := mcpCall("mcp__a__t", nil); !strings.HasPrefix(got, "[erreur MCP] façade injoignable") {
+		t.Fatalf("façade injoignable : %q", got)
+	}
+	if tools := mcpTools(); tools != nil {
+		t.Fatalf("outils sans façade : %v", tools)
 	}
 }

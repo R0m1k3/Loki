@@ -150,7 +150,7 @@ var facadeChatRoutes = map[string]bool{
 // de la discussion (facade_files.go), les notifications (facade_push.go), la
 // mémoire (facade_mem.go), les presets (facade_presets.go), le pilotage du
 // moteur (facade_engine.go), les interrupteurs système (facade_system.go), les
-// projets (facade_projects.go).
+// projets (facade_projects.go), les serveurs MCP (facade_mcp.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
@@ -177,6 +177,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeSystem, "réglages système indisponibles : "
 	case facadeProjectsRoutes[path]:
 		held, unavailable = facadeProjects, "projets indisponibles : "
+	case facadeMCPRoutes[path]:
+		held, unavailable = facadeMCP, "serveurs MCP indisponibles : "
 	default:
 		return h
 	}
