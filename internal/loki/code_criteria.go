@@ -214,14 +214,15 @@ func toolCriteria(args map[string]any, allowPass bool) string {
 // conversation. Best-effort : hors génération il n'y a pas d'epoch en cours,
 // on publie sur l'epoch courant.
 func critNotify(list []Criterion) {
-	if conv == nil {
+	if list == nil {
+		list = []Criterion{}
+	}
+	delta := map[string]any{"criteria": list, "ts": time.Now().UnixMilli()}
+	if facadeDelta(delta) || conv == nil {
 		return
 	}
 	conv.mu.Lock()
 	epoch := conv.epoch
 	conv.mu.Unlock()
-	if list == nil {
-		list = []Criterion{}
-	}
-	conv.appendDelta(epoch, map[string]any{"criteria": list, "ts": time.Now().UnixMilli()})
+	conv.appendDelta(epoch, delta)
 }

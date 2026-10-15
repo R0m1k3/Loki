@@ -132,10 +132,12 @@ func handleChatMode(w http.ResponseWriter, r *http.Request) {
 		}
 		// Pousse la bascule à tous les appareils abonnés (le sélecteur doit
 		// suivre, comme le fil lui-même).
-		conv.mu.Lock()
-		epoch := conv.epoch
-		conv.mu.Unlock()
-		conv.appendDelta(epoch, map[string]any{"mode": body.Mode})
+		if !facadeDelta(map[string]any{"mode": body.Mode}) {
+			conv.mu.Lock()
+			epoch := conv.epoch
+			conv.mu.Unlock()
+			conv.appendDelta(epoch, map[string]any{"mode": body.Mode})
+		}
 		sendJSON(w, 200, map[string]any{"ok": true, "mode": body.Mode})
 		return
 	}

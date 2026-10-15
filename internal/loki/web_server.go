@@ -217,7 +217,9 @@ func newWebMux() *http.ServeMux {
 	// clé, celle des complétions (web_auth.go).
 	mountOAI(mux)
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
-	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(h)) }
+	// withFacadeChat : routes du chat remises à la façade quand elle tient la
+	// conversation (LOKI_CHAT=rust, facade_chat.go) ; sans effet sinon.
+	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(withFacadeChat(path, h))) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)
 	api("/api/transcribe", handleTranscribe)                   // dictée vocale (Parakeet via sherpa-onnx, local)

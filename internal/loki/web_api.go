@@ -945,6 +945,7 @@ func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
 	// qu'une version précédente chiffrait par erreur (voir plainStoreKey).
 	healPlainStoreKeys()
 	reloadEncryptedStores() // recharge la discussion chiffrée en RAM
+	facadeReload()          // … ou celle de la façade, si c'est elle qui la tient
 	// Migration douce : chiffre ce qui serait resté en clair (discussions,
 	// blocs archivés, trackers). Idempotent — n'encode que ce qui ne l'est pas.
 	if memEncActive() && memUnlocked() {

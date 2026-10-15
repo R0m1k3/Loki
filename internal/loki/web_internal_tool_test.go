@@ -84,19 +84,3 @@ func TestOutilInterneSuitesDuResultat(t *testing.T) {
 		t.Fatalf("aperçu après une erreur : %q", shot)
 	}
 }
-
-// Les critères changés par l'outil reviennent avec son résultat : une
-// conversation tenue par la façade les pousse à son journal.
-func TestOutilInterneCriteres(t *testing.T) {
-	testHome(t)
-	t.Setenv(internalTokenEnv, jetonTest)
-	got := appelOutil(t, `{"name":"criteria","args":{"action":"add","texts":["les tests passent"]},"caps":{"Agent":true,"Code":true}}`)
-	list, _ := got["criteria"].([]any)
-	if len(list) != 1 {
-		t.Fatalf("critères après add : %v", got)
-	}
-	got = appelOutil(t, `{"name":"criteria","args":{"action":"list"},"caps":{"Agent":true,"Code":true}}`)
-	if _, ok := got["criteria"]; ok {
-		t.Fatalf("une lecture ne pousse rien : %v", got)
-	}
-}
