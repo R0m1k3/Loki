@@ -33,7 +33,7 @@ use super::compact::{
 use super::engine::{EngineHttp, classify, friendly_error};
 use super::persist::{Persister, StoreSink, ToolResJob};
 use super::stream::{CacheHintFn, PreflightFn, RetryPatterns};
-use super::turn::{CompactPhase, Reply, SendError, ToolOutcome, TurnHost};
+use super::turn::{CompactPhase, PerfMarks, PerfRec, Reply, SendError, ToolOutcome, TurnHost};
 use super::types::{AskEvent, DiffLine, Message, Tool};
 use super::wire::{
     ChatEndpoint, ChatPayloadOpts, EchoRefusals, EffortFallbacks, IMG_REF_SCHEME,
@@ -314,6 +314,65 @@ pub struct GoTurnHost {
     pub compact: TurnCompact,
     /// Messages mis en file par l'utilisateur pendant le tour.
     pub queued: Box<dyn Fn() -> Vec<Message> + Send + Sync>,
+    /// Nature des complétions pour la télémétrie : `main` (tour de la
+    /// discussion), `verify` (passe de vérification du mode Code).
+    pub perf_kind: &'static str,
+}
+
+/// Rend le ticket « en vol » au Go quand la réponse du moteur est lue ou
+/// abandonnée (`engineRequestBeginSide` … `end`).
+struct GateTicket {
+    store: Store,
+    ticket: u64,
+}
+
+impl Drop for GateTicket {
+    fn drop(&mut self) {
+        let (store, ticket) = (self.store.clone(), self.ticket);
+        if let Ok(rt) = tokio::runtime::Handle::try_current() {
+            rt.spawn(async move {
+                let _ = store
+                    .internal_json(
+                        hyper::Method::POST,
+                        "/internal/v1/oai/end",
+                        Some(&json!({ "ticket": ticket })),
+                    )
+                    .await;
+            });
+        }
+    }
+}
+
+impl GoTurnHost {
+    /// Ouvre un ticket « en vol » auprès du Go : le slot de la discussion
+    /// n'est pas effacé pendant la requête, et un préchauffage est annulé.
+    /// `None` si le Go ne répond pas — la requête part quand même.
+    async fn gate_begin(&self) -> Option<GateTicket> {
+        let main_conv = if self.perf_kind == "main" {
+            self.conv_id.as_str()
+        } else {
+            ""
+        };
+        match self
+            .shared
+            .store
+            .internal_json(
+                hyper::Method::POST,
+                "/internal/v1/oai/begin",
+                Some(&json!({ "main_conv": main_conv })),
+            )
+            .await
+        {
+            Ok(v) => v["ticket"].as_u64().map(|ticket| GateTicket {
+                store: self.shared.store.clone(),
+                ticket,
+            }),
+            Err(e) => {
+                eprintln!("[loki-rs] moteur : requête non comptée en vol ({e})");
+                None
+            }
+        }
+    }
 }
 
 /// `toolResID` : « <discussion>.<24 hex> ».
@@ -372,10 +431,35 @@ pub fn see_image_message(label: &str, img: Value) -> Message {
 
 impl TurnHost for GoTurnHost {
     async fn send(&self, ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+        // Moteur local : requête comptée en vol jusqu'à la fin de lecture du
+        // flux (le ticket voyage avec le corps). Rien pour une API externe.
+        let gate = if ep.external {
+            None
+        } else {
+            self.gate_begin().await
+        };
         match self.shared.http.post(&ep.url, &ep.key, body).await {
             Ok(resp) => {
                 let status = resp.status().as_u16();
-                let body = resp.bytes_stream().map(|r| r.map_err(|e| e.to_string()));
+                if status == 200
+                    && let Some(g) = &gate
+                {
+                    // Le slot porte désormais cette requête (engineServed,
+                    // engineMarkMain pour une étape de la discussion).
+                    let _ = self
+                        .shared
+                        .store
+                        .internal_json(
+                            hyper::Method::POST,
+                            "/internal/v1/oai/served",
+                            Some(&json!({ "ticket": g.ticket })),
+                        )
+                        .await;
+                }
+                let body = resp.bytes_stream().map(move |r| {
+                    let _keep = &gate;
+                    r.map_err(|e| e.to_string())
+                });
                 Ok(Reply {
                     status,
                     body: Box::pin(body),
@@ -508,6 +592,40 @@ impl TurnHost for GoTurnHost {
 
     fn cache_hint(&self) -> Option<CacheHintFn> {
         None
+    }
+
+    async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
+        let probe = rec
+            .probe
+            .as_ref()
+            .map(|p| json!({ "tools": p.tools, "kwargs": p.kwargs, "effort": p.effort }));
+        let body = json!({
+            "kind": self.perf_kind,
+            "conv": self.conv_id,
+            "iter": rec.iter,
+            "complete": rec.complete,
+            "external": rec.external,
+            "stats": rec.stats,
+            "prefix": rec.prefix,
+            "probe": probe,
+        });
+        match self
+            .shared
+            .store
+            .internal_json(hyper::Method::POST, "/internal/v1/turn/perf", Some(&body))
+            .await
+        {
+            Ok(v) => PerfMarks {
+                kind: v["kind"].as_str().unwrap_or("").to_string(),
+                lost: v["lost"].as_i64(),
+                lost_after: v["lost_after"].as_str().unwrap_or("").to_string(),
+                lost_alert: v["lost_alert"].as_bool().unwrap_or(false),
+            },
+            Err(e) => {
+                eprintln!("[loki-rs] télémétrie : {e}");
+                PerfMarks::default()
+            }
+        }
     }
 
     fn preflight(&self) -> Option<PreflightFn> {

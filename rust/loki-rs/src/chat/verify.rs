@@ -428,6 +428,8 @@ impl ChatService {
             // Les messages en file attendent la fin du tour (runChatTools sans
             // injection, comme le Go).
             queued: Box::new(Vec::new),
+            // Passe de vérification : comptée à part, comme perfVerify.
+            perf_kind: if isolated { "verify" } else { "main" },
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {

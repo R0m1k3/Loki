@@ -25,10 +25,11 @@
 //!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
 //! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, NUDGE_IN_TOOL, SIDE_SLOT (slot et
-//! rejeux « cache KV plein »), SLOT_PERSIST, préchauffage, sonde de gabarit,
-//! télémétrie `perfRecord`, comptage des requêtes en vol du moteur. Avec l'une
-//! de ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
-//! démarrage).
+//! rejeux « cache KV plein »), SLOT_PERSIST, préchauffage. Avec l'une de
+//! ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
+//! démarrage). La télémétrie (`perfRecord`, sonde du gabarit) et le comptage
+//! des requêtes en vol du moteur passent par le Go ([`TurnHost::perf_record`],
+//! et l'hôte autour de [`TurnHost::send`]).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -59,8 +60,8 @@ use super::stream::{
     call_args, retry_corrective, tool_call_label,
 };
 use super::types::{
-    AskEvent, DiffLine, Message, ReasoningEcho, StreamEvent, Tool, ToolCall, ToolCallFunc,
-    ToolUsedEvent,
+    AskEvent, DiffLine, Message, ReasoningEcho, StatsEvent, StreamEvent, Tool, ToolCall,
+    ToolCallFunc, ToolUsedEvent,
 };
 use super::wire::{
     ChatEndpoint, ChatPayloadOpts, EchoPolicy, TOOLS_OFF_HINT, TurnReasoning, build_chat_payload,
@@ -171,6 +172,62 @@ pub trait TurnHost: Send + Sync {
     fn preflight(&self) -> Option<PreflightFn> {
         None
     }
+    /// Télémétrie d'une complétion (`perfRecord`) : la rend au Go, qui la
+    /// range dans l'anneau de `/api/perf/summary` et dit quoi poser sur la
+    /// copie finale des stats (nature, jetons perdus, alerte).
+    fn perf_record(&self, _rec: PerfRec) -> impl Future<Output = PerfMarks> + Send {
+        async { PerfMarks::default() }
+    }
+}
+
+/// Une complétion telle que la boucle l'a vue, pour la télémétrie.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PerfRec {
+    /// Rang de la complétion dans le tour (`perfIter`).
+    pub iter: i64,
+    pub complete: bool,
+    pub external: bool,
+    pub stats: StatsEvent,
+    /// Empreintes cumulées des messages envoyés ([`perf_prefix`]), si complète.
+    pub prefix: Vec<u64>,
+    /// Requête de forme normale du moteur local : de quoi lancer la sonde du
+    /// gabarit (`tplProbeKick`).
+    pub probe: Option<PerfProbe>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PerfProbe {
+    pub tools: Vec<Tool>,
+    pub kwargs: Option<Map<String, Value>>,
+    pub effort: String,
+}
+
+/// Ce que la télémétrie pose sur la copie finale des stats.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PerfMarks {
+    pub kind: String,
+    pub lost: Option<i64>,
+    pub lost_after: String,
+    pub lost_alert: bool,
+}
+
+/// `perfPrefix` : empreinte FNV-1a 64 cumulée de chaque message envoyé (son
+/// JSON suivi d'un octet nul). Comparée seulement aux empreintes des envois
+/// précédents de la même discussion, toutes calculées ici.
+pub fn perf_prefix(msgs: &[Message]) -> Vec<u64> {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let fnv = |h: u64, b: u8| (h ^ u64::from(b)).wrapping_mul(PRIME);
+    let mut h = OFFSET;
+    let mut out = Vec::with_capacity(msgs.len());
+    for m in msgs {
+        for b in serde_json::to_vec(m).unwrap_or_default() {
+            h = fnv(h, b);
+        }
+        h = fnv(h, 0);
+        out.push(h);
+    }
+    out
 }
 
 /// Ce que le tour sait avant de commencer (lu UNE fois).
@@ -334,6 +391,8 @@ struct Loop {
     echo_tpl_retry: bool,
     tool_runs: i64,
     budget_nudges: i64,
+    /// `perfIter` : complétions de ce tour, complètes ou non.
+    perf_iter: i64,
 }
 
 /// `runChatLoop` : le tour, de la première requête à la réponse finale.
@@ -389,7 +448,7 @@ pub async fn run_turn<H: TurnHost>(
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
-        let (body, echo_sent) = {
+        let (body, echo_sent, prefix) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
             let payload = build_chat_payload(
                 ep,
@@ -406,7 +465,11 @@ pub async fn run_turn<H: TurnHost>(
                 &tc.cfg,
                 &|r| host.image_data_url(r),
             );
-            (serde_json::to_vec(&payload).unwrap_or_default(), echo_sent)
+            (
+                serde_json::to_vec(&payload).unwrap_or_default(),
+                echo_sent,
+                perf_prefix(&sent),
+            )
         };
         let t_req = Instant::now();
         let reply = match cancel.or_stop(host.send(ep, body)).await {
@@ -582,9 +645,38 @@ pub async fn run_turn<H: TurnHost>(
             return TurnResult { extra, err: None };
         }
         let out = parser.finish(&mut emit);
-        if out.is_complete(read_err.is_some()) {
-            // Dernier événement de la complétion : copie complète des stats.
-            cb(StreamEvent::Stats(out.stats.clone()));
+        let complete = out.is_complete(read_err.is_some());
+        // Télémétrie (perf_log.go) : une complétion coupée avant son chunk
+        // final est rangée comme incomplète, sans calcul de perte. Sonde du
+        // gabarit : fil d'une requête de forme normale, moteur local.
+        let marks = host
+            .perf_record(PerfRec {
+                iter: s.perf_iter,
+                complete,
+                external: ep.external,
+                stats: out.stats.clone(),
+                prefix: if complete { prefix } else { Vec::new() },
+                probe: (complete && !ep.external && !s.disable_tools && !s.tool_choice_none).then(
+                    || PerfProbe {
+                        tools: tc.tools.clone(),
+                        kwargs: kwargs.clone(),
+                        effort: effort.clone(),
+                    },
+                ),
+            })
+            .await;
+        s.perf_iter += 1;
+        if complete {
+            // Dernier événement de la complétion : copie complète des stats,
+            // avec ce que la télémétrie en dit (nature, perte, alerte).
+            let mut st = out.stats.clone();
+            if !marks.kind.is_empty() {
+                st.kind = marks.kind;
+            }
+            st.lost = marks.lost;
+            st.lost_after = marks.lost_after;
+            st.lost_alert = marks.lost_alert;
+            cb(StreamEvent::Stats(st));
             if !ep.external {
                 s.peak_gen = s.peak_gen.max(out.stats.gen_tokens);
                 if s.last_est > 0 && out.stats.prompt_tokens_total > 0 {

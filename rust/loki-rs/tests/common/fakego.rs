@@ -358,14 +358,47 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/oai/begin" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-            st.oai_log.lock().unwrap().push(format!(
-                "begin read={} side={} post_v1={}",
-                v["read"], v["side"], v["post_v1"]
-            ));
+            if let Some(conv) = v["main_conv"].as_str() {
+                st.oai_log
+                    .lock()
+                    .unwrap()
+                    .push(format!("begin main_conv={conv}"));
+            } else {
+                st.oai_log.lock().unwrap().push(format!(
+                    "begin read={} side={} post_v1={}",
+                    v["read"], v["side"], v["post_v1"]
+                ));
+            }
             if let Some(r) = st.refuse.lock().unwrap().clone() {
                 return resp(200, serde_json::json!({ "refuse": r }).to_string());
             }
             resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/oai/served" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log
+                .lock()
+                .unwrap()
+                .push(format!("served {}", v["ticket"]));
+            resp(204, "")
+        }
+        "/internal/v1/turn/perf" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log.lock().unwrap().push(format!(
+                "perf kind={} conv={} iter={} complete={} prefix={} probe={}",
+                v["kind"].as_str().unwrap_or(""),
+                v["conv"].as_str().unwrap_or(""),
+                v["iter"],
+                v["complete"],
+                v["prefix"].as_array().map_or(0, Vec::len),
+                !v["probe"].is_null()
+            ));
+            resp(
+                200,
+                r#"{"kind":"main","lost":3,"lost_after":"tâche","lost_alert":true}"#,
+            )
         }
         "/internal/v1/oai/end" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

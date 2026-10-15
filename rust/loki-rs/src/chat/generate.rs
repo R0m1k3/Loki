@@ -811,6 +811,7 @@ impl ChatService {
                 kwargs: reasoning.kwargs.clone().unwrap_or_default(),
             },
             queued: Box::new(move || me.drain_queued(epoch)),
+            perf_kind: "main",
         };
 
         // Chaque événement devient un delta du journal.

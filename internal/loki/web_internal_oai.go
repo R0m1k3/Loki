@@ -31,6 +31,11 @@ const oaiTicketMaxAge = 6 * time.Hour
 type oaiTicket struct {
 	end  func()
 	when time.Time
+	// seq / mainConv : requête d'un tour de discussion tenu par la façade —
+	// une fois acceptée par le moteur (served), le slot porte cette discussion
+	// (engineMarkMain). Vides pour un client /v1.
+	seq      uint64
+	mainConv string
 }
 
 var oaiTickets = struct {
@@ -62,16 +67,20 @@ func handleInternalOAIBegin(w http.ResponseWriter, r *http.Request) {
 		Read   bool `json:"read"`    // GET/HEAD : ne calcule rien dans un slot
 		Side   bool `json:"side"`    // corps routé vers le second slot
 		PostV1 bool `json:"post_v1"` // complétion d'un client externe
+		// MainConv : étape d'un tour de cette discussion, tenue par la façade
+		// (LOKI_CHAT=rust) — comptée comme la requête principale du Go.
+		MainConv string `json:"main_conv"`
 	}
 	if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&in) != nil {
 		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "POST JSON attendu"})
 		return
 	}
 	var end func()
+	var seq uint64
 	if in.Read {
-		end, _ = engineRequestBeginSide(func(*prewarmRun) bool { return true }, true)
+		end, seq = engineRequestBeginSide(func(*prewarmRun) bool { return true }, true)
 	} else {
-		end, _ = engineRequestBeginSide(nil, in.Side)
+		end, seq = engineRequestBeginSide(nil, in.Side)
 	}
 	if in.PostV1 {
 		refuse := func(retry, msg, code string) {
@@ -101,7 +110,7 @@ func handleInternalOAIBegin(w http.ResponseWriter, r *http.Request) {
 	}
 	oaiTickets.next++
 	id := oaiTickets.next
-	oaiTickets.m[id] = oaiTicket{end: end, when: now}
+	oaiTickets.m[id] = oaiTicket{end: end, when: now, seq: seq, mainConv: in.MainConv}
 	oaiTickets.mu.Unlock()
 	sendJSON(w, http.StatusOK, map[string]any{"ticket": id})
 }
@@ -131,4 +140,28 @@ func oaiInflight() int {
 	oaiTickets.mu.Lock()
 	defer oaiTickets.mu.Unlock()
 	return len(oaiTickets.m)
+}
+
+// handleInternalOAIServed : la requête du ticket a été acceptée par le moteur
+// (réponse 200) — engineServed, et pour l'étape d'un tour de discussion,
+// engineMarkMain : le slot porte désormais cette discussion. Le ticket reste
+// ouvert jusqu'à end (fin de lecture du flux).
+func handleInternalOAIServed(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Ticket uint64 `json:"ticket"`
+	}
+	if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&in) != nil {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "POST JSON attendu"})
+		return
+	}
+	oaiTickets.mu.Lock()
+	t, ok := oaiTickets.m[in.Ticket]
+	oaiTickets.mu.Unlock()
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	engineServed()
+	engineMarkMain(t.seq, t.mainConv)
+	w.WriteHeader(http.StatusNoContent)
 }

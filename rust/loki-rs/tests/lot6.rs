@@ -645,6 +645,7 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
+        perf_kind: "main",
     };
     let bash = Tool {
         kind: "function".into(),
@@ -862,6 +863,46 @@ async fn tour_de_bout_en_bout() {
     // Bail rendu, fin signalée, discussion enregistrée.
     assert_eq!(*go.lease.lock().unwrap(), None);
     let id = svc.sessions.conv().id();
+    // Chaque requête au moteur local est comptée en vol par le Go (ticket
+    // ouvert, servi, rendu), et sa complétion rangée dans la télémétrie ;
+    // la copie finale des stats porte ce que le Go en dit.
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 2
+    })
+    .await;
+    let log = go.oai_log.lock().unwrap().clone();
+    let want_begin = format!("begin main_conv={id}");
+    assert_eq!(
+        log.iter().filter(|l| **l == want_begin).count(),
+        2,
+        "{log:?}"
+    );
+    assert_eq!(
+        log.iter().filter(|l| *l == "served 7").count(),
+        2,
+        "{log:?}"
+    );
+    // Appel d'outil sans usage ni timings : complétion incomplète (comme le
+    // Go : ni empreintes, ni sonde) ; la réponse finale, avec usage, complète.
+    for want in [
+        format!("perf kind=main conv={id} iter=0 complete=false prefix=0 probe=false"),
+        format!("perf kind=main conv={id} iter=1 complete=true prefix=4 probe=true"),
+    ] {
+        assert!(log.contains(&want), "{want} absent de {log:?}");
+    }
+    let finals: Vec<_> = deltas(&svc, "stats")
+        .into_iter()
+        .filter(|s| s["lost_alert"] == true)
+        .collect();
+    assert_eq!(finals.len(), 1, "stats finales sans les marques du Go");
+    assert_eq!(finals[0]["lost"], 3);
+    assert_eq!(finals[0]["kind"], "main");
     let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
     assert_eq!(decode_state(&body).messages.len(), 4);
     // Réessai du même envoi : reconnu.
