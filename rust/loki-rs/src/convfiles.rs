@@ -578,7 +578,7 @@ impl ConvFiles {
         }
         // Fond blanc sous la transparence.
         let mut rgb = Vec::with_capacity(src.w * src.h * 3);
-        for p in src.pix.chunks_exact(4) {
+        for p in src.pix.as_chunks::<4>().0 {
             let a = p[3] as u32;
             for c in &p[..3] {
                 rgb.push(((*c as u32 * a + 255 * (255 - a) + 127) / 255) as u8);
