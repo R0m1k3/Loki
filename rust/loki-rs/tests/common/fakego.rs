@@ -37,6 +37,9 @@ pub struct FakeGo {
     pub lease_stop: Mutex<bool>,
     pub go_busy: Mutex<Option<String>>,
     pub lease_log: Mutex<Vec<String>>,
+    /// Résultat imposé à tout outil (sinon « exec:<nom> »), et archive recall.
+    pub tool_result: Mutex<Option<String>>,
+    pub recall: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
 }
@@ -166,6 +169,16 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let stop = *st.lease_stop.lock().unwrap();
             resp(200, serde_json::json!({"stop": stop}).to_string())
         }
+        "/internal/v1/recall/archive" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let mut r = st.recall.lock().unwrap();
+            r.push(v["content"].as_str().unwrap_or_default().to_string());
+            resp(
+                200,
+                serde_json::json!({"id": format!("r{}", r.len())}).to_string(),
+            )
+        }
         "/internal/v1/engine/stop" => {
             st.lease_log.lock().unwrap().push("stop".into());
             *st.go_busy.lock().unwrap() = None;
@@ -174,9 +187,15 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/tool/exec" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let result = st
+                .tool_result
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or_else(|| format!("exec:{}", v["name"].as_str().unwrap()));
             let out = serde_json::json!({
                 "label": v["args"]["command"],
-                "result": format!("exec:{}", v["name"].as_str().unwrap()),
+                "result": result,
                 "caps_agent": v["caps"]["Agent"],
             });
             resp(200, out.to_string())

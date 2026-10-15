@@ -644,7 +644,12 @@ pub struct RecallEntry {
 pub trait RecallArchive {
     /// Range `content` VERBATIM et rend son id (« r7 »). Une erreur (base
     /// absente…) laisse le bloc non archivé : repli transparent.
-    fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String>;
+    fn archive(
+        &self,
+        label: &str,
+        role: &str,
+        content: &str,
+    ) -> impl Future<Output = Result<String, String>> + Send;
 }
 
 /// Archive absente : rien n'est jamais archivé.
@@ -652,7 +657,7 @@ pub trait RecallArchive {
 pub struct NoRecall;
 
 impl RecallArchive for NoRecall {
-    fn archive(&self, _label: &str, _role: &str, _content: &str) -> Result<String, String> {
+    async fn archive(&self, _label: &str, _role: &str, _content: &str) -> Result<String, String> {
         Err("archive recall indisponible".into())
     }
 }
@@ -1587,7 +1592,7 @@ impl<S: Summarizer, R: RecallArchive> Compactor<'_, S, R> {
                 let content = msg_text(m);
                 let tool = names.get(&m.tool_call_id).map_or("", String::as_str);
                 let label = recall_label(&m.role, tool, &content);
-                let Ok(id) = self.recall.archive(&label, &m.role, &content) else {
+                let Ok(id) = self.recall.archive(&label, &m.role, &content).await else {
                     continue;
                 };
                 let e = RecallEntry { id, label };
@@ -2011,7 +2016,7 @@ mod tests {
     }
 
     impl RecallArchive for MemRecall {
-        fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String> {
+        async fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String> {
             let mut b = self.blocks.lock().unwrap();
             b.push((label.into(), role.into(), content.into()));
             Ok(format!("r{}", b.len()))

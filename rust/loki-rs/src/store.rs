@@ -169,6 +169,28 @@ impl Store {
         .await
     }
 
+    /// Archive un bloc verbatim pour l'outil recall (`archiveRecallBlock`,
+    /// numéroté par le Go) et rend son id (« r7 »).
+    pub async fn recall_archive(
+        &self,
+        label: &str,
+        role: &str,
+        content: &str,
+    ) -> Result<String, String> {
+        let v = self
+            .internal_json(
+                Method::POST,
+                "/internal/v1/recall/archive",
+                Some(&serde_json::json!({ "label": label, "role": role, "content": content })),
+            )
+            .await?;
+        v.get("id")
+            .and_then(|i| i.as_str())
+            .filter(|i| !i.is_empty())
+            .map(str::to_string)
+            .ok_or_else(|| format!("archive recall : réponse sans id {v}"))
+    }
+
     /// Valeur brute ; `Ok(None)` = absente, `Err` = pas pu lire (à distinguer
     /// pour les secrets : comme `getBytesErr`).
     pub async fn get(&self, bucket: &str, key: &str) -> Result<Option<Vec<u8>>, String> {

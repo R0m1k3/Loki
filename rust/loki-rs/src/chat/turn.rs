@@ -144,8 +144,18 @@ pub trait TurnHost: Send + Sync {
         phase: CompactPhase,
         msgs: &[Message],
     ) -> impl Future<Output = Option<Vec<Message>>> + Send;
+    /// Compaction en cours de tour déjà refusée pour cet état
+    /// (`compactRefusedSkip`) : on ne la retente pas.
+    fn compact_refused(&self, _used: i64, _msgs: &[Message]) -> bool {
+        false
+    }
     /// Messages mis en file par l'utilisateur, à injecter maintenant.
     fn drain_queued(&self) -> Vec<Message>;
+    /// Prépare ce que [`Self::image_data_url`] devra rendre pour ces messages
+    /// (lecture et déchiffrement des images rangées), avant chaque requête.
+    fn prepare_images(&self, _msgs: &[Message]) -> impl Future<Output = ()> + Send {
+        async {}
+    }
     /// Image rangée (`loki-img:…`) → data-URL.
     fn image_data_url(&self, r: &str) -> Option<String>;
     /// Intensité refusée par le gabarit : traduction retenue.
@@ -377,6 +387,7 @@ pub async fn run_turn<H: TurnHost>(
         }
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
+        host.prepare_images(&messages).await;
         let (body, echo_sent) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
             let payload = build_chat_payload(
@@ -811,7 +822,9 @@ pub async fn run_turn<H: TurnHost>(
                 used = base + estimate_tokens(&messages[step_start..], &ccfg.echo);
                 s.last_est = used;
             }
-            if compact_needed(ccfg, &messages, used, s.peak_gen) {
+            if compact_needed(ccfg, &messages, used, s.peak_gen)
+                && !host.compact_refused(used, &messages)
+            {
                 cb(StreamEvent::Compacting(true));
                 let phase = CompactPhase::Mid {
                     used,

@@ -415,3 +415,198 @@ async fn supprimer_l_ouverte_puis_la_derniere() {
     assert_eq!(idx[0].id, c);
     assert_eq!(s.delete("inconnue").await, Err(SessionError::NotFound));
 }
+
+// ---- un tour complet, branché ----
+
+use loki_rs::chat::compact::{CompactCaps, CompactConfig, CompactMemory};
+use loki_rs::chat::engine::EngineHttp;
+use loki_rs::chat::host::{ChatShared, EngineSummarizer, GoTurnHost, ImageCache, TurnCompact};
+use loki_rs::chat::stream::RetryPatterns;
+use loki_rs::chat::turn::{Cancel, TurnConfig, run_turn};
+use loki_rs::chat::types::{Message, StreamEvent, Tool, ToolFunction};
+use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TurnReasoning};
+
+/// Faux moteur : rend les réponses SSE dans l'ordre, garde les requêtes.
+async fn fake_engine(
+    replies: Vec<String>,
+) -> (String, Arc<StdMutex<Vec<(String, serde_json::Value)>>>) {
+    use http_body_util::{BodyExt, Full};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let seen = Arc::new(StdMutex::new(Vec::new()));
+    let replies = Arc::new(StdMutex::new(std::collections::VecDeque::from(replies)));
+    let s = seen.clone();
+    tokio::spawn(async move {
+        loop {
+            let Ok((stream, _)) = listener.accept().await else {
+                return;
+            };
+            let (s, replies) = (s.clone(), replies.clone());
+            tokio::spawn(async move {
+                let svc = hyper::service::service_fn(
+                    move |req: hyper::Request<hyper::body::Incoming>| {
+                        let (s, replies) = (s.clone(), replies.clone());
+                        async move {
+                            let auth = req
+                                .headers()
+                                .get("authorization")
+                                .map(|v| v.to_str().unwrap().to_string())
+                                .unwrap_or_default();
+                            let body = req.into_body().collect().await.unwrap().to_bytes();
+                            s.lock()
+                                .unwrap()
+                                .push((auth, serde_json::from_slice(&body).unwrap()));
+                            let out = replies.lock().unwrap().pop_front().unwrap_or_default();
+                            Ok::<_, std::convert::Infallible>(hyper::Response::new(Full::new(
+                                bytes::Bytes::from(out),
+                            )))
+                        }
+                    },
+                );
+                let _ = hyper::server::conn::http1::Builder::new()
+                    .serve_connection(hyper_util::rt::TokioIo::new(stream), svc)
+                    .await;
+            });
+        }
+    });
+    (format!("http://{addr}/v1/chat/completions"), seen)
+}
+
+fn sse(chunks: &[serde_json::Value]) -> String {
+    chunks
+        .iter()
+        .map(|c| format!("data: {c}\n\n"))
+        .collect::<String>()
+        + "data: [DONE]\n\n"
+}
+
+#[tokio::test]
+async fn tour_complet_par_le_go() {
+    let (st, go, _stop, t) = store().await;
+    let long = "ligne\n".repeat(400); // > aperçu : rangé pour « voir plus »
+    *go.tool_result.lock().unwrap() = Some(long.clone());
+    let imgdir = t.path().join("chatimg");
+    std::fs::create_dir_all(&imgdir).unwrap();
+    std::fs::write(imgdir.join("p.png"), b"SCELLE:PNG").unwrap();
+    let (url, seen) = fake_engine(vec![
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content":"Voilà."}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":50,"completion_tokens":2}}),
+        ]),
+    ])
+    .await;
+    let ep = ChatEndpoint {
+        url,
+        model: "loki".into(),
+        key: "cle-locale".into(),
+        external: false,
+    };
+    let shared = Arc::new(ChatShared {
+        http: EngineHttp::new(),
+        store: st.clone(),
+        persister: Persister::new(StoreSink::new(st.clone())),
+        effort: EffortFallbacks::new(),
+        echo_refusals: EchoRefusals::new(),
+        compact_memory: CompactMemory::new(),
+        images: ImageCache::new(imgdir),
+        patterns: RetryPatterns::builtin(),
+    });
+    let cfg = std::collections::HashMap::new();
+    let host = GoTurnHost {
+        shared: shared.clone(),
+        conv_id: "c7".into(),
+        caps: serde_json::json!({"Agent": true}),
+        cfg: cfg.clone(),
+        port: 8080,
+        summarizer: EngineSummarizer {
+            http: shared.http.clone(),
+            ep: ep.clone(),
+            cfg: cfg.clone(),
+            patterns: shared.patterns.clone(),
+            port: 8080,
+        },
+        compact: TurnCompact {
+            cfg: CompactConfig::default(),
+            caps: CompactCaps::default(),
+            criteria: String::new(),
+            main_conv: "c7".into(),
+            tools: vec![],
+            effort: String::new(),
+            kwargs: Default::default(),
+        },
+        queued: Box::new(Vec::new),
+    };
+    let bash = Tool {
+        kind: "function".into(),
+        function: ToolFunction {
+            name: "bash".into(),
+            description: String::new(),
+            parameters: serde_json::json!({"type":"object"}),
+        },
+    };
+    let tc = TurnConfig {
+        cfg,
+        ep,
+        tools: vec![bash],
+        temperature: 0.7,
+        code: false,
+        reasoning: TurnReasoning::default(),
+        echo: Default::default(),
+        compact: CompactConfig::default(),
+        patterns: shared.patterns.clone(),
+    };
+    let question = Message {
+        role: "user".into(),
+        content: Some(serde_json::json!([
+            {"type": "text", "text": "Regarde"},
+            {"type": "image_url", "image_url": {"url": "loki-img:p.png"}}
+        ])),
+        ..Default::default()
+    };
+    let mut evs = Vec::new();
+    let mut cb = |e: StreamEvent| {
+        evs.push(e);
+        true
+    };
+    let r = run_turn(&host, &tc, vec![question], &Cancel::never(), &mut cb).await;
+    assert_eq!(r.err, None);
+    assert_eq!(r.extra.len(), 2);
+
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 2);
+    assert_eq!(seen[0].0, "Bearer cle-locale");
+    // Image jointe : lue sur disque, ouverte par le Go, envoyée en data-URL.
+    assert_eq!(
+        seen[0].1["messages"][0]["content"][1]["image_url"]["url"],
+        "data:image/png;base64,UE5H"
+    );
+    // Le modèle reçoit le résultat (plafonné), l'UI un aperçu et un id.
+    assert_eq!(seen[1].1["messages"][2]["role"], "tool");
+    let done = evs
+        .iter()
+        .find_map(|e| match e {
+            StreamEvent::ToolUsed(t) if t.done => Some(t.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(done.result_chars, long.chars().count() as i64);
+    assert!(done.result.len() < long.len());
+    assert!(done.result_id.starts_with("c7."));
+    shared.persister.flush().await;
+    assert_eq!(
+        opened(&go, BK_TOOL_RES, &done.result_id).unwrap(),
+        long.as_bytes()
+    );
+    let answer: String = evs
+        .iter()
+        .filter_map(|e| match e {
+            StreamEvent::Content(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(answer, "Voilà.");
+}

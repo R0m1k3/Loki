@@ -14,11 +14,13 @@
 //! - [`sessions`] : plusieurs discussions (index, bascules, chargement) ;
 //! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go) ;
 //! - [`nudges`] : budget d'outils, rappels, appels répétés, aperçus ;
-//! - [`turn`] : la boucle d'un tour (complétions, outils, filets).
+//! - [`turn`] : la boucle d'un tour (complétions, outils, filets) ;
+//! - [`host`] : le tour branché sur le moteur, les outils du Go et la base.
 
 pub mod compact;
 pub mod conv;
 pub mod engine;
+pub mod host;
 pub mod journal;
 pub mod lease;
 pub mod nudges;
