@@ -50,6 +50,8 @@ pub struct Ctx {
     pub projects: bool,
     /// Serveurs MCP tenus par la façade (`LOKI_MCP=rust`).
     pub mcp: Option<std::sync::Arc<crate::mcp::Mcp>>,
+    /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`).
+    pub update: bool,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -70,6 +72,7 @@ impl Ctx {
             || self.system.is_some()
             || self.projects
             || self.mcp.is_some()
+            || self.update
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

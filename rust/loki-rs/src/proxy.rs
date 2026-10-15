@@ -90,6 +90,9 @@ pub struct Config {
     /// Serveurs MCP (pool de sessions, configuration, catalogue) tenus par la
     /// façade (`LOKI_MCP=rust`) ; `None` : au Go.
     pub mcp: Option<Arc<crate::mcp::Mcp>>,
+    /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`, en
+    /// conteneur).
+    pub update: bool,
 }
 
 struct Proxy {
@@ -128,6 +131,7 @@ pub async fn serve(
             system: cfg.system,
             projects: cfg.projects,
             mcp: cfg.mcp,
+            update: cfg.update,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -225,6 +229,9 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if self.ctx.update && crate::sysupdate::handles(path) {
+            return crate::sysupdate::serve(&self.ctx, req, from_go).await;
         }
         if let Some(m) = &self.ctx.mcp
             && crate::mcp::handles(path)

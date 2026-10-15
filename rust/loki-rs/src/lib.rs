@@ -40,6 +40,7 @@ pub mod settings;
 pub mod store;
 pub mod sysinfo;
 pub mod system;
+pub mod sysupdate;
 pub mod tools;
 pub mod ui;
 pub mod update;

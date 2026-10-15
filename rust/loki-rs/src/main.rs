@@ -159,6 +159,10 @@ fn serve() -> ExitCode {
         // LOKI_MCP=rust : les serveurs MCP (le Go demande alors à la façade
         // les outils MCP et leurs appels).
         let mcp_rust = held_by_facade("LOKI_MCP");
+        // LOKI_UPDATE=rust : la mise à jour de Loki, en conteneur seulement
+        // (l'image se met à jour par Docker).
+        let update_rust = held_by_facade("LOKI_UPDATE")
+            && loki_rs::sysupdate::usable(std::env::var("LOKI_CONTAINER").ok().as_deref());
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -189,6 +193,7 @@ fn serve() -> ExitCode {
             ("LOKI_SYSTEM", system_rust),
             ("LOKI_PROJECTS", projects_rust),
             ("LOKI_MCP", mcp_rust),
+            ("LOKI_UPDATE", update_rust),
         ];
         for (var, on) in held {
             if on {
@@ -294,6 +299,7 @@ fn serve() -> ExitCode {
             engine_ctl,
             system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
             projects: projects_rust,
+            update: update_rust,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

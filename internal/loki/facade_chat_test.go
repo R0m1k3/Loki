@@ -905,3 +905,25 @@ func TestFacadeMCP(t *testing.T) {
 		t.Fatalf("outils sans façade : %v", tools)
 	}
 }
+
+// La mise à jour (LOKI_UPDATE=rust, lot 21) part à la façade.
+func TestFacadeMiseAJour(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for _, on := range []string{"", "rust"} {
+		t.Setenv(facadeUpdateEnv, on)
+		for p := range facadeUpdateRoutes {
+			w := httptest.NewRecorder()
+			withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+			want := "go"
+			if on == "rust" {
+				want = f.reply
+			}
+			if w.Body.String() != want {
+				t.Fatalf("%s (LOKI_UPDATE=%q) : %q", p, on, w.Body.String())
+			}
+		}
+	}
+}

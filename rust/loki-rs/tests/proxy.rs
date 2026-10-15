@@ -111,6 +111,7 @@ async fn facade(backend: SocketAddr) -> (SocketAddr, oneshot::Sender<()>) {
         system: None,
         projects: false,
         mcp: None,
+        update: false,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

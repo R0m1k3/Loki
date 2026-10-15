@@ -634,6 +634,7 @@ pub struct Opts {
     pub system: Option<Arc<loki_rs::system::System>>,
     pub projects: bool,
     pub mcp: Option<Arc<loki_rs::mcp::Mcp>>,
+    pub update: bool,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -734,6 +735,7 @@ pub async fn start_with(
         system: opts.system,
         projects: opts.projects,
         mcp: opts.mcp,
+        update: opts.update,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
