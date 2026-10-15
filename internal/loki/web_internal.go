@@ -75,6 +75,14 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalCrypt(w, r, true)
 		case "/internal/v1/crypt/open":
 			handleInternalCrypt(w, r, false)
+		case "/internal/v1/engine/lease":
+			handleInternalLease(w, r)
+		case "/internal/v1/engine/lease/renew":
+			handleInternalLeaseRenew(w, r)
+		case "/internal/v1/engine/lease/release":
+			handleInternalLeaseRelease(w, r)
+		case "/internal/v1/engine/stop":
+			handleInternalEngineStop(w, r)
 		default:
 			http.NotFound(w, r)
 		}
