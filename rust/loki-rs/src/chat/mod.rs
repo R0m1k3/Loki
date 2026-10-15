@@ -8,11 +8,13 @@
 //!   d'outils, statistiques) ;
 //! - [`compact`] : estimation du contexte et compactage de l'historique ;
 //! - [`journal`] : journal d'affichage (compactage, rejeu, pagination) ;
-//! - [`persist`] : format en base, index des discussions, écrivain unique.
+//! - [`persist`] : format en base, index des discussions, écrivain unique ;
+//! - [`lease`] : bail du moteur (verrou de génération partagé avec le Go).
 
 pub mod compact;
 pub mod engine;
 pub mod journal;
+pub mod lease;
 pub mod persist;
 pub mod stream;
 pub mod types;

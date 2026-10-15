@@ -86,6 +86,24 @@ impl Store {
         serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
 
+    /// POST JSON à l'API interne, statut compris (refus métier à distinguer :
+    /// 409, 410…). Corps vide ou illisible → `Value::Null`.
+    pub async fn internal_post(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> Result<(StatusCode, serde_json::Value), String> {
+        let (status, bytes) = self
+            .call(
+                Method::POST,
+                path,
+                serde_json::to_vec(body).unwrap_or_default(),
+            )
+            .await?;
+        let v = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        Ok((status, v))
+    }
+
     /// Scelle un blob avec la clé de la mémoire (gardée par le Go). Clair
     /// rendu tel quel si le chiffrement est coupé.
     pub async fn seal(&self, plain: Vec<u8>) -> Result<Vec<u8>, CryptError> {

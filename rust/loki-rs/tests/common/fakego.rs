@@ -32,6 +32,11 @@ pub struct FakeGo {
     pub oai_log: Mutex<Vec<String>>,
     /// Mémoire verrouillée : seal/open répondent 423.
     pub locked: Mutex<bool>,
+    /// Bail du moteur : bail courant, stop signalé, détenteur Go, journal.
+    pub lease: Mutex<Option<String>>,
+    pub lease_stop: Mutex<bool>,
+    pub go_busy: Mutex<Option<String>>,
+    pub lease_log: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
 }
@@ -117,6 +122,54 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             } else {
                 resp(200, body.strip_prefix(b"SCELLE:").unwrap_or(&body).to_vec())
             }
+        }
+        "/internal/v1/engine/lease" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            if let Some(why) = st.go_busy.lock().unwrap().clone() {
+                let out = serde_json::json!({"error": why, "task_id": "t1", "task_name": "veille"});
+                return resp(409, out.to_string());
+            }
+            let mut lease = st.lease.lock().unwrap();
+            if lease.is_some() {
+                return resp(409, r#"{"error":"génération en cours"}"#);
+            }
+            let n = st.lease_log.lock().unwrap().len();
+            let id = format!("bail{n}");
+            *lease = Some(id.clone());
+            st.lease_log
+                .lock()
+                .unwrap()
+                .push(format!("acquire {}", v["ttl_ms"]));
+            resp(
+                200,
+                serde_json::json!({"lease": id, "ttl_ms": v["ttl_ms"]}).to_string(),
+            )
+        }
+        "/internal/v1/engine/lease/renew" | "/internal/v1/engine/lease/release" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let id = v["lease"].as_str().unwrap_or_default().to_string();
+            let mut lease = st.lease.lock().unwrap();
+            let held = lease.as_deref() == Some(id.as_str());
+            if path.ends_with("release") {
+                st.lease_log.lock().unwrap().push(format!("release {id}"));
+                if held {
+                    *lease = None;
+                }
+                return resp(204, "");
+            }
+            st.lease_log.lock().unwrap().push(format!("renew {id}"));
+            if !held {
+                return resp(410, r#"{"error":"bail perdu"}"#);
+            }
+            let stop = *st.lease_stop.lock().unwrap();
+            resp(200, serde_json::json!({"stop": stop}).to_string())
+        }
+        "/internal/v1/engine/stop" => {
+            st.lease_log.lock().unwrap().push("stop".into());
+            *st.go_busy.lock().unwrap() = None;
+            resp(204, "")
         }
         "/internal/v1/tool/exec" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

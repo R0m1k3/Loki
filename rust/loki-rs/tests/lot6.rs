@@ -145,3 +145,99 @@ async fn index_illisible_jamais_reecrit() {
     assert_eq!(opened(&go, BK_CHAT, "conv:c1").unwrap(), b"{}");
     assert_eq!(go.get(BK_CHAT, CK_INDEX).unwrap(), "SCELLE:pas du json");
 }
+
+// ---- bail du moteur ----
+
+use loki_rs::chat::lease::{EngineLease, LeaseError, LeaseSignal, engine_stop};
+use std::time::Duration;
+
+async fn until(mut f: impl FnMut() -> bool) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !f() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("condition jamais atteinte");
+}
+
+#[tokio::test]
+async fn bail_pris_renouvele_rendu() {
+    let (st, go, _stop, _t) = store().await;
+    // TTL de 300 ms : renouvelé toutes les 100 ms.
+    let lease = EngineLease::acquire(st.clone(), Duration::from_millis(300))
+        .await
+        .unwrap();
+    assert_eq!(lease.id(), "bail0");
+    assert_eq!(go.lease_log.lock().unwrap()[0], "acquire 300");
+    // Un second bail est refusé tant que le premier tient.
+    match EngineLease::acquire(st.clone(), Duration::from_secs(30)).await {
+        Err(LeaseError::Busy { error, .. }) => assert_eq!(error, "génération en cours"),
+        other => panic!("second bail : {:?}", other.map(|l| l.id().to_string())),
+    }
+    until(|| {
+        go.lease_log
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|l| l == "renew bail0")
+    })
+    .await;
+    assert_eq!(lease.signal(), LeaseSignal::Held);
+    lease.release().await;
+    assert_eq!(*go.lease.lock().unwrap(), None);
+    assert!(
+        go.lease_log
+            .lock()
+            .unwrap()
+            .contains(&"release bail0".to_string())
+    );
+}
+
+#[tokio::test]
+async fn bail_stop_puis_perdu() {
+    let (st, go, _stop, _t) = store().await;
+    let mut lease = EngineLease::acquire(st, Duration::from_millis(300))
+        .await
+        .unwrap();
+    *go.lease_stop.lock().unwrap() = true;
+    let got = tokio::time::timeout(Duration::from_secs(5), lease.interrupted()).await;
+    assert_eq!(got.unwrap(), LeaseSignal::Stop);
+    // Le Go rompt le bail (Reset) : perdu.
+    *go.lease.lock().unwrap() = None;
+    until(|| lease.signal() == LeaseSignal::Lost).await;
+    assert_eq!(lease.interrupted().await, LeaseSignal::Lost);
+}
+
+#[tokio::test]
+async fn bail_lache_sans_release_est_rendu() {
+    let (st, go, _stop, _t) = store().await;
+    let lease = EngineLease::acquire(st, Duration::from_secs(30))
+        .await
+        .unwrap();
+    drop(lease);
+    until(|| go.lease.lock().unwrap().is_none()).await;
+}
+
+#[tokio::test]
+async fn moteur_tenu_par_une_tache_go() {
+    let (st, go, _stop, _t) = store().await;
+    *go.go_busy.lock().unwrap() = Some("la tâche planifiée « veille » occupe le modèle".into());
+    match EngineLease::acquire(st.clone(), Duration::from_secs(30)).await {
+        Err(LeaseError::Busy {
+            error,
+            task_id,
+            task_name,
+        }) => {
+            assert!(error.contains("veille"));
+            assert_eq!(task_id.as_deref(), Some("t1"));
+            assert_eq!(task_name.as_deref(), Some("veille"));
+        }
+        other => panic!("bail accordé : {:?}", other.map(|l| l.id().to_string())),
+    }
+    engine_stop(&st).await.unwrap();
+    let lease = EngineLease::acquire(st, Duration::from_secs(30))
+        .await
+        .unwrap();
+    lease.release().await;
+}
