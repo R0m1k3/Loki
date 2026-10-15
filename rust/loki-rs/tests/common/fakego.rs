@@ -32,8 +32,36 @@ pub struct FakeGo {
     pub oai_log: Mutex<Vec<String>>,
     /// Mémoire verrouillée : seal/open répondent 423.
     pub locked: Mutex<bool>,
+    /// Bail du moteur : bail courant, stop signalé, détenteur Go, journal.
+    pub lease: Mutex<Option<String>>,
+    pub lease_stop: Mutex<bool>,
+    pub go_busy: Mutex<Option<String>>,
+    pub lease_log: Mutex<Vec<String>>,
+    /// Résultat imposé à tout outil (sinon « exec:<nom> »), et archive recall.
+    pub tool_result: Mutex<Option<String>>,
+    pub recall: Mutex<Vec<String>>,
+    /// Discussion active annoncée et discussions supprimées.
+    pub conv_log: Mutex<Vec<String>>,
+    /// Tours : débuts, vues et fins demandés.
+    pub turn_log: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
+    /// Contexte des outils exécutés par la façade (None : 404, le Go les
+    /// exécute), et journal du suivi (lectures, écritures, contrôles).
+    pub tool_ctx: Mutex<Option<serde_json::Value>>,
+    pub tracker_log: Mutex<Vec<String>>,
+    /// Tours en mode Code, et outils exécutés (« nom rôle »). L'outil
+    /// criteria (action=set) modifie les critères rangés (chat/crit:*).
+    pub code: Mutex<bool>,
+    pub tool_log: Mutex<Vec<String>>,
+    /// Le Go garde la conversation (raison), sinon la façade la tient.
+    pub go_keeps_chat: Mutex<Option<String>>,
+    /// Réponses imposées de /turn/start et /turn/view (journaux de référence
+    /// du Go), et résultat par outil.
+    pub turn_start: Mutex<Option<serde_json::Value>>,
+    pub turn_view: Mutex<Option<serde_json::Value>>,
+    pub turn_verifier: Mutex<Option<serde_json::Value>>,
+    pub tool_results: Mutex<HashMap<String, String>>,
 }
 
 impl FakeGo {
@@ -90,6 +118,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
     let path = req.uri().path().to_string();
     if !path.starts_with("/internal/") {
         st.relayed.lock().unwrap().push(path.clone());
+        if path == "/api/chat/mode" && req.method() == Method::POST {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            return resp(
+                200,
+                serde_json::json!({"ok": true, "mode": v["mode"]}).to_string(),
+            );
+        }
         return resp(200, format!("go:{path}"));
     }
     if req.headers().get("x-loki-internal").map(|v| v.as_bytes()) != Some(JETON.as_bytes()) {
@@ -118,12 +154,191 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 resp(200, body.strip_prefix(b"SCELLE:").unwrap_or(&body).to_vec())
             }
         }
+        "/internal/v1/engine/lease" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            if let Some(why) = st.go_busy.lock().unwrap().clone() {
+                let out = serde_json::json!({"error": why, "task_id": "t1", "task_name": "veille"});
+                return resp(409, out.to_string());
+            }
+            let mut lease = st.lease.lock().unwrap();
+            if lease.is_some() {
+                return resp(409, r#"{"error":"génération en cours"}"#);
+            }
+            let n = st.lease_log.lock().unwrap().len();
+            let id = format!("bail{n}");
+            *lease = Some(id.clone());
+            st.lease_log
+                .lock()
+                .unwrap()
+                .push(format!("acquire {}", v["ttl_ms"]));
+            resp(
+                200,
+                serde_json::json!({"lease": id, "ttl_ms": v["ttl_ms"]}).to_string(),
+            )
+        }
+        "/internal/v1/engine/lease/renew" | "/internal/v1/engine/lease/release" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let id = v["lease"].as_str().unwrap_or_default().to_string();
+            let mut lease = st.lease.lock().unwrap();
+            let held = lease.as_deref() == Some(id.as_str());
+            if path.ends_with("release") {
+                st.lease_log.lock().unwrap().push(format!("release {id}"));
+                if held {
+                    *lease = None;
+                }
+                return resp(204, "");
+            }
+            st.lease_log.lock().unwrap().push(format!("renew {id}"));
+            if !held {
+                return resp(410, r#"{"error":"bail perdu"}"#);
+            }
+            let stop = *st.lease_stop.lock().unwrap();
+            resp(200, serde_json::json!({"stop": stop}).to_string())
+        }
+        "/internal/v1/recall/archive" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let mut r = st.recall.lock().unwrap();
+            r.push(v["content"].as_str().unwrap_or_default().to_string());
+            resp(
+                200,
+                serde_json::json!({"id": format!("r{}", r.len())}).to_string(),
+            )
+        }
+        "/internal/v1/conv/active" | "/internal/v1/conv/dropped" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let what = path.rsplit('/').next().unwrap();
+            st.conv_log
+                .lock()
+                .unwrap()
+                .push(format!("{what} {}", v["id"].as_str().unwrap_or_default()));
+            resp(204, "")
+        }
+        "/internal/v1/turn/start" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let msg = v["message"].as_str().unwrap_or_default().to_string();
+            st.turn_log.lock().unwrap().push(format!("start {msg}"));
+            if msg.trim().is_empty() {
+                return resp(400, r#"{"error":"message vide"}"#);
+            }
+            if let Some(v) = st.turn_start.lock().unwrap().clone() {
+                return resp(200, v.to_string());
+            }
+            let code = *st.code.lock().unwrap();
+            let caps = serde_json::json!({"Agent": true, "Mem": "off", "Code": code, "Role": ""});
+            let out = serde_json::json!({
+                "files": [], "caps": caps, "turn_caps": caps,
+                "content": msg, "model": "m1", "code_hint": false,
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/turn/view" => {
+            st.turn_log.lock().unwrap().push("view".into());
+            if let Some(v) = st.turn_view.lock().unwrap().clone() {
+                return resp(200, v.to_string());
+            }
+            let out = serde_json::json!({
+                "head": [{"role": "system", "content": "Tu es Loki."}],
+                "prefix": "PRÉAMBULE",
+                "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/chat/holder" => match st.go_keeps_chat.lock().unwrap().clone() {
+            None => resp(200, r#"{"holder":"rust"}"#),
+            Some(why) => resp(
+                200,
+                serde_json::json!({"holder": "go", "reason": why}).to_string(),
+            ),
+        },
+        "/internal/v1/project/activate" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let slug = v["slug"].as_str().unwrap_or_default().to_string();
+            if slug.is_empty() || slug == "absent" {
+                return resp(400, r#"{"error":"projet introuvable"}"#);
+            }
+            st.conv_log.lock().unwrap().push(format!("project {slug}"));
+            st.set("state", "active_project", &slug);
+            resp(204, "")
+        }
+        "/internal/v1/turn/verifier" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.turn_log.lock().unwrap().push("verifier".into());
+            if let Some(out) = st.turn_verifier.lock().unwrap().clone() {
+                return resp(200, out.to_string());
+            }
+            let mut caps = v["caps"].clone();
+            caps["Role"] = "verifier".into();
+            let out = serde_json::json!({
+                "system": "VÉRIFICATEUR",
+                "tools": [{"type": "function", "function": {"name": "criteria", "description": "", "parameters": {"type": "object"}}}],
+                "caps": caps,
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/turn/done" => {
+            st.turn_log.lock().unwrap().push("done".into());
+            resp(204, "")
+        }
+        "/internal/v1/engine/stop" => {
+            st.lease_log.lock().unwrap().push("stop".into());
+            *st.go_busy.lock().unwrap() = None;
+            resp(204, "")
+        }
+        "/internal/v1/tool/context" => match st.tool_ctx.lock().unwrap().clone() {
+            Some(v) => resp(200, v.to_string()),
+            None => resp(404, "404 page not found"),
+        },
+        "/internal/v1/tool/tracker" | "/internal/v1/tool/wrote" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let op = v["op"].as_str().unwrap_or("wrote").to_string();
+            let path = v["path"].as_str().unwrap_or("").to_string();
+            st.tracker_log.lock().unwrap().push(format!("{op} {path}"));
+            let out = if op == "check" {
+                serde_json::json!({ "refusal": "" })
+            } else {
+                serde_json::json!({ "lsp": "" })
+            };
+            resp(200, out.to_string())
+        }
         "/internal/v1/tool/exec" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let name = v["name"].as_str().unwrap_or_default();
+            st.tool_log.lock().unwrap().push(format!(
+                "{name} {}",
+                v["caps"]["Role"].as_str().unwrap_or_default()
+            ));
+            if name == "criteria" && v["args"]["action"] == "set" {
+                let mut chat = st.store.lock().unwrap();
+                for (k, val) in chat.entry("chat".into()).or_default().iter_mut() {
+                    if !k.starts_with("crit:") {
+                        continue;
+                    }
+                    let mut list: Vec<serde_json::Value> =
+                        serde_json::from_slice(val).unwrap_or_default();
+                    for c in &mut list {
+                        if c["id"] == v["args"]["id"] {
+                            c["status"] = v["args"]["status"].clone();
+                        }
+                    }
+                    *val = serde_json::to_vec(&list).unwrap();
+                }
+            }
+            let by_name = st.tool_results.lock().unwrap().get(name).cloned();
+            let result = by_name
+                .or_else(|| st.tool_result.lock().unwrap().clone())
+                .unwrap_or_else(|| format!("exec:{}", v["name"].as_str().unwrap()));
             let out = serde_json::json!({
                 "label": v["args"]["command"],
-                "result": format!("exec:{}", v["name"].as_str().unwrap()),
+                "result": result,
                 "caps_agent": v["caps"]["Agent"],
             });
             resp(200, out.to_string())
@@ -212,7 +427,39 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let (f, st, tx, _) = start_opts(home, false, None).await;
+    (f, st, tx)
+}
+
+/// Comme [`start`], avec la conversation tenue par la façade
+/// (`LOKI_CHAT=rust`) ; `engine_port` : port du faux moteur (config PORT).
+pub async fn start_chat(
+    home: std::path::PathBuf,
+    engine_port: u16,
+) -> (
+    SocketAddr,
+    Arc<FakeGo>,
+    oneshot::Sender<()>,
+    Arc<loki_rs::chat::generate::ChatService>,
+) {
+    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port)).await;
+    (f, st, tx, chat.unwrap())
+}
+
+async fn start_opts(
+    home: std::path::PathBuf,
+    with_chat: bool,
+    engine_port: Option<u16>,
+) -> (
+    SocketAddr,
+    Arc<FakeGo>,
+    oneshot::Sender<()>,
+    Option<Arc<loki_rs::chat::generate::ChatService>>,
+) {
     let st = Arc::new(FakeGo::default());
+    if let Some(p) = engine_port {
+        st.set("config", "PORT", &p.to_string());
+    }
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let backend = l.local_addr().unwrap();
     *st.backend.lock().unwrap() = Some(backend);
@@ -231,6 +478,22 @@ pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, onesho
             });
         }
     });
+    let chat = if with_chat {
+        use loki_rs::chat::{
+            conv::Conversation, generate::ChatService, host::ChatShared, sessions,
+        };
+        let store = loki_rs::store::Store::new(backend, JETON.into());
+        let s = sessions::Sessions::new(
+            store.clone(),
+            Conversation::new(),
+            sessions::GoSessionHooks(store.clone()),
+        );
+        s.load().await.unwrap();
+        let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+        Some(ChatService::new(Arc::new(s), Arc::new(shared)))
+    } else {
+        None
+    };
     let fl = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let facade = fl.local_addr().unwrap();
     let (tx, rx) = oneshot::channel::<()>();
@@ -242,11 +505,12 @@ pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, onesho
             home,
             service: "loki-engine".into(),
         },
+        chat: chat.clone(),
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
     }));
-    (facade, st, tx)
+    (facade, st, tx, chat)
 }
 
 /// GET via la façade : (code, en-têtes, corps).

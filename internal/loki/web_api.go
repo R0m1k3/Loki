@@ -945,6 +945,7 @@ func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
 	// qu'une version précédente chiffrait par erreur (voir plainStoreKey).
 	healPlainStoreKeys()
 	reloadEncryptedStores() // recharge la discussion chiffrée en RAM
+	facadeReload()          // … ou celle de la façade, si c'est elle qui la tient
 	// Migration douce : chiffre ce qui serait resté en clair (discussions,
 	// blocs archivés, trackers). Idempotent — n'encode que ce qui ne l'est pas.
 	if memEncActive() && memUnlocked() {
@@ -1373,41 +1374,6 @@ func handleMemDelete(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	sendJSON(w, 200, map[string]any{"ok": true})
-}
-
-// handleModelUse charge un MODÈLE précis (fichier .gguf) sans passer par un
-// preset : seul MODEL change dans la configuration active — contexte, NGL et
-// échantillonnage sont conservés — et le service redémarre en arrière-plan,
-// même contrat que handleSwitch. C'est ce qui rend le sélecteur de l'en-tête
-// utilisable même sans avoir créé de preset.
-func handleModelUse(w http.ResponseWriter, r *http.Request) {
-	if tuneDenyHTTP(w) {
-		return
-	}
-	var req struct {
-		Value string `json:"value"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Value) == "" {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": "modèle manquant"})
-		return
-	}
-	// Le fichier doit exister AVANT d'écrire la config : une faute de frappe ne
-	// doit pas laisser un moteur qui boucle sur un modèle introuvable.
-	if _, err := resolveServeModelPath(req.Value); err != nil {
-		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	if err := SetConfigKey("MODEL", req.Value); err != nil {
-		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	fmt.Printf("%s MODEL <- %s\n", green("[ok]"), req.Value)
-	go func() {
-		if err := serviceAction("restart"); err != nil {
-			fmt.Println(red("[err] redémarrage : " + err.Error()))
-		}
-	}()
 	sendJSON(w, 200, map[string]any{"ok": true})
 }
 

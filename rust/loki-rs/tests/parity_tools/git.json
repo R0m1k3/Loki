@@ -1,0 +1,190 @@
+{
+  "cwd": "ws",
+  "memory_dir": "memory/generale",
+  "files": [
+    {
+      "path": "ws/depot/a.txt",
+      "content": "un\ndeux\ntrois\n",
+      "age": 30
+    },
+    {
+      "path": "ws/depot/b.txt",
+      "content": "bêta\n",
+      "age": 30
+    },
+    {
+      "path": "ws/vide/x.txt",
+      "content": "x\n",
+      "age": 30
+    }
+  ],
+  "git_setup": [
+    {
+      "dir": "ws/depot",
+      "args": [
+        "init",
+        "-q",
+        "-b",
+        "main"
+      ]
+    },
+    {
+      "dir": "ws/depot",
+      "args": [
+        "add",
+        "a.txt",
+        "b.txt"
+      ]
+    },
+    {
+      "dir": "ws/depot",
+      "args": [
+        "-c",
+        "user.name=Loki",
+        "-c",
+        "user.email=loki@test",
+        "commit",
+        "-q",
+        "-m",
+        "départ"
+      ]
+    },
+    {
+      "dir": "ws/vide",
+      "args": [
+        "init",
+        "-q",
+        "-b",
+        "main"
+      ]
+    }
+  ],
+  "edits": [
+    {
+      "path": "ws/depot/a.txt",
+      "content": "un\n2\ntrois\n",
+      "age": 10
+    },
+    {
+      "path": "ws/depot/neuf.txt",
+      "content": "neuf\n",
+      "age": 10
+    }
+  ],
+  "cases": [
+    {
+      "name": "statut_ambigu",
+      "tool": "git_status",
+      "args": {},
+      "label": "",
+      "result": "[erreur] plusieurs dépôts ici (depot, vide) : précise dir"
+    },
+    {
+      "name": "statut",
+      "tool": "git_status",
+      "args": {
+        "dir": "depot"
+      },
+      "label": "",
+      "result": "## main\n M a.txt\n?? neuf.txt"
+    },
+    {
+      "name": "diff",
+      "tool": "git_diff",
+      "args": {
+        "dir": "depot"
+      },
+      "label": "",
+      "result": "diff --git a/a.txt b/a.txt\nindex 3d5dd13..283e2c0 100644\n--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n un\n-deux\n+2\n trois"
+    },
+    {
+      "name": "diff_fichier",
+      "tool": "git_diff",
+      "args": {
+        "dir": "depot",
+        "file": "b.txt"
+      },
+      "label": "b.txt",
+      "result": "(aucune sortie)"
+    },
+    {
+      "name": "diff_sans_commit",
+      "tool": "git_diff",
+      "args": {
+        "dir": "vide"
+      },
+      "label": "",
+      "result": "(aucune sortie)"
+    },
+    {
+      "name": "statut_sans_commit",
+      "tool": "git_status",
+      "args": {
+        "dir": "vide"
+      },
+      "label": "",
+      "result": "## No commits yet on main\n?? x.txt"
+    },
+    {
+      "name": "dossier_sortant",
+      "tool": "git_status",
+      "args": {
+        "dir": "../x"
+      },
+      "label": "",
+      "result": "[erreur] dossier invalide : ../x"
+    },
+    {
+      "name": "dossier_absent",
+      "tool": "git_status",
+      "args": {
+        "dir": "nulle-part"
+      },
+      "label": "",
+      "result": "[erreur] chdir {{ROOT}}/ws/nulle-part: no such file or directory"
+    },
+    {
+      "name": "clone_url_locale",
+      "tool": "git_clone",
+      "args": {
+        "url": "file:///etc"
+      },
+      "label": "file:///etc",
+      "result": "[erreur] URL refusée — seuls https:// et git@hôte: sont acceptés"
+    },
+    {
+      "name": "clone_commande",
+      "tool": "git_clone",
+      "args": {
+        "url": "ext::sh -c id"
+      },
+      "label": "ext::sh -c id",
+      "result": "[erreur] URL refusée — seuls https:// et git@hôte: sont acceptés"
+    },
+    {
+      "name": "clone_existant",
+      "tool": "git_clone",
+      "args": {
+        "url": "https://exemple.invalid/u/depot.git"
+      },
+      "label": "https://exemple.invalid/u/depot.git",
+      "result": "[erreur] le dossier depot existe déjà"
+    },
+    {
+      "name": "clone_dossier_sortant",
+      "tool": "git_clone",
+      "args": {
+        "dir": "../r",
+        "url": "git@exemple.invalid:u/r"
+      },
+      "label": "git@exemple.invalid:u/r",
+      "result": "[erreur] dossier cible invalide"
+    }
+  ],
+  "after": {
+    "ws/depot/a.txt": "un\n2\ntrois\n",
+    "ws/depot/b.txt": "bêta\n",
+    "ws/depot/neuf.txt": "neuf\n",
+    "ws/vide/x.txt": "x\n"
+  }
+}

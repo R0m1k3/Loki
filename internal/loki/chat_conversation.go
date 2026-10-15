@@ -88,6 +88,8 @@ type Conversation struct {
 	// errBenchBusy pour un bench, errTuneBusy pour l'optimiseur, qui prend le
 	// même verrou (backend_tune_job.go).
 	leaseWhy error
+	// extLease : le verrou est tenu par la façade Rust (web_internal_lease.go).
+	extLease *extLeaseState
 
 	// File d'attente des messages envoyés PENDANT une génération (AJEAN
 	// 0.14.0). Ils sont injectés dans le tour en cours à la prochaine frontière
@@ -200,6 +202,7 @@ func LoadConversation() {
 	// Une génération n'a pas pu survivre à l'arrêt du process : on repart propre.
 	conv.Generating = false
 	conv.cancel = nil
+	conv.extLeaseClearLocked()
 }
 
 // loadFrom remplace l'état en mémoire par une autre discussion (b vide = fil
@@ -235,6 +238,7 @@ func (c *Conversation) loadFrom(id string, b []byte) {
 	if !c.benching {
 		c.Generating = false
 		c.cancel = nil
+		c.extLeaseClearLocked() // le tour de la façade est rompu, comme un tour Go
 	}
 	c.epoch++
 	c.cond.Broadcast()
@@ -1199,7 +1203,8 @@ func (c *Conversation) Reset() {
 	c.benching = false // Stop a annulé le bench : le verrou est rendu ici
 	c.leaseWhy = nil
 	c.cancel = nil
-	c.queued = nil // les messages en attente visaient le fil qu'on vient de vider
+	c.extLeaseClearLocked() // Reset débloque aussi un tour de la façade
+	c.queued = nil          // les messages en attente visaient le fil qu'on vient de vider
 	c.cond.Broadcast()
 	c.mu.Unlock()
 	c.persist()

@@ -1,0 +1,93 @@
+# Lot 7 — outils de l'agent exécutés par la façade
+
+## Contexte
+
+Lot 6 : quand la façade tient la conversation (`LOKI_CHAT=rust`), la boucle du
+tour est en Rust mais chaque appel d'outil repart au Go
+(`/internal/v1/tool/exec`). Lot 7 : porter les outils eux-mêmes, en retirant
+les appels au Go un par un. Rien ne change sans `LOKI_CHAT=rust` : la boucle
+Go exécute ses outils comme avant.
+
+## Étape 1 — fichiers et shell (fait)
+
+Exécutés par la façade (`rust/loki-rs/src/tools/`) : `read`, `grep`, `glob`,
+`write`, `edit`, `bash`, `ask`, avec les mêmes garde-fous dans le même ordre
+(commande catastrophique, `&` final en mode Code, bac à sable du mode Code,
+dossier mémoire interdit, « lu avant d'écrire »), le même diff pour l'UI et le
+même nettoyage de la sortie du shell (`| tail -N`, ANSI, fin bornée).
+
+L'état partagé reste au Go, en un seul exemplaire, derrière trois routes
+internes (`web_internal_toolstate.go`) :
+
+| Route | Rôle |
+|---|---|
+| `POST /internal/v1/tool/context` | dossier de travail (`agentCwd`), dossier mémoire, cible distante |
+| `POST /internal/v1/tool/tracker` | `read` : lecture notée ; `check` : refus éventuel avant écriture |
+| `POST /internal/v1/tool/wrote` | après une écriture : note du suivi, bloc des diagnostics LSP |
+
+Le suivi reste au Go parce que les sous-agents et les tâches planifiées, qui y
+tournent, le lisent et l'écrivent aussi ; les serveurs LSP y vivent.
+
+Repli sur le Go : outil non porté ; `write`/`edit`/`bash` quand l'agent vise
+un poste distant (une commande catastrophique est refusée avant, ici) ;
+contexte indisponible.
+
+Le jeton de l'API interne est retiré de l'environnement du shell de l'agent.
+
+### Parité
+
+`internal/loki/parity_tools_test.go` passe 58 appels à `execTool` sur une
+arborescence de test et range le journal (libellés, résultats, diffs,
+questions, arborescence finale) dans `rust/loki-rs/tests/parity_tools/` ;
+`rust/loki-rs/tests/tools.rs` rejoue les mêmes appels dans `exec_local` et
+retrouve le même journal. Le test Go échoue si le comportement Go change
+(`LOKI_PARITY_UPDATE=1` pour régénérer, puis le test Rust dit si le port suit).
+
+### Écarts assumés
+
+- Motif `grep` invalide : le message d'erreur est celui du moteur d'expressions
+  de Rust (crate `regex`), pas celui de Go.
+- Classes `\w`, `\b`, `\s`, `\d` d'un motif `grep` : Unicode en Rust, ASCII en
+  Go (un mot accentué y est un mot entier).
+- Octets hors UTF-8 dans un fichier lu ou cherché : remplacés par U+FFFD par
+  séquence invalide (Go : par octet, à l'encodage JSON). `edit` travaille sur
+  les octets et laisse intact ce qu'il ne remplace pas.
+- `mkdir` en échec : le chemin cité est le dossier parent visé, pas le
+  composant qui a échoué.
+
+## Étape 2 — boucle du contrat du mode Code (fait)
+
+`codeVerifyLoop` porté (`rust/loki-rs/src/chat/verify.rs`) : à la fin d'un
+tour de build en mode Code, relances du builder sur les critères encore
+ouverts, passe de vérification sur un contexte isolé (`POST
+/internal/v1/turn/verifier` : prompt du rôle et faits de la machine, outils
+fermés, rôle `verifier` qui seul peut marquer `passed`), corrections, abandon
+dit dans le fil après deux corrections. Mêmes deltas que le Go (`role`,
+`verify_done`, mesures `ctx_isolated`). Les critères sont lus en base
+(`chat/crit:<id>`) ; l'outil `criteria` reste au Go. Toute compaction en mode
+Code rend leur état au résumé, comme `compactMessages`.
+
+Écart assumé : l'isolation du slot du moteur après la vérification
+(`engineSideJob`) reste au Go, qui ne voit pas passer les requêtes de la
+façade.
+
+## Étape 3 — git (fait)
+
+`git_status`, `git_diff`, `git_clone` (`rust/loki-rs/src/tools/git.rs`) :
+dépôt deviné comme le Go (sous-dossier demandé, racine, unique sous-dossier
+dépôt), sorties mêlées et bornées, jamais d'invite, clone limité à https:// et
+git@hôte: et rangé dans le dossier de la discussion. Toujours sur cette
+machine, cible distante ou non (comme le Go). Journal de référence
+`tests/parity_tools/git.json` (`TestPariteOutilsGit`, deux dépôts, aucun appel
+réseau), rejoué par `tests/tools_git.rs`.
+
+## Étapes suivantes
+
+1. Web (`web_search`, `web_open`, `web_read`, `web_grep`, `web_images`) : le
+   cache de pages et la conversion HTML → Markdown (bibliothèques Go) ne se
+   reproduisent pas à l'octet ; à porter avec un journal de référence
+   structurel plutôt qu'exact.
+2. Shell d'arrière-plan (`bash_bg`, `bash_tail`) : ses travaux sont lus par
+   l'optimiseur et la suppression d'une discussion, au Go.
+3. Mémoire (`mem_*`, `recall*`, `tracker`) : avec le portage du chiffrement.
+4. Tâches, navigateur (CDP), MCP, sous-agents, critères.

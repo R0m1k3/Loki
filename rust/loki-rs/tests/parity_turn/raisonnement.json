@@ -1,0 +1,108 @@
+{
+  "name": "raisonnement",
+  "cfg": {
+    "MEM_MODE": "off"
+  },
+  "send": {
+    "cid": "c-raisonnement",
+    "message": "Combien ?"
+  },
+  "replies": [
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Je compte.\"}}]}",
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Quatre.\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    }
+  ],
+  "tool_results": {
+    "bash": "a.txt\nb.txt",
+    "read": "1: ligne"
+  },
+  "start": {
+    "caps": {
+      "Agent": false,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    },
+    "code_hint": false,
+    "content": "Combien ?",
+    "files": [],
+    "model": "",
+    "turn_caps": {
+      "Agent": false,
+      "Code": false,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    }
+  },
+  "view": {
+    "head": [],
+    "prefix": "",
+    "tools": []
+  },
+  "expect": {
+    "requests": [
+      {
+        "messages": [
+          {
+            "content": "Combien ?",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7
+      }
+    ],
+    "log": [
+      {
+        "user": "Combien ?"
+      },
+      {
+        "reasoning_content": "Je compte.",
+        "seq0": 2,
+        "toks": 1
+      },
+      {
+        "content": "Quatre.",
+        "seq0": 3,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "turn_done": true
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Combien ?"
+      },
+      {
+        "role": "assistant",
+        "content": "Quatre."
+      }
+    ],
+    "status": 200
+  }
+}

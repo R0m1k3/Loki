@@ -225,7 +225,8 @@ pub fn check_bearer(headers: &HeaderMap, key: &str) -> bool {
     constant_time_eq(got.trim().as_bytes(), key.as_bytes())
 }
 
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+/// Comparaison en temps constant (secrets).
+pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }

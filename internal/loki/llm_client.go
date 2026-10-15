@@ -263,6 +263,24 @@ func globalCaps() Caps {
 // skills directory (when skills are enabled). Merges with an existing system
 // message if present. tools = the tools sent on this same turn (see prepareTurn).
 func InjectSkills(msgs []Message, caps Caps, tools []Tool) []Message {
+	prefix := injectPrefix(caps, tools)
+	if prefix == "" {
+		return msgs
+	}
+	// Un message PROJET en tête (pas de prompt de preset) ne doit pas absorber le
+	// préambule : il perdrait son préfixe, et normalizeSystemMessages ne saurait
+	// plus le sortir du bloc système commun (voir isProjectSystem).
+	if len(msgs) > 0 && msgs[0].Role == "system" && !isProjectSystem(msgs[0]) {
+		existing, _ := msgs[0].Content.(string)
+		merged := append([]Message{{Role: "system", Content: prefix + "\n\n" + existing}}, msgs[1:]...)
+		return merged
+	}
+	return append([]Message{{Role: "system", Content: prefix}}, msgs...)
+}
+
+// injectPrefix : le texte qu'InjectSkills pose en tête — préambule d'agent
+// décidé, puis briefing machine ; "" s'il n'y a rien à dire.
+func injectPrefix(caps Caps, tools []Tool) string {
 	var parts []string
 	// Decisive-agent preamble (anti-loop) — only when the model actually has
 	// tools, otherwise it nudges a plain chat model to "call tools" it doesn't
@@ -273,19 +291,7 @@ func InjectSkills(msgs []Message, caps Caps, tools []Tool) []Message {
 	if mp := machineSystemPrompt(caps); mp != "" {
 		parts = append(parts, mp)
 	}
-	if len(parts) == 0 {
-		return msgs
-	}
-	prefix := strings.Join(parts, "\n\n")
-	// Un message PROJET en tête (pas de prompt de preset) ne doit pas absorber le
-	// préambule : il perdrait son préfixe, et normalizeSystemMessages ne saurait
-	// plus le sortir du bloc système commun (voir isProjectSystem).
-	if len(msgs) > 0 && msgs[0].Role == "system" && !isProjectSystem(msgs[0]) {
-		existing, _ := msgs[0].Content.(string)
-		merged := append([]Message{{Role: "system", Content: prefix + "\n\n" + existing}}, msgs[1:]...)
-		return merged
-	}
-	return append([]Message{{Role: "system", Content: prefix}}, msgs...)
+	return strings.Join(parts, "\n\n")
 }
 
 // prepareTurn calcule UNE fois les outils du tour, puis le préambule à partir
@@ -2360,7 +2366,12 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					extra = append(extra, toolMsg)
 					continue
 				}
-				ex := execTool(ctx, tc.Function.Name, args, label, caps)
+				var ex toolExecResult
+				if execToolHook != nil {
+					ex = execToolHook(ctx, tc.Function.Name, args, label, caps)
+				} else {
+					ex = execTool(ctx, tc.Function.Name, args, label, caps)
+				}
 				result, diff, diffAdd, diffDel, visionImg = ex.Result, ex.Diff, ex.Added, ex.Removed, ex.VisionImg
 				if ex.Ask != nil {
 					cb(StreamEvent{Ask: ex.Ask})
@@ -2602,6 +2613,10 @@ type toolExecResult struct {
 	VisionImg map[string]any `json:"vision_img,omitempty"`
 	Ask       *AskEvent      `json:"ask,omitempty"`
 }
+
+// execToolHook : nil en service. Les tests de parité Go/Rust
+// (parity_test.go) y fixent les résultats des outils.
+var execToolHook func(ctx context.Context, name string, args map[string]any, label string, caps Caps) toolExecResult
 
 // execTool exécute UN appel d'outil. Extrait tel quel de runChatLoop (lot 6
 // de la migration Rust) : c'est la frontière par laquelle une boucle de chat

@@ -1,0 +1,4360 @@
+{
+  "name": "code_contrat_abandonne",
+  "cfg": {
+    "MEM_MODE": "off"
+  },
+  "agent": true,
+  "code": true,
+  "criteria": [
+    {
+      "id": 1,
+      "text": "le build passe",
+      "status": "pending"
+    }
+  ],
+  "send": {
+    "cid": "c-code_contrat_abandonne",
+    "message": "Construis le jeu"
+  },
+  "replies": [
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"r0\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"r1\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"r2\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"v1\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"r3\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"v2\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"r4\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    },
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"v3\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    }
+  ],
+  "tool_results": {
+    "bash": "a.txt\nb.txt",
+    "read": "1: ligne"
+  },
+  "start": {
+    "caps": {
+      "Agent": true,
+      "Code": true,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": ""
+    },
+    "code_hint": false,
+    "content": "Construis le jeu",
+    "files": [],
+    "model": "",
+    "turn_caps": {
+      "Agent": true,
+      "Code": true,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": "builder"
+    }
+  },
+  "view": {
+    "head": [],
+    "prefix": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+    "tools": [
+      {
+        "function": {
+          "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+          "name": "bash",
+          "parameters": {
+            "properties": {
+              "command": {
+                "description": "The command",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Timeout s (default 30, max 300)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+          "name": "write",
+          "parameters": {
+            "properties": {
+              "content": {
+                "description": "Full content",
+                "type": "string"
+              },
+              "file": {
+                "description": "Path",
+                "type": "string"
+              }
+            },
+            "required": [
+              "file",
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+          "name": "edit",
+          "parameters": {
+            "properties": {
+              "file": {
+                "description": "Path",
+                "type": "string"
+              },
+              "new": {
+                "description": "Replacement",
+                "type": "string"
+              },
+              "old": {
+                "description": "Exact text to replace (unique)",
+                "type": "string"
+              }
+            },
+            "required": [
+              "file",
+              "old",
+              "new"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+          "name": "recall",
+          "parameters": {
+            "properties": {
+              "id": {
+                "description": "Block id, e.g. \"r7\".",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+          "name": "recall_search",
+          "parameters": {
+            "properties": {
+              "limit": {
+                "description": "Default 5, max 20",
+                "type": "integer"
+              },
+              "query": {
+                "description": "Keywords describing the block.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+          "name": "task_list",
+          "parameters": {
+            "properties": {
+              "id": {
+                "description": "Show only this task, with its full last report",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+          "name": "task_create",
+          "parameters": {
+            "properties": {
+              "at": {
+                "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                "type": "string"
+              },
+              "enabled": {
+                "description": "Start active (default true)",
+                "type": "boolean"
+              },
+              "in_minutes": {
+                "description": "One-time task, N minutes from now",
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "prompt": {
+                "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                "type": "string"
+              },
+              "schedule": {
+                "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                "type": "string"
+              },
+              "script": {
+                "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Change one or more fields of a scheduled task by id.",
+          "name": "task_update",
+          "parameters": {
+            "properties": {
+              "enabled": {
+                "description": "false pauses, true resumes",
+                "type": "boolean"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "schedule": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Delete a scheduled task by id.",
+          "name": "task_delete",
+          "parameters": {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+          "name": "read",
+          "parameters": {
+            "properties": {
+              "file": {
+                "description": "Path (relative to the working folder)",
+                "type": "string"
+              },
+              "limit": {
+                "description": "Lines (default 400, max 1000)",
+                "type": "integer"
+              },
+              "offset": {
+                "description": "Start line (default 1)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "file"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+          "name": "grep",
+          "parameters": {
+            "properties": {
+              "glob": {
+                "description": "Only files matching this glob (e.g. *.go)",
+                "type": "string"
+              },
+              "path": {
+                "description": "File or directory to search (default .)",
+                "type": "string"
+              },
+              "pattern": {
+                "description": "Go regexp",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+          "name": "glob",
+          "parameters": {
+            "properties": {
+              "pattern": {
+                "description": "Glob, e.g. src/**/*.ts",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+          "name": "ask",
+          "parameters": {
+            "properties": {
+              "options": {
+                "description": "2-4 short answer options",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "question": {
+                "description": "The question",
+                "type": "string"
+              }
+            },
+            "required": [
+              "question"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+          "name": "bash_bg",
+          "parameters": {
+            "properties": {
+              "command": {
+                "description": "The command",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+          "name": "bash_tail",
+          "parameters": {
+            "properties": {
+              "id": {
+                "description": "Job id from bash_bg",
+                "type": "string"
+              },
+              "kill": {
+                "description": "Stop the job",
+                "type": "boolean"
+              },
+              "lines": {
+                "description": "Lines to show (default 40, max 200)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "git status of the working folder (branch + changed files, porcelain format).",
+          "name": "git_status",
+          "parameters": {
+            "properties": {
+              "dir": {
+                "description": "Repository subfolder (default: auto-detected)",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+          "name": "git_diff",
+          "parameters": {
+            "properties": {
+              "dir": {
+                "description": "Repository subfolder (default: auto-detected)",
+                "type": "string"
+              },
+              "file": {
+                "description": "Limit the diff to this path",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+          "name": "git_clone",
+          "parameters": {
+            "properties": {
+              "dir": {
+                "description": "Target folder name (default: repo name)",
+                "type": "string"
+              },
+              "url": {
+                "description": "Repository URL",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+          "name": "criteria",
+          "parameters": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "add",
+                  "set",
+                  "list",
+                  "clear"
+                ],
+                "type": "string"
+              },
+              "id": {
+                "description": "set: criterion id",
+                "type": "integer"
+              },
+              "note": {
+                "description": "set: why it failed / how it was verified",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pending",
+                  "completed",
+                  "passed",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "texts": {
+                "description": "add: one entry per criterion, short and testable",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+          "name": "subagent",
+          "parameters": {
+            "properties": {
+              "role": {
+                "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                "enum": [
+                  "explorer",
+                  "code-reviewer",
+                  "planner"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "verifier": {
+    "caps": {
+      "Agent": true,
+      "Code": true,
+      "ComputerUse": false,
+      "Internet": false,
+      "Mem": "off",
+      "Role": "verifier"
+    },
+    "system": "You are the VERIFICATION pass of code mode. You independently check the acceptance criteria against the actual code — you did not write it, trust nothing.\n\nFor each criterion still pending or failed:\n1. Understand what it actually requires.\n2. Check the real changes: git_diff, read the touched files, run the relevant build/test command with bash when applicable.\n3. Record the verdict with the criteria tool: action=set, status=passed (satisfied) or failed (with a note saying exactly what is missing — actionable, one line).\n\nRules:\n- Trivial or non-code criteria that are plainly satisfied: pass them without exploring.\n- Only fail a criterion that genuinely misses its requirement; a different-but-valid implementation passes.\n- Do NOT fix anything yourself. You only verify and report.\n- Be fast: check the diff first, read only what the criteria require.\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+    "tools": [
+      {
+        "function": {
+          "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+          "name": "bash",
+          "parameters": {
+            "properties": {
+              "command": {
+                "description": "The command",
+                "type": "string"
+              },
+              "timeout": {
+                "description": "Timeout s (default 30, max 300)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "command"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+          "name": "read",
+          "parameters": {
+            "properties": {
+              "file": {
+                "description": "Path (relative to the working folder)",
+                "type": "string"
+              },
+              "limit": {
+                "description": "Lines (default 400, max 1000)",
+                "type": "integer"
+              },
+              "offset": {
+                "description": "Start line (default 1)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "file"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+          "name": "grep",
+          "parameters": {
+            "properties": {
+              "glob": {
+                "description": "Only files matching this glob (e.g. *.go)",
+                "type": "string"
+              },
+              "path": {
+                "description": "File or directory to search (default .)",
+                "type": "string"
+              },
+              "pattern": {
+                "description": "Go regexp",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+          "name": "glob",
+          "parameters": {
+            "properties": {
+              "pattern": {
+                "description": "Glob, e.g. src/**/*.ts",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "git status of the working folder (branch + changed files, porcelain format).",
+          "name": "git_status",
+          "parameters": {
+            "properties": {
+              "dir": {
+                "description": "Repository subfolder (default: auto-detected)",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+          "name": "git_diff",
+          "parameters": {
+            "properties": {
+              "dir": {
+                "description": "Repository subfolder (default: auto-detected)",
+                "type": "string"
+              },
+              "file": {
+                "description": "Limit the diff to this path",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+          "name": "criteria",
+          "parameters": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "add",
+                  "set",
+                  "list",
+                  "clear"
+                ],
+                "type": "string"
+              },
+              "id": {
+                "description": "set: criterion id",
+                "type": "integer"
+              },
+              "note": {
+                "description": "set: why it failed / how it was verified",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pending",
+                  "completed",
+                  "passed",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "texts": {
+                "description": "add: one entry per criterion, short and testable",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "expect": {
+    "requests": [
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Construis le jeu",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+              "name": "ask",
+              "parameters": {
+                "properties": {
+                  "options": {
+                    "description": "2-4 short answer options",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "question": {
+                    "description": "The question",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+              "name": "bash_bg",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+              "name": "bash_tail",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Job id from bash_bg",
+                    "type": "string"
+                  },
+                  "kill": {
+                    "description": "Stop the job",
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "description": "Lines to show (default 40, max 200)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+              "name": "git_clone",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Target folder name (default: repo name)",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+              "name": "subagent",
+              "parameters": {
+                "properties": {
+                  "role": {
+                    "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                    "enum": [
+                      "explorer",
+                      "code-reviewer",
+                      "planner"
+                    ],
+                    "type": "string"
+                  },
+                  "task": {
+                    "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Construis le jeu",
+            "role": "user"
+          },
+          {
+            "content": "r0",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+              "name": "ask",
+              "parameters": {
+                "properties": {
+                  "options": {
+                    "description": "2-4 short answer options",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "question": {
+                    "description": "The question",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+              "name": "bash_bg",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+              "name": "bash_tail",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Job id from bash_bg",
+                    "type": "string"
+                  },
+                  "kill": {
+                    "description": "Stop the job",
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "description": "Lines to show (default 40, max 200)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+              "name": "git_clone",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Target folder name (default: repo name)",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+              "name": "subagent",
+              "parameters": {
+                "properties": {
+                  "role": {
+                    "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                    "enum": [
+                      "explorer",
+                      "code-reviewer",
+                      "planner"
+                    ],
+                    "type": "string"
+                  },
+                  "task": {
+                    "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Construis le jeu",
+            "role": "user"
+          },
+          {
+            "content": "r0",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          },
+          {
+            "content": "r1",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+              "name": "ask",
+              "parameters": {
+                "properties": {
+                  "options": {
+                    "description": "2-4 short answer options",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "question": {
+                    "description": "The question",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+              "name": "bash_bg",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+              "name": "bash_tail",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Job id from bash_bg",
+                    "type": "string"
+                  },
+                  "kill": {
+                    "description": "Stop the job",
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "description": "Lines to show (default 40, max 200)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+              "name": "git_clone",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Target folder name (default: repo name)",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+              "name": "subagent",
+              "parameters": {
+                "properties": {
+                  "role": {
+                    "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                    "enum": [
+                      "explorer",
+                      "code-reviewer",
+                      "planner"
+                    ],
+                    "type": "string"
+                  },
+                  "task": {
+                    "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are the VERIFICATION pass of code mode. You independently check the acceptance criteria against the actual code — you did not write it, trust nothing.\n\nFor each criterion still pending or failed:\n1. Understand what it actually requires.\n2. Check the real changes: git_diff, read the touched files, run the relevant build/test command with bash when applicable.\n3. Record the verdict with the criteria tool: action=set, status=passed (satisfied) or failed (with a note saying exactly what is missing — actionable, one line).\n\nRules:\n- Trivial or non-code criteria that are plainly satisfied: pass them without exploring.\n- Only fail a criterion that genuinely misses its requirement; a different-but-valid implementation passes.\n- Do NOT fix anything yourself. You only verify and report.\n- Be fast: check the diff first, read only what the criteria require.\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Task:\nNot done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.\n\nAcceptance criteria:\n[ ] #1 le build passe\n\nVerify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Construis le jeu",
+            "role": "user"
+          },
+          {
+            "content": "r0",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          },
+          {
+            "content": "r1",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          },
+          {
+            "content": "r2",
+            "role": "assistant"
+          },
+          {
+            "content": "Verification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+              "name": "ask",
+              "parameters": {
+                "properties": {
+                  "options": {
+                    "description": "2-4 short answer options",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "question": {
+                    "description": "The question",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+              "name": "bash_bg",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+              "name": "bash_tail",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Job id from bash_bg",
+                    "type": "string"
+                  },
+                  "kill": {
+                    "description": "Stop the job",
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "description": "Lines to show (default 40, max 200)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+              "name": "git_clone",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Target folder name (default: repo name)",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+              "name": "subagent",
+              "parameters": {
+                "properties": {
+                  "role": {
+                    "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                    "enum": [
+                      "explorer",
+                      "code-reviewer",
+                      "planner"
+                    ],
+                    "type": "string"
+                  },
+                  "task": {
+                    "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are the VERIFICATION pass of code mode. You independently check the acceptance criteria against the actual code — you did not write it, trust nothing.\n\nFor each criterion still pending or failed:\n1. Understand what it actually requires.\n2. Check the real changes: git_diff, read the touched files, run the relevant build/test command with bash when applicable.\n3. Record the verdict with the criteria tool: action=set, status=passed (satisfied) or failed (with a note saying exactly what is missing — actionable, one line).\n\nRules:\n- Trivial or non-code criteria that are plainly satisfied: pass them without exploring.\n- Only fail a criterion that genuinely misses its requirement; a different-but-valid implementation passes.\n- Do NOT fix anything yourself. You only verify and report.\n- Be fast: check the diff first, read only what the criteria require.\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Task:\nVerification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.\n\nAcceptance criteria:\n[ ] #1 le build passe\n\nVerify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are Loki, an expert assistant operating directly on this machine with real tools.\n\nYou are in CODE MODE: an autonomous coding agent working in this discussion's folder.\n\nMethod — in this order:\n1. If the task has no acceptance criteria yet, set them FIRST with the criteria tool (action=add): 2-6 short, testable statements of what DONE means. For a trivial task (one obvious change), skip criteria and just do it.\n2. Explore before you change: read the relevant files (read, grep, glob, git_status). Never edit a file you have not read.\n3. Implement with edit (small patches) or write (new files). Match the style of the surrounding code.\n4. Prove it: run the build/tests with bash. A change that was never run is not done. For a web page or UI, start the dev server with bash_bg then use web_screenshot on its localhost URL — a headless Chromium is ALREADY installed, so NEVER install puppeteer, playwright or a browser.\n5. Report briefly what changed and how you verified it.\n\nRules:\n- PLAN ONCE. If the task needs a plan, write it to PLAN.md in ONE short write, then follow it. Between tool calls, think one or two sentences at most — NEVER restate or re-derive the plan: it is in PLAN.md and in your criteria, read them instead.\n- Write each file COMPLETE in a single write call. Many small writes waste turns.\n- When a criterion is done AND checked, mark it completed (criteria set). Verification starts once none is left pending; only it may mark passed.\n- If a command fails, read the error and fix the cause; do not retry the same command unchanged.\n- Ask the user (ask tool) only for decisions that are genuinely theirs; decide the rest yourself.\n- Making the change is your job; shipping it is not. Without an explicit request, never commit, push, reset or rebase, never deploy, restart a service or replace a running binary. Read-only inspection (git_status, git_diff) is fine and encouraged.\n\nThe shell is bash: use its syntax.\nFor anything about the system or files, use bash instead of guessing. Act immediately — call the right tool, then answer. Never end your turn after only thinking. Be concise.\nTo give the user a file, link it in Markdown with its path relative to your working directory — [le rapport](rapport.pdf) — which downloads it. A raw server path is useless: they read you in a browser.\nYou can schedule work for yourself with task_create — only for what must recur or happen later, never a one-off you can do now. A script from your scripts folder runs as a task with no model at all.\n\nDate: {{DATE}}\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Construis le jeu",
+            "role": "user"
+          },
+          {
+            "content": "r0",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          },
+          {
+            "content": "r1",
+            "role": "assistant"
+          },
+          {
+            "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask.",
+            "role": "user"
+          },
+          {
+            "content": "r2",
+            "role": "assistant"
+          },
+          {
+            "content": "Verification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.",
+            "role": "user"
+          },
+          {
+            "content": "r3",
+            "role": "assistant"
+          },
+          {
+            "content": "Verification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Create or replace a file with the exact content given (parent dirs created, content verbatim, no escaping). ALWAYS use this for a script or any text file — NEVER build one through the shell with echo, cat, python -c or Set-Content: quoting breaks.",
+              "name": "write",
+              "parameters": {
+                "properties": {
+                  "content": {
+                    "description": "Full content",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "name": "edit",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path",
+                    "type": "string"
+                  },
+                  "new": {
+                    "description": "Replacement",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact text to replace (unique)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Bring back verbatim an earlier block archived when this conversation was compacted, from the id shown as recall:rN in the summary.",
+              "name": "recall",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Block id, e.g. \"r7\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Find an archived block and its recall id by keywords, when it is not listed in the current summary. Then call recall(id).",
+              "name": "recall_search",
+              "parameters": {
+                "properties": {
+                  "limit": {
+                    "description": "Default 5, max 20",
+                    "type": "integer"
+                  },
+                  "query": {
+                    "description": "Keywords describing the block.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List your scheduled tasks with their state, next run, and last result. Pass an id to get that task's full last report.",
+              "name": "task_list",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Show only this task, with its full last report",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Schedule work to run later, once or repeating. Give 'prompt' for an AI task, OR 'script' (a saved script name) for a script task that runs with no model and no tokens.",
+              "name": "task_create",
+              "parameters": {
+                "properties": {
+                  "at": {
+                    "description": "One-time task at this local time: \"HH:MM\" (next occurrence) or \"YYYY-MM-DD HH:MM\"",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "description": "Start active (default true)",
+                    "type": "boolean"
+                  },
+                  "in_minutes": {
+                    "description": "One-time task, N minutes from now",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "description": "AI task: self-contained instruction to run each time (omit if using script)",
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "description": "Repeating: \"@every 2h\" (interval), \"@every 1d@09:00\" (daily time), or a 5-field cron \"min hour dom mon dow\". Omit for a one-time task (use in_minutes or at)",
+                    "type": "string"
+                  },
+                  "script": {
+                    "description": "Script task: name of a script file you put in the scripts folder, run each time with no AI involved",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Change one or more fields of a scheduled task by id.",
+              "name": "task_update",
+              "parameters": {
+                "properties": {
+                  "enabled": {
+                    "description": "false pauses, true resumes",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "schedule": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Delete a scheduled task by id.",
+              "name": "task_delete",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Ask the user a clarifying question with 2-4 short options, then END your turn. Their answer arrives as the next user message. Use when a decision is genuinely theirs (scope, destructive change, ambiguous requirement) — not for things you can check yourself.",
+              "name": "ask",
+              "parameters": {
+                "properties": {
+                  "options": {
+                    "description": "2-4 short answer options",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "question": {
+                    "description": "The question",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Start a shell command in the BACKGROUND (dev server, watcher, long build) and return immediately with a job id. Output goes to a log file; check it with bash_tail. Use this instead of appending '&' in bash.",
+              "name": "bash_bg",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read the last lines of a background job's output and its status (running/exited). kill:true stops the job.",
+              "name": "bash_tail",
+              "parameters": {
+                "properties": {
+                  "id": {
+                    "description": "Job id from bash_bg",
+                    "type": "string"
+                  },
+                  "kill": {
+                    "description": "Stop the job",
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "description": "Lines to show (default 40, max 200)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Clone a git repository (https:// or git@) INTO the working folder of this discussion.",
+              "name": "git_clone",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Target folder name (default: repo name)",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Délègue une recherche ou une relecture à un rôle qui travaille dans son propre contexte et ne rend que sa réponse. Lecture seule.",
+              "name": "subagent",
+              "parameters": {
+                "properties": {
+                  "role": {
+                    "description": "explorer (trouver/cartographier), code-reviewer (relire un changement), planner (découper)",
+                    "enum": [
+                      "explorer",
+                      "code-reviewer",
+                      "planner"
+                    ],
+                    "type": "string"
+                  },
+                  "task": {
+                    "description": "La question, précise et autonome : le rôle ne voit pas la discussion.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "messages": [
+          {
+            "content": "You are the VERIFICATION pass of code mode. You independently check the acceptance criteria against the actual code — you did not write it, trust nothing.\n\nFor each criterion still pending or failed:\n1. Understand what it actually requires.\n2. Check the real changes: git_diff, read the touched files, run the relevant build/test command with bash when applicable.\n3. Record the verdict with the criteria tool: action=set, status=passed (satisfied) or failed (with a note saying exactly what is missing — actionable, one line).\n\nRules:\n- Trivial or non-code criteria that are plainly satisfied: pass them without exploring.\n- Only fail a criterion that genuinely misses its requirement; a different-but-valid implementation passes.\n- Do NOT fix anything yourself. You only verify and report.\n- Be fast: check the diff first, read only what the criteria require.\n\nMachine: host={{HOST}}, cwd={{TMP}}/workspace/discussions/{{CONV}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{TMP}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+            "role": "system"
+          },
+          {
+            "content": "Task:\nVerification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again.\n\nAcceptance criteria:\n[ ] #1 le build passe\n\nVerify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool.",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+              "name": "grep",
+              "parameters": {
+                "properties": {
+                  "glob": {
+                    "description": "Only files matching this glob (e.g. *.go)",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "File or directory to search (default .)",
+                    "type": "string"
+                  },
+                  "pattern": {
+                    "description": "Go regexp",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+              "name": "glob",
+              "parameters": {
+                "properties": {
+                  "pattern": {
+                    "description": "Glob, e.g. src/**/*.ts",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git status of the working folder (branch + changed files, porcelain format).",
+              "name": "git_status",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+              "name": "git_diff",
+              "parameters": {
+                "properties": {
+                  "dir": {
+                    "description": "Repository subfolder (default: auto-detected)",
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "Limit the diff to this path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+              "name": "criteria",
+              "parameters": {
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "add",
+                      "set",
+                      "list",
+                      "clear"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "set: criterion id",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "description": "set: why it failed / how it was verified",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "completed",
+                      "passed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "texts": {
+                    "description": "add: one entry per criterion, short and testable",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      }
+    ],
+    "log": [
+      {
+        "user": "Construis le jeu"
+      },
+      {
+        "content": "r0",
+        "seq0": 2,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "role": "builder"
+      },
+      {
+        "content": "r1",
+        "seq0": 7,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "builder"
+      },
+      {
+        "content": "r2",
+        "seq0": 13,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "verifier"
+      },
+      {
+        "content": "v1",
+        "seq0": 19,
+        "toks": 1
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "builder"
+      },
+      {
+        "content": "r3",
+        "seq0": 25,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "verifier"
+      },
+      {
+        "content": "v2",
+        "seq0": 31,
+        "toks": 1
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "builder"
+      },
+      {
+        "content": "r4",
+        "seq0": 37,
+        "toks": 1
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "role": "verifier"
+      },
+      {
+        "content": "v3",
+        "seq0": 43,
+        "toks": 1
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "ctx_isolated": true,
+        "stats": "…"
+      },
+      {
+        "role": ""
+      },
+      {
+        "verify_done": "gave_up"
+      },
+      {
+        "content": "\n\n_(vérification : 1 critère(s) non satisfaits après 2 corrections — voir le panneau des critères)_",
+        "seq0": 49,
+        "toks": 1
+      },
+      {
+        "turn_done": true
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Construis le jeu"
+      },
+      {
+        "role": "assistant",
+        "content": "r0"
+      },
+      {
+        "role": "user",
+        "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask."
+      },
+      {
+        "role": "assistant",
+        "content": "r1"
+      },
+      {
+        "role": "user",
+        "content": "Not done yet — these acceptance criteria are still open:\n[ ] #1 le build passe\n\nContinue working on them. Once one is done and checked, mark it completed (criteria action=set, status=completed). If you need the user's decision, use ask."
+      },
+      {
+        "role": "assistant",
+        "content": "r2"
+      },
+      {
+        "role": "user",
+        "content": "Verification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again."
+      },
+      {
+        "role": "assistant",
+        "content": "r3"
+      },
+      {
+        "role": "user",
+        "content": "Verification failed on these criteria:\n[ ] #1 le build passe\n\nFix the code so they pass. Address the notes precisely; do not touch what already passed. Mark each fixed criterion completed again."
+      },
+      {
+        "role": "assistant",
+        "content": "r4"
+      }
+    ],
+    "status": 200
+  }
+}

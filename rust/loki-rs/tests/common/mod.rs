@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 pub mod fakego;
+pub mod toolsfx;
 
 use bytes::Bytes;
 use http_body_util::Full;

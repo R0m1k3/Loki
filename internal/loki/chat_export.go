@@ -378,11 +378,12 @@ func exportFilename(ext string) string {
 // exportBody rend la conversation selon les options. Renvoie le corps, son type
 // MIME et l'extension de fichier.
 func exportBody(o exportOpts) ([]byte, string, string, error) {
+	src := exportSource() // la façade peut tenir la conversation (facade_chat.go)
 	if o.Format == "json" {
-		b, err := conv.ExportJSON(o)
+		b, err := src.ExportJSON(o)
 		return b, "application/json; charset=utf-8", "json", err
 	}
-	return []byte(conv.ExportMarkdown(o)), "text/markdown; charset=utf-8", "md", nil
+	return []byte(src.ExportMarkdown(o)), "text/markdown; charset=utf-8", "md", nil
 }
 
 // cmdExport écrit la conversation dans un fichier (ou sur la sortie standard).

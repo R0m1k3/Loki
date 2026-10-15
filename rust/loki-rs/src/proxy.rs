@@ -29,6 +29,7 @@ use tokio::net::TcpListener;
 
 use crate::api;
 use crate::auth::{HostEnv, INTERNAL_HEADER, InternalClient};
+use crate::chatapi;
 use crate::engine;
 use crate::oai;
 use crate::store::Store;
@@ -59,6 +60,9 @@ pub struct Config {
     pub host_env: HostEnv,
     /// `$LOKI_HOME` et service moteur, pour les routes portées.
     pub engine: engine::Paths,
+    /// Conversation tenue par la façade (`LOKI_CHAT=rust`) : ses routes sont
+    /// servies ici ; `None` : relayées au Go.
+    pub chat: Option<Arc<crate::chat::generate::ChatService>>,
 }
 
 struct Proxy {
@@ -82,9 +86,11 @@ pub async fn serve(
         backend: cfg.backend,
         ctx: api::Ctx {
             store: Store::new(cfg.backend, cfg.internal_token.clone()),
-            internal: InternalClient::new(cfg.backend, cfg.internal_token),
+            internal: InternalClient::new(cfg.backend, cfg.internal_token.clone()),
             host_env: cfg.host_env,
             engine: cfg.engine,
+            chat: cfg.chat,
+            internal_token: cfg.internal_token.clone(),
         },
     });
     tokio::pin!(shutdown);
@@ -122,12 +128,22 @@ pub async fn serve(
 
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
+        // Le Go (et lui seul : jeton tiré à chaque démarrage) remet à la
+        // façade le trafic de chat qui lui arrive sans passer par elle.
+        let from_go = self.ctx.chat.is_some() && self.ctx.from_go(req.headers());
         // Jamais de confiance accordée sur la foi d'un en-tête du client :
         // ni « je viens du tunnel », ni « je suis la façade ».
         req.headers_mut().remove(VIA_TUNNEL);
         req.headers_mut().remove(INTERNAL_HEADER);
 
         let path = req.uri().path();
+        // L'API interne de la façade : pour le Go seulement.
+        if from_go
+            && let Some(chat) = &self.ctx.chat
+            && chatapi::is_internal(path)
+        {
+            return chatapi::serve_internal(chat, req).await;
+        }
         // L'API interne du Go n'est jamais joignable de l'extérieur.
         if path.starts_with("/internal/") {
             return plain(StatusCode::NOT_FOUND, "404 page not found");
@@ -141,6 +157,11 @@ impl Proxy {
         }
         if api::handles(req.method(), path) {
             return api::serve(&self.ctx, req).await;
+        }
+        if let Some(chat) = &self.ctx.chat
+            && chatapi::handles(path)
+        {
+            return chatapi::serve(&self.ctx, chat, req, from_go).await;
         }
         self.forward(req).await
     }

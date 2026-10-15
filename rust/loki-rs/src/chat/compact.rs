@@ -98,8 +98,8 @@ const THINK_CLOSE: &str = "</think>";
 // Rappels de loki (llm_injected.go) : reconnus pour ne pas les prendre pour
 // une demande de l'utilisateur.
 const LOKI_NOTE_PREFIX: &str = "[system] ";
-const THINK_NUDGE_FIRST: &str = "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.";
-const THINK_NUDGE_STUCK: &str = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant.";
+pub(crate) const THINK_NUDGE_FIRST: &str = "You reasoned but did not call a tool or answer. Act NOW: call the appropriate tool directly (e.g. mem_search/mem_read/bash), or give your final answer if you already have the info. Don't explain, act.";
+pub(crate) const THINK_NUDGE_STUCK: &str = "You are stuck re-describing the same plan without executing it. Stop reasoning. In your NEXT message, either call ONE tool right now, or write your final answer in plain text using only what you already know — no more planning, no more thinking, act or answer this instant.";
 const RETRY_CORRECTIVE_LEAD: &str =
     "Your last answer contained a TOOL CALL WRITTEN AS TEXT — it was never executed:\n";
 const TOOLS_OFF_HINT: &str = "Do not call any more tools. Answer now, directly, in the user's language, using only the information already gathered.";
@@ -110,8 +110,8 @@ const BUDGET_NUDGE_ENDS: [&str; 3] = [
 ];
 
 // Blocs <context_update> (chat_projsnap.go).
-const CTX_UPD_OPEN: &str = "<context_update from=\"loki\"";
-const CTX_UPD_CLOSE: &str = "</context_update>";
+pub(crate) const CTX_UPD_OPEN: &str = "<context_update from=\"loki\"";
+pub(crate) const CTX_UPD_CLOSE: &str = "</context_update>";
 
 // ---- configuration -------------------------------------------------------
 
@@ -391,7 +391,7 @@ pub fn log_compact(
 // ---- rappels de loki, images gardées, blocs projet ------------------------
 
 /// `isLokiInjected` : un message `user` venu de loki, pas de l'utilisateur.
-fn is_loki_injected(m: &Message) -> bool {
+pub(crate) fn is_loki_injected(m: &Message) -> bool {
     if m.role != "user" {
         return false;
     }
@@ -462,7 +462,7 @@ fn strip_ctx_upd_text(s: &str) -> (String, bool) {
 
 /// `withoutCtxUpdate` : le message sans son bloc <context_update> de tête
 /// (seulement un message `user` marqué `ctx_upd`).
-fn without_ctx_update(m: &Message) -> Option<Message> {
+pub(crate) fn without_ctx_update(m: &Message) -> Option<Message> {
     if m.role != "user" || !m.ctx_upd {
         return None;
     }
@@ -504,7 +504,7 @@ fn without_ctx_update(m: &Message) -> Option<Message> {
 }
 
 /// `stripContextUpdates` : l'historique sans aucun bloc <context_update>.
-fn strip_context_updates(msgs: Vec<Message>) -> Vec<Message> {
+pub(crate) fn strip_context_updates(msgs: Vec<Message>) -> Vec<Message> {
     msgs.into_iter()
         .map(|m| without_ctx_update(&m).unwrap_or(m))
         .collect()
@@ -644,7 +644,12 @@ pub struct RecallEntry {
 pub trait RecallArchive {
     /// Range `content` VERBATIM et rend son id (« r7 »). Une erreur (base
     /// absente…) laisse le bloc non archivé : repli transparent.
-    fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String>;
+    fn archive(
+        &self,
+        label: &str,
+        role: &str,
+        content: &str,
+    ) -> impl Future<Output = Result<String, String>> + Send;
 }
 
 /// Archive absente : rien n'est jamais archivé.
@@ -652,7 +657,7 @@ pub trait RecallArchive {
 pub struct NoRecall;
 
 impl RecallArchive for NoRecall {
-    fn archive(&self, _label: &str, _role: &str, _content: &str) -> Result<String, String> {
+    async fn archive(&self, _label: &str, _role: &str, _content: &str) -> Result<String, String> {
         Err("archive recall indisponible".into())
     }
 }
@@ -1587,7 +1592,7 @@ impl<S: Summarizer, R: RecallArchive> Compactor<'_, S, R> {
                 let content = msg_text(m);
                 let tool = names.get(&m.tool_call_id).map_or("", String::as_str);
                 let label = recall_label(&m.role, tool, &content);
-                let Ok(id) = self.recall.archive(&label, &m.role, &content) else {
+                let Ok(id) = self.recall.archive(&label, &m.role, &content).await else {
                     continue;
                 };
                 let e = RecallEntry { id, label };
@@ -2011,7 +2016,7 @@ mod tests {
     }
 
     impl RecallArchive for MemRecall {
-        fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String> {
+        async fn archive(&self, label: &str, role: &str, content: &str) -> Result<String, String> {
             let mut b = self.blocks.lock().unwrap();
             b.push((label.into(), role.into(), content.into()));
             Ok(format!("r{}", b.len()))

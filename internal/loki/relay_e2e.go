@@ -174,7 +174,13 @@ func handleE2EChat(w http.ResponseWriter, r *http.Request) {
 		sealedEv := append(nonce, gcm.Seal(nil, nonce, b, nil)...)
 		return []byte("data: " + base64.StdEncoding.EncodeToString(sealedEv) + "\n\n"), true
 	}
-	runChatStream(r.Context(), body, &sseStream{w: w, flusher: flusher, mu: mu, frame: frame})
+	out := &sseStream{w: w, flusher: flusher, mu: mu, frame: frame}
+	// Conversation tenue par la façade : c'est SON journal qu'on suit.
+	if facadeChat() {
+		facadeChatStream(r.Context(), plain, out)
+		return
+	}
+	runChatStream(r.Context(), body, out)
 }
 
 // handleE2EReq : proxy de CONTRÔLE chiffré de bout en bout. Même enveloppe que le

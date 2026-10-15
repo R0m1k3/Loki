@@ -6,12 +6,14 @@
 //! - `ui` : UI web statique embarquée (lot 2) ;
 //! - `auth` : authentification de l'API de pilotage (lot 2) ;
 //! - `oai` : surface compatible OpenAI `/v1` relayée au moteur (lot 5) ;
-//! - `chat` : cœur chat (lot 6, bibliothèque en cours de portage) ;
+//! - `chat` : cœur chat (lot 6) ; `chatapi` : ses routes, servies quand la
+//!   conversation est tenue par la façade (`LOKI_CHAT=rust`) ;
 //! - `update` : mise à jour des binaires au démarrage du conteneur.
 
 pub mod api;
 pub mod auth;
 pub mod chat;
+pub mod chatapi;
 pub mod child;
 pub mod engine;
 pub mod engstatus;
@@ -22,5 +24,6 @@ pub mod presets;
 pub mod proxy;
 pub mod store;
 pub mod sysinfo;
+pub mod tools;
 pub mod ui;
 pub mod update;

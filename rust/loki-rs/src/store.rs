@@ -86,6 +86,24 @@ impl Store {
         serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
 
+    /// POST JSON à l'API interne, statut compris (refus métier à distinguer :
+    /// 409, 410…). Corps vide ou illisible → `Value::Null`.
+    pub async fn internal_post(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> Result<(StatusCode, serde_json::Value), String> {
+        let (status, bytes) = self
+            .call(
+                Method::POST,
+                path,
+                serde_json::to_vec(body).unwrap_or_default(),
+            )
+            .await?;
+        let v = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        Ok((status, v))
+    }
+
     /// Scelle un blob avec la clé de la mémoire (gardée par le Go). Clair
     /// rendu tel quel si le chiffrement est coupé.
     pub async fn seal(&self, plain: Vec<u8>) -> Result<Vec<u8>, CryptError> {
@@ -109,6 +127,31 @@ impl Store {
         }
     }
 
+    /// `getStoreBytesErr` : lit et ouvre une valeur scellée. Absente, ou
+    /// illisible (mémoire verrouillée, autre clé) → `Ok(None)` ; `Err`
+    /// seulement si la base n'a pas pu être lue (« rien » et « pas pu lire »
+    /// ne veulent pas dire la même chose).
+    pub async fn get_open(&self, bucket: &str, key: &str) -> Result<Option<Vec<u8>>, String> {
+        match self.get(bucket, key).await? {
+            Some(raw) if !raw.is_empty() => Ok(self.open(raw).await.ok()),
+            _ => Ok(None),
+        }
+    }
+
+    /// `putStoreBytes` : scelle puis écrit. Mémoire verrouillée : rien n'est
+    /// écrit (jamais en clair).
+    pub async fn put_seal(
+        &self,
+        bucket: &str,
+        key: &str,
+        plain: Vec<u8>,
+    ) -> Result<(), CryptError> {
+        let sealed = self.seal(plain).await?;
+        self.put(bucket, key, sealed)
+            .await
+            .map_err(CryptError::Other)
+    }
+
     /// Exécute un appel d'outil par le Go (`/internal/v1/tool/exec`) : même
     /// fonction que sa boucle de chat. `caps` : objet JSON des capacités du
     /// tour (champs Go : Agent, Internet, Mem, Code, Role, ComputerUse).
@@ -124,6 +167,28 @@ impl Store {
             Some(&serde_json::json!({ "name": name, "args": args, "caps": caps })),
         )
         .await
+    }
+
+    /// Archive un bloc verbatim pour l'outil recall (`archiveRecallBlock`,
+    /// numéroté par le Go) et rend son id (« r7 »).
+    pub async fn recall_archive(
+        &self,
+        label: &str,
+        role: &str,
+        content: &str,
+    ) -> Result<String, String> {
+        let v = self
+            .internal_json(
+                Method::POST,
+                "/internal/v1/recall/archive",
+                Some(&serde_json::json!({ "label": label, "role": role, "content": content })),
+            )
+            .await?;
+        v.get("id")
+            .and_then(|i| i.as_str())
+            .filter(|i| !i.is_empty())
+            .map(str::to_string)
+            .ok_or_else(|| format!("archive recall : réponse sans id {v}"))
     }
 
     /// Valeur brute ; `Ok(None)` = absente, `Err` = pas pu lire (à distinguer

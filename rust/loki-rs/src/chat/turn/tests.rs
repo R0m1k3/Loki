@@ -1,0 +1,500 @@
+//! Tests de la boucle d'un tour, sur un faux hôte aux réponses scriptées.
+
+use super::*;
+use crate::chat::compact::CompactConfig;
+use crate::chat::types::ToolFunction;
+use crate::chat::wire::resolve_chat_endpoint;
+use serde_json::json;
+use std::collections::VecDeque;
+use std::sync::Mutex;
+
+/// Une réponse scriptée du moteur.
+enum Script {
+    Ok(Vec<String>),
+    Status(u16, String),
+    Net(NetKind),
+    /// Corps qui s'interrompt sur une erreur de lecture après ces lignes.
+    Cut(Vec<String>),
+}
+
+#[derive(Default)]
+struct Fake {
+    script: Mutex<VecDeque<Script>>,
+    bodies: Mutex<Vec<Value>>,
+    tools: Mutex<HashMap<String, String>>,
+    execs: Mutex<Vec<String>>,
+    compacted: Mutex<Option<Vec<Message>>>,
+    phases: Mutex<Vec<CompactPhase>>,
+    queued: Mutex<Vec<Message>>,
+    efforts: Mutex<Vec<(String, String)>>,
+    /// L'arrêt à déclencher pendant l'exécution d'un outil.
+    stop_on_exec: Mutex<Option<watch::Sender<bool>>>,
+}
+
+impl Fake {
+    fn new(script: Vec<Script>) -> Self {
+        Fake {
+            script: Mutex::new(script.into()),
+            ..Default::default()
+        }
+    }
+    fn body(&self, i: usize) -> Value {
+        self.bodies.lock().unwrap()[i].clone()
+    }
+    fn sent(&self) -> usize {
+        self.bodies.lock().unwrap().len()
+    }
+}
+
+fn stream_of(lines: Vec<String>, cut: bool) -> BodyStream {
+    let mut items: Vec<Result<Bytes, String>> = lines
+        .into_iter()
+        .map(|l| Ok(Bytes::from(format!("{l}\n"))))
+        .collect();
+    if cut {
+        items.push(Err("connection reset".into()));
+    }
+    Box::pin(futures_util::stream::iter(items))
+}
+
+impl TurnHost for Fake {
+    async fn send(&self, _ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+        self.bodies
+            .lock()
+            .unwrap()
+            .push(serde_json::from_slice(&body).unwrap());
+        match self
+            .script
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("requête non scriptée")
+        {
+            Script::Ok(l) => Ok(Reply {
+                status: 200,
+                body: stream_of(l, false),
+            }),
+            Script::Cut(l) => Ok(Reply {
+                status: 200,
+                body: stream_of(l, true),
+            }),
+            Script::Status(s, b) => Ok(Reply {
+                status: s,
+                body: stream_of(vec![b], false),
+            }),
+            Script::Net(kind) => Err(SendError {
+                kind,
+                message: format!("panne {kind:?}"),
+            }),
+        }
+    }
+    async fn exec_tool(&self, name: &str, args: &Map<String, Value>, _label: &str) -> ToolOutcome {
+        self.execs
+            .lock()
+            .unwrap()
+            .push(format!("{name} {}", Value::Object(args.clone())));
+        let stop = self.stop_on_exec.lock().unwrap().take();
+        if let Some(tx) = stop {
+            let _ = tx.send(true);
+            std::future::pending::<()>().await;
+        }
+        let result = self
+            .tools
+            .lock()
+            .unwrap()
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| format!("résultat de {name}"));
+        ToolOutcome {
+            result,
+            ..Default::default()
+        }
+    }
+    fn save_tool_result(&self, _result: &str) -> String {
+        "res1".into()
+    }
+    async fn compact(&self, phase: CompactPhase, _msgs: &[Message]) -> Option<Vec<Message>> {
+        self.phases.lock().unwrap().push(phase);
+        self.compacted.lock().unwrap().clone()
+    }
+    fn drain_queued(&self) -> Vec<Message> {
+        std::mem::take(&mut *self.queued.lock().unwrap())
+    }
+    fn image_data_url(&self, _r: &str) -> Option<String> {
+        None
+    }
+    fn effort_remember(&self, want: &str, got: &str) {
+        self.efforts.lock().unwrap().push((want.into(), got.into()));
+    }
+    fn echo_refuse(&self, _model: &str) {}
+}
+
+fn content(s: &str) -> String {
+    format!("data: {}", json!({"choices":[{"delta":{"content": s}}]}))
+}
+fn finish(reason: &str) -> String {
+    format!(
+        "data: {}",
+        json!({"choices":[{"delta":{},"finish_reason": reason}],"usage":{"prompt_tokens":100,"completion_tokens":5}})
+    )
+}
+fn call(id: &str, name: &str, args: &str) -> String {
+    format!(
+        "data: {}",
+        json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":id,"type":"function","function":{"name":name,"arguments":args}}]}}]})
+    )
+}
+fn answer(s: &str) -> Script {
+    Script::Ok(vec![content(s), finish("stop")])
+}
+fn tool_step(id: &str, name: &str, args: &str) -> Script {
+    Script::Ok(vec![call(id, name, args), finish("tool_calls")])
+}
+
+fn tool(name: &str) -> Tool {
+    Tool {
+        kind: "function".into(),
+        function: ToolFunction {
+            name: name.into(),
+            description: String::new(),
+            parameters: json!({"type":"object"}),
+        },
+    }
+}
+
+fn config(tools: &[&str]) -> TurnConfig {
+    let cfg = HashMap::new();
+    TurnConfig {
+        ep: resolve_chat_endpoint(&cfg, ""),
+        cfg,
+        tools: tools.iter().map(|n| tool(n)).collect(),
+        temperature: 0.7,
+        code: false,
+        reasoning: TurnReasoning::default(),
+        echo: EchoPolicy::default(),
+        compact: CompactConfig::default(),
+        patterns: RetryPatterns::builtin(),
+    }
+}
+
+fn um(s: &str) -> Message {
+    text_msg("user", s)
+}
+
+/// Lance un tour et rend (résultat, événements).
+async fn run(host: &Fake, tc: &TurnConfig, cancel: &Cancel) -> (TurnResult, Vec<StreamEvent>) {
+    let mut evs = Vec::new();
+    let mut cb = |ev: StreamEvent| {
+        evs.push(ev);
+        true
+    };
+    let r = run_turn(host, tc, vec![um("question")], cancel, &mut cb).await;
+    (r, evs)
+}
+
+fn text(evs: &[StreamEvent]) -> String {
+    evs.iter()
+        .filter_map(|e| match e {
+            StreamEvent::Content(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn tools_done(evs: &[StreamEvent]) -> Vec<(String, String)> {
+    evs.iter()
+        .filter_map(|e| match e {
+            StreamEvent::ToolUsed(t) if t.done => Some((t.name.clone(), t.result.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn roles(m: &[Message]) -> Vec<&str> {
+    m.iter().map(|m| m.role.as_str()).collect()
+}
+
+#[tokio::test]
+async fn reponse_directe() {
+    let host = Fake::new(vec![answer("Bonjour")]);
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r, TurnResult::default());
+    assert_eq!(text(&evs), "Bonjour");
+    assert!(evs.iter().any(|e| matches!(e, StreamEvent::Stats(_))));
+    let b = host.body(0);
+    assert_eq!(b["messages"][0]["content"], "question");
+    assert_eq!(b["stream"], true);
+}
+
+#[tokio::test]
+async fn outil_puis_reponse() {
+    let host = Fake::new(vec![
+        tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
+        answer("Trouvé"),
+    ]);
+    let (r, evs) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(roles(&r.extra), ["assistant", "tool"]);
+    assert_eq!(r.extra[0].tool_calls[0].id, "c1");
+    assert_eq!(r.extra[1].tool_call_id, "c1");
+    assert_eq!(r.extra[1].content, Some(json!("résultat de glob")));
+    assert_eq!(*host.execs.lock().unwrap(), [r#"glob {"pattern":"*.go"}"#]);
+    assert_eq!(
+        tools_done(&evs),
+        [("glob".to_string(), "résultat de glob".to_string())]
+    );
+    assert_eq!(text(&evs), "Trouvé");
+    // La seconde requête porte l'appel et son résultat.
+    assert_eq!(roles_of(&host.body(1)), ["user", "assistant", "tool"]);
+}
+
+fn roles_of(b: &Value) -> Vec<String> {
+    b["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["role"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[tokio::test]
+async fn appel_identique_court_circuite_et_arguments_illisibles() {
+    let host = Fake::new(vec![
+        tool_step("a", "edit", r#"{"file":"x"}"#),
+        tool_step("b", "edit", r#"{"file":"x"}"#),
+        tool_step("c", "edit", r#"{"file":"#),
+        answer("fini"),
+    ]);
+    let (r, evs) = run(&host, &config(&["edit"]), &Cancel::never()).await;
+    assert_eq!(
+        host.execs.lock().unwrap().len(),
+        1,
+        "rejoué ou exécuté sur JSON cassé"
+    );
+    let done = tools_done(&evs);
+    assert!(done[1].1.starts_with("[déjà fait]"));
+    assert!(
+        done[2]
+            .1
+            .starts_with("[erreur] arguments de l'appel illisibles")
+    );
+    assert_eq!(r.extra.len(), 6);
+    assert_eq!(r.extra[4].tool_calls[0].function.arguments, "{}");
+}
+
+#[tokio::test(start_paused = true)]
+async fn reprise_reseau_puis_reponse() {
+    let host = Fake::new(vec![
+        Script::Net(NetKind::Refused),
+        Script::Status(503, "occupé".into()),
+        answer("ok"),
+    ]);
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(text(&evs), "ok");
+    assert_eq!(host.sent(), 3);
+}
+
+#[tokio::test(start_paused = true)]
+async fn panne_reseau_durable_rend_l_erreur() {
+    let host = Fake::new((0..4).map(|_| Script::Net(NetKind::Timeout)).collect());
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err.as_deref(), Some("panne Timeout"));
+    assert!(matches!(evs.last(), Some(StreamEvent::Err(e)) if e == "panne Timeout"));
+    assert_eq!(host.sent(), 1 + NET_RETRIES as usize);
+}
+
+#[tokio::test]
+async fn refus_definitif_nomme_la_machine() {
+    let host = Fake::new(vec![Script::Status(401, "clé refusée".into())]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(
+        r.err.as_deref(),
+        Some("llama-server a renvoyé 401 : clé refusée")
+    );
+    let host = Fake::new(vec![Script::Status(404, String::new())]);
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(
+        r.err.as_deref(),
+        Some("l'API externe a renvoyé 404 : 404 Not Found")
+    );
+}
+
+#[tokio::test]
+async fn erreur_500_tool_choice_none_puis_outils_retires() {
+    let host = Fake::new(vec![
+        Script::Status(500, "parse error".into()),
+        Script::Status(500, "encore".into()),
+        answer("en texte"),
+    ]);
+    let (r, evs) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(text(&evs), "en texte");
+    assert_eq!(host.body(1)["tool_choice"], "none");
+    assert!(
+        host.body(1)["tools"].is_array(),
+        "outils gardés : prompt intact"
+    );
+    assert!(host.body(2).get("tools").is_none(), "puis retirés");
+    assert_eq!(host.body(2)["messages"][0]["role"], "system");
+}
+
+#[tokio::test]
+async fn debordement_compaction_reactive() {
+    let host = Fake::new(vec![
+        Script::Status(400, "the request exceeds the available context size".into()),
+        answer("après compaction"),
+    ]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.phases.lock().unwrap(), [CompactPhase::Reactive]);
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, StreamEvent::NewHistory(h) if h == &vec![um("résumé")]))
+    );
+    assert_eq!(host.body(1)["messages"][0]["content"], "résumé");
+}
+
+#[tokio::test]
+async fn intensite_refusee_par_le_gabarit() {
+    let refus = "Jinja Exception: Unexpected reasoning effort high. Supported types are xhigh (default), medium, and low.";
+    let host = Fake::new(vec![Script::Status(500, refus.into()), answer("ok")]);
+    let mut tc = config(&[]);
+    tc.reasoning = TurnReasoning {
+        effort_wanted: "high".into(),
+        effort: "high".into(),
+        ..Default::default()
+    };
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.body(0)["reasoning_effort"], "high");
+    assert_eq!(host.body(1)["reasoning_effort"], "xhigh");
+    assert_eq!(
+        *host.efforts.lock().unwrap(),
+        [("high".to_string(), "xhigh".to_string())]
+    );
+}
+
+#[tokio::test]
+async fn reponse_vide_relances_puis_message() {
+    let empty = || Script::Ok(vec![finish("stop")]);
+    let host = Fake::new(vec![empty(), empty(), empty()]);
+    let (r, evs) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    let drops = evs
+        .iter()
+        .filter(|e| matches!(e, StreamEvent::DropReasoning))
+        .count();
+    assert_eq!(drops, 2);
+    let last = host.body(2)["messages"]
+        .as_array()
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(last["content"], THINK_NUDGE_STUCK);
+    assert_eq!(
+        text(&evs),
+        "_(le modèle n'a pas produit de réponse — finish: stop)_"
+    );
+    // Sans outils, pas de relance.
+    let host = Fake::new(vec![empty()]);
+    let (_, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(host.sent(), 1);
+    assert!(text(&evs).contains("pas produit de réponse"));
+}
+
+#[tokio::test]
+async fn appel_ecrit_en_texte_relance_corrective() {
+    let host = Fake::new(vec![
+        answer("<tool_call>{\"name\":\"glob\",\"arguments\":{}}</tool_call>"),
+        answer("vraie réponse"),
+    ]);
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(roles(&r.extra), ["assistant", "user"]);
+    assert!(
+        r.extra[1]
+            .content
+            .as_ref()
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .starts_with("Your last answer contained a TOOL CALL WRITTEN AS TEXT")
+    );
+    assert_eq!(host.sent(), 2);
+}
+
+#[tokio::test]
+async fn file_d_attente_injectee_entre_deux_etapes() {
+    let host = Fake::new(vec![tool_step("c1", "glob", "{}"), answer("ok")]);
+    *host.queued.lock().unwrap() = vec![um("et aussi ça")];
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(roles(&r.extra), ["assistant", "tool", "user"]);
+    assert_eq!(
+        roles_of(&host.body(1)),
+        ["user", "assistant", "tool", "user"]
+    );
+}
+
+#[tokio::test]
+async fn budget_d_outils_rappel() {
+    let mut script: Vec<Script> = (0..3)
+        .map(|i| {
+            tool_step(
+                &format!("c{i}"),
+                "bash",
+                &format!("{{\"command\":\"ls {i}\"}}"),
+            )
+        })
+        .collect();
+    script.push(answer("fin"));
+    let host = Fake::new(script);
+    let mut tc = config(&["bash"]);
+    tc.cfg.insert("AGENT_BUDGET".into(), "2".into());
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    // Après 2 appels, le rappel part en fin de fil.
+    let last = host.body(2)["messages"]
+        .as_array()
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert!(last["content"].as_str().unwrap().contains("2 tool calls"));
+    assert!(r.extra.iter().any(|m| {
+        m.content
+            .as_ref()
+            .and_then(Value::as_str)
+            .is_some_and(|s| s.contains("2 tool calls"))
+    }));
+}
+
+#[tokio::test]
+async fn arret_pendant_un_outil() {
+    let host = Fake::new(vec![tool_step("c1", "bash", r#"{"command":"sleep 100"}"#)]);
+    let (tx, cancel) = Cancel::new();
+    *host.stop_on_exec.lock().unwrap() = Some(tx);
+    let (r, evs) = run(&host, &config(&["bash"]), &cancel).await;
+    assert_eq!(r.err, None, "un arrêt n'est pas une erreur");
+    assert_eq!(roles(&r.extra), ["assistant"]);
+    assert!(!evs.iter().any(|e| matches!(e, StreamEvent::Err(_))));
+}
+
+#[tokio::test(start_paused = true)]
+async fn flux_externe_coupe_repris_apres_le_texte_affiche() {
+    let host = Fake::new(vec![Script::Cut(vec![content("Début ")]), answer("suite")]);
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, evs) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(text(&evs), "Début suite");
+    let msgs = host.body(1)["messages"].as_array().unwrap().clone();
+    assert_eq!(msgs[1]["content"], "Début ");
+    assert_eq!(msgs[2]["content"], STREAM_CUT_CONTINUE);
+    // Moteur local coupé : erreur, pas de reprise.
+    let host = Fake::new(vec![Script::Cut(vec![content("x")])]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert!(r.err.unwrap().contains("a été coupé en cours de route"));
+}

@@ -9,6 +9,7 @@ package loki
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -89,7 +90,8 @@ func handleProjects(w http.ResponseWriter, r *http.Request) {
 			err = setProjectDesc(slug, body.Desc)
 		case "delete":
 			// Une génération en cours travaille dans la mémoire du projet actif :
-			// supprimer sous ses pieds la laisserait écrire dans le vide.
+			// supprimer sous ses pieds la laisserait écrire dans le vide. La
+			// façade, quand elle tient la conversation, refuse elle-même (409).
 			if conv.isGenerating() {
 				sendJSON(w, 409, map[string]any{"ok": false, "error": "une génération est en cours"})
 				return
@@ -100,12 +102,25 @@ func handleProjects(w http.ResponseWriter, r *http.Request) {
 				sendJSON(w, 409, map[string]any{"ok": false, "error": "une génération est en cours"})
 				return
 			}
-			err = projectSwitch(slug)
+			if facadeChat() {
+				if !projectExists(slug) {
+					err = fmt.Errorf("projet introuvable")
+				} else {
+					err = facadeProjectSwitch(slug)
+				}
+			} else {
+				err = projectSwitch(slug)
+			}
 		default:
 			err = fmt.Errorf("action inconnue : %q", body.Action)
 		}
 		if err != nil {
-			sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+			code := 400
+			var fe *facadeError
+			if errors.As(err, &fe) && fe.status == http.StatusConflict {
+				code = http.StatusConflict
+			}
+			sendJSON(w, code, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
 		sendJSON(w, 200, map[string]any{"ok": true, "projects": projectDTOs(), "active": activeProjectSlug()})

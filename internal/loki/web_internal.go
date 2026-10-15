@@ -71,10 +71,42 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIEnd(w, r)
 		case "/internal/v1/tool/exec":
 			handleInternalToolExec(w, r)
+		case "/internal/v1/tool/context":
+			handleInternalToolContext(w, r)
+		case "/internal/v1/tool/tracker":
+			handleInternalToolTracker(w, r)
+		case "/internal/v1/tool/wrote":
+			handleInternalToolWrote(w, r)
 		case "/internal/v1/crypt/seal":
 			handleInternalCrypt(w, r, true)
 		case "/internal/v1/crypt/open":
 			handleInternalCrypt(w, r, false)
+		case "/internal/v1/engine/lease":
+			handleInternalLease(w, r)
+		case "/internal/v1/engine/lease/renew":
+			handleInternalLeaseRenew(w, r)
+		case "/internal/v1/engine/lease/release":
+			handleInternalLeaseRelease(w, r)
+		case "/internal/v1/engine/stop":
+			handleInternalEngineStop(w, r)
+		case "/internal/v1/recall/archive":
+			handleInternalRecallArchive(w, r)
+		case "/internal/v1/turn/start":
+			handleInternalTurnStart(w, r)
+		case "/internal/v1/turn/view":
+			handleInternalTurnView(w, r)
+		case "/internal/v1/turn/done":
+			handleInternalTurnDone(w, r)
+		case "/internal/v1/turn/verifier":
+			handleInternalTurnVerifier(w, r)
+		case "/internal/v1/project/activate":
+			handleInternalProjectActivate(w, r)
+		case "/internal/v1/chat/holder":
+			handleInternalChatHolder(w, r)
+		case "/internal/v1/conv/active":
+			handleInternalConvActive(w, r)
+		case "/internal/v1/conv/dropped":
+			handleInternalConvDropped(w, r)
 		default:
 			http.NotFound(w, r)
 		}
