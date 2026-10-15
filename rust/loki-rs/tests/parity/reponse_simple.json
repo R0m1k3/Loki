@@ -1,0 +1,164 @@
+{
+  "name": "reponse_simple",
+  "cfg": {},
+  "messages": [
+    {
+      "role": "system",
+      "content": "Tu es Loki."
+    },
+    {
+      "role": "user",
+      "content": "Bonjour"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "read",
+        "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+        "parameters": {
+          "properties": {
+            "file": {
+              "description": "Path (relative to the working folder)",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Lines (default 400, max 1000)",
+              "type": "integer"
+            },
+            "offset": {
+              "description": "Start line (default 1)",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "bash",
+        "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+        "parameters": {
+          "properties": {
+            "command": {
+              "description": "The command",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "Timeout s (default 30, max 300)",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "temperature": 0.7,
+  "replies": [
+    {
+      "status": 200,
+      "lines": [
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Bon\"}}]}",
+        "data: {\"choices\":[{\"delta\":{\"content\":\"jour !\"}}]}",
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"prompt_tokens\":100}}",
+        "data: [DONE]"
+      ]
+    }
+  ],
+  "tool_results": {
+    "bash": "a.txt\nb.txt",
+    "read": "ligne 1\nligne 2"
+  },
+  "expect": {
+    "requests": [
+      {
+        "messages": [
+          {
+            "content": "Tu es Loki.",
+            "role": "system"
+          },
+          {
+            "content": "Bonjour",
+            "role": "user"
+          }
+        ],
+        "model": "loki",
+        "parallel_tool_calls": false,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "temperature": 0.7,
+        "tools": [
+          {
+            "function": {
+              "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+              "name": "read",
+              "parameters": {
+                "properties": {
+                  "file": {
+                    "description": "Path (relative to the working folder)",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "description": "Lines (default 400, max 1000)",
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Start line (default 1)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          },
+          {
+            "function": {
+              "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+              "name": "bash",
+              "parameters": {
+                "properties": {
+                  "command": {
+                    "description": "The command",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout s (default 30, max 300)",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "function"
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "content": "Bonjour !"
+      }
+    ],
+    "extra": [],
+    "err": ""
+  }
+}

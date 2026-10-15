@@ -2366,7 +2366,12 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					extra = append(extra, toolMsg)
 					continue
 				}
-				ex := execTool(ctx, tc.Function.Name, args, label, caps)
+				var ex toolExecResult
+				if execToolHook != nil {
+					ex = execToolHook(ctx, tc.Function.Name, args, label, caps)
+				} else {
+					ex = execTool(ctx, tc.Function.Name, args, label, caps)
+				}
 				result, diff, diffAdd, diffDel, visionImg = ex.Result, ex.Diff, ex.Added, ex.Removed, ex.VisionImg
 				if ex.Ask != nil {
 					cb(StreamEvent{Ask: ex.Ask})
@@ -2608,6 +2613,10 @@ type toolExecResult struct {
 	VisionImg map[string]any `json:"vision_img,omitempty"`
 	Ask       *AskEvent      `json:"ask,omitempty"`
 }
+
+// execToolHook : nil en service. Les tests de parité Go/Rust
+// (parity_test.go) y fixent les résultats des outils.
+var execToolHook func(ctx context.Context, name string, args map[string]any, label string, caps Caps) toolExecResult
 
 // execTool exécute UN appel d'outil. Extrait tel quel de runChatLoop (lot 6
 // de la migration Rust) : c'est la frontière par laquelle une boucle de chat
