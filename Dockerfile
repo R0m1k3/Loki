@@ -48,7 +48,7 @@ RUN GOBIN=/out GOTOOLCHAIN=auto go install golang.org/x/tools/gopls@latest
 # le même que celui publié dans la release « rolling » et installé à chaud
 # dans /data/bin par `loki-rs self-update`.
 FROM rust:1-alpine AS rustbuild
-RUN apk add --no-cache musl-dev
+RUN apk add --no-cache musl-dev gcc
 WORKDIR /src
 # L'UI est embarquée par build.rs depuis la même source que le go:embed : les
 # deux binaires d'une image servent toujours la même interface.

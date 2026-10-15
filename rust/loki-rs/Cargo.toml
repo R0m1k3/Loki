@@ -6,16 +6,25 @@ edition = "2024"
 [dependencies]
 bytes = "1.12.1"
 flate2 = "1.1.10"
+futures-util = "0.3.34"
 getrandom = "0.4.3"
 hex = "0.4.3"
 http-body-util = "0.1.5"
 hyper = { version = "1.12.0", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1.21", features = ["tokio", "server", "client-legacy", "http1"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "stream", "http2"] }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"], optional = true }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["raw_value"] }
 sha1 = "0.11.0"
 sha2 = "0.11.1"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "signal", "process", "sync", "fs"] }
+
+[features]
+# Crypto TLS (ring) pour les API externes en HTTPS. Activée par défaut ; le
+# contrôle croisé Linux sous Windows s'en passe (pas d'en-têtes libc Linux).
+default = ["tls"]
+tls = ["dep:rustls"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
