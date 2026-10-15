@@ -119,6 +119,12 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalChatGenerating(w, r)
 		case "/internal/v1/dictate/stop":
 			handleInternalDictateStop(w, r)
+		case "/internal/v1/web/reach/reset":
+			handleInternalReachReset(w, r)
+		case "/internal/v1/cdp/shutdown":
+			handleInternalCDPShutdown(w, r)
+		case "/internal/v1/service/action":
+			handleInternalServiceAction(w, r)
 		default:
 			http.NotFound(w, r)
 		}

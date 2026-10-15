@@ -343,7 +343,7 @@ pub async fn service_action(ctx: &Ctx, ctl: &EngineCtl, action: &str) -> Result<
 }
 
 /// `serviceIsActive` en conteneur : le PID du fichier vit.
-fn service_is_active(ctx: &Ctx) -> bool {
+pub(crate) fn service_is_active(ctx: &Ctx) -> bool {
     pid_alive(crate::engine::read_pid(&ctx.engine.pid()))
 }
 

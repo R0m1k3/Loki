@@ -145,7 +145,7 @@ var facadeChatRoutes = map[string]bool{
 // (facade_dictate.go), les réglages partagés (facade_settings.go), les fichiers
 // de la discussion (facade_files.go), les notifications (facade_push.go), la
 // mémoire (facade_mem.go), les presets (facade_presets.go), le pilotage du
-// moteur (facade_engine.go).
+// moteur (facade_engine.go), les interrupteurs système (facade_system.go).
 // Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
 // jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
@@ -168,6 +168,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadePresets, "presets indisponibles : "
 	case facadeEngineRoutes[path]:
 		held, unavailable = facadeEngine, "pilotage du moteur indisponible : "
+	case facadeSystemRoutes[path]:
+		held, unavailable = facadeSystem, "réglages système indisponibles : "
 	default:
 		return h
 	}
@@ -186,6 +188,12 @@ func facadeRelayAs(w http.ResponseWriter, r *http.Request, unavailable string) {
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(&url.URL{Scheme: "http", Host: facadeAddr()})
+			// L'hôte et le schéma du client, pas ceux du relais : la clé de
+			// complétion affiche l'adresse à coller dans un client tiers.
+			pr.Out.Host = pr.In.Host
+			if p := pr.In.Header.Get("X-Forwarded-Proto"); p != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", p)
+			}
 			pr.Out.Header.Set(internalTokenHeader, internalToken())
 		},
 		FlushInterval: -1, // SSE : chaque trame part aussitôt

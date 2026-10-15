@@ -84,6 +84,12 @@ pub struct FakeGo {
     pub prestarts: Mutex<u32>,
     /// /internal/v1/dictate/stop reçus.
     pub dictate_stops: Mutex<u32>,
+    /// /internal/v1/web/reach/reset reçus.
+    pub reach_resets: Mutex<u32>,
+    /// /internal/v1/cdp/shutdown reçus.
+    pub cdp_shutdowns: Mutex<u32>,
+    /// /internal/v1/service/action reçus : (action, if_active).
+    pub service_actions: Mutex<Vec<(String, bool)>>,
     /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
     pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
@@ -98,6 +104,11 @@ impl FakeGo {
             .entry(bucket.into())
             .or_default()
             .insert(key.into(), val.as_bytes().to_vec());
+    }
+    pub fn del(&self, bucket: &str, key: &str) {
+        if let Some(b) = self.store.lock().unwrap().get_mut(bucket) {
+            b.remove(key);
+        }
     }
     pub fn get(&self, bucket: &str, key: &str) -> Option<String> {
         let s = self.store.lock().unwrap();
@@ -351,6 +362,23 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             200,
             serde_json::json!({ "generating": *st.generating.lock().unwrap() }).to_string(),
         ),
+        "/internal/v1/web/reach/reset" => {
+            *st.reach_resets.lock().unwrap() += 1;
+            resp(204, "")
+        }
+        "/internal/v1/cdp/shutdown" => {
+            *st.cdp_shutdowns.lock().unwrap() += 1;
+            resp(204, "")
+        }
+        "/internal/v1/service/action" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.service_actions.lock().unwrap().push((
+                v["action"].as_str().unwrap_or("").to_string(),
+                v["if_active"].as_bool().unwrap_or(false),
+            ));
+            resp(200, r#"{"ran":true,"error":""}"#)
+        }
         "/internal/v1/dictate/stop" => {
             *st.dictate_stops.lock().unwrap() += 1;
             resp(204, "")
@@ -550,6 +578,7 @@ pub struct Opts {
     pub mem: Option<Arc<loki_rs::memory::Memory>>,
     pub presets: bool,
     pub engine_ctl: Option<Arc<loki_rs::enginectl::EngineCtl>>,
+    pub system: Option<Arc<loki_rs::system::System>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -647,6 +676,7 @@ pub async fn start_with(
         mem: opts.mem,
         presets: opts.presets,
         engine_ctl: opts.engine_ctl,
+        system: opts.system,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

@@ -36,6 +36,7 @@ pub mod serve;
 pub mod settings;
 pub mod store;
 pub mod sysinfo;
+pub mod system;
 pub mod tools;
 pub mod ui;
 pub mod update;

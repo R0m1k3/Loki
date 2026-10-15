@@ -82,6 +82,9 @@ pub struct Config {
     /// Pilotage du moteur tenu par la façade (`LOKI_ENGINE=rust`) :
     /// démarrage, arrêt, déchargement de la VRAM ; `None` : au Go.
     pub engine_ctl: Option<Arc<crate::enginectl::EngineCtl>>,
+    /// Interrupteurs système (internet, navigateur, clé de complétion,
+    /// réseau) tenus par la façade (`LOKI_SYSTEM=rust`) ; `None` : au Go.
+    pub system: Option<Arc<crate::system::System>>,
 }
 
 struct Proxy {
@@ -117,6 +120,7 @@ pub async fn serve(
             mem: cfg.mem,
             presets: cfg.presets,
             engine_ctl: cfg.engine_ctl,
+            system: cfg.system,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -203,6 +207,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(s) = &self.ctx.system
+            && crate::system::handles(path)
+        {
+            return crate::system::serve(&self.ctx, s, req, from_go).await;
         }
         if let Some(e) = &self.ctx.engine_ctl
             && crate::enginectl::handles(path)

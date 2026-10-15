@@ -44,6 +44,8 @@ pub struct Ctx {
     pub presets: bool,
     /// Pilotage du moteur tenu par la façade (`LOKI_ENGINE=rust`).
     pub engine_ctl: Option<std::sync::Arc<crate::enginectl::EngineCtl>>,
+    /// Interrupteurs système tenus par la façade (`LOKI_SYSTEM=rust`).
+    pub system: Option<std::sync::Arc<crate::system::System>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -61,6 +63,7 @@ impl Ctx {
             || self.mem.is_some()
             || self.presets
             || self.engine_ctl.is_some()
+            || self.system.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

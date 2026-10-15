@@ -645,3 +645,116 @@ func TestFacadeMoteur(t *testing.T) {
 		t.Fatalf("arrêt de la dictée : %d", w.Code)
 	}
 }
+
+// Une clé de complétion d'un ou deux octets ne fait plus tomber /api/apikey.
+func TestMaskAPIKeyCourte(t *testing.T) {
+	for k, want := range map[string]string{
+		"":                         "",
+		"k":                        "…",
+		"ab":                       "…",
+		"abc":                      "…bc",
+		"abcdefghijklm":            "…lm",
+		"sk-loki-0123456789abcdef": "sk-loki-0…cdef",
+	} {
+		if got := maskAPIKey(k); got != want {
+			t.Errorf("maskAPIKey(%q) = %q, attendu %q", k, got, want)
+		}
+	}
+}
+
+// Les interrupteurs système (LOKI_SYSTEM=rust, lot 17) partent à la façade ;
+// l'API interne lui rend ce qui vit ici : cache de joignabilité des outils
+// web, navigateur piloté, redémarrage du moteur.
+func TestFacadeSysteme(t *testing.T) {
+	testHome(t)
+	t.Setenv("LOKI_CONTAINER", "1")
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadeSystemRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s servi ailleurs sans LOKI_SYSTEM : %q", p, w.Body.String())
+		}
+	}
+	t.Setenv(facadeSystemEnv, "rust")
+	for p := range facadeSystemRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if n := len(f.recu()); n != len(facadeSystemRoutes) {
+		t.Fatalf("reçu par la façade : %d appels", n)
+	}
+
+	// Cache de joignabilité vidé.
+	reachMu.Lock()
+	reachURL = "http://ancien"
+	reachMu.Unlock()
+	w := httptest.NewRecorder()
+	handleInternalReachReset(w, httptest.NewRequest("POST", "/internal/v1/web/reach/reset", nil))
+	reachMu.Lock()
+	vide := reachURL == ""
+	reachMu.Unlock()
+	if w.Code != 204 || !vide {
+		t.Fatalf("reach/reset : %d, cache vidé : %v", w.Code, vide)
+	}
+	w = httptest.NewRecorder()
+	handleInternalCDPShutdown(w, httptest.NewRequest("POST", "/internal/v1/cdp/shutdown", nil))
+	if w.Code != 204 {
+		t.Fatalf("cdp/shutdown : %d", w.Code)
+	}
+
+	// Redémarrage : seulement si le moteur tourne quand if_active est posé.
+	var actions []string
+	old := internalServiceAction
+	t.Cleanup(func() { internalServiceAction = old })
+	internalServiceAction = func(a string) error {
+		actions = append(actions, a)
+		if a == "start" {
+			return errTuneBusy
+		}
+		return nil
+	}
+	for _, c := range []struct {
+		body, want string
+		code       int
+	}{
+		{`{"action":"restart","if_active":true}`, `{"error":"","ran":false}`, 200},
+		{`{"action":"restart"}`, `{"error":"","ran":true}`, 200},
+		{`{"action":"start"}`, `{"error":"` + errTuneBusy.Error() + `","ran":true}`, 200},
+		{`{"action":"reload"}`, `{"error":"action inconnue : reload"}`, 400},
+		{`{"action":`, `{"error":"unexpected EOF"}`, 400},
+	} {
+		w := httptest.NewRecorder()
+		handleInternalServiceAction(w, httptest.NewRequest("POST", "/internal/v1/service/action", strings.NewReader(c.body)))
+		if got := strings.TrimSpace(w.Body.String()); w.Code != c.code || got != c.want {
+			t.Fatalf("%s : %d %s", c.body, w.Code, got)
+		}
+	}
+	if strings.Join(actions, ",") != "restart,start" {
+		t.Fatalf("actions : %v", actions)
+	}
+}
+
+// Le relais vers la façade garde l'hôte et le schéma du client : la clé de
+// complétion y calcule l'adresse à coller dans un client tiers.
+func TestFacadeRelaisGardeHote(t *testing.T) {
+	var host, proto string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, proto = r.Host, r.Header.Get("X-Forwarded-Proto")
+	}))
+	defer srv.Close()
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, strings.TrimPrefix(srv.URL, "http://"))
+	r := httptest.NewRequest("GET", "/api/apikey", nil)
+	r.Host = "loki.exemple.fr"
+	r.Header.Set("X-Forwarded-Proto", "https")
+	facadeRelayAs(httptest.NewRecorder(), r, "")
+	if host != "loki.exemple.fr" || proto != "https" {
+		t.Fatalf("hôte %q, schéma %q", host, proto)
+	}
+}

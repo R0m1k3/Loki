@@ -151,6 +151,9 @@ fn serve() -> ExitCode {
         // LOKI_ENGINE=rust : le pilotage du moteur (démarrage, arrêt,
         // déchargement de la VRAM), en conteneur avec le superviseur Rust
         // seulement — sous systemd, le Go pilote son unité.
+        // LOKI_SYSTEM=rust : les interrupteurs système (accès internet,
+        // navigateur, clé de complétion, écoute réseau du moteur).
+        let system_rust = held_by_facade("LOKI_SYSTEM");
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -178,6 +181,7 @@ fn serve() -> ExitCode {
             ("LOKI_MEM", mem_rust),
             ("LOKI_PRESETS", presets_rust),
             ("LOKI_ENGINE", engine_rust),
+            ("LOKI_SYSTEM", system_rust),
         ];
         for (var, on) in held {
             if on {
@@ -280,6 +284,7 @@ fn serve() -> ExitCode {
             mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
             presets: presets_rust,
             engine_ctl,
+            system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
