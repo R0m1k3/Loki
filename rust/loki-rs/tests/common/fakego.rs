@@ -427,7 +427,7 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None, None).await;
+    let (f, st, tx, _) = start_with(home, Opts::default()).await;
     (f, st, tx)
 }
 
@@ -437,8 +437,34 @@ pub async fn start_models(
     home: std::path::PathBuf,
     hf: &str,
 ) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None, Some(hf.to_string())).await;
+    let opts = Opts {
+        models_hf: Some(hf.to_string()),
+        ..Opts::default()
+    };
+    let (f, st, tx, _) = start_with(home, opts).await;
     (f, st, tx)
+}
+
+/// Comme [`start`], avec la dictée tenue par la façade (`LOKI_DICTATE=rust`).
+pub async fn start_dictate(
+    home: std::path::PathBuf,
+    d: Arc<loki_rs::dictate::Dictation>,
+) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let opts = Opts {
+        dictate: Some(d),
+        ..Opts::default()
+    };
+    let (f, st, tx, _) = start_with(home, opts).await;
+    (f, st, tx)
+}
+
+/// Ce que la façade tient en plus du proxy.
+#[derive(Default)]
+pub struct Opts {
+    pub chat: bool,
+    pub engine_port: Option<u16>,
+    pub models_hf: Option<String>,
+    pub dictate: Option<Arc<loki_rs::dictate::Dictation>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -452,15 +478,21 @@ pub async fn start_chat(
     oneshot::Sender<()>,
     Arc<loki_rs::chat::generate::ChatService>,
 ) {
-    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port), None).await;
+    let (f, st, tx, chat) = start_with(
+        home,
+        Opts {
+            chat: true,
+            engine_port: Some(engine_port),
+            ..Opts::default()
+        },
+    )
+    .await;
     (f, st, tx, chat.unwrap())
 }
 
-async fn start_opts(
+pub async fn start_with(
     home: std::path::PathBuf,
-    with_chat: bool,
-    engine_port: Option<u16>,
-    models_hf: Option<String>,
+    opts: Opts,
 ) -> (
     SocketAddr,
     Arc<FakeGo>,
@@ -468,7 +500,7 @@ async fn start_opts(
     Option<Arc<loki_rs::chat::generate::ChatService>>,
 ) {
     let st = Arc::new(FakeGo::default());
-    if let Some(p) = engine_port {
+    if let Some(p) = opts.engine_port {
         st.set("config", "PORT", &p.to_string());
     }
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -489,7 +521,7 @@ async fn start_opts(
             });
         }
     });
-    let chat = if with_chat {
+    let chat = if opts.chat {
         use loki_rs::chat::{
             conv::Conversation, generate::ChatService, host::ChatShared, sessions,
         };
@@ -517,12 +549,13 @@ async fn start_opts(
             service: "loki-engine".into(),
         },
         chat: chat.clone(),
-        models: models_hf.map(|hf| {
+        models: opts.models_hf.map(|hf| {
             Arc::new(loki_rs::models::Models {
                 downloads: Arc::new(loki_rs::downloads::Downloads::new()),
                 hf: loki_rs::hf::HfClient::new(&hf),
             })
         }),
+        dictate: opts.dictate,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

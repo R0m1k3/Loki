@@ -379,3 +379,36 @@ func TestFacadeTelechargementsGardeLesPart(t *testing.T) {
 		t.Fatalf(".part orphelin gardé : %v", err)
 	}
 }
+
+// LOKI_DICTATE=rust : les routes de la dictée partent à la façade, et arrêter
+// la dictée (libération de la VRAM, optimiseur) le lui demande au lieu de
+// toucher au serveur de ce process. Sans la variable, rien ne change.
+func TestFacadeDictee(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	t.Setenv(facadeDictateEnv, "rust")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadeDictateRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	asrShutdownVite()
+	got := f.recu()
+	if len(got) != len(facadeDictateRoutes)+1 || got[len(got)-1] != "POST /internal/facade/v1/dictate/stop jeton {}" {
+		t.Fatalf("reçu par la façade : %v", got)
+	}
+	t.Setenv(facadeDictateEnv, "")
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/transcribe", local)(w, httptest.NewRequest("POST", "/api/transcribe", nil))
+	if w.Body.String() != "go" {
+		t.Fatalf("relayé sans la variable : %q", w.Body.String())
+	}
+	asrShutdownVite()
+	if n := len(f.recu()); n != len(facadeDictateRoutes)+1 {
+		t.Fatalf("arrêt demandé à la façade sans la variable (%d appels)", n)
+	}
+}

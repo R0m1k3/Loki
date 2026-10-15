@@ -396,6 +396,27 @@ pub fn base_name(p: &str) -> String {
     }
 }
 
+/// `exec.LookPath` : le chemin du programme dans le PATH (exécutable).
+pub fn look_path(name: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(name))
+        .find(|p| {
+            std::fs::metadata(p).is_ok_and(|m| {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    m.is_file() && m.permissions().mode() & 0o111 != 0
+                }
+                #[cfg(not(unix))]
+                {
+                    m.is_file()
+                }
+            })
+        })
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
 /// Message d'une `*os.PathError` du Go : « op chemin: raison ». La raison
 /// suit la forme des `syscall.Errno` du Go sous Unix (minuscule en tête, sans
 /// le « (os error N) » de Rust).

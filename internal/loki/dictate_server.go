@@ -414,6 +414,10 @@ func asrShutdown() {
 // normale. La dictée qui attendait reçoit une erreur de démarrage — c'est
 // l'utilisateur qui vient de demander la place, pas une panne.
 func asrShutdownVite() {
+	// Dictée tenue par la façade (LOKI_DICTATE=rust) : son serveur est le sien.
+	if facadeDictateStop() {
+		return
+	}
 	for i := 0; i < 20; i++ {
 		if wsrvMu.TryLock() {
 			asrStopLocked()

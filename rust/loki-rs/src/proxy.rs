@@ -66,6 +66,9 @@ pub struct Config {
     /// Routes des modèles tenues par la façade (`LOKI_MODELS=rust`) : servies
     /// ici ; `None` : relayées au Go.
     pub models: Option<Arc<crate::models::Models>>,
+    /// Dictée vocale tenue par la façade (`LOKI_DICTATE=rust`) : servie ici ;
+    /// `None` : relayée au Go.
+    pub dictate: Option<Arc<crate::dictate::Dictation>>,
 }
 
 struct Proxy {
@@ -94,6 +97,7 @@ pub async fn serve(
             engine: cfg.engine,
             chat: cfg.chat,
             models: cfg.models,
+            dictate: cfg.dictate,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -133,10 +137,11 @@ pub async fn serve(
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
         // Le Go (et lui seul : jeton tiré à chaque démarrage) remet à la
-        // façade le trafic du chat et des modèles qui lui arrive sans passer
-        // par elle.
-        let from_go = (self.ctx.chat.is_some() || self.ctx.models.is_some())
-            && self.ctx.from_go(req.headers());
+        // façade le trafic du chat, des modèles et de la dictée qui lui arrive
+        // sans passer par elle.
+        let from_go =
+            (self.ctx.chat.is_some() || self.ctx.models.is_some() || self.ctx.dictate.is_some())
+                && self.ctx.from_go(req.headers());
         // Jamais de confiance accordée sur la foi d'un en-tête du client :
         // ni « je viens du tunnel », ni « je suis la façade ».
         req.headers_mut().remove(VIA_TUNNEL);
@@ -149,6 +154,13 @@ impl Proxy {
             && chatapi::is_internal(path)
         {
             return chatapi::serve_internal(chat, req).await;
+        }
+        if from_go
+            && let Some(d) = &self.ctx.dictate
+            && path == crate::dictate::INTERNAL_STOP
+        {
+            d.shutdown_fast().await;
+            return plain(StatusCode::NO_CONTENT, "");
         }
         // L'API interne du Go n'est jamais joignable de l'extérieur.
         if path.starts_with("/internal/") {
@@ -168,6 +180,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(d) = &self.ctx.dictate
+            && crate::dictate::handles(path)
+        {
+            return crate::dictate::serve(&self.ctx, d, req, from_go).await;
         }
         if let Some(m) = &self.ctx.models
             && crate::models::handles(path)

@@ -220,7 +220,8 @@ func newWebMux() *http.ServeMux {
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
 	// withFacadeChat : routes du chat remises à la façade quand elle tient la
 	// conversation (LOKI_CHAT=rust, facade_chat.go), celles des modèles quand
-	// elle les tient (LOKI_MODELS=rust, facade_models.go) ; sans effet sinon.
+	// elle les tient (LOKI_MODELS=rust, facade_models.go), celles de la dictée
+	// (LOKI_DICTATE=rust, facade_dictate.go) ; sans effet sinon.
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(withFacadeChat(path, h))) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)

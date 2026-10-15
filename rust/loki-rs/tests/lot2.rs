@@ -95,6 +95,7 @@ async fn banc(cle: Option<&str>) -> Banc {
         },
         chat: None,
         models: None,
+        dictate: None,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;

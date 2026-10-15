@@ -121,6 +121,9 @@ fn serve() -> ExitCode {
         // LOKI_MODELS=rust : les routes des modèles aussi (le Go remet alors
         // celles du tunnel et ne vide plus les .part).
         let models_rust = models_held_by_facade();
+        // LOKI_DICTATE=rust : la dictée vocale aussi (le Go lui demande alors
+        // d'arrêter son serveur quand il libère la VRAM).
+        let dictate_rust = held_by_facade("LOKI_DICTATE");
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
         if chat_rust {
             env.push(("LOKI_CHAT".into(), "rust".into()));
@@ -128,7 +131,10 @@ fn serve() -> ExitCode {
         if models_rust {
             env.push(("LOKI_MODELS".into(), "rust".into()));
         }
-        if chat_rust || models_rust {
+        if dictate_rust {
+            env.push(("LOKI_DICTATE".into(), "rust".into()));
+        }
+        if chat_rust || models_rust || dictate_rust {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -167,6 +173,11 @@ fn serve() -> ExitCode {
             None
         };
 
+        let dictate = dictate_rust.then(|| {
+            eprintln!("[loki-rs] dictée tenue par la façade (LOKI_DICTATE=rust)");
+            std::sync::Arc::new(loki_rs::dictate::Dictation::new(&engine_paths.home))
+        });
+
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,
@@ -184,6 +195,7 @@ fn serve() -> ExitCode {
             engine: engine_paths,
             chat,
             models,
+            dictate,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -205,7 +217,12 @@ fn chat_held_by_facade() -> bool {
 
 /// `LOKI_MODELS=rust` : routes des modèles tenues par la façade.
 fn models_held_by_facade() -> bool {
-    std::env::var("LOKI_MODELS").is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+    held_by_facade("LOKI_MODELS")
+}
+
+/// `<VAR>=rust` : ce lot est tenu par la façade (le Go par défaut).
+fn held_by_facade(var: &str) -> bool {
+    std::env::var(var).is_ok_and(|v| v.trim().eq_ignore_ascii_case("rust"))
 }
 
 /// Les `.part` d'un téléchargement tué ne reprendront jamais : vidés au

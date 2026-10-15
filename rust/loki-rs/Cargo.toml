@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bytes = "1.12.1"
+bzip2 = "0.6.1"
 flate2 = "1.1.10"
 futures-util = "0.3.34"
 getrandom = "0.4.3"
@@ -20,7 +21,9 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["raw_value"] }
 sha1 = "0.11.0"
 sha2 = "0.11.1"
+tar = { version = "0.4.46", default-features = false }
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "signal", "process", "sync", "fs"] }
+tokio-tungstenite = "0.30.0"
 
 [features]
 # Crypto TLS (ring) pour les API externes en HTTPS. Activée par défaut ; le
@@ -35,4 +38,3 @@ libc = "0.2"
 tokio = { version = "1.53.2", features = ["test-util"] }
 futures-util = "0.3.34"
 tempfile = "3.27.0"
-tokio-tungstenite = "0.30.0"

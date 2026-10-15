@@ -30,6 +30,8 @@ pub struct Ctx {
     /// catalogue Hugging Face) tenues par la façade (`LOKI_MODELS=rust`) ;
     /// `None` : au Go.
     pub models: Option<std::sync::Arc<crate::models::Models>>,
+    /// Dictée vocale tenue par la façade (`LOKI_DICTATE=rust`) ; `None` : au Go.
+    pub dictate: Option<std::sync::Arc<crate::dictate::Dictation>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }

@@ -1,0 +1,337 @@
+{
+  "wav": [
+    {
+      "name": "mono 16 bits",
+      "in": "UklGRi4AAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQoAAAAAAABAAMD/fwCA",
+      "rate": 16000,
+      "ech": [
+        0,
+        0.5,
+        -0.5,
+        0.9999695,
+        -1
+      ]
+    },
+    {
+      "name": "bloc LIST intercalé",
+      "in": "UklGRjgAAABXQVZFTElTVAcAAABJTkZPeHl6AGZtdCAQAAAAAQABAIA+AAAAfQAAAgAQAGRhdGEEAAAAZACc/w==",
+      "rate": 16000,
+      "ech": [
+        0.0030517578,
+        -0.0030517578
+      ]
+    },
+    {
+      "name": "stéréo moyenné",
+      "in": "UklGRiwAAABXQVZFZm10IBAAAAABAAIAgLsAAADuAgAEABAAZGF0YQgAAAAAAP9/AID/fw==",
+      "rate": 48000,
+      "ech": [
+        0.49998474,
+        -0.000015258789
+      ]
+    },
+    {
+      "name": "flottant 32 bits",
+      "in": "UklGRjAAAABXQVZFZm10IBAAAAADAAEAgD4AAAD6AAAEACAAZGF0YQwAAAAAAIA+AACAvwAAAD8=",
+      "rate": 16000,
+      "ech": [
+        0.25,
+        -1,
+        0.5
+      ]
+    },
+    {
+      "name": "data tronqué",
+      "in": "UklGRioAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQYAAAABAAIA",
+      "rate": 16000,
+      "ech": [
+        0.000030517578,
+        0.000061035156
+      ]
+    },
+    {
+      "name": "data impair",
+      "in": "UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQMAAAABAgMA",
+      "rate": 8000,
+      "ech": [
+        0.015655518
+      ]
+    },
+    {
+      "name": "data vide",
+      "in": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=",
+      "rate": 16000
+    },
+    {
+      "name": "24 bits",
+      "in": "UklGRioAAABXQVZFZm10IBAAAAABAAEAgD4AAIC7AAADABgAZGF0YQYAAAAAAAAAAAA=",
+      "err": "format audio non géré (format 1, 24 bits) — attendu PCM 16 bits"
+    },
+    {
+      "name": "data avant fmt",
+      "in": "UklGRiYAAABXQVZFZGF0YQIAAAABAGZtdCAQAAAAAQABAIA+AAAAfQAAAgAQAA==",
+      "err": "audio illisible : bloc data avant fmt"
+    },
+    {
+      "name": "fmt tronqué",
+      "in": "UklGRhQAAABXQVZFZm10IAgAAAAAAAAAAAAAAA==",
+      "err": "audio illisible : bloc fmt tronqué"
+    },
+    {
+      "name": "sans data",
+      "in": "UklGRhwAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAA",
+      "err": "audio illisible : aucun bloc data"
+    },
+    {
+      "name": "pas un WAV",
+      "in": "Y2VjaSBuJ2VzdCBwYXMgdW4gZmljaGllciBhdWRpbyBkdSB0b3V0",
+      "err": "audio illisible : ce n'est pas un WAV"
+    },
+    {
+      "name": "vide",
+      "in": "",
+      "err": "audio illisible : ce n'est pas un WAV"
+    }
+  ],
+  "safe_rel": [
+    {
+      "in": "",
+      "err": "entrée d'archive au chemin absolu : \"\""
+    },
+    {
+      "in": "racine"
+    },
+    {
+      "in": "racine/"
+    },
+    {
+      "in": "racine/encoder.onnx",
+      "out": "encoder.onnx"
+    },
+    {
+      "in": "racine/sous/tokens.txt",
+      "out": "sous/tokens.txt"
+    },
+    {
+      "in": "/abs/x",
+      "err": "entrée d'archive au chemin absolu : \"/abs/x\""
+    },
+    {
+      "in": "racine/../x",
+      "err": "entrée d'archive qui remonte hors du dossier : \"racine/../x\""
+    },
+    {
+      "in": "racine\\a\\b.txt",
+      "out": "a/b.txt"
+    },
+    {
+      "in": " racine/a ",
+      "out": "a"
+    },
+    {
+      "in": "..",
+      "err": "entrée d'archive qui remonte hors du dossier : \"..\""
+    },
+    {
+      "in": "a/b/../c",
+      "err": "entrée d'archive qui remonte hors du dossier : \"a/b/../c\""
+    }
+  ],
+  "marker": {
+    "": true,
+    "  ": true,
+    " (rires) ": true,
+    "(silence)": true,
+    "(x": false,
+    "[a] b": false,
+    "[musique]": true,
+    "bonjour": false
+  },
+  "defaults": [
+    {
+      "model": "",
+      "out_model": "parakeet-tdt-0.6b-v3",
+      "out_reactivity": "moyen",
+      "reactivity": ""
+    },
+    {
+      "model": "ggml-base.bin",
+      "out_model": "parakeet-tdt-0.6b-v3",
+      "out_reactivity": "moyen",
+      "reactivity": ""
+    },
+    {
+      "model": "parakeet-tdt-0.6b-v2",
+      "out_model": "parakeet-tdt-0.6b-v2",
+      "out_reactivity": "court",
+      "reactivity": "court"
+    }
+  ],
+  "last_line": {
+    "": "",
+    "  \n x \n": "x",
+    "a\nb\n\n  ": "b",
+    "un seul": "un seul"
+  },
+  "args": [
+    "--encoder={{HOME}}/asr/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/encoder.int8.onnx",
+    "--decoder={{HOME}}/asr/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/decoder.int8.onnx",
+    "--joiner={{HOME}}/asr/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/joiner.int8.onnx",
+    "--tokens={{HOME}}/asr/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/tokens.txt",
+    "--model-type=nemo_transducer",
+    "--port=4567",
+    "--host=127.0.0.1"
+  ],
+  "args_err": "modèle de dictée inconnu : x",
+  "urls": {
+    "inconnu": "",
+    "parakeet-tdt-0.6b-v2": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2",
+    "parakeet-tdt-0.6b-v3": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2"
+  },
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/dictate/config",
+      "status": 200,
+      "out": {
+        "model": "parakeet-tdt-0.6b-v3",
+        "reactivity": "moyen"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/config",
+      "body": "pas du json",
+      "status": 400,
+      "out": {
+        "error": "requête illisible"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/config",
+      "body": "{\"model\":\"ggml-base.bin\"}",
+      "status": 400,
+      "out": {
+        "error": "modèle de dictée inconnu : ggml-base.bin"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/config",
+      "body": "{\"model\":\"parakeet-tdt-0.6b-v2\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dictate/config",
+      "status": 200,
+      "out": {
+        "model": "parakeet-tdt-0.6b-v2",
+        "reactivity": "moyen"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/config",
+      "body": "{\"model\":\"parakeet-tdt-0.6b-v3\",\"reactivity\":\"long\",\"autre\":1}",
+      "status": 200,
+      "out": {
+        "ok": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dictate/config",
+      "status": 200,
+      "out": {
+        "model": "parakeet-tdt-0.6b-v3",
+        "reactivity": "long"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dictate/models",
+      "status": 200,
+      "out": [
+        {
+          "id": "parakeet-tdt-0.6b-v2",
+          "langues": "anglais uniquement",
+          "nom": "Parakeet v2 — anglais seul",
+          "octets": 482468385,
+          "present": true
+        },
+        {
+          "id": "parakeet-tdt-0.6b-v3",
+          "langues": "25 langues européennes, français inclus — détection automatique",
+          "nom": "Parakeet v3 — recommandé",
+          "octets": 487170055,
+          "present": false
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/dictate/models/download",
+      "status": 200,
+      "out": {
+        "error": "",
+        "id": "",
+        "pct": 0,
+        "running": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/models/download",
+      "body": "{\"id\":\" inconnu \"}",
+      "status": 400,
+      "out": {
+        "error": "modèle de dictée inconnu : inconnu"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/dictate/models/download",
+      "body": "x",
+      "status": 400,
+      "out": {
+        "error": "requête illisible"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dictate/state",
+      "status": 200,
+      "out": {
+        "actif": false,
+        "device": "cpu",
+        "dl": {
+          "error": "",
+          "id": "",
+          "pct": 0,
+          "running": false
+        },
+        "modele": "parakeet-tdt-0.6b-v3",
+        "present": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/transcribe",
+      "body": "trop court",
+      "status": 400,
+      "out": {
+        "error": "audio vide ou trop court"
+      }
+    }
+  ],
+  "present": {
+    "inconnu": false,
+    "parakeet-tdt-0.6b-v2": true,
+    "parakeet-tdt-0.6b-v3": false
+  }
+}
