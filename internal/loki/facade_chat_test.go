@@ -2,6 +2,7 @@ package loki
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -926,4 +927,140 @@ func TestFacadeMiseAJour(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Lot 22 : les routes des backends partent à la façade, et les jobs du Go
+// (compilation, moteur de l'image, Strata) lui rapportent chaque étape — le
+// job vit chez elle.
+func TestFacadeBackends(t *testing.T) {
+	testHome(t)
+	resetBackendsState()
+	t.Cleanup(resetBackendsState)
+	var mu sync.Mutex
+	var calls []string
+	busy := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(internalTokenHeader) != jetonTest {
+			w.WriteHeader(403)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		calls = append(calls, r.Method+" "+r.URL.RequestURI()+" "+string(b))
+		refuse := busy
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/internal/facade/v1/build-job/start":
+			if refuse {
+				w.WriteHeader(409)
+				io.WriteString(w, `{"ok":false,"error":"un job engine est déjà en cours"}`)
+				return
+			}
+			io.WriteString(w, `{"ok":true}`)
+		case "/internal/facade/v1/build-job/snapshot":
+			io.WriteString(w, `{"exists":true,"action":"engine","running":true}`)
+		default:
+			io.WriteString(w, `{"ok":true,"de":"facade"}`)
+		}
+	}))
+	defer srv.Close()
+	t.Setenv(internalTokenEnv, jetonTest)
+	t.Setenv(facadeAddrEnv, strings.TrimPrefix(srv.URL, "http://"))
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+
+	t.Setenv(facadeBackendsEnv, "")
+	w := httptest.NewRecorder()
+	withFacadeChat("/api/llamacpp", local)(w, httptest.NewRequest("GET", "/api/llamacpp", nil))
+	if w.Body.String() != "go" || len(calls) != 0 {
+		t.Fatalf("sans LOKI_BACKENDS : %q", w.Body.String())
+	}
+	t.Setenv(facadeBackendsEnv, "rust")
+	for p := range facadeBackendsRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if !strings.Contains(w.Body.String(), "facade") {
+			t.Fatalf("%s non relayé : %q", p, w.Body.String())
+		}
+	}
+	// La compilation reste au Go.
+	for _, p := range []string{"/api/llamacpp/install", "/api/llamacpp/update", "/api/llamacpp/install-custom"} {
+		if facadeBackendsRoutes[p] {
+			t.Fatalf("%s ne doit pas partir à la façade", p)
+		}
+	}
+	mu.Lock()
+	calls = nil
+	mu.Unlock()
+
+	// Un job du Go : chaque étape part à la façade, dans l'ordre.
+	done := make(chan struct{})
+	if err := startLcJob("engine", func() {
+		lcPhase("recherche…")
+		emitBuildLine("[ 10%] Building CXX object a/b.cpp.o")
+		lcSetCommit("old", "")
+		lcSetCommit("new", "bbb")
+		lcFail(errors.New("raté"))
+		lcDone("fini")
+		close(done)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	want := []string{
+		`POST /internal/facade/v1/build-job/start {"action":"engine"}`,
+		`POST /internal/facade/v1/build-job/phase {"phase":"recherche…"}`,
+		`POST /internal/facade/v1/build-job/line {"line":"[ 10%] Building CXX object a/b.cpp.o"}`,
+		`POST /internal/facade/v1/build-job/commits {"old":""}`,
+		`POST /internal/facade/v1/build-job/commits {"new":"bbb"}`,
+		`POST /internal/facade/v1/build-job/fail {"error":"raté"}`,
+		`POST /internal/facade/v1/build-job/done {"msg":"fini"}`,
+		`POST /internal/facade/v1/build-job/end {}`,
+	}
+	for i := 0; i < 100; i++ {
+		mu.Lock()
+		n := len(calls)
+		mu.Unlock()
+		if n >= len(want) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	mu.Lock()
+	got := append([]string(nil), calls...)
+	calls = nil
+	busy = true
+	mu.Unlock()
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("étapes transmises :\n%s", strings.Join(got, "\n"))
+	}
+	// Rien ne reste dans le job du Go, et le sink est retiré.
+	if lcCur != nil {
+		t.Fatalf("job tenu par le Go : %+v", lcCur)
+	}
+	// Un second job : la façade le refuse, le Go le dit.
+	if err := startLcJob("strata", func() { t.Error("ne doit pas tourner") }); err == nil || err.Error() != "un job engine est déjà en cours" {
+		t.Fatalf("refus : %v", err)
+	}
+	// La vue du job (statut du moteur de l'image) vient de la façade.
+	if v := lcJobSnapshot(0, false); v["action"] != "engine" || v["running"] != true {
+		t.Fatalf("vue : %v", v)
+	}
+	mu.Lock()
+	last := calls[len(calls)-1]
+	mu.Unlock()
+	if last != "GET /internal/facade/v1/build-job/snapshot?from=0&lines=0 " {
+		t.Fatalf("vue demandée : %q", last)
+	}
+	if v := lcJobSnapshot(3, true); v["exists"] != true {
+		t.Fatalf("vue avec lignes : %v", v)
+	}
+	// Façade injoignable : le job ne démarre pas, la vue dit « aucun job ».
+	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
+	if err := startLcJob("engine", func() { t.Error("ne doit pas tourner") }); err == nil {
+		t.Fatal("job démarré sans façade")
+	}
+	if v := lcJobSnapshot(0, true); v["exists"] != false {
+		t.Fatalf("vue sans façade : %v", v)
+	}
+	lcAppend("perdue") // tracée, sans panique
 }

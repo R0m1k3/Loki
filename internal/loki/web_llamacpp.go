@@ -50,6 +50,10 @@ const lcMaxLines = 4000
 // compteur de fichiers compilés à partir du contenu (mêmes heuristiques que le
 // spinner du CLI). Appelée par le sink de build (emitBuildLine).
 func lcAppend(line string) {
+	if facadeBackends() {
+		facadeJobNote("line", map[string]any{"line": line})
+		return
+	}
 	lcMu.Lock()
 	defer lcMu.Unlock()
 	if lcCur == nil {
@@ -74,6 +78,10 @@ func lcAppend(line string) {
 // lcPhase pose une phase explicite (étapes hors build : clone, fetch, service…)
 // et la trace aussi dans le log.
 func lcPhase(phase string) {
+	if facadeBackends() {
+		facadeJobNote("phase", map[string]any{"phase": phase})
+		return
+	}
 	lcMu.Lock()
 	if lcCur != nil {
 		lcCur.Phase = phase
@@ -90,6 +98,9 @@ func startLcJob(action string, run func()) error {
 	// une optimisation (backend_tune_lock.go).
 	if err := tuneGuard(); err != nil {
 		return err
+	}
+	if facadeBackends() { // le job est tenu par la façade (facade_backends.go)
+		return facadeJobStart(action, run)
 	}
 	lcMu.Lock()
 	defer lcMu.Unlock()
@@ -115,6 +126,10 @@ func startLcJob(action string, run func()) error {
 }
 
 func lcFail(err error) {
+	if facadeBackends() {
+		facadeJobNote("fail", map[string]any{"error": err.Error()})
+		return
+	}
 	lcMu.Lock()
 	if lcCur != nil {
 		lcCur.Err = err.Error()
@@ -127,6 +142,10 @@ func lcFail(err error) {
 }
 
 func lcDone(msg string) {
+	if facadeBackends() {
+		facadeJobNote("done", map[string]any{"msg": msg})
+		return
+	}
 	lcMu.Lock()
 	if lcCur != nil {
 		lcCur.Phase = msg
@@ -476,6 +495,9 @@ func handleLlamacppJob(w http.ResponseWriter, r *http.Request) {
 // lcJobSnapshot construit la vue JSON du job courant. withLines=false renvoie
 // juste l'entête (imbriquée dans /api/llamacpp).
 func lcJobSnapshot(from int, withLines bool) map[string]any {
+	if facadeBackends() {
+		return facadeJobSnapshot(from, withLines)
+	}
 	lcMu.Lock()
 	defer lcMu.Unlock()
 	if lcCur == nil {
@@ -576,9 +598,7 @@ func lcRunUpdate(clean bool) {
 	}
 
 	oldCommit := gitOutput(repo, "rev-parse", "--short", "HEAD")
-	lcMu.Lock()
-	lcCur.OldCommit = oldCommit
-	lcMu.Unlock()
+	lcSetCommit("old", oldCommit)
 
 	branch := gitOutput(repo, "rev-parse", "--abbrev-ref", "HEAD")
 	if branch == "" || branch == "HEAD" {
@@ -604,9 +624,7 @@ func lcRunUpdate(clean bool) {
 		}
 	}
 	newCommit := gitOutput(repo, "rev-parse", "--short", "HEAD")
-	lcMu.Lock()
-	lcCur.NewCommit = newCommit
-	lcMu.Unlock()
+	lcSetCommit("new", newCommit)
 
 	// Le binaire en cours d'exécution ne peut pas être réécrit → stop du service
 	// pendant le build, redémarrage après (même en échec).

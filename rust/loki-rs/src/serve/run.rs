@@ -189,7 +189,7 @@ impl EnginePaths {
         !p.is_empty() && norm_path(p).starts_with(&(norm_path(&self.engine_dir()) + "/"))
     }
     /// `prebuiltServerBin` : le binaire du VERSION, sinon le dernier.
-    fn prebuilt_server_bin(&self) -> String {
+    pub fn prebuilt_server_bin(&self) -> String {
         let mut found = Vec::new();
         fn walk(d: &Path, out: &mut Vec<String>) {
             let Ok(rd) = std::fs::read_dir(d) else { return };
@@ -229,7 +229,7 @@ impl EnginePaths {
         if cur.is_empty() { bin.into() } else { cur }
     }
     /// `providedEngineBin`.
-    fn provided_engine_bin(&self) -> String {
+    pub fn provided_engine_bin(&self) -> String {
         let p = std::env::var("LOKI_ENGINE_BIN").unwrap_or_default();
         let p = trim(&p);
         if p.is_empty() {

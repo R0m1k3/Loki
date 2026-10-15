@@ -163,6 +163,10 @@ fn serve() -> ExitCode {
         // (l'image se met à jour par Docker).
         let update_rust = held_by_facade("LOKI_UPDATE")
             && loki_rs::sysupdate::usable(std::env::var("LOKI_CONTAINER").ok().as_deref());
+        // LOKI_BACKENDS=rust : les backends llama.cpp (statut, précompilé,
+        // bascule, GPU) et LE job des moteurs, auquel les jobs du Go
+        // (compilation, moteur de l'image, Strata) rapportent leurs étapes.
+        let backends_rust = held_by_facade("LOKI_BACKENDS");
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -194,6 +198,7 @@ fn serve() -> ExitCode {
             ("LOKI_PROJECTS", projects_rust),
             ("LOKI_MCP", mcp_rust),
             ("LOKI_UPDATE", update_rust),
+            ("LOKI_BACKENDS", backends_rust),
         ];
         for (var, on) in held {
             if on {
@@ -244,6 +249,21 @@ fn serve() -> ExitCode {
             eprintln!("[loki-rs] dictée tenue par la façade (LOKI_DICTATE=rust)");
             std::sync::Arc::new(loki_rs::dictate::Dictation::new(&engine_paths.home))
         });
+
+        // Le dernier job connu, repris de la base (un job « en cours » est mort
+        // avec le processus précédent).
+        let backends = if backends_rust {
+            let b = std::sync::Arc::new(loki_rs::backends::Backends::new(
+                engine_paths.home.clone(),
+                std::env::var("LOKI_ENGINE_BIN").unwrap_or_default(),
+            ));
+            b.jobs
+                .restore(&loki_rs::store::Store::new(backend, token.clone()))
+                .await;
+            Some(b)
+        } else {
+            None
+        };
 
         let files = if files_rust {
             Some(start_files(backend, &token).await)
@@ -300,6 +320,7 @@ fn serve() -> ExitCode {
             system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
             projects: projects_rust,
             update: update_rust,
+            backends,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

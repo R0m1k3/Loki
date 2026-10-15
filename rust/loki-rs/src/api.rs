@@ -18,6 +18,7 @@ use crate::{engstatus, gguf, paths, presets, sysinfo};
 use std::collections::BTreeMap;
 
 /// Ce dont les routes ont besoin, partagé par toutes les connexions.
+#[derive(Clone)]
 pub struct Ctx {
     pub store: Store,
     pub internal: InternalClient,
@@ -52,6 +53,9 @@ pub struct Ctx {
     pub mcp: Option<std::sync::Arc<crate::mcp::Mcp>>,
     /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`).
     pub update: bool,
+    /// Backends llama.cpp et job des moteurs tenus par la façade
+    /// (`LOKI_BACKENDS=rust`).
+    pub backends: Option<std::sync::Arc<crate::backends::Backends>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -73,6 +77,7 @@ impl Ctx {
             || self.projects
             || self.mcp.is_some()
             || self.update
+            || self.backends.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

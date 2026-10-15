@@ -90,6 +90,8 @@ pub struct FakeGo {
     pub cdp_shutdowns: Mutex<u32>,
     /// /internal/v1/service/action reçus : (action, if_active).
     pub service_actions: Mutex<Vec<(String, bool)>>,
+    /// Le moteur tourne-t-il (`if_active` des actions de service) ?
+    pub service_active: Mutex<bool>,
     /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
     pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
@@ -426,10 +428,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/service/action" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
-            st.service_actions.lock().unwrap().push((
-                v["action"].as_str().unwrap_or("").to_string(),
-                v["if_active"].as_bool().unwrap_or(false),
-            ));
+            let if_active = v["if_active"].as_bool().unwrap_or(false);
+            st.service_actions
+                .lock()
+                .unwrap()
+                .push((v["action"].as_str().unwrap_or("").to_string(), if_active));
+            if if_active && !*st.service_active.lock().unwrap() {
+                return resp(200, r#"{"ran":false,"error":""}"#);
+            }
             resp(200, r#"{"ran":true,"error":""}"#)
         }
         "/internal/v1/dictate/stop" => {
@@ -635,6 +641,7 @@ pub struct Opts {
     pub projects: bool,
     pub mcp: Option<Arc<loki_rs::mcp::Mcp>>,
     pub update: bool,
+    pub backends: Option<Arc<loki_rs::backends::Backends>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -736,6 +743,7 @@ pub async fn start_with(
         projects: opts.projects,
         mcp: opts.mcp,
         update: opts.update,
+        backends: opts.backends,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

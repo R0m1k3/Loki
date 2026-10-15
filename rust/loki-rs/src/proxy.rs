@@ -93,6 +93,9 @@ pub struct Config {
     /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`, en
     /// conteneur).
     pub update: bool,
+    /// Backends llama.cpp (statut, précompilé, bascule, GPU) et job des
+    /// moteurs tenus par la façade (`LOKI_BACKENDS=rust`) ; `None` : au Go.
+    pub backends: Option<Arc<crate::backends::Backends>>,
 }
 
 struct Proxy {
@@ -132,6 +135,7 @@ pub async fn serve(
             projects: cfg.projects,
             mcp: cfg.mcp,
             update: cfg.update,
+            backends: cfg.backends,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -206,6 +210,12 @@ impl Proxy {
         {
             return crate::mcp::serve_internal(&self.ctx, m, req).await;
         }
+        if from_go
+            && let Some(b) = &self.ctx.backends
+            && crate::backends::is_internal(path)
+        {
+            return crate::backends::serve_internal(&self.ctx, b, req).await;
+        }
         // L'API interne du Go n'est jamais joignable de l'extérieur.
         if path.starts_with("/internal/") {
             return plain(StatusCode::NOT_FOUND, "404 page not found");
@@ -229,6 +239,11 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(b) = &self.ctx.backends
+            && crate::backends::handles(path)
+        {
+            return crate::backends::serve(&self.ctx, b, req, from_go).await;
         }
         if self.ctx.update && crate::sysupdate::handles(path) {
             return crate::sysupdate::serve(&self.ctx, req, from_go).await;

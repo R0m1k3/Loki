@@ -143,7 +143,9 @@ func newWebMux() *http.ServeMux {
 	// Idem pour une installation de moteur : elle meurt avec le process. On
 	// recharge son état pour l'annoncer « interrompue » au lieu de n'afficher
 	// plus rien du tout.
-	lcRestoreOnce.Do(lcRestore)
+	if !facadeBackends() { // sinon la façade a repris le job (facade_backends.go)
+		lcRestoreOnce.Do(lcRestore)
+	}
 	// Chiffrement de la mémoire : une migration interrompue (coupure de courant
 	// en plein chiffrement) reprend ici, si la clé est disponible. Sans clé, elle
 	// attend le déverrouillage (voir handleMemUnlock). Idempotent.

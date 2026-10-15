@@ -171,7 +171,7 @@ pub fn key_hint(key: &str) -> String {
 
 /// Octets → texte comme l'encodeur JSON du Go : chaque octet invalide devient
 /// U+FFFD.
-fn go_lossy(mut b: &[u8]) -> String {
+pub(crate) fn go_lossy(mut b: &[u8]) -> String {
     let mut out = String::new();
     loop {
         match std::str::from_utf8(b) {

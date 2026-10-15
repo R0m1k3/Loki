@@ -29,7 +29,8 @@ import (
 	"time"
 )
 
-const llamaReleasesAPI = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+// llamaReleasesAPI : variable pour que les tests la pointent sur un faux GitHub.
+var llamaReleasesAPI = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
 
 type ghAsset struct {
 	Name string `json:"name"`
@@ -41,18 +42,25 @@ func prebuiltDir() string {
 	return filepath.Join(backendsDir(), "llama.cpp-prebuilt")
 }
 
+// prebuiltVersionFields : les champs du marqueur VERSION, « tag cudaVer
+// format ». La version CUDA est vide hors CUDA Windows : « b300  fmt2 » n'a
+// alors que DEUX champs, et le format est le second.
+func prebuiltVersionFields() []string {
+	b, err := os.ReadFile(filepath.Join(prebuiltDir(), "VERSION"))
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(strings.TrimSpace(string(b)))
+}
+
 // prebuiltVersion lit le marqueur VERSION du dossier prebuilt : "tag cudaVer"
 // (cudaVer vide hors CUDA Windows).
 func prebuiltVersion() (tag, cudaVer string) {
-	b, err := os.ReadFile(filepath.Join(prebuiltDir(), "VERSION"))
-	if err != nil {
-		return "", ""
-	}
-	f := strings.Fields(strings.TrimSpace(string(b)))
+	f := prebuiltVersionFields()
 	if len(f) > 0 {
 		tag = f[0]
 	}
-	if len(f) > 1 {
+	if len(f) > 1 && !strings.HasPrefix(f[1], "fmt") {
 		cudaVer = f[1]
 	}
 	return
@@ -64,15 +72,13 @@ func prebuiltVersion() (tag, cudaVer string) {
 // sera refaite au lieu d'être déclarée « déjà à jour ».
 const prebuiltFormat = "fmt2"
 
-// prebuiltVersionFormat lit le 3e champ du marqueur VERSION ("" si absent).
+// prebuiltVersionFormat lit le format, dernier champ du marqueur VERSION (""
+// si absent). Lu jadis comme 3e champ, il manquait dès que la version CUDA
+// était vide (Linux, macOS) : chaque vérification réinstallait la release.
 func prebuiltVersionFormat() string {
-	b, err := os.ReadFile(filepath.Join(prebuiltDir(), "VERSION"))
-	if err != nil {
-		return ""
-	}
-	f := strings.Fields(strings.TrimSpace(string(b)))
-	if len(f) > 2 {
-		return f[2]
+	f := prebuiltVersionFields()
+	if len(f) > 1 && strings.HasPrefix(f[len(f)-1], "fmt") {
+		return f[len(f)-1]
 	}
 	return ""
 }
