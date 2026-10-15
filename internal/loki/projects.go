@@ -360,9 +360,23 @@ func deleteProject(slug string) error {
 	if !found {
 		return fmt.Errorf("projet introuvable")
 	}
-	// Discussions du projet.
-	for _, m := range convIndexForProject(slug) {
-		_ = convDelete(m.ID)
+	// Discussions du projet. Quand la façade tient la conversation, c'est
+	// elle qui les supprime — après avoir quitté le projet s'il est actif :
+	// elle enregistre sa discussion et en ouvre une du projet restant, et ne
+	// supprime donc jamais celle qu'elle a ouverte.
+	if facadeChat() {
+		if activeProjectSlug() == slug {
+			if err := facadeProjectSwitch(kept[0].Slug); err != nil {
+				return err
+			}
+		}
+		if err := facadeDropProject(slug); err != nil {
+			return err
+		}
+	} else {
+		for _, m := range convIndexForProject(slug) {
+			_ = convDelete(m.ID)
+		}
 	}
 	// Trackers du projet.
 	for _, k := range trackerKeysForProject(slug) {

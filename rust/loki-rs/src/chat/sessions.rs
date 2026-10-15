@@ -16,7 +16,10 @@
 //! fichiers, travaux, critères et mode d'une discussion supprimée, ses
 //! résultats d'outils, le préchauffage après une bascule, et la discussion
 //! active vue par les outils du Go ([`GoSessionHooks`]). Le changement de
-//! projet (`projectSwitch`) reste au Go pour l'instant.
+//! projet ([`Sessions::project_switch`]) se fait ici : la discussion du
+//! projet quitté est enregistrée avant que le Go ne change le projet actif
+//! ([`SessionHooks::project`]) ; les discussions d'un projet supprimé
+//! partent par ici aussi ([`Sessions::drop_project`]).
 
 use std::future::Future;
 use std::sync::Arc;
@@ -50,6 +53,11 @@ pub trait SessionHooks: Send + Sync + 'static {
     fn activated(&self, _id: &str) -> impl Future<Output = ()> + Send {
         async {}
     }
+    /// `setActiveProject` : le projet actif change (le Go le range et tient
+    /// le cache de ceux qui le lisent : mémoire, trackers, outils).
+    fn project(&self, _slug: &str) -> impl Future<Output = Result<(), String>> + Send {
+        async { Ok(()) }
+    }
 }
 
 /// Les effets réels, par l'API interne du Go.
@@ -72,6 +80,23 @@ impl SessionHooks for GoSessionHooks {
     }
 
     async fn switched(&self, _id: &str) {}
+
+    async fn project(&self, slug: &str) -> Result<(), String> {
+        let (status, v) = self
+            .0
+            .internal_post(
+                "/internal/v1/project/activate",
+                &serde_json::json!({ "slug": slug }),
+            )
+            .await?;
+        if status.is_success() {
+            return Ok(());
+        }
+        Err(v["error"]
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("projet non activé : {status}")))
+    }
 
     async fn activated(&self, id: &str) {
         let body = serde_json::json!({ "id": id });
@@ -359,6 +384,53 @@ impl<H: SessionHooks> Sessions<H> {
         self.activate(id).await?;
         self.hooks.switched(id).await;
         Ok(())
+    }
+
+    /// `projectSwitch` : la discussion du projet quitté est enregistrée (avec
+    /// son projet), le projet actif change, puis la plus récente du nouveau
+    /// projet s'ouvre — une neuve s'il n'en a pas. L'appelant vérifie
+    /// qu'aucun tour ne tourne.
+    pub async fn project_switch(&self, slug: &str) -> Result<(), SessionError> {
+        let slug = slug.trim();
+        if slug.is_empty() {
+            return Err(SessionError::Missing);
+        }
+        let _op = self.op.lock().await;
+        if slug == self.active_project().await {
+            return Ok(());
+        }
+        self.persist().await; // fige la discussion du projet qu'on quitte
+        self.hooks
+            .project(slug)
+            .await
+            .map_err(SessionError::Store)?;
+        let idx = self.read_index().await;
+        match index_for_project(&idx, slug).first() {
+            None => self.create_locked().await.map(|_| ()),
+            Some(m) => {
+                let id = m.id.clone();
+                self.activate(&id).await?;
+                self.hooks.switched(&id).await;
+                Ok(())
+            }
+        }
+    }
+
+    /// Les discussions d'un projet supprimé (`deleteProject`), une à une
+    /// comme [`Self::delete`] : supprimer l'ouverte bascule sur la plus
+    /// récente restante. Rend leur nombre.
+    pub async fn drop_project(&self, slug: &str) -> Result<usize, SessionError> {
+        let ids: Vec<String> = index_for_project(&self.read_index().await, slug.trim())
+            .into_iter()
+            .map(|m| m.id.clone())
+            .collect();
+        for id in &ids {
+            match self.delete(id).await {
+                Ok(()) | Err(SessionError::NotFound) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(ids.len())
     }
 
     /// `convRename`.

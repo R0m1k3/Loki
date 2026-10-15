@@ -21,6 +21,8 @@ import (
 //	POST /internal/v1/turn/view    {"caps":{…}}  → {head, prefix, tools}
 //	  409 : PROJ_SNAPSHOT actif (le bloc projet figé reste au Go)
 //	POST /internal/v1/turn/done    {"ms":N}      → 204 (Web Push si abonnés)
+//	POST /internal/v1/project/activate {"slug":…} → 204 (projet actif changé
+//	  par la façade, qui a enregistré la discussion du projet quitté)
 //	POST /internal/v1/turn/verifier {"caps":{…}} → {system, tools, caps}
 //	  (passe de vérification du mode Code : contexte ISOLÉ, rôle verifier)
 //	POST /internal/v1/conv/active  {"id":…}      → 204 (discussion active des outils)
@@ -129,6 +131,26 @@ func handleInternalTurnVerifier(w http.ResponseWriter, r *http.Request) {
 		"tools":  EnabledTools(vcaps),
 		"caps":   vcaps,
 	})
+}
+
+// handleInternalProjectActivate : setActiveProject pour la façade (projet
+// rangé en base, cache de ceux qui le lisent ici — mémoire, trackers, outils).
+func handleInternalProjectActivate(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Slug string `json:"slug"`
+	}
+	if !readInternalJSON(w, r, &in) {
+		return
+	}
+	if !projectExists(in.Slug) {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "projet introuvable"})
+		return
+	}
+	if err := setActiveProject(in.Slug); err != nil {
+		sendJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func handleInternalTurnDone(w http.ResponseWriter, r *http.Request) {

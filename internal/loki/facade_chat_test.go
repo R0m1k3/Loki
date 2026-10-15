@@ -18,10 +18,27 @@ type fausseFacade struct {
 	t     *testing.T
 	sse   string
 	reply string
+	// Réponse de l'API interne (0 : 204 sans corps).
+	internalStatus int
+	internalBody   string
+}
+
+// oublierDecisionFacade : la décision « qui tient la conversation » est prise
+// une fois par process ; chaque test repart de zéro.
+func oublierDecisionFacade(t *testing.T) {
+	t.Helper()
+	reset := func() {
+		facadeDecisionMu.Lock()
+		facadeDecisionDone, facadeDecisionWhy = false, ""
+		facadeDecisionMu.Unlock()
+	}
+	reset()
+	t.Cleanup(reset)
 }
 
 func demarrerFacade(t *testing.T) *fausseFacade {
 	t.Helper()
+	oublierDecisionFacade(t)
 	f := &fausseFacade{t: t, reply: `{"ok":true,"de":"facade"}`}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
@@ -35,7 +52,15 @@ func demarrerFacade(t *testing.T) *fausseFacade {
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/internal/facade/") {
-			w.WriteHeader(http.StatusNoContent)
+			f.mu.Lock()
+			st, body := f.internalStatus, f.internalBody
+			f.mu.Unlock()
+			if st == 0 {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			w.WriteHeader(st)
+			io.WriteString(w, body)
 			return
 		}
 		io.WriteString(w, f.reply)
@@ -137,5 +162,144 @@ func TestFacadeEvenementsEtExport(t *testing.T) {
 	body, _, _, err := exportBody(exportOpts{Format: "json"})
 	if err != nil || !strings.Contains(string(body), "fil de la façade") {
 		t.Fatalf("export : %v %s", err, body)
+	}
+}
+
+// Changer de projet quand la façade tient la conversation : c'est elle qui
+// enregistre sa discussion et en ouvre une autre (la copie d'ici est périmée,
+// l'enregistrer écraserait la sienne). Son refus (tour en cours) remonte tel
+// quel ; un projet inconnu est refusé ici sans la déranger.
+func TestFacadeChangeDeProjet(t *testing.T) {
+	testHome(t)
+	ensureDefaultProject()
+	p, err := createProject("Deux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := demarrerFacade(t)
+	post := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handleProjects(w, httptest.NewRequest("POST", "/api/projects", strings.NewReader(body)))
+		return w
+	}
+	before := activeProjectSlug()
+	if w := post(`{"action":"switch","slug":"` + p.Slug + `"}`); w.Code != 200 {
+		t.Fatalf("bascule : %d %s", w.Code, w.Body.String())
+	}
+	if got := f.recu(); len(got) != 1 || got[0] != `POST /internal/facade/v1/project/switch jeton {"slug":"`+p.Slug+`"}` {
+		t.Fatalf("reçu par la façade : %v", got)
+	}
+	// Le projet actif ne change que par la façade (/internal/v1/project/activate).
+	if activeProjectSlug() != before {
+		t.Fatalf("projet actif changé sans la façade : %s", activeProjectSlug())
+	}
+	if w := post(`{"action":"switch","slug":"inconnu"}`); w.Code != 400 || len(f.recu()) != 1 {
+		t.Fatalf("projet inconnu : %d, façade %v", w.Code, f.recu())
+	}
+	f.mu.Lock()
+	f.internalStatus, f.internalBody = 409, `{"ok":false,"error":"une génération est en cours"}`
+	f.mu.Unlock()
+	w := post(`{"action":"switch","slug":"` + p.Slug + `"}`)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), "une génération est en cours") {
+		t.Fatalf("refus de la façade : %d %s", w.Code, w.Body.String())
+	}
+}
+
+// Supprimer le projet actif : la façade le quitte d'abord (discussion
+// enregistrée, une du projet restant ouverte), puis supprime ses discussions.
+func TestFacadeSuppressionDeProjet(t *testing.T) {
+	testHome(t)
+	ensureDefaultProject()
+	p, err := createProject("Deux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := setActiveProject(p.Slug); err != nil {
+		t.Fatal(err)
+	}
+	f := demarrerFacade(t)
+	w := httptest.NewRecorder()
+	handleProjects(w, httptest.NewRequest("POST", "/api/projects", strings.NewReader(`{"action":"delete","slug":"`+p.Slug+`"}`)))
+	if w.Code != 200 {
+		t.Fatalf("suppression : %d %s", w.Code, w.Body.String())
+	}
+	got := f.recu()
+	if len(got) != 2 ||
+		got[0] != `POST /internal/facade/v1/project/switch jeton {"slug":"`+defaultProjectSlug+`"}` ||
+		got[1] != `POST /internal/facade/v1/project/drop jeton {"slug":"`+p.Slug+`"}` {
+		t.Fatalf("reçu par la façade : %v", got)
+	}
+	if projectExists(p.Slug) {
+		t.Fatal("projet toujours là")
+	}
+}
+
+// /internal/v1/project/activate : le projet actif change, s'il existe.
+func TestFacadeActivationDeProjet(t *testing.T) {
+	testHome(t)
+	ensureDefaultProject()
+	p, err := createProject("Trois")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(internalTokenEnv, jetonTest)
+	if w := appelOAIInterne(t, "POST", "/internal/v1/project/activate", `{"slug":"`+p.Slug+`"}`); w.Code != 204 {
+		t.Fatalf("activation : %d %s", w.Code, w.Body.String())
+	}
+	if activeProjectSlug() != p.Slug {
+		t.Fatalf("actif : %s", activeProjectSlug())
+	}
+	if w := appelOAIInterne(t, "POST", "/internal/v1/project/activate", `{"slug":"nulle-part"}`); w.Code != 400 {
+		t.Fatalf("inconnu : %d", w.Code)
+	}
+}
+
+// Un réglage que la façade ne sait pas honorer garde la conversation ici :
+// rien ne lui est remis, et elle l'apprend au démarrage. La décision tient
+// jusqu'au redémarrage.
+func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(internalTokenEnv, jetonTest)
+	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"holder":"rust"`) {
+		t.Fatalf("détenteur : %d %s", w.Code, w.Body.String())
+	}
+	// Posé après la décision : sans effet avant le redémarrage.
+	if err := SetConfigKey("KEEP_TURN_IMAGES", "on"); err != nil {
+		t.Fatal(err)
+	}
+	if !facadeChat() {
+		t.Fatal("décision changée en cours de route")
+	}
+	oublierDecisionFacade(t)
+	if facadeChat() {
+		t.Fatal("KEEP_TURN_IMAGES posé : la conversation doit rester au Go")
+	}
+	w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", "")
+	if !strings.Contains(w.Body.String(), `"holder":"go"`) || !strings.Contains(w.Body.String(), "KEEP_TURN_IMAGES") {
+		t.Fatalf("détenteur : %s", w.Body.String())
+	}
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	rec := httptest.NewRecorder()
+	withFacadeChat("/api/chat/send", local)(rec, httptest.NewRequest("POST", "/api/chat/send", strings.NewReader(`{}`)))
+	if rec.Body.String() != "go" || len(f.recu()) != 0 {
+		t.Fatalf("remis à la façade malgré le réglage : %q %v", rec.Body.String(), f.recu())
+	}
+	for k, want := range map[string]string{
+		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "NUDGE_IN_TOOL", "SIDE_SLOT": "SIDE_SLOT",
+		"SLOT_PERSIST": "SLOT_PERSIST", "PREWARM": "PREWARM",
+	} {
+		if got := facadeChatBlocker(map[string]string{k: "on"}); got != want {
+			t.Errorf("%s : %q", k, got)
+		}
+	}
+	if got := facadeChatBlocker(map[string]string{}); got != "" {
+		t.Errorf("sans réglage : %q", got)
+	}
+	// Sans LOKI_CHAT=rust : le Go, et pourquoi.
+	oublierDecisionFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); !strings.Contains(w.Body.String(), "LOKI_CHAT absent") {
+		t.Fatalf("sans la variable : %s", w.Body.String())
 	}
 }

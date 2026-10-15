@@ -47,8 +47,8 @@ async fn outil_execute_par_le_go() {
 // ---- persistance des discussions par l'API interne ----
 
 use loki_rs::chat::persist::{
-    BK_CHAT, BK_TOOL_RES, CK_INDEX, ConvSnap, ConvState, Persister, StoreSink, ToolResJob,
-    decode_index, decode_state,
+    BK_CHAT, BK_TOOL_RES, CK_INDEX, ConvSnap, ConvState, DEFAULT_PROJECT_SLUG, Persister,
+    StoreSink, ToolResJob, decode_index, decode_state,
 };
 use std::sync::Arc;
 
@@ -281,7 +281,7 @@ async fn sessions() -> (
     )
 }
 
-fn dire(s: &Sessions<Crochets>, texte: &str) {
+fn dire<H: SessionHooks>(s: &Sessions<H>, texte: &str) {
     let c = s.conv();
     c.append_delta(
         c.epoch(),
@@ -296,7 +296,7 @@ fn dire(s: &Sessions<Crochets>, texte: &str) {
     });
 }
 
-fn textes(s: &Sessions<Crochets>) -> Vec<String> {
+fn textes<H: SessionHooks>(s: &Sessions<H>) -> Vec<String> {
     s.conv().with_state(|st| {
         st.messages
             .iter()
@@ -395,6 +395,68 @@ async fn creer_basculer_renommer() {
         "Mon fil"
     );
     assert_eq!(s.rename(&a, " ").await, Err(SessionError::Missing));
+}
+
+/// Qui tient la conversation : le Go en décide (réglage qu'il garde).
+#[tokio::test]
+async fn detenteur_de_la_conversation() {
+    let (st, go, _stop, _t) = store().await;
+    assert_eq!(loki_rs::chat::generate::go_keeps_chat(&st).await, Ok(None));
+    *go.go_keeps_chat.lock().unwrap() = Some("PROJ_SNAPSHOT".into());
+    assert_eq!(
+        loki_rs::chat::generate::go_keeps_chat(&st).await,
+        Ok(Some("PROJ_SNAPSHOT".into()))
+    );
+}
+
+/// Changer de projet : la discussion quittée est rangée avec SON projet, la
+/// plus récente du nouveau s'ouvre (une neuve s'il n'en a pas) ; supprimer un
+/// projet emporte ses discussions.
+#[tokio::test]
+async fn changer_de_projet_et_en_supprimer_un() {
+    let (st, go, _stop, _t) = store().await;
+    let s = Sessions::new(st.clone(), Conversation::new(), GoSessionHooks(st.clone()));
+    s.load().await.unwrap();
+    let a = s.conv().id();
+    dire(&s, "dans le projet par défaut");
+    s.project_switch("deux").await.unwrap();
+    assert_eq!(go.get("state", "active_project").unwrap(), "deux");
+    let b = s.conv().id();
+    assert_ne!(a, b);
+    assert!(textes(&s).is_empty());
+    let idx = s.read_index().await;
+    let proj = |id: &str| idx.iter().find(|m| m.id == id).unwrap().project.clone();
+    assert_eq!(proj(&a), DEFAULT_PROJECT_SLUG);
+    assert_eq!(proj(&b), "deux");
+    let body = opened(&go, BK_CHAT, &format!("conv:{a}")).unwrap();
+    assert_eq!(decode_state(&body).messages.len(), 1);
+    dire(&s, "dans deux");
+    s.project_switch(DEFAULT_PROJECT_SLUG).await.unwrap();
+    assert_eq!(s.conv().id(), a);
+    assert_eq!(textes(&s), ["dans le projet par défaut"]);
+    // Même projet : rien ; projet refusé par le Go : rien ne change.
+    s.project_switch(DEFAULT_PROJECT_SLUG).await.unwrap();
+    assert!(matches!(
+        s.project_switch("absent").await,
+        Err(SessionError::Store(_))
+    ));
+    assert_eq!(s.project_switch(" ").await, Err(SessionError::Missing));
+    assert_eq!(s.conv().id(), a);
+    assert_eq!(
+        go.get("state", "active_project").unwrap(),
+        DEFAULT_PROJECT_SLUG
+    );
+    // Les discussions de « deux » partent : contenu, index, nettoyage du Go.
+    assert_eq!(s.drop_project("deux").await.unwrap(), 1);
+    assert!(s.read_index().await.iter().all(|m| m.id != b));
+    assert!(go.get(BK_CHAT, &format!("conv:{b}")).is_none());
+    assert!(
+        go.conv_log
+            .lock()
+            .unwrap()
+            .contains(&format!("dropped {b}"))
+    );
+    assert_eq!(s.conv().id(), a);
 }
 
 #[tokio::test]
@@ -1310,6 +1372,38 @@ async fn routes_du_chat_par_la_facade() {
         200
     );
     assert!(!chat.sessions.conv().with_state(|st| st.log.is_empty()));
+
+    // Changement de projet remis par le Go : la discussion part avec son
+    // projet, une neuve s'ouvre dans le nouveau.
+    assert_eq!(
+        call_internal(
+            facade,
+            "/internal/facade/v1/project/switch",
+            r#"{"slug":"deux"}"#
+        )
+        .await,
+        200
+    );
+    assert_ne!(chat.sessions.conv().id(), a);
+    assert_eq!(
+        call_internal(
+            facade,
+            "/internal/facade/v1/project/switch",
+            r#"{"slug":""}"#
+        )
+        .await,
+        400
+    );
+    assert_eq!(
+        call_internal(
+            facade,
+            "/internal/facade/v1/project/switch",
+            r#"{"slug":"generale"}"#
+        )
+        .await,
+        200
+    );
+    assert_eq!(chat.sessions.conv().id(), a);
 
     // Trafic remis par le Go (tunnel) : déjà authentifié par lui.
     go.set("state", "web_key", "cle-web");

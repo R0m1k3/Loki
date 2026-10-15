@@ -55,12 +55,16 @@ pub fn handles(path: &str) -> bool {
 }
 
 /// API interne de la façade, pour le Go : un événement d'affichage né chez
-/// lui (bascule du mode Code, critères) à journaliser ici, et le
-/// rechargement de la discussion après le déverrouillage de la mémoire.
+/// lui (bascule du mode Code, critères) à journaliser ici, le rechargement de
+/// la discussion après le déverrouillage de la mémoire, le changement de
+/// projet et les discussions d'un projet supprimé.
 pub fn is_internal(path: &str) -> bool {
     matches!(
         path,
-        "/internal/facade/v1/delta" | "/internal/facade/v1/reload"
+        "/internal/facade/v1/delta"
+            | "/internal/facade/v1/reload"
+            | "/internal/facade/v1/project/switch"
+            | "/internal/facade/v1/project/drop"
     )
 }
 
@@ -86,6 +90,23 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
                 &json!({ "error": "événement illisible" }),
             ),
         },
+        "/internal/facade/v1/project/switch" | "/internal/facade/v1/project/drop" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let slug = str_of(&v, "slug");
+            let res = if path.ends_with("switch") {
+                chat.project_switch(slug)
+                    .await
+                    .map(|()| json!({ "ok": true }))
+            } else {
+                chat.drop_project(slug)
+                    .await
+                    .map(|n| json!({ "ok": true, "dropped": n }))
+            };
+            match res {
+                Ok(v) => send_json(StatusCode::OK, &v),
+                Err(r) => refused(r.status, &r.error),
+            }
+        }
         _ => match chat.sessions.reload_if_empty().await {
             Ok(reloaded) => send_json(StatusCode::OK, &json!({ "reloaded": reloaded })),
             Err(e) => send_json(StatusCode::SERVICE_UNAVAILABLE, &json!({ "error": e })),

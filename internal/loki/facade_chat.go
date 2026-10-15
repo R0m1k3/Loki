@@ -29,7 +29,9 @@ import (
 //   - les événements d'affichage nés ici (bascule du mode Code, critères) vont
 //     dans SON journal ;
 //   - l'export lit la discussion enregistrée ;
-//   - le déverrouillage de la mémoire lui fait recharger la discussion.
+//   - le déverrouillage de la mémoire lui fait recharger la discussion ;
+//   - changer de projet, ou en supprimer un, passe par elle : la discussion
+//     de ce process est périmée, l'enregistrer écraserait la sienne.
 
 const (
 	facadeChatEnv = "LOKI_CHAT"
@@ -37,10 +39,85 @@ const (
 )
 
 // facadeChat : la façade tient-elle la conversation ? Il faut aussi son
-// adresse et le jeton interne, sans lesquels rien ne peut lui être remis.
+// adresse et le jeton interne, sans lesquels rien ne peut lui être remis — et
+// aucun réglage qu'elle ne sait pas honorer (facadeChatBlocker).
 func facadeChat() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") &&
-		facadeAddr() != "" && internalToken() != ""
+		facadeAddr() != "" && internalToken() != "" && facadeChatDecision() == ""
+}
+
+// facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
+// en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
+// figé, images gardées, slots du moteur, préchauffage, motifs de relance
+// personnalisés).
+func facadeChatBlocker(cfg map[string]string) string {
+	switch {
+	case projSnapEnabled(cfg):
+		return "PROJ_SNAPSHOT"
+	case keepTurnImagesOn(cfg):
+		return "KEEP_TURN_IMAGES"
+	case cfgOn(cfg, "NUDGE_IN_TOOL"):
+		return "NUDGE_IN_TOOL"
+	case sideSlotOn(cfg):
+		return "SIDE_SLOT"
+	case slotPersistOn(cfg):
+		return "SLOT_PERSIST"
+	case prewarmMode(cfg) != "":
+		return "PREWARM"
+	case strings.TrimSpace(getStr(bkState, "retry_patterns")) != "":
+		return "retry_patterns"
+	}
+	return ""
+}
+
+// cfgOn : une clé booléenne posée (mêmes valeurs que les autres clés opt-in).
+func cfgOn(cfg map[string]string, k string) bool {
+	switch strings.ToLower(strings.TrimSpace(cfg[k])) {
+	case "on", "1", "true", "yes", "oui":
+		return true
+	}
+	return false
+}
+
+// Décision prise UNE fois par process : passer la conversation d'un détenteur
+// à l'autre en cours de route laisserait chacun avec sa copie — un réglage
+// changé vaut au redémarrage suivant. La façade la lit au démarrage
+// (/internal/v1/chat/holder) et s'y range.
+var (
+	facadeDecisionMu   sync.Mutex
+	facadeDecisionDone bool
+	facadeDecisionWhy  string
+)
+
+func facadeChatDecision() string {
+	facadeDecisionMu.Lock()
+	defer facadeDecisionMu.Unlock()
+	if !facadeDecisionDone {
+		facadeDecisionWhy = facadeChatBlocker(ReadConfig())
+		facadeDecisionDone = true
+		if facadeDecisionWhy != "" {
+			fmt.Fprintf(os.Stderr, "[chat] %s posé : la conversation reste tenue par le Go (LOKI_CHAT=rust ignoré)\n", facadeDecisionWhy)
+		}
+	}
+	return facadeDecisionWhy
+}
+
+// handleInternalChatHolder : qui tient la conversation ({"holder":"rust"} ou
+// {"holder":"go","reason":…}). La façade s'y range au démarrage.
+func handleInternalChatHolder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET attendu"})
+		return
+	}
+	if facadeChat() {
+		sendJSON(w, http.StatusOK, map[string]any{"holder": "rust"})
+		return
+	}
+	why := facadeChatDecision()
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") {
+		why = facadeChatEnv + " absent"
+	}
+	sendJSON(w, http.StatusOK, map[string]any{"holder": "go", "reason": why})
 }
 
 func facadeAddr() string { return strings.TrimSpace(os.Getenv(facadeAddrEnv)) }
@@ -118,6 +195,61 @@ func facadePost(path string, body any) error {
 		return fmt.Errorf("façade : %s", resp.Status)
 	}
 	return nil
+}
+
+// facadeError : refus de la façade, avec son statut (409 : un tour tourne).
+type facadeError struct {
+	status int
+	msg    string
+}
+
+func (e *facadeError) Error() string { return e.msg }
+
+// facadeCall appelle l'API interne de la façade et rend son refus éventuel
+// tel quel (statut et message), pour les actions dont l'utilisateur attend
+// la réponse.
+func facadeCall(path string, body any) error {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://"+facadeAddr()+path, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(internalTokenHeader, internalToken())
+	// Délai large : enregistrer une discussion et en ouvrir une autre passe
+	// par le disque (et par le chiffrement).
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return fmt.Errorf("conversation indisponible : %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 300 {
+		return nil
+	}
+	var out struct {
+		Error string `json:"error"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	if out.Error == "" {
+		out.Error = "façade : " + resp.Status
+	}
+	return &facadeError{status: resp.StatusCode, msg: out.Error}
+}
+
+// facadeProjectSwitch : la façade enregistre la discussion du projet quitté
+// (avec son projet), fait changer le projet actif ici
+// (/internal/v1/project/activate), puis ouvre une discussion du nouveau.
+func facadeProjectSwitch(slug string) error {
+	return facadeCall("/internal/facade/v1/project/switch", map[string]any{"slug": slug})
+}
+
+// facadeDropProject : la façade supprime les discussions d'un projet (index,
+// contenu, et ce qui les entoure ici par /internal/v1/conv/dropped).
+func facadeDropProject(slug string) error {
+	return facadeCall("/internal/facade/v1/project/drop", map[string]any{"slug": slug})
 }
 
 // facadeDelta : un événement d'affichage né ici, journalisé par la façade

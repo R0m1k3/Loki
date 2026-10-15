@@ -617,6 +617,39 @@ impl ChatService {
         Some(String::from_utf8_lossy(&b).into_owned())
     }
 
+    /// Changement de projet (`/api/projects`, action switch), remis par le
+    /// Go : refusé pendant un tour.
+    pub async fn project_switch(&self, slug: &str) -> Result<(), Refused> {
+        if self.sessions.conv().is_generating() {
+            return Err(Refused {
+                status: 409,
+                error: "une génération est en cours".into(),
+            });
+        }
+        self.sessions
+            .project_switch(slug)
+            .await
+            .map_err(|e| Refused {
+                status: 400,
+                error: e.to_string(),
+            })
+    }
+
+    /// Suppression d'un projet (`deleteProject`) : ses discussions d'abord,
+    /// refusé pendant un tour.
+    pub async fn drop_project(&self, slug: &str) -> Result<usize, Refused> {
+        if self.sessions.conv().is_generating() {
+            return Err(Refused {
+                status: 409,
+                error: "une génération est en cours".into(),
+            });
+        }
+        self.sessions.drop_project(slug).await.map_err(|e| Refused {
+            status: 400,
+            error: e.to_string(),
+        })
+    }
+
     /// Un événement d'affichage né hors d'un tour (bascule du mode Code,
     /// critères édités), sur le fil courant.
     pub fn push_delta(&self, d: Delta) {
@@ -995,6 +1028,20 @@ impl ChatService {
                 eprintln!("[chat] fin de tour non signalée : {e}");
             }
         }
+    }
+}
+
+/// Qui tient la conversation, d'après le Go (`/internal/v1/chat/holder`) :
+/// `None` : la façade ; `Some(raison)` : le Go la garde (réglage que la façade
+/// ne sait pas honorer). Décidé une fois par process, côté Go.
+pub async fn go_keeps_chat(store: &crate::store::Store) -> Result<Option<String>, String> {
+    let v = store
+        .internal_json(hyper::Method::GET, "/internal/v1/chat/holder", None)
+        .await?;
+    match v["holder"].as_str() {
+        Some("rust") => Ok(None),
+        Some("go") => Ok(Some(v["reason"].as_str().unwrap_or("").to_string())),
+        _ => Err(format!("détenteur de la conversation illisible : {v}")),
     }
 }
 

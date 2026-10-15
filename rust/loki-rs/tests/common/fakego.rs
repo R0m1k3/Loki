@@ -54,6 +54,8 @@ pub struct FakeGo {
     /// criteria (action=set) modifie les critères rangés (chat/crit:*).
     pub code: Mutex<bool>,
     pub tool_log: Mutex<Vec<String>>,
+    /// Le Go garde la conversation (raison), sinon la façade la tient.
+    pub go_keeps_chat: Mutex<Option<String>>,
 }
 
 impl FakeGo {
@@ -233,6 +235,24 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
             });
             resp(200, out.to_string())
+        }
+        "/internal/v1/chat/holder" => match st.go_keeps_chat.lock().unwrap().clone() {
+            None => resp(200, r#"{"holder":"rust"}"#),
+            Some(why) => resp(
+                200,
+                serde_json::json!({"holder": "go", "reason": why}).to_string(),
+            ),
+        },
+        "/internal/v1/project/activate" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let slug = v["slug"].as_str().unwrap_or_default().to_string();
+            if slug.is_empty() || slug == "absent" {
+                return resp(400, r#"{"error":"projet introuvable"}"#);
+            }
+            st.conv_log.lock().unwrap().push(format!("project {slug}"));
+            st.set("state", "active_project", &slug);
+            resp(204, "")
         }
         "/internal/v1/turn/verifier" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

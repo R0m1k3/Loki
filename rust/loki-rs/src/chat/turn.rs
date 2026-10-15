@@ -27,7 +27,8 @@
 //! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, NUDGE_IN_TOOL, SIDE_SLOT (slot et
 //! rejeux « cache KV plein »), SLOT_PERSIST, préchauffage, sonde de gabarit,
 //! télémétrie `perfRecord`, comptage des requêtes en vol du moteur. Avec l'une
-//! de ces clés, la conversation doit rester au Go.
+//! de ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
+//! démarrage).
 
 use std::collections::HashMap;
 use std::future::Future;
