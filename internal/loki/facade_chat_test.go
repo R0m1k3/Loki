@@ -511,3 +511,37 @@ func TestFacadeNotifications(t *testing.T) {
 		t.Fatalf("envoi délégué sans la variable (%d appels)", n)
 	}
 }
+
+func TestFacadeMemoire(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	// Sans la variable : le Go sert lui-même.
+	for p := range facadeMemRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s servi ailleurs sans LOKI_MEM : %q", p, w.Body.String())
+		}
+	}
+	t.Setenv(facadeMemEnv, "rust")
+	for p := range facadeMemRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if n := len(f.recu()); n != len(facadeMemRoutes) {
+		t.Fatalf("reçu par la façade : %d appels", n)
+	}
+	// Les routes voisines (coffre, projets) restent au Go.
+	for _, p := range []string{"/api/mem/health", "/api/mem/unlock", "/api/projects", "/api/backup/export"} {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s remis à la façade : %q", p, w.Body.String())
+		}
+	}
+}

@@ -133,26 +133,25 @@ fn serve() -> ExitCode {
         // LOKI_PUSH=rust : les notifications Web Push (le Go lui délègue ses
         // envois de fin de tour et de fin de tâche).
         let push_rust = held_by_facade("LOKI_PUSH");
+        // LOKI_MEM=rust : la mémoire (pages, index, trackers, mode mémoire,
+        // interrupteurs du mode agent).
+        let mem_rust = held_by_facade("LOKI_MEM");
         let mut env = vec![(auth::INTERNAL_ENV.to_string(), token.clone())];
-        if chat_rust {
-            env.push(("LOKI_CHAT".into(), "rust".into()));
+        let held = [
+            ("LOKI_CHAT", chat_rust),
+            ("LOKI_MODELS", models_rust),
+            ("LOKI_DICTATE", dictate_rust),
+            ("LOKI_SETTINGS", settings_rust),
+            ("LOKI_FILES", files_rust),
+            ("LOKI_PUSH", push_rust),
+            ("LOKI_MEM", mem_rust),
+        ];
+        for (var, on) in held {
+            if on {
+                env.push((var.into(), "rust".into()));
+            }
         }
-        if models_rust {
-            env.push(("LOKI_MODELS".into(), "rust".into()));
-        }
-        if dictate_rust {
-            env.push(("LOKI_DICTATE".into(), "rust".into()));
-        }
-        if settings_rust {
-            env.push(("LOKI_SETTINGS".into(), "rust".into()));
-        }
-        if files_rust {
-            env.push(("LOKI_FILES".into(), "rust".into()));
-        }
-        if push_rust {
-            env.push(("LOKI_PUSH".into(), "rust".into()));
-        }
-        if chat_rust || models_rust || dictate_rust || settings_rust || files_rust || push_rust {
+        if held.iter().any(|(_, on)| *on) {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
         }
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
@@ -212,6 +211,7 @@ fn serve() -> ExitCode {
             }
         };
         eprintln!("[loki-rs] façade : http://{addr} → {backend}");
+        let mem_home = engine_paths.home.clone();
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -223,6 +223,7 @@ fn serve() -> ExitCode {
             settings: settings_rust,
             files,
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
+            mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

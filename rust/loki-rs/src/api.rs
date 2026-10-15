@@ -38,6 +38,8 @@ pub struct Ctx {
     pub files: Option<std::sync::Arc<crate::convfiles::ConvFiles>>,
     /// Notifications Web Push tenues par la façade (`LOKI_PUSH=rust`).
     pub push: Option<std::sync::Arc<crate::push::Push>>,
+    /// Mémoire tenue par la façade (`LOKI_MEM=rust`).
+    pub mem: Option<std::sync::Arc<crate::memory::Memory>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -52,6 +54,7 @@ impl Ctx {
             || self.settings
             || self.files.is_some()
             || self.push.is_some()
+            || self.mem.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

@@ -16,6 +16,18 @@ use tokio::sync::oneshot;
 
 pub const JETON: &str = "0123456789abcdef0123456789abcdef";
 
+/// Scellement simulé par le faux Go.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CryptMode {
+    /// « SCELLE: » + clair (historique des essais de la conversation).
+    #[default]
+    Scelle,
+    /// Chiffrement coupé : rien ne change.
+    Plain,
+    /// Magic des pages mémoire (`LOKIMEMv1`) + clair.
+    Magic,
+}
+
 #[derive(Default)]
 pub struct FakeGo {
     /// bucket → clé → valeur.
@@ -62,6 +74,8 @@ pub struct FakeGo {
     pub turn_view: Mutex<Option<serde_json::Value>>,
     pub turn_verifier: Mutex<Option<serde_json::Value>>,
     pub tool_results: Mutex<HashMap<String, String>>,
+    /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
+    pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
     pub conv_workspace: Mutex<Option<serde_json::Value>>,
 }
@@ -148,6 +162,24 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(423, r#"{"error":"mémoire verrouillée"}"#);
             }
             let body = req.into_body().collect().await.unwrap().to_bytes();
+            match *st.crypt_mode.lock().unwrap() {
+                // Chiffrement coupé : clair rendu tel quel.
+                CryptMode::Plain => return resp(200, body),
+                // Enveloppe au magic des pages (`LOKIMEMv1`).
+                CryptMode::Magic => {
+                    return if path.ends_with("seal") {
+                        let mut out = b"LOKIMEMv1".to_vec();
+                        out.extend_from_slice(&body);
+                        resp(200, out)
+                    } else {
+                        resp(
+                            200,
+                            body.strip_prefix(b"LOKIMEMv1").unwrap_or(&body).to_vec(),
+                        )
+                    };
+                }
+                CryptMode::Scelle => {}
+            }
             if path.ends_with("seal") {
                 let mut out = b"SCELLE:".to_vec();
                 out.extend_from_slice(&body);
@@ -474,6 +506,7 @@ pub struct Opts {
     pub settings: bool,
     pub files: Option<Arc<loki_rs::convfiles::ConvFiles>>,
     pub push: Option<Arc<loki_rs::push::Push>>,
+    pub mem: Option<Arc<loki_rs::memory::Memory>>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -568,6 +601,7 @@ pub async fn start_with(
         settings: opts.settings,
         files: opts.files,
         push: opts.push,
+        mem: opts.mem,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
