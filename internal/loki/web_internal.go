@@ -85,6 +85,16 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalEngineStop(w, r)
 		case "/internal/v1/recall/archive":
 			handleInternalRecallArchive(w, r)
+		case "/internal/v1/turn/start":
+			handleInternalTurnStart(w, r)
+		case "/internal/v1/turn/view":
+			handleInternalTurnView(w, r)
+		case "/internal/v1/turn/done":
+			handleInternalTurnDone(w, r)
+		case "/internal/v1/conv/active":
+			handleInternalConvActive(w, r)
+		case "/internal/v1/conv/dropped":
+			handleInternalConvDropped(w, r)
 		default:
 			http.NotFound(w, r)
 		}

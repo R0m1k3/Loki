@@ -86,18 +86,26 @@ func convHasRepo() bool {
 // maybeCodeHint émet la puce « passer en mode Code ? » si le message s'y
 // prête. Une seule fois par discussion : une suggestion répétée est du bruit.
 func maybeCodeHint(c *Conversation, epoch int, text string) {
+	if codeHintDue(text) {
+		c.appendDelta(epoch, map[string]any{"code_hint": true})
+	}
+}
+
+// codeHintDue dit si la puce doit apparaître pour ce message, et la marque
+// alors comme montrée pour la discussion active (une fois par discussion).
+func codeHintDue(text string) bool {
 	if convCodeMode() || !agentEnabled() {
-		return
+		return false
 	}
 	id := convEnsureActive()
 	if getBool(bkChat, hintKey(id)) {
-		return
+		return false
 	}
 	if !looksLikeCode(text) && !convHasRepo() {
-		return
+		return false
 	}
 	_ = putBool(bkChat, hintKey(id), true)
-	c.appendDelta(epoch, map[string]any{"code_hint": true})
+	return true
 }
 
 // --- API ---------------------------------------------------------------------
