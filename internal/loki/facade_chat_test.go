@@ -545,3 +545,28 @@ func TestFacadeMemoire(t *testing.T) {
 		}
 	}
 }
+
+func TestFacadePresets(t *testing.T) {
+	testHome(t)
+	f := demarrerFacade(t)
+	t.Setenv(facadeChatEnv, "")
+	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
+	for p := range facadePresetsRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("GET", p, nil))
+		if w.Body.String() != "go" {
+			t.Fatalf("%s servi ailleurs sans LOKI_PRESETS : %q", p, w.Body.String())
+		}
+	}
+	t.Setenv(facadePresetsEnv, "rust")
+	for p := range facadePresetsRoutes {
+		w := httptest.NewRecorder()
+		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, strings.NewReader("{}")))
+		if w.Body.String() != f.reply {
+			t.Fatalf("%s : réponse %q", p, w.Body.String())
+		}
+	}
+	if n := len(f.recu()); n != len(facadePresetsRoutes) {
+		t.Fatalf("reçu par la façade : %d appels", n)
+	}
+}

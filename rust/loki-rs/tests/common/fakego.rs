@@ -74,6 +74,10 @@ pub struct FakeGo {
     pub turn_view: Mutex<Option<serde_json::Value>>,
     pub turn_verifier: Mutex<Option<serde_json::Value>>,
     pub tool_results: Mutex<HashMap<String, String>>,
+    /// /internal/v1/tune/guard : message d'une optimisation en cours.
+    pub tune_busy: Mutex<Option<String>>,
+    /// /internal/v1/preset/apply reçus : (chemin, mode).
+    pub preset_applies: Mutex<Vec<(String, String)>>,
     /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
     pub crypt_mode: Mutex<CryptMode>,
     /// Réponse de /internal/v1/conv/workspace (None : 404).
@@ -325,6 +329,24 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             *st.go_busy.lock().unwrap() = None;
             resp(204, "")
         }
+        "/internal/v1/tune/guard" => match st.tune_busy.lock().unwrap().clone() {
+            Some(e) => resp(
+                200,
+                serde_json::json!({ "busy": true, "error": e }).to_string(),
+            ),
+            None => resp(200, r#"{"busy":false}"#),
+        },
+        "/internal/v1/preset/apply" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let path = v["path"].as_str().unwrap_or("").to_string();
+            let mode = v["mode"].as_str().unwrap_or("").to_string();
+            if mode == "refus" || path.ends_with("refus.env") {
+                return resp(500, r#"{"error":"application refusée"}"#);
+            }
+            st.preset_applies.lock().unwrap().push((path, mode));
+            resp(204, "")
+        }
         "/internal/v1/conv/workspace" => match st.conv_workspace.lock().unwrap().clone() {
             Some(v) => resp(200, v.to_string()),
             None => resp(404, "404 page not found"),
@@ -507,6 +529,7 @@ pub struct Opts {
     pub files: Option<Arc<loki_rs::convfiles::ConvFiles>>,
     pub push: Option<Arc<loki_rs::push::Push>>,
     pub mem: Option<Arc<loki_rs::memory::Memory>>,
+    pub presets: bool,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -602,6 +625,7 @@ pub async fn start_with(
         files: opts.files,
         push: opts.push,
         mem: opts.mem,
+        presets: opts.presets,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

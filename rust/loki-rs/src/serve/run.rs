@@ -384,7 +384,7 @@ fn probe_serve_gpus(env: &Env, cfg: &Cfg, extra: &[String], si: &mut SysInfo) {
 }
 
 /// `probeCacheRAM`.
-fn probe_cache_ram(env: &Env, cfg: &Cfg, extra: &[String], si: &mut SysInfo) {
+pub(crate) fn probe_cache_ram(env: &Env, cfg: &Cfg, extra: &[String], si: &mut SysInfo) {
     probe_env(env, si, CACHE_ARG_ENV, true);
     if !si.model.is_empty() {
         let mp = Path::new(&si.model);

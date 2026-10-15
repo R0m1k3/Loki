@@ -145,6 +145,9 @@ fn serve() -> ExitCode {
         // LOKI_MEM=rust : la mémoire (pages, index, trackers, mode mémoire,
         // interrupteurs du mode agent).
         let mem_rust = held_by_facade("LOKI_MEM");
+        // LOKI_PRESETS=rust : les presets (liste, éditeur, aperçus, externes,
+        // bascule ; l'application au moteur reste au Go).
+        let presets_rust = held_by_facade("LOKI_PRESETS");
         let mut env = vec![
             (auth::INTERNAL_ENV.to_string(), token.clone()),
             // Adresse de l'API interne du Go, héritée par ses enfants :
@@ -159,6 +162,7 @@ fn serve() -> ExitCode {
             ("LOKI_FILES", files_rust),
             ("LOKI_PUSH", push_rust),
             ("LOKI_MEM", mem_rust),
+            ("LOKI_PRESETS", presets_rust),
         ];
         for (var, on) in held {
             if on {
@@ -238,6 +242,7 @@ fn serve() -> ExitCode {
             files,
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
             mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
+            presets: presets_rust,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");

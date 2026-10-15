@@ -77,6 +77,8 @@ pub struct Config {
     pub push: Option<Arc<crate::push::Push>>,
     /// Mémoire (pages, trackers, mode) tenue par la façade (`LOKI_MEM=rust`).
     pub mem: Option<Arc<crate::memory::Memory>>,
+    /// Presets tenus par la façade (`LOKI_PRESETS=rust`).
+    pub presets: bool,
 }
 
 struct Proxy {
@@ -110,6 +112,7 @@ pub async fn serve(
             files: cfg.files,
             push: cfg.push,
             mem: cfg.mem,
+            presets: cfg.presets,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -196,6 +199,9 @@ impl Proxy {
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if self.ctx.presets && crate::presets_api::handles(path) {
+            return crate::presets_api::serve(&self.ctx, req, from_go).await;
         }
         if let Some(m) = &self.ctx.mem
             && crate::memory::handles(path)

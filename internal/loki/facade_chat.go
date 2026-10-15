@@ -162,6 +162,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadePush, "notifications indisponibles : "
 	case facadeMemRoutes[path]:
 		held, unavailable = facadeMem, "mémoire indisponible : "
+	case facadePresetsRoutes[path]:
+		held, unavailable = facadePresets, "presets indisponibles : "
 	default:
 		return h
 	}

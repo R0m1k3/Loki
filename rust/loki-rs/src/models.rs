@@ -244,7 +244,7 @@ impl ModelRefs {
     }
 
     /// `modelUsers` : pour UN modèle (nom de fichier ou chemin).
-    fn users(&self, dirs: &ModelDirs, name: &str) -> (Vec<String>, bool) {
+    pub(crate) fn users(&self, dirs: &ModelDirs, name: &str) -> (Vec<String>, bool) {
         let k = dirs.ref_key(name);
         if k.is_empty() {
             return (Vec::new(), false);
@@ -400,7 +400,11 @@ pub fn delete_model(
 }
 
 /// `deleteModelFile` : rend les octets libérés.
-fn delete_model_file(dirs: &ModelDirs, refs: &ModelRefs, name: &str) -> Result<i64, String> {
+pub(crate) fn delete_model_file(
+    dirs: &ModelDirs,
+    refs: &ModelRefs,
+    name: &str,
+) -> Result<i64, String> {
     let p = gguf::resolve_model_path(name, &dirs.home, &dirs.stored, dirs.env.as_deref())?
         .to_string_lossy()
         .into_owned();

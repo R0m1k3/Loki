@@ -1,0 +1,2206 @@
+{
+  "display_name": [
+    {
+      "content": "MODEL=a.gguf\n",
+      "name": "Alpha",
+      "out": "# NAME=Alpha\nMODEL=a.gguf\n"
+    },
+    {
+      "content": "# NAME=Vieux\nMODEL=a\n",
+      "name": "Neuf",
+      "out": "# NAME=Neuf\nMODEL=a\n"
+    },
+    {
+      "content": "  name = x\nCTX=1\n",
+      "name": "Y",
+      "out": "# NAME=Y\nCTX=1\n"
+    },
+    {
+      "content": "#NAME=a\n# name=b\n",
+      "name": "Deux",
+      "out": "# NAME=Deux\n# NAME=Deux\n"
+    },
+    {
+      "content": "MODEL=a\n# NAME=x",
+      "name": "Prix $1 et ${x}",
+      "out": "MODEL=a\n# NAME=Prix  et "
+    },
+    {
+      "content": "",
+      "name": "Vide",
+      "out": "# NAME=Vide\n"
+    }
+  ],
+  "quote": {
+    "": "",
+    "\"y\"": "\"y\"",
+    "'x'": "\"'x'\"",
+    "'z": "'z",
+    "a\tb": "\"a\tb\"",
+    "a b": "\"a b\"",
+    "a\"b": "a\"b",
+    "simple": "simple"
+  },
+  "format_env": "A=\"deux mots\"\nM=\nQ=q\"q\nZ=1\n",
+  "names": {
+    "": "nom vide",
+    "  ": "nom vide",
+    " pad ": "ok",
+    ".": "nom réservé",
+    "..": "nom réservé",
+    "Qwen 3 (27B) é": "ok",
+    "a\u0000b": "le nom ne peut pas contenir / ni \\",
+    "a\u0001b": "le nom contient un caractère de contrôle invalide",
+    "a/b": "le nom ne peut pas contenir / ni \\",
+    "a\\b": "le nom ne peut pas contenir / ni \\"
+  },
+  "quant": {
+    "": "",
+    "# QUANT=iq3_xs\nMODEL=x-Q8_0.gguf\n": "IQ3_XS",
+    "MODEL = C:\\models\\w-BF16.gguf\n": "BF16",
+    "MODEL=\"/m/Llama-3-UD-Q6_K_XL-00001-of-00002.gguf\"\nREASONING=On\n": "Q6_K_XL",
+    "MODEL=Qwen3-27B-Q4_K_M.gguf\n": "Q4_K_M",
+    "QUANT='q5'\n": "Q5",
+    "export MODEL=z.gguf\n": "",
+    "reasoning = 'off'\n#REASONING=on\n": ""
+  },
+  "reasoning": {
+    "": "",
+    "# QUANT=iq3_xs\nMODEL=x-Q8_0.gguf\n": "",
+    "MODEL = C:\\models\\w-BF16.gguf\n": "",
+    "MODEL=\"/m/Llama-3-UD-Q6_K_XL-00001-of-00002.gguf\"\nREASONING=On\n": "On",
+    "MODEL=Qwen3-27B-Q4_K_M.gguf\n": "",
+    "QUANT='q5'\n": "",
+    "export MODEL=z.gguf\n": "",
+    "reasoning = 'off'\n#REASONING=on\n": "off"
+  },
+  "model": {
+    "": "",
+    "# QUANT=iq3_xs\nMODEL=x-Q8_0.gguf\n": "x-Q8_0.gguf",
+    "MODEL = C:\\models\\w-BF16.gguf\n": "C:\\models\\w-BF16.gguf",
+    "MODEL=\"/m/Llama-3-UD-Q6_K_XL-00001-of-00002.gguf\"\nREASONING=On\n": "/m/Llama-3-UD-Q6_K_XL-00001-of-00002.gguf",
+    "MODEL=Qwen3-27B-Q4_K_M.gguf\n": "Qwen3-27B-Q4_K_M.gguf",
+    "QUANT='q5'\n": "",
+    "export MODEL=z.gguf\n": "",
+    "reasoning = 'off'\n#REASONING=on\n": ""
+  },
+  "completions": {
+    "": "",
+    " https://api.groq.com/openai/v1/ ": "https://api.groq.com/openai/v1/chat/completions",
+    "http://loki:8090": "http://loki:8090/v1/chat/completions",
+    "http://x/chat/completions": "http://x/chat/completions",
+    "https://o.ai/api/v1": "https://o.ai/api/v1/chat/completions"
+  },
+  "external": [
+    {
+      "ctx": "",
+      "key": "",
+      "model": "gpt",
+      "out": "EXTERNAL=1\nEXTERNAL_MODEL=gpt\nEXTERNAL_URL=https://a/v1\n",
+      "url": "https://a/v1",
+      "vision": false
+    },
+    {
+      "ctx": " 128000 ",
+      "key": " k ",
+      "model": " m ",
+      "out": "CTX=128000\nEXTERNAL=1\nEXTERNAL_KEY=k\nEXTERNAL_MODEL=m\nEXTERNAL_URL=u\nEXTERNAL_VISION=1\n",
+      "url": " u ",
+      "vision": true
+    }
+  ],
+  "api_error": {
+    "pas du json": "",
+    "{\"error\":\"x\"}": "",
+    "{\"error\":{\"message\":\" clé invalide \"}}": "clé invalide",
+    "{}": ""
+  },
+  "join": [
+    {
+      "args": [
+        "-ngl",
+        "30"
+      ],
+      "out": "-ngl 30"
+    },
+    {
+      "args": [
+        "--chat-template-file",
+        "/a b/t.jinja"
+      ],
+      "out": "--chat-template-file '/a b/t.jinja'"
+    },
+    {
+      "args": [
+        "x",
+        "l'apostrophe ici"
+      ],
+      "out": "x \"l'apostrophe ici\""
+    },
+    {
+      "args": [
+        ""
+      ],
+      "out": "\"\""
+    }
+  ],
+  "set_key": [
+    {
+      "content": "A=1\nB=2\n",
+      "key": "B",
+      "out": "A=1\nB=3\n",
+      "val": "3"
+    },
+    {
+      "content": "A=1\nexport B=2\nB=4\n",
+      "key": "B",
+      "out": "A=1\n",
+      "val": ""
+    },
+    {
+      "content": "A=1",
+      "key": "C",
+      "out": "A=1\nC=\"deux mots\"\n",
+      "val": "deux mots"
+    },
+    {
+      "content": "",
+      "key": "X",
+      "out": "X=1\n",
+      "val": "1"
+    },
+    {
+      "content": "NGL=999\n# NGL=1\n",
+      "key": "NGL",
+      "out": "# NGL=1\n",
+      "val": ""
+    },
+    {
+      "content": "K.E=1\nKXE=2\n",
+      "key": "K.E",
+      "out": "K.E=v\nKXE=2\n",
+      "val": "v"
+    }
+  ],
+  "autoplace": [
+    {
+      "changes": null,
+      "err": "--fit resterait inactif (surcharge de tenseurs) : retire-le à la main d'abord",
+      "in": "# NAME=MoE\nMODEL=m.gguf\nCTX=65536\nNGL=999\nEXTRA_ARGS=-ot 'exps=CPU,per_layer_token_embd=CPU,blk\\.0=CUDA0' --n-cpu-moe 0 -ub 512 --mlock --fit off -ctk q8_0\n",
+      "out": ""
+    },
+    {
+      "changes": [
+        "retiré : --n-cpu-moe 30",
+        "retiré : -ts 1,1",
+        "UBATCH=2048, BATCH=4096 (avant : 512 / 2048)",
+        "--load-mode mmap",
+        "CTX conservé : 32768"
+      ],
+      "err": "",
+      "in": "MODEL=m.gguf\nEXTRA_ARGS=--n-cpu-moe 30 -ts 1,1\n",
+      "out": "MODEL=m.gguf\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+    },
+    {
+      "changes": null,
+      "err": "--fit resterait inactif (-sm row) : retire-le à la main d'abord",
+      "in": "MODEL=m.gguf\nEXTRA_ARGS=--cpu-moe -sm row\n",
+      "out": ""
+    },
+    {
+      "changes": null,
+      "err": "contexte « 0 » non chiffré : --fit pourrait le réduire pour tenir — donne un CTX chiffré d'abord",
+      "in": "MODEL=m.gguf\nEXTRA_ARGS=--cpu-moe\nCTX=0\n",
+      "out": ""
+    },
+    {
+      "changes": null,
+      "err": "SPLIT_MODE=tensor coupe --fit : retire-le d'abord",
+      "in": "MODEL=m.gguf\nEXTRA_ARGS=--cpu-moe\nSPLIT_MODE=tensor\n",
+      "out": ""
+    },
+    {
+      "changes": null,
+      "err": "rien à migrer : ce preset ne place pas d'experts à la main (-ot …exps…, --n-cpu-moe, --cpu-moe)",
+      "in": "MODEL=m.gguf\nEXTRA_ARGS=-ngl 40\n",
+      "out": ""
+    },
+    {
+      "changes": null,
+      "err": "preset externe : le modèle tourne ailleurs",
+      "in": "EXTERNAL=1\n",
+      "out": ""
+    },
+    {
+      "changes": [
+        "retiré : --cpu-moe",
+        "retiré : -b 1024",
+        "UBATCH=2048, BATCH=4096 (avant : 1024 / 2048)",
+        "--load-mode mmap",
+        "CTX conservé : 32768",
+        "cache KV conservé tel quel — garde-le identique pour comparer les deux presets"
+      ],
+      "err": "",
+      "in": "MODEL=m\nEXTRA_ARGS=--cpu-moe --fit=on -b=1024\nKV_TYPE=q4_0\nUBATCH=1024\n",
+      "out": "MODEL=m\nEXTRA_ARGS=\"--fit on --load-mode mmap\"\nKV_TYPE=q4_0\nUBATCH=2048\nBATCH=4096\n"
+    }
+  ],
+  "bench_fp": [
+    {
+      "cfg": {
+        "MODEL": "a.gguf"
+      },
+      "cur": {},
+      "out": "e3fbbb2b984dad580f7fc2c6085660e1013a2d4d"
+    },
+    {
+      "cfg": {
+        "CUDA_VISIBLE_DEVICES": "1",
+        "MODEL": "a.gguf"
+      },
+      "cur": {
+        "CUDA_VISIBLE_DEVICES": "0"
+      },
+      "out": "0c52a09078a6809ccde29379f7bf6e01c51a9a11"
+    },
+    {
+      "cfg": {
+        "MODEL": "a.gguf"
+      },
+      "cur": {
+        "CUDA_VISIBLE_DEVICES": " 0,1 "
+      },
+      "out": "63d3caa22a8aadb3db007d11f044263fcfacfcc5"
+    }
+  ],
+  "imposes": {
+    "": false,
+    "/app/llama-server": true,
+    "/opt/custom/llama-server": true,
+    "{{HOME}}/backends/llama.cpp-prebuilt/llama-b2/llama-server": false,
+    "{{HOME}}/engine/b1/llama-server": false
+  },
+  "seed": {
+    "config/BIN": "/opt/custom/llama-server",
+    "config/HOST": "127.0.0.1",
+    "config/MODEL": "live.gguf",
+    "config/PORT": "8081"
+  },
+  "steps": [
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [],
+      "disk": {},
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset",
+      "status": 200,
+      "out": {
+        "content": "BIN=/opt/custom/llama-server\nHOST=127.0.0.1\nPORT=8081\n",
+        "id": "",
+        "name": ""
+      },
+      "disk": {},
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"name\":\"Qwen 27B\",\"content\":\"MODEL=Qwen3-27B-Q4_K_M.gguf\\nCTX=65536\\nREASONING=on\\n\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Qwen 27B",
+        "name": "Qwen 27B",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"name\":\"Qwen 27B\",\"content\":\"MODEL=Qwen3-27B-Q8_0.gguf\\nMMPROJ=mm.gguf\\n\",\"sysprompt\":\"  Réponds en français.  \"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Qwen 27B (2)",
+        "name": "Qwen 27B",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q8_0.gguf\nMMPROJ=mm.gguf\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n"
+      },
+      "state": {
+        "sysprompt:Qwen 27B (2)": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"name\":\"a/b\\\\c\",\"content\":\"MODEL=x.gguf\\nCTX=40000\\n\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "a-b-c",
+        "name": "a/b\\c",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q8_0.gguf\nMMPROJ=mm.gguf\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "sysprompt:Qwen 27B (2)": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"name\":\"  \",\"content\":\"X=1\"}",
+      "status": 400,
+      "out": {
+        "error": "nom requis",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q8_0.gguf\nMMPROJ=mm.gguf\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "sysprompt:Qwen 27B (2)": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"id\":\"../evil\",\"name\":\"E\",\"content\":\"X=1\"}",
+      "status": 400,
+      "out": {
+        "error": "le nom ne peut pas contenir / ni \\",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q8_0.gguf\nMMPROJ=mm.gguf\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "sysprompt:Qwen 27B (2)": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"id\":\"Qwen 27B (2)\",\"name\":\"Qwen Q8\",\"content\":\"# NAME=ancien\\nMODEL=Qwen3-27B-Q8_0.gguf\\nQUANT=q8\\n\",\"sysprompt\":\"\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Qwen 27B (2)",
+        "name": "Qwen Q8",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "pas du json",
+      "status": 400,
+      "out": {
+        "error": "invalid character 'p' looking for beginning of value",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"deleteModel\":\"oui\"}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal string into Go struct field presetSaveReq.deleteModel of type bool",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/save",
+      "body": "{\"name\":\"Strata\",\"content\":\"ENGINE=strata\\nSTRATA_VISION=0\\nCTX=1048576\\n\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Strata",
+        "name": "Strata",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "ctx": "64K",
+          "id": "Qwen 27B",
+          "name": "Qwen 27B",
+          "quant": "Q4_K_M",
+          "reasoning": "on"
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "Qwen 27B (2)",
+          "name": "Qwen Q8",
+          "quant": "Q8"
+        },
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        },
+        {
+          "active": false,
+          "ctx": "40K",
+          "id": "a-b-c",
+          "name": "a/b\\c"
+        }
+      ],
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset?id=Qwen%2027B",
+      "status": 200,
+      "out": {
+        "content": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "id": "Qwen 27B",
+        "name": "Qwen 27B",
+        "sysprompt": ""
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset?id=Qwen%2027B%20(2)",
+      "status": 200,
+      "out": {
+        "content": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "id": "Qwen 27B (2)",
+        "name": "Qwen Q8",
+        "sysprompt": ""
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset?id=absent",
+      "status": 404,
+      "out": {
+        "error": "not found"
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset?id=../x",
+      "status": 404,
+      "out": {
+        "error": "not found"
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/presets/order",
+      "body": "{\"ids\":[\"Strata\",\"Qwen 27B (2)\"]}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": [
+          "Strata",
+          "Qwen 27B (2)"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "Qwen 27B (2)",
+          "name": "Qwen Q8",
+          "quant": "Q8"
+        },
+        {
+          "active": false,
+          "ctx": "64K",
+          "id": "Qwen 27B",
+          "name": "Qwen 27B",
+          "quant": "Q4_K_M",
+          "reasoning": "on"
+        },
+        {
+          "active": false,
+          "ctx": "40K",
+          "id": "a-b-c",
+          "name": "a/b\\c"
+        }
+      ],
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": [
+          "Strata",
+          "Qwen 27B (2)"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/presets/order",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": null
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets/order",
+      "status": 405,
+      "out": {
+        "error": "POST attendu",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/presets/order",
+      "body": "{\"ids\":\"x\"}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal string into Go struct field .ids of type []string",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/presets/order",
+      "body": "{\"ids\":[\"a-b-c\"]}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "store": {
+        "state/bench_presets": "{\"Qwen 27B\":{\"result\":{\"prompt_per_second\":1234.5,\"predicted_per_second\":40,\"kv\":\"q8_0\",\"kv_quantized\":true,\"depth\":{\"cold\":{\"new\":30000},\"decode_per_second\":31.25}},\"model\":\"Qwen3-27B-Q4_K_M.gguf\",\"at\":1700000000},\"Qwen 27B (2)\":{\"result\":{\"prompt_per_second\":900,\"predicted_per_second\":20.5},\"model\":\"autre.gguf\",\"at\":1700000001},\"a-b-c\":{\"result\":{\"prompt_per_second\":1,\"predicted_per_second\":2},\"model\":\"x.gguf\",\"at\":1,\"fingerprint\":\"mauvaise\"}}"
+      },
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "ctx": "40K",
+          "id": "a-b-c",
+          "name": "a/b\\c"
+        },
+        {
+          "active": false,
+          "bench": {
+            "at": 1700000000,
+            "decode": 40,
+            "depth": 30000,
+            "depth_decode": 31.25,
+            "kv": "q8_0",
+            "kv_quantized": true,
+            "prefill": 1234.5
+          },
+          "ctx": "64K",
+          "id": "Qwen 27B",
+          "name": "Qwen 27B",
+          "quant": "Q4_K_M",
+          "reasoning": "on"
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "Qwen 27B (2)",
+          "name": "Qwen Q8",
+          "quant": "Q8"
+        },
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        }
+      ],
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "new": 30000
+                },
+                "decode_per_second": 31.25
+              },
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_per_second": 40,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "predicted_per_second": 20.5,
+              "prompt_per_second": 900
+            }
+          },
+          "a-b-c": {
+            "at": 1,
+            "fingerprint": "mauvaise",
+            "model": "x.gguf",
+            "result": {
+              "predicted_per_second": 2,
+              "prompt_per_second": 1
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "store": {
+        "config/BIN": "",
+        "config/CTX": "40000",
+        "config/HOST": "",
+        "config/MEM_MODE": "always",
+        "config/MODEL": "x.gguf",
+        "config/PORT": ""
+      },
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": true,
+          "ctx": "40K",
+          "id": "a-b-c",
+          "name": "a/b\\c"
+        },
+        {
+          "active": false,
+          "bench": {
+            "at": 1700000000,
+            "decode": 40,
+            "depth": 30000,
+            "depth_decode": 31.25,
+            "kv": "q8_0",
+            "kv_quantized": true,
+            "prefill": 1234.5
+          },
+          "ctx": "64K",
+          "id": "Qwen 27B",
+          "name": "Qwen 27B",
+          "quant": "Q4_K_M",
+          "reasoning": "on"
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "Qwen 27B (2)",
+          "name": "Qwen Q8",
+          "quant": "Q8"
+        },
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        }
+      ],
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "new": 30000
+                },
+                "decode_per_second": 31.25
+              },
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_per_second": 40,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "predicted_per_second": 20.5,
+              "prompt_per_second": 900
+            }
+          },
+          "a-b-c": {
+            "at": 1,
+            "fingerprint": "mauvaise",
+            "model": "x.gguf",
+            "result": {
+              "predicted_per_second": 2,
+              "prompt_per_second": 1
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"a-b-c\"}",
+      "status": 400,
+      "out": {
+        "error": "preset actif, switche d'abord",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/a-b-c.env": "# NAME=a/b\\c\nMODEL=x.gguf\nCTX=40000\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "new": 30000
+                },
+                "decode_per_second": 31.25
+              },
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_per_second": 40,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "predicted_per_second": 20.5,
+              "prompt_per_second": 900
+            }
+          },
+          "a-b-c": {
+            "at": 1,
+            "fingerprint": "mauvaise",
+            "model": "x.gguf",
+            "result": {
+              "predicted_per_second": 2,
+              "prompt_per_second": 1
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "store": {
+        "config/MODEL": "autre.gguf"
+      },
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"a-b-c\"}",
+      "status": 200,
+      "out": {
+        "freed": 0,
+        "modelDeleted": "",
+        "modelError": "",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "cached": 0,
+                  "expected": 0,
+                  "new": 30000,
+                  "predicted_ms": 0,
+                  "predicted_n": 0,
+                  "predicted_per_second": 0,
+                  "prompt_ms": 0,
+                  "prompt_per_second": 0
+                },
+                "ctx": 0,
+                "decode_per_second": 31.25,
+                "reuse": 0,
+                "target": 0
+              },
+              "elapsed_sec": 0,
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 40,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "elapsed_sec": 0,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 20.5,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 900
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"absent\"}",
+      "status": 400,
+      "out": {
+        "error": "introuvable",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "cached": 0,
+                  "expected": 0,
+                  "new": 30000,
+                  "predicted_ms": 0,
+                  "predicted_n": 0,
+                  "predicted_per_second": 0,
+                  "prompt_ms": 0,
+                  "prompt_per_second": 0
+                },
+                "ctx": 0,
+                "decode_per_second": 31.25,
+                "reuse": 0,
+                "target": 0
+              },
+              "elapsed_sec": 0,
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 40,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "elapsed_sec": 0,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 20.5,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 900
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"a/b\"}",
+      "status": 400,
+      "out": {
+        "error": "le nom ne peut pas contenir / ni \\",
+        "ok": false
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Qwen 27B.env": "# NAME=Qwen 27B\nMODEL=Qwen3-27B-Q4_K_M.gguf\nCTX=65536\nREASONING=on\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B": {
+            "at": 1700000000,
+            "model": "Qwen3-27B-Q4_K_M.gguf",
+            "result": {
+              "depth": {
+                "cold": {
+                  "cached": 0,
+                  "expected": 0,
+                  "new": 30000,
+                  "predicted_ms": 0,
+                  "predicted_n": 0,
+                  "predicted_per_second": 0,
+                  "prompt_ms": 0,
+                  "prompt_per_second": 0
+                },
+                "ctx": 0,
+                "decode_per_second": 31.25,
+                "reuse": 0,
+                "target": 0
+              },
+              "elapsed_sec": 0,
+              "kv": "q8_0",
+              "kv_quantized": true,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 40,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 1234.5
+            }
+          },
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "elapsed_sec": 0,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 20.5,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 900
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "files": {
+        "models/Qwen3-27B-Q4_K_M.gguf": "poids"
+      },
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"Qwen 27B\",\"deleteModel\":true}",
+      "status": 200,
+      "out": {
+        "freed": 5,
+        "modelDeleted": "Qwen3-27B-Q4_K_M.gguf",
+        "modelError": "",
+        "ok": true
+      },
+      "disk": {
+        "presets/Qwen 27B (2).env": "# NAME=Qwen Q8\nMODEL=Qwen3-27B-Q8_0.gguf\nQUANT=q8\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {
+          "Qwen 27B (2)": {
+            "at": 1700000001,
+            "model": "autre.gguf",
+            "result": {
+              "elapsed_sec": 0,
+              "predicted_ms": 0,
+              "predicted_n": 0,
+              "predicted_per_second": 20.5,
+              "prompt_ms": 0,
+              "prompt_n": 0,
+              "prompt_per_second": 900
+            }
+          }
+        },
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "files": {
+        "models/Qwen3-27B-Q8_0.gguf": "poids8",
+        "presets/Copie.env": "# NAME=Copie\nMODEL=Qwen3-27B-Q8_0.gguf\n"
+      },
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"Qwen 27B (2)\",\"deleteModel\":true}",
+      "status": 200,
+      "out": {
+        "freed": 6,
+        "modelDeleted": "Qwen3-27B-Q8_0.gguf",
+        "modelError": "supprimé, mais il était aussi référencé par : Copie",
+        "ok": true
+      },
+      "disk": {
+        "presets/Copie.env": "# NAME=Copie\nMODEL=Qwen3-27B-Q8_0.gguf\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":\"Copie\",\"deleteModel\":true}",
+      "status": 200,
+      "out": {
+        "freed": 0,
+        "modelDeleted": "",
+        "modelError": "modèle introuvable: Qwen3-27B-Q8_0.gguf",
+        "ok": true
+      },
+      "disk": {
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/delete",
+      "body": "{\"id\":3}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field presetSaveReq.id of type string",
+        "ok": false
+      },
+      "disk": {
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        }
+      ],
+      "disk": {
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external",
+      "status": 200,
+      "out": {
+        "hasKey": false,
+        "id": "",
+        "model": "",
+        "name": "",
+        "url": ""
+      },
+      "disk": {
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"name\":\" Groq \",\"url\":\" https://api.groq.com/openai/v1 \",\"model\":\" llama \",\"key\":\"k1\",\"ctx\":\"131072\",\"vision\":true}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Groq",
+        "name": "Groq",
+        "ok": true
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nCTX=131072\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama\nEXTERNAL_URL=https://api.groq.com/openai/v1\nEXTERNAL_VISION=1\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"name\":\"X\",\"url\":\"\",\"model\":\"m\"}",
+      "status": 400,
+      "out": {
+        "error": "URL requise",
+        "ok": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nCTX=131072\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama\nEXTERNAL_URL=https://api.groq.com/openai/v1\nEXTERNAL_VISION=1\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"name\":\"X\",\"url\":\"u\",\"model\":\" \"}",
+      "status": 400,
+      "out": {
+        "error": "modèle requis",
+        "ok": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nCTX=131072\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama\nEXTERNAL_URL=https://api.groq.com/openai/v1\nEXTERNAL_VISION=1\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"name\":\"\",\"url\":\"u\",\"model\":\"m\"}",
+      "status": 400,
+      "out": {
+        "error": "nom requis",
+        "ok": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nCTX=131072\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama\nEXTERNAL_URL=https://api.groq.com/openai/v1\nEXTERNAL_VISION=1\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external?id=Groq",
+      "status": 200,
+      "out": {
+        "ctx": "131072",
+        "hasKey": true,
+        "id": "Groq",
+        "model": "llama",
+        "name": "Groq",
+        "url": "https://api.groq.com/openai/v1",
+        "vision": true
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nCTX=131072\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama\nEXTERNAL_URL=https://api.groq.com/openai/v1\nEXTERNAL_VISION=1\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"id\":\"Groq\",\"name\":\"Groq 2\",\"url\":\"https://api.groq.com\",\"model\":\"llama-3\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Groq",
+        "name": "Groq 2",
+        "ok": true
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq 2\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external?id=Groq",
+      "status": 200,
+      "out": {
+        "ctx": "",
+        "hasKey": true,
+        "id": "Groq",
+        "model": "llama-3",
+        "name": "Groq 2",
+        "url": "https://api.groq.com",
+        "vision": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq 2\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"id\":\"Groq\",\"name\":\"Groq\",\"url\":\"https://api.groq.com\",\"model\":\"llama-3\",\"keyTouched\":true,\"key\":\"\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Groq",
+        "name": "Groq",
+        "ok": true
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external?id=Groq",
+      "status": 200,
+      "out": {
+        "ctx": "",
+        "hasKey": false,
+        "id": "Groq",
+        "model": "llama-3",
+        "name": "Groq",
+        "url": "https://api.groq.com",
+        "vision": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external?id=Strata",
+      "status": 400,
+      "out": {
+        "error": "pas un preset externe"
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/external?id=absent",
+      "status": 404,
+      "out": {
+        "error": "not found"
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "external": true,
+          "id": "Groq",
+          "model": "llama-3",
+          "name": "Groq"
+        },
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        }
+      ],
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"url\":\"{{URL}}/ok\",\"model\":\"m\",\"key\":\"k1\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"url\":\"{{URL}}/refus/v1\",\"model\":\"m\"}",
+      "status": 200,
+      "out": {
+        "error": "clé invalide",
+        "ok": false,
+        "status": 401
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"url\":\"{{URL}}/brut/v1/chat/completions\",\"model\":\"m\"}",
+      "status": 200,
+      "out": {
+        "error": "page absente",
+        "ok": false,
+        "status": 404
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"url\":\"{{URL}}/rien\",\"model\":\"m\"}",
+      "status": 200,
+      "out": {
+        "error": "500 Internal Server Error",
+        "ok": false,
+        "status": 500
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"url\":\"\",\"model\":\"m\"}",
+      "status": 200,
+      "out": {
+        "error": "URL et modèle requis",
+        "ok": false
+      },
+      "disk": {
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/save",
+      "body": "{\"name\":\"Clé\",\"url\":\"{{URL}}/ok\",\"model\":\"m\",\"key\":\"k1\"}",
+      "status": 200,
+      "out": {
+        "applied": false,
+        "id": "Clé",
+        "name": "Clé",
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "{\"id\":\"Clé\",\"url\":\"{{URL}}/ok\",\"model\":\"m\"}",
+      "status": 200,
+      "out": {
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/external/test",
+      "body": "[]",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal array into Go value of type loki.externalSaveReq",
+        "ok": false
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/preset/autoplace",
+      "status": 405,
+      "out": {
+        "error": "méthode GET refusée : POST attendu",
+        "ok": false
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/autoplace",
+      "body": "{\"id\":\"MoE\",\"content\":\"# NAME=MoE\\nMODEL=absent.gguf\\nCTX=32768\\nEXTRA_ARGS=--n-cpu-moe 20 --load-mode none\\n\"}",
+      "status": 200,
+      "out": {
+        "changes": [
+          "retiré : --n-cpu-moe 20",
+          "retiré : --load-mode none",
+          "UBATCH=2048, BATCH=4096 (avant : 512 / 2048)",
+          "--load-mode mmap",
+          "CTX conservé : 32768"
+        ],
+        "id": "MoE (placement auto)",
+        "name": "MoE (placement auto)",
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/autoplace",
+      "body": "{\"name\":\" Mon MoE \",\"content\":\"MODEL=m\\nEXTRA_ARGS=-ngl 30\\n\"}",
+      "status": 200,
+      "out": {
+        "error": "rien à migrer : ce preset ne place pas d'experts à la main (-ot …exps…, --n-cpu-moe, --cpu-moe)",
+        "ok": false
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/autoplace",
+      "body": "{\"content\":\"MODEL=m\\nEXTRA_ARGS=--cpu-moe\\n\"}",
+      "status": 200,
+      "out": {
+        "changes": [
+          "retiré : --cpu-moe",
+          "UBATCH=2048, BATCH=4096 (avant : 512 / 2048)",
+          "--load-mode mmap",
+          "CTX conservé : 32768"
+        ],
+        "id": "preset (placement auto)",
+        "name": "preset (placement auto)",
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/moe",
+      "body": "{\"content\":\"# NAME=MoE\\nMODEL=absent.gguf\\nCTX=32768\\nEXTRA_ARGS=--n-cpu-moe 20 --load-mode none\\n\"}",
+      "status": 200,
+      "out": {
+        "autoplace": {
+          "changes": [
+            "retiré : --n-cpu-moe 20",
+            "retiré : --load-mode none",
+            "UBATCH=2048, BATCH=4096 (avant : 512 / 2048)",
+            "--load-mode mmap",
+            "CTX conservé : 32768"
+          ],
+          "ok": true
+        },
+        "load": "",
+        "notes": null,
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/moe",
+      "body": "{\"content\":\"EXTERNAL=1\\n\"}",
+      "status": 200,
+      "out": {
+        "load": "",
+        "notes": null,
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/moe",
+      "body": "{\"content\":\"MODEL=absent.gguf\\nEXTRA_ARGS=--cpu-moe -sm row\\n\"}",
+      "status": 200,
+      "out": {
+        "autoplace": {
+          "ok": false,
+          "why": "--fit resterait inactif (-sm row) : retire-le à la main d'abord"
+        },
+        "load": "",
+        "notes": null,
+        "ok": true
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/moe",
+      "body": "{\"content\":5}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field .content of type string",
+        "ok": false
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"EXTERNAL=1\\nSIDE_SLOT=on\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 0,
+        "ok": true,
+        "side": {
+          "on": false,
+          "vramMiB": 0,
+          "why": "preset externe"
+        },
+        "why": "preset externe"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"EXTRA_ARGS=-cram 2048\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 2048,
+        "ok": true,
+        "why": "fixé par EXTRA_ARGS"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"CACHE_RAM=4096\\nSIDE_SLOT=on\\nMODEL=absent.gguf\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 4096,
+        "ok": true,
+        "side": {
+          "on": false,
+          "vramMiB": 0,
+          "why": "VRAM NVIDIA inconnue (macOS, AMD, --device…)"
+        },
+        "why": "fixé par CACHE_RAM"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"CACHE_RAM=beaucoup\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 0,
+        "ok": true,
+        "why": "CACHE_RAM illisible"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"CACHE_RAM=auto\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 0,
+        "ok": true,
+        "why": "modèle introuvable"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{\"content\":\"MODEL=absent.gguf\\nSIDE_SLOT=on\\nPARALLEL=3\\n\"}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 0,
+        "ok": true,
+        "side": {
+          "on": false,
+          "vramMiB": 0,
+          "why": "PARALLEL=3 (SIDE_SLOT ouvre exactement 2 slots)"
+        },
+        "why": "VRAM NVIDIA inconnue"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/preset/cacheram",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "default": 8192,
+        "mib": 0,
+        "ok": true,
+        "why": "modèle introuvable"
+      },
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/presets",
+      "status": 200,
+      "out": [
+        {
+          "active": false,
+          "external": true,
+          "id": "Clé",
+          "model": "m",
+          "name": "Clé"
+        },
+        {
+          "active": false,
+          "external": true,
+          "id": "Groq",
+          "model": "llama-3",
+          "name": "Groq"
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "MoE (placement auto)",
+          "name": "MoE (placement auto)"
+        },
+        {
+          "active": false,
+          "ctx": "1M",
+          "id": "Strata",
+          "name": "Strata",
+          "strata": true
+        },
+        {
+          "active": false,
+          "ctx": "32K",
+          "id": "preset (placement auto)",
+          "name": "preset (placement auto)"
+        }
+      ],
+      "disk": {
+        "presets/Clé.env": "# NAME=Clé\nEXTERNAL=1\nEXTERNAL_KEY=k1\nEXTERNAL_MODEL=m\nEXTERNAL_URL={{URL}}/ok\n",
+        "presets/Groq.env": "# NAME=Groq\nEXTERNAL=1\nEXTERNAL_MODEL=llama-3\nEXTERNAL_URL=https://api.groq.com\n",
+        "presets/MoE (placement auto).env": "# NAME=MoE (placement auto)\nMODEL=absent.gguf\nCTX=32768\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n",
+        "presets/Strata.env": "# NAME=Strata\nENGINE=strata\nSTRATA_VISION=0\nCTX=1048576\n",
+        "presets/preset (placement auto).env": "# NAME=preset (placement auto)\nMODEL=m\nEXTRA_ARGS=\"--load-mode mmap\"\nUBATCH=2048\nBATCH=4096\n"
+      },
+      "state": {
+        "bench_presets": {},
+        "preset_order": [
+          "a-b-c"
+        ]
+      }
+    }
+  ]
+}
