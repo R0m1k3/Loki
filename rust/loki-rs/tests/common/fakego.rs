@@ -42,6 +42,8 @@ pub struct FakeGo {
     pub recall: Mutex<Vec<String>>,
     /// Discussion active annoncée et discussions supprimées.
     pub conv_log: Mutex<Vec<String>>,
+    /// Tours : débuts, vues et fins demandés.
+    pub turn_log: Mutex<Vec<String>>,
     /// Adresse d'écoute du faux Go (pour un client `Store` direct).
     pub backend: Mutex<Option<SocketAddr>>,
 }
@@ -189,6 +191,34 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 .lock()
                 .unwrap()
                 .push(format!("{what} {}", v["id"].as_str().unwrap_or_default()));
+            resp(204, "")
+        }
+        "/internal/v1/turn/start" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let msg = v["message"].as_str().unwrap_or_default().to_string();
+            st.turn_log.lock().unwrap().push(format!("start {msg}"));
+            if msg.trim().is_empty() {
+                return resp(400, r#"{"error":"message vide"}"#);
+            }
+            let caps = serde_json::json!({"Agent": true, "Mem": "off", "Code": false, "Role": ""});
+            let out = serde_json::json!({
+                "files": [], "caps": caps, "turn_caps": caps,
+                "content": msg, "model": "m1", "code_hint": false,
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/turn/view" => {
+            st.turn_log.lock().unwrap().push("view".into());
+            let out = serde_json::json!({
+                "head": [{"role": "system", "content": "Tu es Loki."}],
+                "prefix": "PRÉAMBULE",
+                "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
+            });
+            resp(200, out.to_string())
+        }
+        "/internal/v1/turn/done" => {
+            st.turn_log.lock().unwrap().push("done".into());
             resp(204, "")
         }
         "/internal/v1/engine/stop" => {

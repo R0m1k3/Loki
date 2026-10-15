@@ -161,6 +161,7 @@ impl ImageCache {
 }
 
 /// Le moteur vu de la compaction (`postSummary`).
+#[derive(Clone)]
 pub struct EngineSummarizer {
     pub http: EngineHttp,
     pub ep: ChatEndpoint,

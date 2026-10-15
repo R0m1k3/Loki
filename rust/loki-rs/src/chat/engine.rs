@@ -193,6 +193,21 @@ impl EngineHttp {
     }
 }
 
+/// `healthCheck` : `/health` doit répondre tout de suite ou pas du tout
+/// (`healthClient`, 3 s) — un moteur qui accepte la connexion sans répondre
+/// (très gros modèle en chargement) ne doit pas bloquer l'envoi.
+pub const HEALTH_TIMEOUT: Duration = Duration::from_secs(3);
+
+impl EngineHttp {
+    /// Le moteur répond 200 sur `url` (`/health`) dans le délai.
+    pub async fn health(&self, url: &str) -> bool {
+        match tokio::time::timeout(HEALTH_TIMEOUT, self.client.get(url).send()).await {
+            Ok(Ok(r)) => r.status().as_u16() == 200,
+            _ => false,
+        }
+    }
+}
+
 /// Fournisseur cryptographique de rustls (ring), posé une fois.
 fn install_crypto() {
     #[cfg(feature = "tls")]

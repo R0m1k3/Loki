@@ -126,8 +126,13 @@ impl EngineLease {
 
     /// Se résout au premier stop ou à la perte du bail, et rend lequel.
     pub async fn interrupted(&mut self) -> LeaseSignal {
-        match self.signal.wait_for(|s| *s != LeaseSignal::Held).await {
-            Ok(s) => *s,
+        let got = self
+            .signal
+            .wait_for(|s| *s != LeaseSignal::Held)
+            .await
+            .map(|s| *s);
+        match got {
+            Ok(s) => s,
             // Tâche de renouvellement terminée sans signal : rien à attendre.
             Err(_) => std::future::pending().await,
         }

@@ -443,10 +443,21 @@ use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TurnReaso
 async fn fake_engine(
     replies: Vec<String>,
 ) -> (String, Arc<StdMutex<Vec<(String, serde_json::Value)>>>) {
+    fake_engine_gated(replies, None).await
+}
+
+type Seen = Arc<StdMutex<Vec<(String, serde_json::Value)>>>;
+
+/// Comme [`fake_engine`] ; avec `gate`, chaque complétion attend un jeton.
+/// `/health` répond toujours 200.
+async fn fake_engine_gated(
+    replies: Vec<String>,
+    gate: Option<Arc<tokio::sync::Semaphore>>,
+) -> (String, Seen) {
     use http_body_util::{BodyExt, Full};
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let seen = Arc::new(StdMutex::new(Vec::new()));
+    let seen: Seen = Arc::new(StdMutex::new(Vec::new()));
     let replies = Arc::new(StdMutex::new(std::collections::VecDeque::from(replies)));
     let s = seen.clone();
     tokio::spawn(async move {
@@ -454,12 +465,20 @@ async fn fake_engine(
             let Ok((stream, _)) = listener.accept().await else {
                 return;
             };
-            let (s, replies) = (s.clone(), replies.clone());
+            let (s, replies, gate) = (s.clone(), replies.clone(), gate.clone());
             tokio::spawn(async move {
                 let svc = hyper::service::service_fn(
                     move |req: hyper::Request<hyper::body::Incoming>| {
-                        let (s, replies) = (s.clone(), replies.clone());
+                        let (s, replies, gate) = (s.clone(), replies.clone(), gate.clone());
                         async move {
+                            let ok = |b: String| {
+                                Ok::<_, std::convert::Infallible>(hyper::Response::new(Full::new(
+                                    bytes::Bytes::from(b),
+                                )))
+                            };
+                            if req.uri().path() == "/health" {
+                                return ok("ok".into());
+                            }
                             let auth = req
                                 .headers()
                                 .get("authorization")
@@ -469,10 +488,11 @@ async fn fake_engine(
                             s.lock()
                                 .unwrap()
                                 .push((auth, serde_json::from_slice(&body).unwrap()));
+                            if let Some(g) = &gate {
+                                g.acquire().await.unwrap().forget();
+                            }
                             let out = replies.lock().unwrap().pop_front().unwrap_or_default();
-                            Ok::<_, std::convert::Infallible>(hyper::Response::new(Full::new(
-                                bytes::Bytes::from(out),
-                            )))
+                            ok(out)
                         }
                     },
                 );
@@ -646,4 +666,209 @@ async fn crochets_go_des_discussions() {
             format!("active {a}")
         ]
     );
+}
+
+// ---- un tour de bout en bout, par le service ----
+
+use loki_rs::chat::generate::{ChatService, ERR_MODEL_LOADING, Refused, Sent};
+use loki_rs::chat::sessions::GoSessionHooks;
+
+fn port_of(url: &str) -> String {
+    url.trim_start_matches("http://127.0.0.1:")
+        .split('/')
+        .next()
+        .unwrap()
+        .to_string()
+}
+
+async fn service(
+    engine_url: Option<&str>,
+) -> (
+    Arc<ChatService>,
+    Arc<fakego::FakeGo>,
+    tokio::sync::oneshot::Sender<()>,
+    tempfile::TempDir,
+) {
+    let (st, go, stop, t) = store().await;
+    go.set(
+        "config",
+        "PORT",
+        &engine_url.map(port_of).unwrap_or_else(|| "1".into()),
+    );
+    go.set("state", "api_key", "cle-du-moteur");
+    let sessions = Sessions::new(st.clone(), Conversation::new(), GoSessionHooks(st.clone()));
+    sessions.load().await.unwrap();
+    let shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
+    (
+        ChatService::new(Arc::new(sessions), Arc::new(shared)),
+        go,
+        stop,
+        t,
+    )
+}
+
+async fn until_done(svc: &ChatService, turns: usize) {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let c = svc.sessions.conv();
+            let done = c.with_state(|st| {
+                st.log
+                    .iter()
+                    .filter(|e| e.delta.contains_key("turn_done"))
+                    .count()
+            });
+            if done >= turns && !c.is_generating() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("tour jamais terminé");
+}
+
+fn deltas(svc: &ChatService, key: &str) -> Vec<serde_json::Value> {
+    svc.sessions.conv().with_state(|st| {
+        st.log
+            .iter()
+            .filter_map(|e| e.delta.get(key).cloned())
+            .collect()
+    })
+}
+
+fn tool_then_answer(answer: &str) -> Vec<String> {
+    vec![
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content": answer}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":80,"completion_tokens":3}}),
+        ]),
+    ]
+}
+
+#[tokio::test]
+async fn tour_de_bout_en_bout() {
+    let (url, seen) = fake_engine(tool_then_answer("fini")).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    let sent = svc
+        .send(serde_json::json!({"message": "liste", "cid": "a1"}))
+        .await
+        .unwrap();
+    assert_eq!(sent, Sent::default());
+    until_done(&svc, 1).await;
+    // La fin est signalée en tout dernier (après l'enregistrement) : on l'attend.
+    until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+
+    // Vue modèle rangée : la demande, l'appel, son résultat, la réponse.
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let roles: Vec<&str> = msgs.iter().map(|m| m.role.as_str()).collect();
+    assert_eq!(roles, ["user", "assistant", "tool", "assistant"]);
+    assert_eq!(msgs[3].content, Some(serde_json::json!("fini")));
+    // Journal : bulle avec le modèle, outil, réponse, fin.
+    assert_eq!(deltas(&svc, "user"), [serde_json::json!("liste")]);
+    assert_eq!(deltas(&svc, "model"), [serde_json::json!("m1")]);
+    assert!(
+        deltas(&svc, "tool_used")
+            .iter()
+            .any(|t| t["done"] == true && t["result"] == "exec:bash")
+    );
+    assert_eq!(deltas(&svc, "content"), [serde_json::json!("fini")]);
+    assert!(!deltas(&svc, "stats").is_empty());
+    // Requête : préambule fusionné au prompt du preset, clé du moteur, outils.
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen[0].0, "Bearer cle-du-moteur");
+    assert_eq!(
+        seen[0].1["messages"][0]["content"],
+        "PRÉAMBULE\n\nTu es Loki."
+    );
+    assert_eq!(seen[0].1["messages"][1]["content"], "liste");
+    assert_eq!(seen[0].1["tools"][0]["function"]["name"], "bash");
+    // Bail rendu, fin signalée, discussion enregistrée.
+    assert_eq!(*go.lease.lock().unwrap(), None);
+    let id = svc.sessions.conv().id();
+    let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
+    assert_eq!(decode_state(&body).messages.len(), 4);
+    // Réessai du même envoi : reconnu.
+    let again = svc
+        .send(serde_json::json!({"message": "liste", "cid": "a1"}))
+        .await
+        .unwrap();
+    assert!(again.dup);
+}
+
+#[tokio::test]
+async fn message_en_file_injecte_dans_le_tour() {
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let (url, seen) = fake_engine_gated(tool_then_answer("les deux"), Some(gate.clone())).await;
+    let (svc, _go, _stop, _t) = service(Some(&url)).await;
+    svc.send(serde_json::json!({"message": "premier", "cid": "p1"}))
+        .await
+        .unwrap();
+    until(|| seen.lock().unwrap().len() == 1).await;
+    let q = svc
+        .send(serde_json::json!({"message": "deuxième", "cid": "p2"}))
+        .await
+        .unwrap();
+    assert!(q.queued, "un tour tourne : en file");
+    gate.add_permits(10);
+    until_done(&svc, 1).await;
+    assert_eq!(
+        deltas(&svc, "user"),
+        [serde_json::json!("premier"), serde_json::json!("deuxième")]
+    );
+    let second = seen.lock().unwrap()[1].1.clone();
+    let last = second["messages"]
+        .as_array()
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(last["content"], "deuxième", "injecté entre deux étapes");
+    let users = svc
+        .sessions
+        .conv()
+        .with_state(|st| st.messages.iter().filter(|m| m.role == "user").count());
+    assert_eq!(users, 2);
+}
+
+#[tokio::test]
+async fn moteur_tenu_par_une_tache_planifiee() {
+    let (url, _seen) = fake_engine(vec![]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    *go.go_busy.lock().unwrap() = Some("la tâche planifiée « veille » occupe le modèle".into());
+    let body = serde_json::json!({"message": "salut", "cid": "b1"});
+    let want = Refused {
+        status: 409,
+        error: "la tâche planifiée « veille » occupe le modèle".into(),
+    };
+    assert_eq!(svc.send(body.clone()).await, Err(want.clone()));
+    // Refusé : le même envoi peut être renvoyé (pas pris pour un doublon).
+    assert_eq!(svc.send(body).await, Err(want));
+    assert!(!svc.sessions.conv().is_generating());
+    assert!(deltas(&svc, "user").is_empty());
+    // Le stop du chat arrête le détenteur Go.
+    svc.stop().await;
+    assert!(go.lease_log.lock().unwrap().contains(&"stop".to_string()));
+}
+
+#[tokio::test]
+async fn moteur_pas_pret_et_message_vide() {
+    let (svc, _go, _stop, _t) = service(None).await;
+    let r = svc
+        .send(serde_json::json!({"message": "salut", "cid": "c1"}))
+        .await;
+    assert_eq!(
+        r,
+        Err(Refused {
+            status: 503,
+            error: ERR_MODEL_LOADING.into()
+        })
+    );
+    let r = svc
+        .send(serde_json::json!({"message": " ", "cid": "c2"}))
+        .await;
+    assert_eq!(r.unwrap_err().status, 400);
 }

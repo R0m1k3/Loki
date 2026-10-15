@@ -165,6 +165,12 @@ pub struct ConvState {
     pub seq: i64,
     pub ctx_used: i64,
     pub proj_snap: Option<ProjSnapshot>,
+    /// Messages que `ctx_used` couvre déjà (0 = inconnu) — en mémoire
+    /// seulement : un rechargement repart du seul `ctx_used`.
+    pub ctx_used_len: usize,
+    /// Génération la plus longue du dernier tour (moteur local), pour la garde
+    /// de marge de la compaction — en mémoire seulement.
+    pub gen_peak: i64,
 }
 
 /// Forme écrite, empruntée : l'instantané en plein tour écrit un journal
@@ -950,8 +956,16 @@ mod tests {
                 },
                 ..Default::default()
             }),
+            ..Default::default()
         };
         let b = st.to_json();
+        // Les compteurs en mémoire ne s'écrivent pas.
+        let mem = ConvState {
+            ctx_used_len: 3,
+            gen_peak: 900,
+            ..st.clone()
+        };
+        assert_eq!(mem.to_json(), b);
         assert_eq!(
             String::from_utf8(b.clone()).unwrap(),
             r#"{"messages":[{"role":"user","content":"bonjour"}],"log":[{"seq":1,"ts":0,"delta":{"user":"bonjour"}}],"seq":1,"ctx_used":42,"proj_snap":{"at":7,"state":{"mem":{"a":"1","b":"2"}},"key":"k","sys_hash":""}}"#

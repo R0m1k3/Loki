@@ -157,6 +157,16 @@ impl Conversation {
         Ok(g.epoch)
     }
 
+    /// Rend le verrou d'un tour qui n'a pas pu démarrer (moteur tenu par le
+    /// Go), sans rien coalescer ni réveiller.
+    pub fn release_turn(&self, epoch: i64) {
+        let mut g = self.lock();
+        if g.epoch == epoch {
+            g.generating = false;
+            g.cancel = None;
+        }
+    }
+
     /// Fin d'un tour : le journal du tour est coalescé (`compactLogLocked`)
     /// et le verrou rendu. Un tour dont l'epoch est périmé (reset, bascule)
     /// ne touche à rien : le verrou a déjà été rendu, peut-être repris.
@@ -194,6 +204,13 @@ impl Conversation {
     /// Ne réveille personne : le journal se modifie par [`Self::append_delta`].
     pub fn with_state<R>(&self, f: impl FnOnce(&mut ConvState) -> R) -> R {
         f(&mut self.lock().st)
+    }
+
+    /// [`Self::with_state`], seulement si l'epoch n'a pas changé (reset ou
+    /// bascule pendant le tour : rien de ce tour ne doit toucher au nouveau fil).
+    pub fn with_state_if<R>(&self, epoch: i64, f: impl FnOnce(&mut ConvState) -> R) -> Option<R> {
+        let mut g = self.lock();
+        (g.epoch == epoch).then(|| f(&mut g.st))
     }
 
     /// Instantané à enregistrer, numéroté sous le même verrou que l'état.

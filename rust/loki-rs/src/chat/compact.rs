@@ -504,7 +504,7 @@ pub(crate) fn without_ctx_update(m: &Message) -> Option<Message> {
 }
 
 /// `stripContextUpdates` : l'historique sans aucun bloc <context_update>.
-fn strip_context_updates(msgs: Vec<Message>) -> Vec<Message> {
+pub(crate) fn strip_context_updates(msgs: Vec<Message>) -> Vec<Message> {
     msgs.into_iter()
         .map(|m| without_ctx_update(&m).unwrap_or(m))
         .collect()
