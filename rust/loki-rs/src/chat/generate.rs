@@ -23,8 +23,9 @@
 //! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
 //!
 //! Écarts assumés (restent au Go) : PROJ_SNAPSHOT et KEEP_TURN_IMAGES
-//! (refusés par `/turn/view`), préchauffage, télémétrie, motifs
-//! `retry_patterns` personnalisés.
+//! (refusés par `/turn/view`), préchauffage, motifs `retry_patterns`
+//! personnalisés. La télémétrie des complétions (tours, vérifications,
+//! résumés) rejoint l'anneau du Go (`/internal/v1/perf/record`).
 
 use std::collections::VecDeque;
 use std::future::Future;
@@ -508,6 +509,7 @@ impl ChatService {
             cfg: cfg.clone(),
             patterns: self.shared.patterns.clone(),
             port,
+            perf: Some((store.clone(), self.sessions.conv().id())),
         };
         TurnEnv {
             cfg,
@@ -797,6 +799,7 @@ impl ChatService {
             echo: echo.clone(),
             compact: ccfg.clone(),
             patterns: self.shared.patterns.clone(),
+            perf_kind: super::perf::KIND_MAIN,
         };
         let me = self.clone();
         let host = GoTurnHost {

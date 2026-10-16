@@ -23,12 +23,15 @@
 //! `cb` (comme le `ChatCallback` Go) ; le tour rend ses messages à ajouter à
 //! l'historique ([`TurnResult::extra`]).
 //!
+//! Télémétrie : chaque complétion lue est rangée (`perfRecord`, par
+//! [`TurnHost::perf`]) ; la dernière statistique d'une complétion complète
+//! porte la nature et la perte de cache calculée par le Go.
+//!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
 //! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, SIDE_SLOT (slot et rejeux « cache KV
-//! plein »), SLOT_PERSIST, préchauffage, télémétrie `perfRecord`, comptage
-//! des requêtes en vol du moteur. Avec l'une
-//! de ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
-//! démarrage).
+//! plein »), SLOT_PERSIST, préchauffage, comptage des requêtes en vol du
+//! moteur. Avec l'une de ces clés, le Go garde la conversation
+//! (`facadeChatBlocker`, décidé au démarrage).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -54,6 +57,7 @@ use super::nudges::{
     MAX_NUDGES, THINK_NUDGE_FIRST, THINK_NUDGE_STUCK, append_nudge, budget_nudge, dedupable_tool,
     log_budget, repeated_call_result, steer_system, tool_result_preview,
 };
+use super::perf::PerfRec;
 use super::stream::{
     CacheHintFn, MAX_PATTERN_RETRIES, PreflightFn, RetryPatterns, StreamConfig, StreamParser,
     call_args, retry_corrective, tool_call_label,
@@ -181,6 +185,16 @@ pub trait TurnHost: Send + Sync {
     fn cache_hint(&self) -> Option<CacheHintFn> {
         None
     }
+    /// Range la télémétrie d'une complétion (`perfRecord`), rattachée à la
+    /// discussion du tour ; rend la perte de cache calculée et l'alerte.
+    fn perf(
+        &self,
+        _rec: &super::perf::PerfRec,
+        _prefix: &[u64],
+        _external: bool,
+    ) -> impl Future<Output = super::perf::PerfNoted> + Send {
+        async { super::perf::PerfNoted::default() }
+    }
     /// Garde d'écriture du mode Code (`codeWriteGuard`).
     fn preflight(&self) -> Option<PreflightFn> {
         None
@@ -202,6 +216,8 @@ pub struct TurnConfig {
     pub echo: EchoPolicy,
     pub compact: CompactConfig,
     pub patterns: Arc<RetryPatterns>,
+    /// Nature des complétions pour la télémétrie (`perfMain`, `perfVerify`).
+    pub perf_kind: &'static str,
 }
 
 /// Fin du tour : messages à ajouter à l'historique, et l'erreur s'il y en a
@@ -348,6 +364,8 @@ struct Loop {
     echo_tpl_retry: bool,
     tool_runs: i64,
     budget_nudges: i64,
+    /// Complétions rangées dans la télémétrie (`perfIter`).
+    perf_iter: i64,
 }
 
 /// `runChatLoop` : le tour, de la première requête à la réponse finale.
@@ -415,8 +433,9 @@ pub async fn run_turn<H: TurnHost>(
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
-        let (body, echo_sent) = {
+        let (body, echo_sent, sent_prefix) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
+            let sent_prefix = super::perf::prefix(&sent);
             let payload = build_chat_payload(
                 ep,
                 &sent,
@@ -432,7 +451,11 @@ pub async fn run_turn<H: TurnHost>(
                 &tc.cfg,
                 &|r| host.image_data_url(r),
             );
-            (serde_json::to_vec(&payload).unwrap_or_default(), echo_sent)
+            (
+                serde_json::to_vec(&payload).unwrap_or_default(),
+                echo_sent,
+                sent_prefix,
+            )
         };
         let t_req = Instant::now();
         let reply = match cancel.or_stop(host.send(ep, body)).await {
@@ -603,14 +626,32 @@ pub async fn run_turn<H: TurnHost>(
             }
         }
         // Arrêt pendant la lecture : le tour s'arrête là, sans erreur, et rien
-        // de plus ne part vers l'écran.
+        // de plus ne part vers l'écran. La complétion coupée reste dans la
+        // télémétrie, incomplète.
         if stopped {
+            let rec =
+                PerfRec::from_stats(tc.perf_kind, "", s.perf_iter, false, &Default::default());
+            host.perf(&rec, &[], ep.external).await;
             return TurnResult { extra, err: None };
         }
         let out = parser.finish(&mut emit);
-        if out.is_complete(read_err.is_some()) {
-            // Dernier événement de la complétion : copie complète des stats.
-            cb(StreamEvent::Stats(out.stats.clone()));
+        // Télémétrie : une complétion coupée avant son chunk final n'a ni cache
+        // ni total fiables — rangée incomplète, sans calcul de perte.
+        let complete = out.is_complete(read_err.is_some());
+        let rec = PerfRec::from_stats(tc.perf_kind, "", s.perf_iter, complete, &out.stats);
+        let noted = host
+            .perf(&rec, if complete { &sent_prefix } else { &[] }, ep.external)
+            .await;
+        s.perf_iter += 1;
+        if complete {
+            // Dernier événement de la complétion : copie complète des stats,
+            // avec la perte de cache vue par la télémétrie.
+            let mut st = out.stats.clone();
+            st.kind = tc.perf_kind.into();
+            st.lost = noted.lost;
+            st.lost_after = noted.lost_after;
+            st.lost_alert = noted.alert;
+            cb(StreamEvent::Stats(st));
             // Sonde de gabarit, en tâche de fond et après coup : rien n'en
             // revient dans la requête suivante.
             if !ep.external && !s.disable_tools && !s.tool_choice_none {

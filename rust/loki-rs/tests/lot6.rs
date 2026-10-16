@@ -680,6 +680,7 @@ async fn tour_complet_par_le_go() {
             cfg: cfg.clone(),
             patterns: shared.patterns.clone(),
             port: 8080,
+            perf: None,
         },
         compact: TurnCompact {
             cfg: CompactConfig::default(),
@@ -710,6 +711,7 @@ async fn tour_complet_par_le_go() {
         echo: Default::default(),
         compact: CompactConfig::default(),
         patterns: shared.patterns.clone(),
+        perf_kind: "main",
     };
     let question = Message {
         role: "user".into(),
@@ -761,6 +763,38 @@ async fn tour_complet_par_le_go() {
         })
         .collect();
     assert_eq!(answer, "Voilà.");
+    // Télémétrie : chaque complétion rangée par le Go, rattachée à la
+    // discussion ; la première, sans usage, reste incomplète.
+    let perfs = go.perf_records.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 2);
+    assert_eq!(perfs[0]["rec"]["complete"], false);
+    assert_eq!(perfs[0]["prefix"], serde_json::json!([]));
+    let r1 = &perfs[1]["rec"];
+    assert_eq!(
+        (
+            r1["conv"].clone(),
+            r1["kind"].clone(),
+            r1["iter"].clone(),
+            r1["total"].clone()
+        ),
+        (
+            serde_json::json!("c7"),
+            serde_json::json!("main"),
+            serde_json::json!(1),
+            serde_json::json!(50)
+        )
+    );
+    assert_eq!(perfs[1]["prefix"].as_array().unwrap().len(), 3);
+    assert_eq!(perfs[1]["external"], false);
+    let last = evs
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            StreamEvent::Stats(s) if !s.kind.is_empty() => Some(s.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!((last.lost, last.lost_after.as_str()), (Some(12), "task"));
 }
 
 #[tokio::test]
@@ -978,6 +1012,7 @@ async fn hote_et_sonde_de_gabarit() {
                 cfg,
                 patterns: shared.patterns.clone(),
                 port: 1,
+                perf: None,
             },
             compact: TurnCompact {
                 cfg: CompactConfig::default(),
@@ -1767,4 +1802,56 @@ async fn parite_du_tour_complet() {
         paths.len(),
         failures.join("\n\n")
     );
+}
+
+/// Lot 29 : le résumé d'une compaction rejoint la télémétrie du Go
+/// (kind=compact, rattaché à la discussion), dès que la réponse se lit.
+#[tokio::test]
+async fn telemetrie_des_resumes() {
+    use loki_rs::chat::compact::{Summarizer, TranscriptRequest};
+    let (st, go, _stop, _t) = store().await;
+    let (url, _seen) = fake_engine(vec![
+        serde_json::json!({
+            "choices": [{"message": {"content": "résumé"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3000, "completion_tokens": 200},
+            "timings": {"prompt_n": 3000, "prompt_ms": 1500, "predicted_n": 200, "predicted_per_second": 40}
+        })
+        .to_string(),
+        r#"{"choices":[]}"#.into(),
+        "pas du json".into(),
+    ])
+    .await;
+    let s = EngineSummarizer {
+        http: EngineHttp::new(),
+        ep: ChatEndpoint {
+            url,
+            model: "loki".into(),
+            key: String::new(),
+            external: false,
+        },
+        cfg: Default::default(),
+        patterns: RetryPatterns::builtin(),
+        port: 8080,
+        perf: Some((st, "c9".into())),
+    };
+    let req = || TranscriptRequest {
+        system: "s".into(),
+        transcript: "t".into(),
+        max_tokens: 500,
+    };
+    assert_eq!(
+        s.summarize_transcript(req()).await.unwrap().content,
+        "résumé"
+    );
+    assert!(s.summarize_transcript(req()).await.is_err(), "réponse vide");
+    assert!(s.summarize_transcript(req()).await.is_err(), "illisible");
+    let perfs = go.perf_records.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 2, "la réponse illisible n'est pas rangée");
+    assert_eq!(
+        perfs[0]["rec"],
+        serde_json::json!({ "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
+            "total": 3000, "new": 3000, "pp_ms": 1500.0, "gen": 200, "tg_tps": 40.0 })
+    );
+    assert_eq!(perfs[0]["prefix"], serde_json::json!([]));
+    assert_eq!(perfs[1]["rec"]["complete"], false);
 }

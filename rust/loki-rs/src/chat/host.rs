@@ -170,6 +170,9 @@ pub struct EngineSummarizer {
     pub cfg: HashMap<String, String>,
     pub patterns: Arc<RetryPatterns>,
     pub port: u16,
+    /// Télémétrie des résumés (kind=compact), rattachée à cette discussion :
+    /// `None` sans base (tests).
+    pub perf: Option<(Store, String)>,
 }
 
 impl EngineSummarizer {
@@ -200,7 +203,19 @@ impl EngineSummarizer {
                 body: String::from_utf8_lossy(b).trim().to_string(),
             });
         }
-        parse_summary_response(&raw)
+        let out = parse_summary_response(&raw);
+        // Télémétrie de la compaction : réponse non streamée, timings et usage
+        // à la racine, lus sans échec possible — dès que la réponse se lit.
+        let decoded = match &out {
+            Ok(_) => true,
+            Err(SummaryError::Other(e)) => e == super::compact::ERR_EMPTY_SUMMARY,
+            Err(_) => false,
+        };
+        if decoded && let Some((store, conv)) = &self.perf {
+            let rec = super::perf::PerfRec::from_wire(super::perf::KIND_COMPACT, conv, &raw);
+            super::perf::record(store, &rec, &[], self.ep.external).await;
+        }
+        out
     }
 }
 
@@ -391,6 +406,17 @@ impl TurnHost for GoTurnHost {
                 })
             }
         }
+    }
+
+    async fn perf(
+        &self,
+        rec: &super::perf::PerfRec,
+        prefix: &[u64],
+        external: bool,
+    ) -> super::perf::PerfNoted {
+        let mut rec = rec.clone();
+        rec.conv = self.conv_id.clone();
+        super::perf::record(&self.shared.store, &rec, prefix, external).await
     }
 
     async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {

@@ -125,6 +125,8 @@ pub struct FakeGo {
     /// pour une action donnée.
     pub service_os: Mutex<Vec<String>>,
     pub service_os_fail: Mutex<Option<(String, String)>>,
+    /// /internal/v1/perf/record reçus (corps entiers).
+    pub perf_records: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeGo {
@@ -499,6 +501,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(200, r#"{"ran":false,"error":""}"#);
             }
             resp(200, r#"{"ran":true,"error":""}"#)
+        }
+        "/internal/v1/perf/record" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let mut log = st.perf_records.lock().unwrap();
+            log.push(v);
+            let out = serde_json::json!({"seq": log.len(), "lost": 12, "lost_after": "task", "alert": false});
+            resp(200, out.to_string())
         }
         "/internal/v1/tune/context" => {
             let v = serde_json::json!({

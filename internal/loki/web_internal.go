@@ -135,6 +135,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalBenchPerf(w, r)
 		case "/internal/v1/tune/context":
 			handleInternalTuneContext(w, r)
+		case "/internal/v1/perf/record":
+			handleInternalPerfRecord(w, r)
 		case "/internal/v1/tasks/run":
 			handleInternalTaskRun(w, r)
 		case "/internal/v1/push/send":

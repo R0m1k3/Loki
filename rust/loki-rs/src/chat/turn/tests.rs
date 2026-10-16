@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::chat::compact::CompactConfig;
-use crate::chat::types::ToolFunction;
+use crate::chat::types::{StatsEvent, ToolFunction};
 use crate::chat::wire::resolve_chat_endpoint;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -36,6 +36,10 @@ struct Fake {
     unstable: Mutex<bool>,
     /// Complétions signalées à la sonde : (outils, kwargs, effort).
     completions: Mutex<Vec<Completion>>,
+    /// Télémétrie rangée : (relevé, empreintes, externe) ; et ce que le Go
+    /// en tire.
+    perfs: Mutex<Vec<(crate::chat::perf::PerfRec, Vec<u64>, bool)>>,
+    noted: Mutex<crate::chat::perf::PerfNoted>,
 }
 
 impl Fake {
@@ -143,6 +147,18 @@ impl TurnHost for Fake {
     fn prefix_unstable(&self, _t: &[Tool], _k: Option<&Map<String, Value>>, _e: &str) -> bool {
         *self.unstable.lock().unwrap()
     }
+    async fn perf(
+        &self,
+        rec: &crate::chat::perf::PerfRec,
+        prefix: &[u64],
+        external: bool,
+    ) -> crate::chat::perf::PerfNoted {
+        self.perfs
+            .lock()
+            .unwrap()
+            .push((rec.clone(), prefix.to_vec(), external));
+        self.noted.lock().unwrap().clone()
+    }
 }
 
 fn content(s: &str) -> String {
@@ -190,6 +206,7 @@ fn config(tools: &[&str]) -> TurnConfig {
         echo: EchoPolicy::default(),
         compact: CompactConfig::default(),
         patterns: RetryPatterns::builtin(),
+        perf_kind: "main",
     }
 }
 
@@ -622,4 +639,74 @@ async fn flux_externe_coupe_repris_apres_le_texte_affiche() {
     let host = Fake::new(vec![Script::Cut(vec![content("x")])]);
     let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
     assert!(r.err.unwrap().contains("a été coupé en cours de route"));
+}
+
+/// Télémétrie : chaque complétion rangée, numérotée dans le tour, avec les
+/// empreintes des messages envoyés ; la dernière statistique porte la
+/// nature et la perte de cache vue par le Go.
+#[tokio::test]
+async fn telemetrie_des_completions() {
+    use crate::chat::perf::PerfNoted;
+    let host = Fake::new(vec![
+        tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
+        answer("Trouvé"),
+    ]);
+    *host.noted.lock().unwrap() = PerfNoted {
+        lost: Some(40),
+        lost_after: "foreign".into(),
+        alert: true,
+    };
+    let mut tc = config(&["glob"]);
+    tc.perf_kind = "verify";
+    let (r, evs) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    let perfs = host.perfs.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 2);
+    for (i, (rec, prefix, external)) in perfs.iter().enumerate() {
+        assert_eq!(rec.kind, "verify");
+        assert_eq!(rec.iter, i as i64);
+        assert!(rec.complete);
+        assert_eq!((rec.total, rec.generated), (100, 5));
+        assert!(!external);
+        assert!(!prefix.is_empty());
+    }
+    // La seconde requête prolonge la première : mêmes empreintes en tête.
+    let (a, b) = (&perfs[0].1, &perfs[1].1);
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 3);
+    assert_eq!(b[..1], a[..]);
+    let last: Vec<&StatsEvent> = evs
+        .iter()
+        .filter_map(|e| match e {
+            StreamEvent::Stats(s) if !s.kind.is_empty() => Some(s),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(last.len(), 2);
+    assert_eq!(
+        (
+            last[1].kind.as_str(),
+            last[1].lost,
+            last[1].lost_after.as_str(),
+            last[1].lost_alert
+        ),
+        ("verify", Some(40), "foreign", true)
+    );
+}
+
+/// Une complétion coupée avant son chunk final : rangée incomplète, sans
+/// empreintes ; un stop pendant la lecture aussi.
+#[tokio::test]
+async fn telemetrie_incomplete() {
+    let host = Fake::new(vec![Script::Cut(vec![content("Bon")])]);
+    let (_, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    let perfs = host.perfs.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 1);
+    assert!(!perfs[0].0.complete);
+    assert!(perfs[0].1.is_empty());
+    assert!(
+        !evs.iter()
+            .any(|e| matches!(e, StreamEvent::Stats(s) if !s.kind.is_empty())),
+        "pas de statistique finale"
+    );
 }

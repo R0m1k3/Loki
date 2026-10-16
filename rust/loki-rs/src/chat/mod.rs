@@ -18,7 +18,8 @@
 //! - [`host`] : le tour branché sur le moteur, les outils du Go et la base ;
 //! - [`history`] : début et fin d'un tour côté historique ;
 //! - [`generate`] : un tour de bout en bout (envoi, file, fin de tour) ;
-//! - [`tplprobe`] : sonde de gabarit (rendus de `/apply-template`).
+//! - [`tplprobe`] : sonde de gabarit (rendus de `/apply-template`) ;
+//! - [`perf`] : télémétrie des complétions (relevés rangés par le Go).
 
 pub mod compact;
 pub mod conv;
@@ -29,6 +30,7 @@ pub mod host;
 pub mod journal;
 pub mod lease;
 pub mod nudges;
+pub mod perf;
 pub mod persist;
 pub mod sessions;
 pub mod stream;

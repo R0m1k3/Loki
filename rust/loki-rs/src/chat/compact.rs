@@ -853,6 +853,9 @@ struct WireMsg {
     tool_calls: Option<Vec<Value>>,
 }
 
+/// Réponse lue mais sans choix.
+pub const ERR_EMPTY_SUMMARY: &str = "résumé: réponse vide";
+
 /// Décodage d'une réponse non streamée de /v1/chat/completions, comme
 /// `postSummary` : seule la PREMIÈRE valeur JSON compte (un octet parasite
 /// après elle est ignoré), aucun choix → « résumé: réponse vide ».
@@ -866,7 +869,7 @@ pub fn parse_summary_response(raw: &[u8]) -> Result<SummaryChoice, SummaryError>
         Some(Ok(r)) => r,
     };
     let Some(ch) = resp.choices.and_then(|c| c.into_iter().next()) else {
-        return Err(SummaryError::Other("résumé: réponse vide".into()));
+        return Err(SummaryError::Other(ERR_EMPTY_SUMMARY.into()));
     };
     Ok(SummaryChoice {
         content: ch.message.content.unwrap_or_default(),

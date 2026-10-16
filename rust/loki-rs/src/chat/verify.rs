@@ -408,6 +408,7 @@ impl ChatService {
             echo: env.echo.clone(),
             compact: env.ccfg.clone(),
             patterns: self.shared.patterns.clone(),
+            perf_kind: super::perf::KIND_VERIFY,
         };
         let host = GoTurnHost {
             shared: self.shared.clone(),
