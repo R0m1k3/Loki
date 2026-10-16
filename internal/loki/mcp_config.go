@@ -52,7 +52,7 @@ type MCPServerConfig struct {
 	DisabledTools []string `json:"disabledTools,omitempty"`
 
 	// CallTimeoutSec : délai d'un appel d'outil de ce serveur, en secondes.
-	// 0 = défaut (mcpCallTimeout). Pour un serveur dont les outils sont longs
+	// 0 = réglage global (MCPTimeouts.Call). Pour un serveur dont les outils sont longs
 	// par nature (build, scraping, requête lourde).
 	CallTimeoutSec int `json:"callTimeoutSec,omitempty"`
 }

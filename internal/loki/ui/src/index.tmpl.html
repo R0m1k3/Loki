@@ -488,6 +488,17 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
     <div id="mcp-block" class="gated-group">
       <div class="subhead">Serveurs MCP<span id="mcp-badge" class="sbadge"></span><span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Connecte des <b>serveurs MCP</b> (Model Context Protocol) pour donner de nouveaux outils à l'IA : accès fichiers, bases de données, APIs métier… <b>stdio</b> = programme lancé localement (npx/uvx/binaire) · <b>http</b> = serveur distant. ⚠ un serveur stdio exécute du code sur cette machine, au même titre que le shell.</span></span></div>
       <div class="slist">
+        <!-- Délais communs à tous les serveurs (AJEAN c05a0a9f, e44b6139),
+             enregistrés à chaque modification. Un serveur peut remplacer le
+             délai d'appel dans sa fenêtre d'édition. -->
+        <div class="pe-row">
+          <span class="pe-row-l">Délai de connexion<span class="pe-sub">pour joindre un serveur ; au moins 3 min au premier lancement npx/uvx</span></span>
+          <span class="pe-row-c"><input id="mcp-timeout-connect" class="pe-val" type="number" min="1" max="3600" step="1" value="20" style="width:54px" onchange="saveMcpTimeouts()"><span class="pe-unit">s</span></span>
+        </div>
+        <div class="pe-row">
+          <span class="pe-row-l">Délai d'un appel d'outil<span class="pe-sub">réglable aussi serveur par serveur</span></span>
+          <span class="pe-row-c"><input id="mcp-timeout-call" class="pe-val" type="number" min="1" max="3600" step="1" value="120" style="width:54px" onchange="saveMcpTimeouts()"><span class="pe-unit">s</span></span>
+        </div>
         <div class="rowbody">
           <!-- Même texte que celui rendu après chargement quand il n'y a aucun
                serveur : sinon la carte partait vide puis grandissait d'une ligne. -->
@@ -1006,6 +1017,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
           <label class="fld-l" for="mcp-headers">En-têtes <span class="opt">(Nom: valeur, un par ligne — ex: Authorization: Bearer …)</span></label>
           <textarea id="mcp-headers" class="ctl ta" spellcheck="false" style="min-height:44px" placeholder="Authorization: Bearer sk-…"></textarea>
         </div>
+      </div>
+      <div class="fld">
+        <label class="fld-l" for="mcp-call-timeout">Délai d'un appel d'outil <span class="opt">(secondes, 1 à 3600 — vide = réglage global)</span></label>
+        <input id="mcp-call-timeout" class="ctl" type="number" min="1" max="3600" step="1" inputmode="numeric" placeholder="réglage global">
       </div>
       <div id="mcp-modal-status" class="muted" style="font-size:12px;min-height:16px"></div>
       <div id="mcp-tools-section" style="display:none">

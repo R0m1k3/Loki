@@ -37,11 +37,15 @@ var facadeMCPRoutes = map[string]bool{
 	"/api/mcp/toggle":  true,
 	"/api/mcp/tool":    true,
 	"/api/mcp/test":    true,
+	// Les délais globaux : la façade tient le pool, c'est elle qui doit
+	// fermer ses sessions quand ils changent.
+	"/api/mcp/timeouts":      true,
+	"/api/mcp/timeouts/save": true,
 }
 
 // facadeMCPJSON appelle l'API interne MCP de la façade et décode sa réponse.
-// Délai large : un appel d'outil MCP peut durer (mcpCallTimeout), une
-// première connexion npx/uvx aussi (mcpConnectTimeoutCold).
+// Délai large, simple garde-fou : la façade borne elle-même la connexion
+// (1 h au plus) et l'appel, nouvel essai compris (mcpCallTimeoutMax chacun).
 func facadeMCPJSON(path string, body any, out any) error {
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -53,7 +57,7 @@ func facadeMCPJSON(path string, body any, out any) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(internalTokenHeader, internalToken())
-	resp, err := (&http.Client{Timeout: mcpConnectTimeoutCold + mcpCallTimeout}).Do(req)
+	resp, err := (&http.Client{Timeout: mcpTimeoutMaxSec*time.Second + 2*mcpCallTimeoutMax}).Do(req)
 	if err != nil {
 		return err
 	}

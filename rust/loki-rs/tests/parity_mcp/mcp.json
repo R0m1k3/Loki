@@ -163,37 +163,37 @@
     {
       "op": "set",
       "name": "web",
-      "cfg": "{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":false}",
+      "cfg": "{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":false,\"callTimeoutSec\":45}",
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":false}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":false,\"callTimeoutSec\":45}}"
     },
     {
       "op": "enable",
       "name": "web",
       "on": true,
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "enable",
       "name": "nope",
       "on": true,
       "error": "serveur MCP inconnu: nope",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "tool",
       "name": "fs",
       "tool": "write",
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"write\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"write\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "tool",
       "name": "fs",
       "tool": "read",
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"write\",\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"write\",\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "tool",
@@ -201,21 +201,21 @@
       "tool": "write",
       "on": true,
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "tool",
       "name": "fs",
       "tool": "read",
       "error": "",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "tool",
       "name": "nope",
       "tool": "x",
       "error": "serveur MCP inconnu: nope",
-      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true}}"
+      "state": "{\"fs\":{\"command\":\"npx\",\"args\":[\"-y\",\"@x/fs\",\"\\u003cw\\u003e\"],\"env\":{\"A\":\"\\u0026\"},\"enabled\":true,\"disabledTools\":[\"read\"]},\"web\":{\"url\":\"http://u/mcp\",\"headers\":{\"X\":\"1\"},\"enabled\":true,\"callTimeoutSec\":45}}"
     },
     {
       "op": "delete",
@@ -382,13 +382,14 @@
       "connected": false,
       "tools": [],
       "disabled": [],
-      "url": "{{URL}}"
+      "url": "{{URL}}",
+      "callTimeoutSec": 300
     }
   ],
-  "store": "{\"alpha\":{\"url\":\"{{URL}}\",\"enabled\":true,\"disabledTools\":[\"secret\"]},\"beta\":{\"command\":\"loki-mcp-absent-pour-test\",\"enabled\":true},\"gamma\":{\"url\":\"{{URL}}\",\"enabled\":false},\"delta\":{\"enabled\":true}}",
+  "store": "{\"alpha\":{\"url\":\"{{URL}}\",\"enabled\":true,\"disabledTools\":[\"secret\"]},\"beta\":{\"command\":\"loki-mcp-absent-pour-test\",\"enabled\":true},\"gamma\":{\"url\":\"{{URL}}\",\"enabled\":false,\"callTimeoutSec\":300},\"delta\":{\"enabled\":true}}",
   "timeouts": {
     "": {
-      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s",
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
       "secs": 20
     },
     "/usr/local/bin/NPX": {
@@ -400,7 +401,7 @@
       "secs": 180
     },
     "node": {
-      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s",
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
       "secs": 20
     },
     "npx": {
@@ -412,7 +413,7 @@
       "secs": 180
     },
     "uvx-x": {
-      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s",
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
       "secs": 20
     },
     "uvx.exe": {
@@ -420,6 +421,437 @@
       "secs": 180
     }
   },
+  "timeouts_effects": [
+    {
+      "args": "{}",
+      "call": 120000,
+      "cfg": "{\"command\":\"node\",\"enabled\":false}",
+      "connect": 20000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{}",
+      "call": 120000,
+      "cfg": "{\"command\":\"npx\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — npx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{}",
+      "call": 90000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false,\"callTimeoutSec\":90}",
+      "connect": 20000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{\"timeout\":7200}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"uvx\",\"enabled\":false,\"callTimeoutSec\":3600}",
+      "connect": 180000,
+      "err": "délai dépassé — uvx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{\"timeout\":600}",
+      "call": 630000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 20000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{\"timeout\":99999999}",
+      "call": 3600000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 20000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 20s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "args": "{}",
+      "call": 45000,
+      "cfg": "{\"command\":\"node\",\"enabled\":false}",
+      "connect": 5000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 5s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{}",
+      "call": 45000,
+      "cfg": "{\"command\":\"npx\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — npx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{}",
+      "call": 90000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false,\"callTimeoutSec\":90}",
+      "connect": 5000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 5s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{\"timeout\":7200}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"uvx\",\"enabled\":false,\"callTimeoutSec\":3600}",
+      "connect": 180000,
+      "err": "délai dépassé — uvx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{\"timeout\":600}",
+      "call": 630000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 5000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 5s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{\"timeout\":99999999}",
+      "call": 3600000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 5000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 5s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 5,
+        "call": 45
+      }
+    },
+    {
+      "args": "{}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"node\",\"enabled\":false}",
+      "connect": 600000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 10m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"npx\",\"enabled\":false}",
+      "connect": 600000,
+      "err": "délai dépassé — npx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{}",
+      "call": 90000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false,\"callTimeoutSec\":90}",
+      "connect": 600000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 10m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{\"timeout\":7200}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"uvx\",\"enabled\":false,\"callTimeoutSec\":3600}",
+      "connect": 600000,
+      "err": "délai dépassé — uvx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{\"timeout\":600}",
+      "call": 3600000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 600000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 10m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{\"timeout\":99999999}",
+      "call": 3600000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 600000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 10m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 600,
+        "call": 3600
+      }
+    },
+    {
+      "args": "{}",
+      "call": 1000,
+      "cfg": "{\"command\":\"node\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 3m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    },
+    {
+      "args": "{}",
+      "call": 1000,
+      "cfg": "{\"command\":\"npx\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — npx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    },
+    {
+      "args": "{}",
+      "call": 90000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false,\"callTimeoutSec\":90}",
+      "connect": 180000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 3m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    },
+    {
+      "args": "{\"timeout\":7200}",
+      "call": 3600000,
+      "cfg": "{\"command\":\"uvx\",\"enabled\":false,\"callTimeoutSec\":3600}",
+      "connect": 180000,
+      "err": "délai dépassé — uvx télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    },
+    {
+      "args": "{\"timeout\":600}",
+      "call": 630000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 3m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    },
+    {
+      "args": "{\"timeout\":99999999}",
+      "call": 3600000,
+      "cfg": "{\"url\":\"http://h\",\"enabled\":false}",
+      "connect": 180000,
+      "err": "délai dépassé — le serveur n'a pas répondu au handshake en 3m0s (délai de connexion réglable dans les réglages MCP)",
+      "timeouts": {
+        "connect": 180,
+        "call": 1
+      }
+    }
+  ],
+  "timeouts_routes": [
+    {
+      "body": "",
+      "code": 200,
+      "path": "/api/mcp/timeouts",
+      "resp": "{\"call\":120,\"connect\":20,\"ok\":true}",
+      "state": ""
+    },
+    {
+      "body": "{\"connect\":0,\"call\":120}",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"connexion : 1 à 3600 s\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "{\"connect\":20,\"call\":3601}",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"appel d'outil : 1 à 3600 s\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "{\"connect\":20}",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"appel d'outil : 1 à 3600 s\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "{\"connect\":\"20\",\"call\":120}",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"json: cannot unmarshal string into Go struct field MCPTimeouts.connect of type int\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "{\"connect\":2.5,\"call\":120}",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"json: cannot unmarshal number 2.5 into Go struct field MCPTimeouts.connect of type int\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "[]",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"json: cannot unmarshal array into Go value of type loki.MCPTimeouts\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "pas du json",
+      "code": 400,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"error\":\"invalid character 'p' looking for beginning of value\",\"ok\":false}",
+      "state": ""
+    },
+    {
+      "body": "{\"Connect\":45,\"CALL\":900,\"x\":1}",
+      "code": 200,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"call\":900,\"connect\":45,\"ok\":true}",
+      "state": "{\"connect\":45,\"call\":900}"
+    },
+    {
+      "body": "",
+      "code": 200,
+      "path": "/api/mcp/timeouts",
+      "resp": "{\"call\":900,\"connect\":45,\"ok\":true}",
+      "state": "{\"connect\":45,\"call\":900}"
+    },
+    {
+      "body": "{\"connect\":3600,\"call\":1}",
+      "code": 200,
+      "path": "/api/mcp/timeouts/save",
+      "resp": "{\"call\":1,\"connect\":3600,\"ok\":true}",
+      "state": "{\"connect\":3600,\"call\":1}"
+    },
+    {
+      "body": "",
+      "code": 200,
+      "path": "/api/mcp/timeouts",
+      "resp": "{\"call\":1,\"connect\":3600,\"ok\":true}",
+      "state": "{\"connect\":3600,\"call\":1}"
+    }
+  ],
+  "timeouts_stored": [
+    {
+      "in": "",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"connect\":5,\"call\":300}",
+      "out": {
+        "connect": 5,
+        "call": 300
+      }
+    },
+    {
+      "in": "{\"connect\":0,\"call\":0}",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"connect\":-4,\"call\":99999}",
+      "out": {
+        "connect": 20,
+        "call": 3600
+      }
+    },
+    {
+      "in": "{\"connect\":\"x\",\"call\":50}",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"CONNECT\":7,\"Call\":8}",
+      "out": {
+        "connect": 7,
+        "call": 8
+      }
+    },
+    {
+      "in": "null",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "[1]",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"connect\":30,\"call\":40} reste",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"connect\":1.5,\"call\":60}",
+      "out": {
+        "connect": 20,
+        "call": 120
+      }
+    },
+    {
+      "in": "{\"connect\":3600,\"call\":3600,\"autre\":1}",
+      "out": {
+        "connect": 3600,
+        "call": 3600
+      }
+    }
+  ],
   "tool_server": [
     {
       "desc": "[MCP: alpha] desc",

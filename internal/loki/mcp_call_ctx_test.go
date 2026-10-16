@@ -74,22 +74,27 @@ func TestMCPCallHonorsTurnCancel(t *testing.T) {
 }
 
 func TestMCPCallTimeoutFor(t *testing.T) {
+	def := MCPTimeouts{}.normalized()
 	cases := []struct {
 		cfg  MCPServerConfig
+		t    MCPTimeouts
 		args map[string]any
 		want time.Duration
 	}{
-		{MCPServerConfig{}, nil, mcpCallTimeout},
-		{MCPServerConfig{CallTimeoutSec: 600}, nil, 10 * time.Minute},
-		{MCPServerConfig{}, map[string]any{"timeout": 300.0}, 330 * time.Second},          // secondes
-		{MCPServerConfig{}, map[string]any{"timeout": 200000.0}, 230 * time.Second},       // millisecondes
-		{MCPServerConfig{}, map[string]any{"timeout": 5000.0}, mcpCallTimeout},            // 5 s : le défaut reste
-		{MCPServerConfig{}, map[string]any{"timeout": "400"}, 430 * time.Second},          // chaîne
-		{MCPServerConfig{}, map[string]any{"timeout": 86400.0 * 1000}, mcpCallTimeoutMax}, // plafond
-		{MCPServerConfig{CallTimeoutSec: 30}, nil, 30 * time.Second},                      // plus court que le défaut
+		{MCPServerConfig{}, def, nil, 120 * time.Second},
+		{MCPServerConfig{CallTimeoutSec: 600}, def, nil, 10 * time.Minute},
+		{MCPServerConfig{}, def, map[string]any{"timeout": 300.0}, 330 * time.Second},          // secondes
+		{MCPServerConfig{}, def, map[string]any{"timeout": 200000.0}, 230 * time.Second},       // millisecondes
+		{MCPServerConfig{}, def, map[string]any{"timeout": 5000.0}, 120 * time.Second},         // 5 s : le défaut reste
+		{MCPServerConfig{}, def, map[string]any{"timeout": "400"}, 430 * time.Second},          // chaîne
+		{MCPServerConfig{}, def, map[string]any{"timeout": 86400.0 * 1000}, mcpCallTimeoutMax}, // plafond
+		{MCPServerConfig{CallTimeoutSec: 30}, def, nil, 30 * time.Second},                      // plus court que le défaut
+		{MCPServerConfig{}, MCPTimeouts{Connect: 20, Call: 45}, nil, 45 * time.Second},         // réglage global
+		{MCPServerConfig{CallTimeoutSec: 90}, MCPTimeouts{Connect: 20, Call: 45}, nil, 90 * time.Second},
+		{MCPServerConfig{}, MCPTimeouts{Connect: 20, Call: 3600}, nil, time.Hour}, // pas rogné par le plafond
 	}
 	for i, c := range cases {
-		if got := mcpCallTimeoutFor(c.cfg, c.args); got != c.want {
+		if got := mcpCallTimeoutFor(c.cfg, c.t, c.args); got != c.want {
 			t.Errorf("cas %d : %s, attendu %s", i, got, c.want)
 		}
 	}
