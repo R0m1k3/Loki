@@ -93,17 +93,17 @@ func TestFacadeRelaieLesRoutesDuChat(t *testing.T) {
 			t.Fatalf("%s non relayé : %q", p, w.Body.String())
 		}
 	}
-	// L'aperçu du navigateur piloté reste ici.
+	// L'aperçu du navigateur piloté aussi : le navigateur est le sien (lot 44).
 	w = httptest.NewRecorder()
 	withFacadeChat("/api/chat/cushot", local)(w, httptest.NewRequest("GET", "/api/chat/cushot", nil))
-	if w.Body.String() != "go" {
-		t.Fatalf("aperçu relayé : %q", w.Body.String())
+	if w.Body.String() != f.reply {
+		t.Fatalf("aperçu non relayé : %q", w.Body.String())
 	}
 	// Sans LOKI_CHAT=rust : tout reste ici.
 	t.Setenv(facadeChatEnv, "")
 	w = httptest.NewRecorder()
 	withFacadeChat("/api/chat/send", local)(w, httptest.NewRequest("POST", "/api/chat/send", nil))
-	if w.Body.String() != "go" || len(f.recu()) != 4 {
+	if w.Body.String() != "go" || len(f.recu()) != 5 {
 		t.Fatalf("relayé sans la variable : %q", w.Body.String())
 	}
 }

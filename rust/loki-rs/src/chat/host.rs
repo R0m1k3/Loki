@@ -27,7 +27,7 @@
 //! d'écriture du mode Code (état du Go) : `cache_hint` et `preflight` absents.
 
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -116,6 +116,11 @@ pub struct ImageCache {
 }
 
 impl ImageCache {
+    /// `LOKI_HOME` (le parent du dossier des images).
+    pub fn home(&self) -> PathBuf {
+        self.dir.parent().map(Path::to_path_buf).unwrap_or_default()
+    }
+
     /// `dir` : `LOKI_HOME/chatimg`.
     pub fn new(dir: PathBuf) -> Self {
         ImageCache {
@@ -351,6 +356,8 @@ pub struct ChatShared {
     pub web: Arc<crate::webtools::Web>,
     /// Les jobs d'arrière-plan du mode Code (lot 43).
     pub jobs: Arc<crate::tools::jobs::BgJobs>,
+    /// Le navigateur piloté (lot 44).
+    pub browser: Arc<crate::browser::Browser>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -708,6 +715,34 @@ impl TurnHost for GoTurnHost {
                 result,
                 ..Default::default()
             };
+        }
+        // Navigateur piloté (lot 44) : la session est ici ; aperçu de la page
+        // après une action qui la change (jamais après une erreur), capture
+        // relayée au modèle.
+        if crate::browser::is_tool(name) {
+            let cfg = self.shared.store.config().await;
+            let vision = crate::system::vision_enabled(&cfg);
+            let home = self.shared.images.home();
+            let ws = tokio::task::spawn_blocking(move || {
+                let env = std::env::var(crate::paths::WORKSPACE_ENV).ok();
+                crate::paths::agent_workspace(&home, env.as_deref())
+            })
+            .await
+            .unwrap_or_default();
+            if let Some(o) = self.shared.browser.exec(name, args, vision, &ws).await {
+                let live_shot =
+                    if !o.result.starts_with("[erreur]") && crate::browser::auto_shot_tool(name) {
+                        self.shared.browser.auto_shot().await
+                    } else {
+                        String::new()
+                    };
+                return ToolOutcome {
+                    relay: o.image.map(|img| see_image_message(label, img)),
+                    result: o.result,
+                    live_shot,
+                    ..Default::default()
+                };
+            }
         }
         // Jobs d'arrière-plan du mode Code (lot 43), dans le dossier de la
         // discussion ; contexte indisponible : le Go s'en charge.

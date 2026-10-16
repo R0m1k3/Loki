@@ -13,9 +13,10 @@
 //!
 //! Les réglages restent des clés de la base. Ce qui vit dans le processus Go
 //! reste au Go : son cache de joignabilité (vidé par
-//! `/internal/v1/web/reach/reset`), le Chromium des outils `browser_*`
-//! (`/internal/v1/cdp/shutdown`) et le redémarrage du moteur quand la façade ne
-//! le pilote pas (`/internal/v1/service/action`).
+//! `/internal/v1/web/reach/reset`), le Chromium qu'il pilote quand la façade
+//! ne tient pas la conversation (`/internal/v1/cdp/shutdown` ; sinon le
+//! navigateur est celui de la façade, lot 44) et le redémarrage du moteur
+//! quand la façade ne le pilote pas (`/internal/v1/service/action`).
 
 use std::time::{Duration, Instant};
 
@@ -528,8 +529,11 @@ pub async fn serve(
                 if let Err(e) = put_bool(store, "computer", on).await {
                     return fail(StatusCode::INTERNAL_SERVER_ERROR, e);
                 }
-                // Couper l'interrupteur ferme le navigateur (au Go, qui le
-                // pilote pour les outils browser_*).
+                // Couper l'interrupteur ferme le navigateur : celui de la
+                // façade (lot 44), et celui du Go s'il en a ouvert un.
+                if !on {
+                    crate::browser::global().shutdown().await;
+                }
                 if !on
                     && let Err(e) = store
                         .internal_post("/internal/v1/cdp/shutdown", &json!({}))

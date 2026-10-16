@@ -2,6 +2,7 @@
 //! journalise les chemins demandés.
 #![allow(dead_code)]
 
+pub mod fakecdp;
 pub mod fakego;
 pub mod parity;
 pub mod toolsfx;

@@ -673,6 +673,7 @@ async fn tour_complet_par_le_go() {
         memory: None,
         web: Default::default(),
         jobs: Default::default(),
+        browser: Default::default(),
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -2839,4 +2840,121 @@ async fn job_arriere_plan_par_la_facade() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert_eq!(jobs.running(), 0);
+}
+
+/// Lot 44 : le navigateur piloté est celui de la façade. Un tour qui ouvre
+/// une page l'exécute chez elle (rien par le Go), l'aperçu est servi par
+/// /api/chat/cushot, et le Go passe par /internal/facade/v1/browser.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn navigateur_par_la_facade() {
+    use common::fakecdp;
+    let t = tempfile::tempdir().unwrap();
+    let scene: fakecdp::Scene = Arc::new(std::sync::Mutex::new(serde_json::json!({
+        "snap": { "title": "Exemple", "url": "https://exemple.test/", "refs": ["[1] link \"Accueil\""] },
+        "href": "https://exemple.test/",
+    })));
+    let calls: fakecdp::Calls = Default::default();
+    let port = fakecdp::start(scene, calls.clone()).await;
+    let chrome = fakecdp::chrome_script(t.path(), port, &t.path().join("args"));
+    std::fs::create_dir_all(t.path().join("profils")).unwrap();
+
+    // Le tour.
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"n1","type":"function","function":{"name":"browser_open","arguments":"{\"url\":\"exemple.test\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("ouvert")]).await;
+    let browser = Arc::new(loki_rs::browser::Browser::with(
+        &chrome.to_string_lossy(),
+        t.path().join("profils"),
+    ));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.browser = browser.clone()).await;
+    svc.send(serde_json::json!({"message": "ouvre exemple", "cid": "n"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(
+            "# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\""
+        )
+    );
+    assert!(browser.last_shot().is_some(), "aperçu après l'ouverture");
+    assert!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|c| c == "Page.navigate {\"url\":\"https://exemple.test\"}")
+    );
+    browser.shutdown().await;
+
+    // L'API du Go et l'aperçu servi, par une façade complète.
+    let t2 = tempfile::tempdir().unwrap();
+    let (facade, _go, _stop2, chat) = fakego::start_with(
+        t2.path().into(),
+        fakego::Opts {
+            chat: true,
+            ..Default::default()
+        },
+    )
+    .await;
+    let chat = chat.unwrap();
+    chat.shared
+        .browser
+        .impose(&chrome.to_string_lossy(), t.path().join("profils"));
+    let tok = [(loki_rs::auth::INTERNAL_HEADER, fakego::JETON)];
+    let post = |body: serde_json::Value| {
+        let b = body.to_string();
+        async move {
+            let (code, out) =
+                fakego::send(facade, "POST", "/internal/facade/v1/browser", &tok, &b).await;
+            (
+                code,
+                serde_json::from_slice::<serde_json::Value>(&out).unwrap_or_default(),
+            )
+        }
+    };
+    let (code, out) =
+        post(serde_json::json!({ "op": "tool", "name": "browser_snapshot", "args": {} })).await;
+    assert_eq!(code, 200, "{out}");
+    assert!(
+        out["result"].as_str().unwrap().starts_with("# Exemple\n"),
+        "{out}"
+    );
+    assert_eq!(out["image"], serde_json::Value::Null);
+    let (_, out) = post(serde_json::json!({ "op": "shot" })).await;
+    let id = out["id"].as_str().unwrap().to_string();
+    assert!(!id.is_empty());
+    let (code, out) =
+        fakego::send(facade, "GET", &format!("/api/chat/cushot?id={id}"), &[], "").await;
+    assert_eq!(code, 200);
+    let v: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(
+        (v["ok"].clone(), v["mime"].clone()),
+        (serde_json::json!(true), serde_json::json!("image/jpeg"))
+    );
+    let (code, out) = fakego::send(facade, "GET", "/api/chat/cushot?id=perdu", &[], "").await;
+    assert_eq!(code, 404);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&out).unwrap(),
+        serde_json::json!({ "ok": false, "error": "capture expirée" })
+    );
+    let (code, _) = post(serde_json::json!({ "op": "outil", "name": "x" })).await;
+    assert_eq!(code, 400);
+    let (code, _) = post(serde_json::json!({ "op": "tool", "name": "browser_voler" })).await;
+    assert_eq!(code, 400);
+    let (code, _) = post(serde_json::json!({ "op": "shutdown" })).await;
+    assert_eq!(code, 200);
+    assert!(!chat.shared.browser.running().await);
 }

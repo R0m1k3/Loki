@@ -91,6 +91,8 @@ var facadeChatRoutes = map[string]bool{
 	"/api/chat/criteria": true,
 	// Lot 39 : l'anneau de télémétrie est celui de la façade.
 	"/api/perf/summary": true,
+	// Lot 44 : les aperçus du navigateur piloté, tenu par la façade.
+	"/api/chat/cushot": true,
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la
