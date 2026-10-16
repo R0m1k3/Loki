@@ -345,7 +345,7 @@ impl Strata {
             "mmap": mode == "disk" || mode == "arena", "drop": mode == "drop",
             "experts": experts, "mode_label": experts_label(&mode), "mode": mode,
             "main_gpu": main_gpu,
-            "has_helper": false, "helper_on": false,
+            "has_helper": false, "helper_on": false, "split_layers": false,
         });
         let kvr = val("--kv-resident");
         if !kvr.is_empty() {
@@ -356,6 +356,7 @@ impl Strata {
             d["has_helper"] = json!(true);
             if helper_on(&pc) {
                 d["helper_on"] = json!(true);
+                d["split_layers"] = json!(layer_split(&pc));
                 let hg = gpu_name(h);
                 if !hg.is_empty() {
                     d["helper_gpu"] = json!(hg);
@@ -825,6 +826,7 @@ pub async fn serve(
                     ("vision", Kind::Bool),
                     ("helper", Kind::Bool),
                     ("experts", Kind::Str),
+                    ("split", Kind::Str),
                 ],
             );
             if let Some(e) = d.err.clone() {
@@ -838,6 +840,7 @@ pub async fn serve(
                 vision: d.bool("vision"),
                 helper: d.bool("helper"),
                 experts: d.str("experts"),
+                split: d.str("split"),
             };
             if r.preset.contains(['/', '\\']) || r.preset.is_empty() {
                 return fail(StatusCode::BAD_REQUEST, "preset invalide");

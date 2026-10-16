@@ -405,6 +405,89 @@ fn hors_ram_reserve_et_contexte() {
     }
 }
 
+// `TestStrataBuildConfigLayerSplit`.
+#[test]
+fn partage_des_couches() {
+    let base = json!({
+        "args": ["--pack", "/p", "--vram-reserve-mib", "900"],
+        "vision": { "exe": "/v" },
+    });
+    let mut c = cfg(&[
+        ("STRATA_MAIN_GPU", "1"),
+        ("STRATA_HELPER_GPU", "0"),
+        ("STRATA_SPLIT", "layers"),
+    ]);
+    let out = build_config(&base, &c, "", "drop").unwrap();
+    assert_eq!(out["gpu"], json!([1, 0]));
+    let a = args_of(&out);
+    assert!(!has_arg(&a, "--remote-expert-opt") && !has_arg(&a, "--expert-cache-device1"));
+    assert_eq!(arg_after(&a, "--vram-reserve-mib"), "900");
+    assert_eq!(arg_after(&a, "--short-read"), "150");
+    assert!(out["env"].get("STRATA_REMOTE_DROP").is_none());
+    assert!(out["env"].get("STRATA_PREFILL_HELPER_SOURCE").is_none());
+    assert!(out["vision"].get("cuda_device").is_none());
+    c.remove("STRATA_SPLIT");
+    let out = build_config(&base, &c, "", "drop").unwrap();
+    assert!(out.get("gpu").is_none());
+    assert!(has_arg(&args_of(&out), "--remote-expert-opt"));
+    c.insert("STRATA_SPLIT".into(), "layers".into());
+    c.insert("STRATA_HELPER".into(), "0".into());
+    assert!(!layer_split(&c));
+}
+
+// `TestStrataResolveExpertsLayerSplit`.
+#[test]
+fn partage_des_couches_sans_hors_ram() {
+    let d = tempfile::tempdir().unwrap();
+    let p = Paths {
+        home: d.path().to_path_buf(),
+    };
+    let pack = d.path().join("pack");
+    std::fs::create_dir_all(&pack).unwrap();
+    std::fs::write(pack.join("experts.bin"), "x").unwrap();
+    std::fs::create_dir_all(p.src_dir().join("engine-cuda12")).unwrap();
+    std::fs::write(p.engine_marker(), format!("{ENGINE_ASSET}\n")).unwrap();
+    let args = vec!["--pack".to_string(), pack.to_string_lossy().into_owned()];
+    let mut c = cfg(&[
+        ("STRATA_CONFIG", "/x/strata-swift-iq3_xxs.json"),
+        ("STRATA_HELPER_GPU", "1"),
+        ("STRATA_DROP", "1"),
+    ]);
+    assert_eq!(resolve_experts(&p, &c, &args, 44.0, 12.0), "drop");
+    c.insert("STRATA_SPLIT".into(), "layers".into());
+    assert_eq!(resolve_experts(&p, &c, &args, 44.0, 12.0), "arena");
+    c.insert("STRATA_EXPERTS".into(), "ram".into());
+    assert_eq!(resolve_experts(&p, &c, &args, 44.0, 12.0), "ram");
+}
+
+// `TestStrataApplySettingsSplit`.
+#[test]
+fn reglages_de_la_seconde_carte() {
+    let input = "ENGINE=strata\nSTRATA_HELPER_GPU=0\n";
+    let mut r = SettingsReq {
+        ctx: 131072,
+        kv: "fp16".into(),
+        spec: 3,
+        vision: true,
+        helper: true,
+        split: "layers".into(),
+        ..SettingsReq::default()
+    };
+    let out = apply_settings(input, &r).unwrap();
+    assert!(out.contains("STRATA_SPLIT=layers\n"), "{out:?}");
+    r.split = "helper".into();
+    let out = apply_settings(&out, &r).unwrap();
+    assert!(!out.contains("STRATA_SPLIT"), "{out:?}");
+    r.split = String::new();
+    let out = apply_settings("STRATA_SPLIT=layers\n", &r).unwrap();
+    assert!(out.contains("STRATA_SPLIT=layers"), "{out:?}");
+    r.split = "nimporte".into();
+    assert_eq!(
+        apply_settings(input, &r).unwrap_err(),
+        "répartition inconnue : nimporte"
+    );
+}
+
 #[test]
 fn reglages_des_experts() {
     let input = "ENGINE=strata\nSTRATA_EXPERTS=auto\n";

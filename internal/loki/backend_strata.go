@@ -220,7 +220,9 @@ func strataPackHasExpertsBin(args []string) bool {
 // Pure : la décision se teste en table.
 func strataResolveExperts(cfg map[string]string, args []string, availGB, helperGB float64) string {
 	binReady := strataPackHasExpertsBin(args) && strataEngineInstalled() == strataEngineAsset
-	dropReady := binReady && strataHelperOn(cfg) && cfg["STRATA_DROP"] != "0"
+	// (experts de la carte d'aide hors RAM : propre au mode d'aide, jamais en
+	// partage des couches, où la seconde carte ne garde pas d'experts)
+	dropReady := binReady && strataHelperOn(cfg) && !strataLayerSplit(cfg) && cfg["STRATA_DROP"] != "0"
 	arena := strataArenaGB(cfg)
 	switch strings.ToLower(strings.TrimSpace(cfg["STRATA_EXPERTS"])) {
 	case strataExpertsDisk:
@@ -504,6 +506,7 @@ type strataDetails struct {
 	// pour les réglages : ce que la machine permet et l'état actuel
 	HasHelper bool `json:"has_helper"` // une carte d'aide est disponible
 	HelperOn  bool `json:"helper_on"`
+	Split     bool `json:"split_layers"` // les deux cartes se partagent les couches
 	Vision    bool `json:"vision"`
 }
 
@@ -565,6 +568,7 @@ func strataDetailsFor(presetID string, env strataEnv) *strataDetails {
 		if strataHelperOn(pc) {
 			d.HelperOn = true
 			d.HelperGPU = gpuName(h)
+			d.Split = strataLayerSplit(pc)
 		}
 	}
 	d.Vision = pc["STRATA_VISION"] != "0"
@@ -968,6 +972,16 @@ func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey, mode 
 	}
 	helper := strings.TrimSpace(cfg["STRATA_HELPER_GPU"])
 	hasHelper := strataHelperOn(cfg)
+	if strataLayerSplit(cfg) {
+		// Partage des couches : le serveur de Strata le fait de lui-même quand sa
+		// clé « gpu » liste plusieurs cartes (--layer-split auto, réparti selon la
+		// VRAM libre), numérotées comme nvidia-smi. Pas de chemin « aide » : la
+		// réserve de VRAM de l'installeur et l'encodeur d'images restent en place.
+		main, _ := strconv.Atoi(strings.TrimSpace(cfg["STRATA_MAIN_GPU"]))
+		second, _ := strconv.Atoi(helper)
+		out["gpu"] = []any{main, second}
+		hasHelper = false
+	}
 	// Deuxième carte en aide : elle garde et CALCULE sa part des experts (le
 	// chemin « helper » du moteur), la carte principale reste CUDA0. Les cartes
 	// sont posées par CUDA_VISIBLE_DEVICES (serveStrata), PAS par la clé « gpu » :
@@ -1189,6 +1203,16 @@ func strataEnsureEngine() error {
 func strataHelperOn(cfg map[string]string) bool {
 	h := strings.TrimSpace(cfg["STRATA_HELPER_GPU"])
 	return h != "" && h != "-1" && cfg["STRATA_HELPER"] != "0"
+}
+
+// strataLayerSplit : les deux cartes se partagent les COUCHES du modèle (clé de
+// preset STRATA_SPLIT=layers) au lieu que la seconde n'aide que pour une part
+// des experts. Mesuré par un utilisateur d'AJEAN sur deux RTX 3060 identiques
+// (#121 amont) : la carte d'aide ne travaillait qu'à ~15 %, le partage des
+// couches donnait +50 % en génération. Sur deux cartes très différentes, le
+// mode d'aide reste le défaut mesuré : le partage est un choix, jamais imposé.
+func strataLayerSplit(cfg map[string]string) bool {
+	return strataHelperOn(cfg) && cfg["STRATA_SPLIT"] == "layers"
 }
 
 // strataCudaDevices : ordre des cartes vu par le moteur, la principale en CUDA0.
@@ -1437,6 +1461,9 @@ type strataSettingsReq struct {
 	Vision  bool   `json:"vision"`
 	Helper  bool   `json:"helper"`
 	Experts string `json:"experts"` // auto, ram ou disk ; vide = inchangé
+	// Split : rôle de la seconde carte, « helper » (aide aux experts) ou
+	// « layers » (partage des couches). Vide = inchangé (anciens clients).
+	Split string `json:"split"`
 }
 
 // strataApplySettings réécrit les clés du preset (pure, testable).
@@ -1451,6 +1478,8 @@ func strataApplySettings(content string, r strataSettingsReq) (string, error) {
 		return "", fmt.Errorf("MTP hors limites : %d", r.Spec)
 	case r.Experts != "" && r.Experts != strataExpertsAuto && r.Experts != strataExpertsRAM && r.Experts != strataExpertsDisk:
 		return "", fmt.Errorf("placement des experts inconnu : %s", r.Experts)
+	case r.Split != "" && r.Split != "helper" && r.Split != "layers":
+		return "", fmt.Errorf("répartition inconnue : %s", r.Split)
 	}
 	set := map[string]string{
 		"CTX": strconv.Itoa(r.Ctx), "STRATA_KV": r.KV, "STRATA_SPEC": strconv.Itoa(r.Spec),
@@ -1461,6 +1490,14 @@ func strataApplySettings(content string, r strataSettingsReq) (string, error) {
 		set["STRATA_EXPERTS"] = r.Experts
 		keys = append(keys, "STRATA_EXPERTS")
 	}
+	if r.Split != "" {
+		// « helper » est le défaut : la clé disparaît plutôt que d'être écrite
+		set["STRATA_SPLIT"] = ""
+		if r.Split == "layers" {
+			set["STRATA_SPLIT"] = "layers"
+		}
+		keys = append(keys, "STRATA_SPLIT")
+	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(content, "\n"), "\n") {
 		k, _, _ := strings.Cut(strings.TrimSpace(l), "=")
@@ -1470,6 +1507,9 @@ func strataApplySettings(content string, r strataSettingsReq) (string, error) {
 		lines = append(lines, l)
 	}
 	for _, k := range keys {
+		if set[k] == "" && k == "STRATA_SPLIT" {
+			continue
+		}
 		lines = append(lines, k+"="+set[k])
 	}
 	return strings.Join(lines, "\n") + "\n", nil

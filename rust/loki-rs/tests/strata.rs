@@ -318,6 +318,7 @@ async fn parite_de_strata() {
             "CTX",
             "STRATA_KV",
             "STRATA_HELPER",
+            "STRATA_SPLIT",
         ] {
             if let Some(v) = bn.go.get("config", k).filter(|v| !v.is_empty()) {
                 after.insert(format!("config/{k}"), Value::String(bn.mask(&v)));

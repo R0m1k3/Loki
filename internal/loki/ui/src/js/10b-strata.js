@@ -128,7 +128,11 @@ function strataRenderSettings(fit){
     ['Experts', sel('strata-s-experts', [['auto','auto (selon la RAM libre)'],['ram','en RAM (le plus rapide)'],['disk','depuis le disque (mmap, économe)']], d.experts||'auto')],
     ['Lire les images', sw('strata-s-vision', d.vision)],
   ];
-  if(d.has_helper) rows.push(["Carte d'appoint", sw('strata-s-helper', d.helper_on)]);
+  // Seconde carte : aide aux experts (défaut mesuré) ou partage des couches,
+  // souvent plus rapide avec deux cartes identiques (#121 d'AJEAN).
+  if(d.has_helper) rows.push(['Seconde carte', sel('strata-s-helper',
+    [['off', 'non utilisée'], ['helper', 'aide aux experts'], ['layers', 'partage des couches']],
+    !d.helper_on ? 'off' : d.split_layers ? 'layers' : 'helper')]);
   document.getElementById('strata-settings').innerHTML = rows.map(([a,b])=>
     '<div class="moe-kv"><span>'+escHtml(a)+'</span><span>'+b+'</span></div>').join('');
   strataCtxLbl();
@@ -148,8 +152,11 @@ async function strataSaveSettings(){
   if(!fit || !fit.preset) return;
   const v = id => document.getElementById(id);
   const body = {preset: fit.preset, ctx: +v('strata-s-ctx').value, kv: v('strata-s-kv').value, spec: +v('strata-s-spec').value,
-    vision: v('strata-s-vision').checked, helper: v('strata-s-helper') ? v('strata-s-helper').checked : false,
+    vision: v('strata-s-vision').checked,
     experts: v('strata-s-experts') ? v('strata-s-experts').value : ''};
+  const second = v('strata-s-helper') ? v('strata-s-helper').value : 'off';
+  body.helper = second !== 'off';
+  if(body.helper) body.split = second;
   if(fit.active && !await askConfirm('Le modèle va redémarrer avec ces réglages (quelques minutes).', {title:'Strata — Qwen3.8 Flash Next', okText:'Enregistrer'})) return;
   const r = await jpost('/api/strata/settings', body);
   if(!r.ok){ toast('Erreur : '+(r.error||'')); return; }
@@ -168,7 +175,7 @@ function strataRenderDetails(fit){
   const k = n => (+n >= 1024 ? Math.round(+n/1024)+'K' : n);
   const rows = [
     ['Carte principale', d.main_gpu],
-    ["Carte d'appoint", d.helper_gpu || 'aucune'],
+    ['Seconde carte', d.helper_gpu ? d.helper_gpu + (d.split_layers ? ' · partage des couches' : ' · aide aux experts') : 'aucune'],
     ['Lecture des images', d.vision_gpu || 'aucune'],
     ['Contexte', (+d.ctx).toLocaleString('fr-FR')+' jetons'],
     ['Cache KV', d.kv + (d.kv_resident ? ' · '+k(d.kv_resident)+' en VRAM, le reste en RAM' : '')],

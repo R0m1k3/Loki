@@ -287,6 +287,13 @@ pub fn helper_on(cfg: &Cfg) -> bool {
     !h.is_empty() && h != "-1" && cfg_get(cfg, "STRATA_HELPER") != "0"
 }
 
+/// `strataLayerSplit` : les deux cartes se partagent les couches
+/// (`STRATA_SPLIT=layers`) au lieu que la seconde n'aide que pour une part
+/// des experts. Un choix, jamais imposé : le mode d'aide reste le défaut.
+pub fn layer_split(cfg: &Cfg) -> bool {
+    helper_on(cfg) && cfg_get(cfg, "STRATA_SPLIT") == "layers"
+}
+
 /// `strataResolveExperts` : le mode lancé (drop, ram, arena, disk), d'après
 /// le choix du preset et la RAM disponible.
 pub fn resolve_experts(
@@ -297,7 +304,9 @@ pub fn resolve_experts(
     helper_gb: f64,
 ) -> &'static str {
     let bin_ready = pack_has_experts_bin(args) && paths.engine_installed() == ENGINE_ASSET;
-    let drop_ready = bin_ready && helper_on(cfg) && cfg_get(cfg, "STRATA_DROP") != "0";
+    // (jamais en partage des couches : la seconde carte n'y garde pas d'experts)
+    let drop_ready =
+        bin_ready && helper_on(cfg) && !layer_split(cfg) && cfg_get(cfg, "STRATA_DROP") != "0";
     let arena = arena_gb(cfg);
     match cfg_get(cfg, "STRATA_EXPERTS")
         .trim()
@@ -411,7 +420,18 @@ pub fn build_config(base: &Value, cfg: &Cfg, api_key: &str, mode: &str) -> Resul
         args = set_arg(args, flag, v);
     }
     let helper = cfg_get(cfg, "STRATA_HELPER_GPU").trim();
-    let has_helper = helper_on(cfg);
+    let mut has_helper = helper_on(cfg);
+    if layer_split(cfg) {
+        // Partage des couches : la clé « gpu » liste les deux cartes (numéros
+        // nvidia-smi), le serveur de Strata en déduit --layer-split.
+        let main = cfg_get(cfg, "STRATA_MAIN_GPU")
+            .trim()
+            .parse::<i64>()
+            .unwrap_or(0);
+        let second = helper.parse::<i64>().unwrap_or(0);
+        out.insert("gpu".into(), json!([main, second]));
+        has_helper = false;
+    }
     if has_helper {
         args = set_arg(args, "--expert-cache-device1", "auto");
         if !has_arg(&args, "--remote-expert-opt") {
@@ -788,6 +808,8 @@ pub struct SettingsReq {
     pub vision: bool,
     pub helper: bool,
     pub experts: String,
+    /// « helper » ou « layers » ; vide = inchangé (anciens clients).
+    pub split: String,
 }
 
 /// `strataApplySettings` : réécrit les clés du preset. Pure.
@@ -808,6 +830,9 @@ pub fn apply_settings(content: &str, r: &SettingsReq) -> Result<String, String> 
     {
         return Err(format!("placement des experts inconnu : {}", r.experts));
     }
+    if !r.split.is_empty() && r.split != "helper" && r.split != "layers" {
+        return Err(format!("répartition inconnue : {}", r.split));
+    }
     let mut set: Vec<(&str, String)> = vec![
         ("CTX", r.ctx.to_string()),
         ("STRATA_KV", r.kv.clone()),
@@ -818,6 +843,11 @@ pub fn apply_settings(content: &str, r: &SettingsReq) -> Result<String, String> 
     if !r.experts.is_empty() {
         set.push(("STRATA_EXPERTS", r.experts.clone()));
     }
+    if !r.split.is_empty() {
+        // « helper » est le défaut : la clé disparaît plutôt que d'être écrite
+        let v = if r.split == "layers" { "layers" } else { "" };
+        set.push(("STRATA_SPLIT", v.into()));
+    }
     let mut lines: Vec<String> = Vec::new();
     for l in content.trim_end_matches('\n').split('\n') {
         let k = l.trim().split_once('=').map_or(l.trim(), |(k, _)| k);
@@ -827,6 +857,9 @@ pub fn apply_settings(content: &str, r: &SettingsReq) -> Result<String, String> 
         lines.push(l.to_string());
     }
     for (k, v) in set {
+        if k == "STRATA_SPLIT" && v.is_empty() {
+            continue;
+        }
         lines.push(format!("{k}={v}"));
     }
     Ok(lines.join("\n") + "\n")

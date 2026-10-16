@@ -333,7 +333,7 @@ func TestPariteStrata(t *testing.T) {
 		mu.Unlock()
 		st.After = map[string]string{}
 		cfg := ReadConfig()
-		for _, k := range []string{"ENGINE", "STRATA_CONFIG", "CTX", "STRATA_KV", "STRATA_HELPER"} {
+		for _, k := range []string{"ENGINE", "STRATA_CONFIG", "CTX", "STRATA_KV", "STRATA_HELPER", "STRATA_SPLIT"} {
 			if v := cfg[k]; v != "" {
 				st.After["config/"+k] = mask(v)
 			}
@@ -382,6 +382,10 @@ func TestPariteStrata(t *testing.T) {
 			Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, "")},
 		{Name: "réglages du preset actif pendant une optimisation", Tune: true,
 			Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, "")},
+		{Name: "réglages, répartition inconnue", Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, `,"split":"nimporte"`)},
+		{Name: "réglages, partage des couches", Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, `,"split":"layers"`)},
+		{Name: "réglages d'un ancien client, partage gardé", Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, "")},
+		{Name: "réglages, retour à l'aide aux experts", Method: "POST", Path: "/api/strata/settings", Body: settings("S", 98304, `,"split":"helper"`)},
 
 		// Installation.
 		{Name: "installation en GET", Method: "GET", Path: "/api/strata/install"},
@@ -416,6 +420,11 @@ func TestPariteStrata(t *testing.T) {
 			"presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\n" +
 				"STRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\n" +
 				"STRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=196608\nREASONING=off\n",
+		}, Method: "GET", Path: "/api/strata"},
+		{Name: "seconde carte en partage des couches", Files: map[string]string{
+			"presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\n" +
+				"STRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\n" +
+				"STRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=196608\nREASONING=off\nSTRATA_SPLIT=layers\n",
 		}, Method: "GET", Path: "/api/strata"},
 		{Name: "mode hors RAM coupé dans le preset", Files: map[string]string{
 			"presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\n" +

@@ -120,7 +120,15 @@ puis installe et active le modèle en un clic (téléchargement de 66 à 84 Go d
 `/data/strata`). Le modèle installé devient un preset comme les autres :
 basculer dessus lance Strata, basculer sur un autre preset revient à llama.cpp.
 Son engrenage ouvre les réglages propres à Strata (contexte jusqu'à 262 144,
-cache KV fp16/8 bits, prédiction MTP, lecture des images, carte d'appoint).
+cache KV fp16/8 bits, prédiction MTP, lecture des images, seconde carte).
+
+La seconde carte a trois réglages : **non utilisée**, **aide aux experts** (le
+défaut : elle garde et calcule une part des experts) ou **partage des couches**
+(les deux cartes se répartissent les couches du modèle). Le partage est souvent
+plus rapide avec deux cartes identiques (+50 % en génération mesuré par un
+utilisateur d'AJEAN sur deux RTX 3060) ; sur deux cartes très différentes,
+l'aide aux experts reste le meilleur choix. En partage des couches, le mode
+« hors RAM » n'est jamais choisi : la seconde carte n'y garde pas d'experts.
 
 Depuis le paquet 1.1, la carte d'appoint calcule elle-même ses experts à la
 lecture des prompts (au lieu de les recopier vers la principale) : les ajouts
