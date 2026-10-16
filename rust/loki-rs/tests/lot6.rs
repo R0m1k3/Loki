@@ -672,6 +672,7 @@ async fn tour_complet_par_le_go() {
         tasks: None,
         memory: None,
         web: Default::default(),
+        jobs: Default::default(),
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -2686,6 +2687,9 @@ async fn anneau_de_la_facade_pour_le_go() {
         .collect();
     assert_eq!(kinds, ["subagent", "foreign", "subagent"]);
     assert_eq!(chat.shared.perf.snapshot().len(), 3);
+    // Lot 43 : les jobs d'arrière-plan encore en vie, pour l'optimiseur du Go.
+    let jobs = post(serde_json::json!({}), "/internal/facade/v1/bgjobs").await;
+    assert_eq!(jobs["running"], chat.shared.jobs.running() as u64);
     // Sans jeton : refusé.
     let (code, _) = fakego::send(
         facade,
@@ -2787,4 +2791,52 @@ async fn outil_web_par_la_facade() {
             "# Ouvert : https://exemple.test/doc\nTotal : 4 lignes, 23 B (23 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Doc\n    3 |   Partie\n```"
         )
     );
+}
+
+/// Lot 43 : `bash_bg` d'un tour de la façade lance le job chez elle, dans le
+/// dossier de la discussion ; le Go n'exécute rien et l'API interne compte
+/// le job pour son optimiseur.
+#[cfg(unix)]
+#[tokio::test]
+async fn job_arriere_plan_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"b1","type":"function","function":{"name":"bash_bg","arguments":"{\"command\":\"sleep 30\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("lancé")]).await;
+    let ws = tempfile::tempdir().unwrap();
+    let jobs = Arc::new(loki_rs::tools::jobs::BgJobs::default());
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.jobs = jobs.clone()).await;
+    *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+        "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+    }));
+    svc.send(serde_json::json!({"message": "lance le serveur", "cid": "j"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    assert!(ws.path().join(".loki/jobs/job1.log").is_file());
+    assert_eq!(jobs.running(), 1);
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(tool.starts_with("[ok] job job1 lancé (pid "), "{tool}");
+    // Une autre discussion n'y touche pas ; la sienne l'arrête.
+    jobs.stop_conv("autre");
+    assert_eq!(jobs.running(), 1);
+    jobs.stop_conv(&svc.sessions.conv().id());
+    for _ in 0..500 {
+        if jobs.running() == 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(jobs.running(), 0);
 }

@@ -16,6 +16,7 @@
 pub mod diff;
 pub mod files;
 pub mod git;
+pub mod jobs;
 pub mod policy;
 pub mod shell;
 

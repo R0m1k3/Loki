@@ -71,6 +71,7 @@ pub fn is_internal(path: &str) -> bool {
             | "/internal/facade/v1/chat/prewarm/cancel"
             | "/internal/facade/v1/perf/record"
             | "/internal/facade/v1/perf/snapshot"
+            | "/internal/facade/v1/bgjobs"
     )
 }
 
@@ -136,6 +137,12 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
         },
         // L'anneau, de la plus ancienne à la plus récente (poids de
         // l'optimiseur).
+        // Jobs d'arrière-plan encore en vie (lot 43) : l'optimiseur du Go
+        // refuse de mesurer à côté.
+        "/internal/facade/v1/bgjobs" => send_json(
+            StatusCode::OK,
+            &json!({ "running": chat.shared.jobs.running() }),
+        ),
         "/internal/facade/v1/perf/snapshot" => send_json(
             StatusCode::OK,
             &json!({ "recs": chat.shared.perf.snapshot() }),

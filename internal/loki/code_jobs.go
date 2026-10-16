@@ -177,10 +177,25 @@ func toolBashTail(args map[string]any) string {
 	return out + "\n" + tailRunes(tail, toolMaxOutput)
 }
 
-// bgJobsRunning : jobs d'arrière-plan encore en vie. L'optimiseur refuse de
-// mesurer à côté d'eux : un build ou un serveur de dev prend le CPU et le
-// disque que mesurent ses essais.
+// bgJobsRunning : jobs d'arrière-plan encore en vie, ceux de la façade
+// compris quand elle tient la conversation (lot 43 : ses tours lancent les
+// leurs). L'optimiseur refuse de mesurer à côté d'eux : un build ou un
+// serveur de dev prend le CPU et le disque que mesurent ses essais.
 func bgJobsRunning() int {
+	n := localBgJobsRunning()
+	if facadeChat() {
+		var out struct {
+			Running int `json:"running"`
+		}
+		if err := facadePerfJSON("/internal/facade/v1/bgjobs", map[string]any{}, &out); err == nil {
+			n += out.Running
+		}
+	}
+	return n
+}
+
+// localBgJobsRunning : les jobs lancés par ce processus.
+func localBgJobsRunning() int {
 	jobsMu.Lock()
 	defer jobsMu.Unlock()
 	n := 0

@@ -1323,6 +1323,7 @@ impl ChatShared {
             tasks: None,
             memory: None,
             web: Default::default(),
+            jobs: crate::tools::jobs::global(),
             go_version: Default::default(),
         }
     }

@@ -349,6 +349,8 @@ pub struct ChatShared {
     pub memory: Option<Arc<crate::memory::Memory>>,
     /// Les outils web (lot 42) : cache des pages, Crawl4AI, DuckDuckGo.
     pub web: Arc<crate::webtools::Web>,
+    /// Les jobs d'arrière-plan du mode Code (lot 43).
+    pub jobs: Arc<crate::tools::jobs::BgJobs>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -706,6 +708,35 @@ impl TurnHost for GoTurnHost {
                 result,
                 ..Default::default()
             };
+        }
+        // Jobs d'arrière-plan du mode Code (lot 43), dans le dossier de la
+        // discussion ; contexte indisponible : le Go s'en charge.
+        if name == "bash_tail" {
+            return ToolOutcome {
+                result: self.shared.jobs.bash_tail(args).await,
+                ..Default::default()
+            };
+        }
+        if name == "bash_bg" {
+            let st = crate::tools::GoToolState {
+                store: self.shared.store.clone(),
+                caps: self.caps.clone(),
+            };
+            match crate::tools::ToolState::context(&st).await {
+                Ok(ctx) => {
+                    let busy = crate::backends::tune_busy(&self.shared.store).await;
+                    let result = self
+                        .shared
+                        .jobs
+                        .bash_bg(&ctx.cwd, &self.compact.main_conv, args, busy)
+                        .await;
+                    return ToolOutcome {
+                        result,
+                        ..Default::default()
+                    };
+                }
+                Err(e) => eprintln!("[outils] contexte indisponible, bash_bg par le Go : {e}"),
+            }
         }
         // Outils task_*, quand la façade tient les tâches (lot 37).
         if crate::tasks::tools::is_tool(name)
