@@ -415,7 +415,7 @@ pub struct GoTurnHost {
     pub queued: Box<dyn Fn() -> Vec<Message> + Send + Sync>,
     /// Un événement pour l'écran, hors du flux du tour (la liste des
     /// critères après l'outil `criteria`).
-    pub deltas: Box<dyn Fn(super::journal::Delta) + Send + Sync>,
+    pub deltas: Arc<dyn Fn(super::journal::Delta) + Send + Sync>,
     /// Nature des complétions pour la télémétrie : `main` (tour de la
     /// discussion), `verify` (passe de vérification du mode Code).
     pub perf_kind: &'static str,
@@ -426,6 +426,9 @@ pub struct GoTurnHost {
     /// l'instantané posé par un rafraîchissement en cours de tour.
     pub projsnap: Option<SnapTurn>,
     pub snap_refreshed: Mutex<Option<ProjSnapshot>>,
+    /// Ce que le tour prête à l'outil `subagent` (lot 47) ; `None` : l'outil
+    /// passe par le Go.
+    pub sub: Option<super::subagent::SubTurn>,
 }
 
 /// PROJ_SNAPSHOT (lot 34) : ce qu'un tour avec la clé garde pour rafraîchir
@@ -614,63 +617,15 @@ pub fn see_image_message(label: &str, img: Value) -> Message {
     }
 }
 
-impl TurnHost for GoTurnHost {
-    async fn send(
+impl GoTurnHost {
+    /// Les outils exécutés par la façade, sauf `subagent` ; le reste par le
+    /// Go (`/tool/exec`). Aussi celui des tours d'un sous-agent.
+    pub(crate) async fn exec_tool_base(
         &self,
-        ep: &ChatEndpoint,
-        body: Vec<u8>,
-        keep_prewarm: bool,
-    ) -> Result<Reply, SendError> {
-        // Moteur local : requête comptée en vol jusqu'à la fin de lecture du
-        // flux (le ticket voyage avec le corps). Rien pour une API externe.
-        // Un préchauffage qu'elle ne prolonge pas est coupé tout de suite (le
-        // Go l'annulerait aussi, un aller-retour plus tard).
-        let gate = if ep.external {
-            None
-        } else {
-            if !keep_prewarm {
-                self.shared.prewarm.stop();
-            }
-            self.gate_begin(keep_prewarm).await
-        };
-        match self.shared.http.post(&ep.url, &ep.key, body).await {
-            Ok(resp) => {
-                let status = resp.status().as_u16();
-                if status == 200
-                    && let Some(g) = &gate
-                {
-                    // Le slot porte désormais cette requête (engineServed,
-                    // engineMarkMain pour une étape de la discussion).
-                    let _ = self
-                        .shared
-                        .store
-                        .internal_json(
-                            hyper::Method::POST,
-                            "/internal/v1/oai/served",
-                            Some(&json!({ "ticket": g.ticket })),
-                        )
-                        .await;
-                }
-                let body = resp.bytes_stream().map(move |r| {
-                    let _keep = &gate;
-                    r.map_err(|e| e.to_string())
-                });
-                Ok(Reply {
-                    status,
-                    body: Box::pin(body),
-                })
-            }
-            Err(e) => {
-                let kind = classify(&e);
-                Err(SendError {
-                    kind,
-                    message: friendly_error(kind, &e.to_string(), self.port, ""),
-                })
-            }
-        }
-    }
-
-    async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {
+        name: &str,
+        args: &Map<String, Value>,
+        label: &str,
+    ) -> ToolOutcome {
         // Outils MCP, quand la façade tient le pool : ce que ferait le Go
         // (`mcpCall` → /internal/facade/v1/mcp/call), sans ses deux
         // allers-retours. Le Go n'en tire rien d'autre que le texte.
@@ -906,6 +861,77 @@ impl TurnHost for GoTurnHost {
                 ..Default::default()
             },
         }
+    }
+}
+
+impl TurnHost for GoTurnHost {
+    async fn send(
+        &self,
+        ep: &ChatEndpoint,
+        body: Vec<u8>,
+        keep_prewarm: bool,
+    ) -> Result<Reply, SendError> {
+        // Moteur local : requête comptée en vol jusqu'à la fin de lecture du
+        // flux (le ticket voyage avec le corps). Rien pour une API externe.
+        // Un préchauffage qu'elle ne prolonge pas est coupé tout de suite (le
+        // Go l'annulerait aussi, un aller-retour plus tard).
+        let gate = if ep.external {
+            None
+        } else {
+            if !keep_prewarm {
+                self.shared.prewarm.stop();
+            }
+            self.gate_begin(keep_prewarm).await
+        };
+        match self.shared.http.post(&ep.url, &ep.key, body).await {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                if status == 200
+                    && let Some(g) = &gate
+                {
+                    // Le slot porte désormais cette requête (engineServed,
+                    // engineMarkMain pour une étape de la discussion).
+                    let _ = self
+                        .shared
+                        .store
+                        .internal_json(
+                            hyper::Method::POST,
+                            "/internal/v1/oai/served",
+                            Some(&json!({ "ticket": g.ticket })),
+                        )
+                        .await;
+                }
+                let body = resp.bytes_stream().map(move |r| {
+                    let _keep = &gate;
+                    r.map_err(|e| e.to_string())
+                });
+                Ok(Reply {
+                    status,
+                    body: Box::pin(body),
+                })
+            }
+            Err(e) => {
+                let kind = classify(&e);
+                Err(SendError {
+                    kind,
+                    message: friendly_error(kind, &e.to_string(), self.port, ""),
+                })
+            }
+        }
+    }
+
+    async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {
+        // Sous-agent du mode Code (lot 47) : un tour imbriqué, sur un
+        // contexte isolé, dont seul le rapport revient.
+        if name == "subagent"
+            && let Some(sub) = &self.sub
+        {
+            return ToolOutcome {
+                result: super::subagent::run(self, sub, args).await,
+                ..Default::default()
+            };
+        }
+        self.exec_tool_base(name, args, label).await
     }
 
     fn save_tool_result(&self, result: &str) -> String {

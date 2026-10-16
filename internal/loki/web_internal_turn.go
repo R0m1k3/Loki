@@ -137,6 +137,28 @@ func handleInternalTurnVerifier(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleInternalTurnSubagent : le contexte isolé d'un rôle délégué par
+// l'outil subagent de la façade (lot 47) — prompt système, outils et
+// capacités du rôle ; la tâche et son cadrage restent chez elle.
+func handleInternalTurnSubagent(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Role string `json:"role"`
+	}
+	if !readInternalJSON(w, r, &in) {
+		return
+	}
+	if !isSubagentRole(in.Role) {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "rôle inconnu : " + in.Role})
+		return
+	}
+	caps, system := subagentView(in.Role)
+	sendJSON(w, http.StatusOK, map[string]any{
+		"system": system,
+		"tools":  EnabledTools(caps),
+		"caps":   caps,
+	})
+}
+
 // handleInternalProjectActivate : setActiveProject pour la façade (projet
 // rangé en base, cache de ceux qui le lisent ici — mémoire, trackers, outils).
 func handleInternalProjectActivate(w http.ResponseWriter, r *http.Request) {

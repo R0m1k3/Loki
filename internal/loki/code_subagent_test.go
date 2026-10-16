@@ -2,6 +2,7 @@ package loki
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -51,6 +52,34 @@ func TestSubagentRolesAreReadOnly(t *testing.T) {
 		}
 		if got := names["criteria"]; got != (role == "planner") {
 			t.Fatalf("critères pour %s : %v (attendu %v)", role, got, role == "planner")
+		}
+	}
+}
+
+// Lot 47 : la façade demande au Go le contexte isolé d'un rôle délégué —
+// le même prompt système, les mêmes outils et capacités que toolSubagent.
+func TestSubagentVueInterne(t *testing.T) {
+	testHome(t)
+	t.Setenv(internalTokenEnv, jetonTest)
+	w := appelOAIInterne(t, "POST", "/internal/v1/turn/subagent", `{"role":"planner"}`)
+	if w.Code != 200 {
+		t.Fatalf("vue : %d %s", w.Code, w.Body.String())
+	}
+	var v struct {
+		System string `json:"system"`
+		Tools  []Tool `json:"tools"`
+		Caps   Caps   `json:"caps"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &v); err != nil {
+		t.Fatal(err)
+	}
+	caps, system := subagentView("planner")
+	if v.System != system || v.Caps != caps || len(v.Tools) != len(EnabledTools(caps)) {
+		t.Fatalf("vue : %+v", v.Caps)
+	}
+	for _, body := range []string{`{"role":"verifier"}`, `{"role":""}`, `{`} {
+		if w := appelOAIInterne(t, "POST", "/internal/v1/turn/subagent", body); w.Code != 400 {
+			t.Fatalf("%s : %d", body, w.Code)
 		}
 	}
 }

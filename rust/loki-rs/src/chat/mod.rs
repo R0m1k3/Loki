@@ -37,6 +37,7 @@ pub mod persist;
 pub mod prewarm;
 pub mod sessions;
 pub mod stream;
+pub mod subagent;
 pub mod tplprobe;
 pub mod turn;
 pub mod types;

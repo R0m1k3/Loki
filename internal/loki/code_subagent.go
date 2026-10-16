@@ -90,17 +90,10 @@ func toolSubagent(ctx context.Context, args map[string]any, parent Caps) string 
 		return "[erreur] un sous-agent ne peut pas en appeler un autre — réponds avec ce que tu as"
 	}
 
-	caps := Caps{Agent: true, Code: true, Role: role, Mem: MemOff}
-	// Cadrage : le rôle ne voit ni la discussion ni l'utilisateur. Son prompt de
-	// rôle parle à un humain (« termine en demandant confirmation ») ; ici son
-	// interlocuteur est le builder, et sa réponse est un résultat d'outil.
-	framing := "\n\nAnswer with your findings only: what you found and where (file:line). No preamble."
-	if role == "planner" {
-		framing = "\n\nYou are a delegated pass: nobody will answer you. Record the acceptance criteria with the criteria tool, then give the ordered steps. Do not ask for confirmation."
-	}
+	caps, system := subagentView(role)
 	msgs := []Message{
-		{Role: "system", Content: rolePrompt(role) + "\n\n" + machineSystemPrompt(caps)},
-		{Role: "user", Content: task + framing},
+		{Role: "system", Content: system},
+		{Role: "user", Content: task + subagentFraming(role)},
 	}
 	var out strings.Builder
 	// Le sous-agent occupe le slot de la conversation du builder : une fois son
@@ -132,4 +125,22 @@ func toolSubagent(ctx context.Context, args map[string]any, parent Caps) string 
 		res = string(r[:subagentMaxOutput]) + "\n…[tronqué]"
 	}
 	return "[" + role + "]\n" + res
+}
+
+// subagentView : les capacités et le prompt système d'un rôle délégué —
+// servis aussi à la façade (/internal/v1/turn/subagent, lot 47).
+func subagentView(role string) (Caps, string) {
+	caps := Caps{Agent: true, Code: true, Role: role, Mem: MemOff}
+	return caps, rolePrompt(role) + "\n\n" + machineSystemPrompt(caps)
+}
+
+// subagentFraming : le cadrage ajouté à la tâche. Le rôle ne voit ni la
+// discussion ni l'utilisateur. Son prompt de rôle parle à un humain
+// (« termine en demandant confirmation ») ; ici son interlocuteur est le
+// builder, et sa réponse est un résultat d'outil.
+func subagentFraming(role string) string {
+	if role == "planner" {
+		return "\n\nYou are a delegated pass: nobody will answer you. Record the acceptance criteria with the criteria tool, then give the ordered steps. Do not ask for confirmation."
+	}
+	return "\n\nAnswer with your findings only: what you found and where (file:line). No preamble."
 }

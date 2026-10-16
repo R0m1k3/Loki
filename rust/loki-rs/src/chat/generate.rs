@@ -1018,12 +1018,19 @@ impl ChatService {
             queued: Box::new(move || me.drain_queued(epoch)),
             deltas: {
                 let me = self.clone();
-                Box::new(move |d| me.push_delta(d))
+                Arc::new(move |d| me.push_delta(d))
             },
             perf_kind: super::perf::KIND_MAIN,
             side_slot: Default::default(),
             projsnap: snap_turn,
             snap_refreshed: Default::default(),
+            sub: Some(super::subagent::SubTurn {
+                ep: ep.clone(),
+                reasoning: reasoning.clone(),
+                echo: echo.clone(),
+                patterns: self.shared.patterns.clone(),
+                cancel: cancel.clone(),
+            }),
         };
 
         // Chaque événement devient un delta du journal.

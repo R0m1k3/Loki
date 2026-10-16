@@ -18,6 +18,8 @@ use crate::store::{BK_STATE, Store};
 /// Nature d'une complétion.
 pub const KIND_MAIN: &str = "main";
 pub const KIND_VERIFY: &str = "verify";
+/// Sous-agent du mode Code (`perfSubagent`).
+pub const KIND_SUBAGENT: &str = "subagent";
 pub const KIND_COMPACT: &str = "compact";
 pub const KIND_PREWARM: &str = "prewarm";
 

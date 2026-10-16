@@ -702,11 +702,12 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
-        deltas: Box::new(|_| {}),
+        deltas: Arc::new(|_| {}),
         perf_kind: "main",
         side_slot: Default::default(),
         projsnap: None,
         snap_refreshed: Default::default(),
+        sub: None,
     };
     let bash = Tool {
         kind: "function".into(),
@@ -1102,11 +1103,12 @@ async fn hote_et_sonde_de_gabarit() {
                 kwargs: Default::default(),
             },
             queued: Box::new(Vec::new),
-            deltas: Box::new(|_| {}),
+            deltas: Arc::new(|_| {}),
             perf_kind: "main",
             side_slot: Default::default(),
             projsnap: None,
             snap_refreshed: Default::default(),
+            sub: None,
         }
     };
     let bash = Tool {
@@ -2841,6 +2843,106 @@ async fn job_arriere_plan_par_la_facade() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert_eq!(jobs.running(), 0);
+}
+
+/// Lot 47 : l'outil `subagent` exécuté par la façade, rejoué sur le journal
+/// du Go (`internal/loki/parity_subagent_test.go` →
+/// `tests/parity_subagent/subagent.json`) : refus avant tout appel au moteur,
+/// puis un tour de la façade qui délègue — le rôle reçoit la vue du Go et sa
+/// tâche cadrée, le moteur ses réponses scriptées, et le builder le même
+/// rapport que le Go lui aurait rendu.
+#[tokio::test]
+async fn subagent_comme_le_go() {
+    let fx: serde_json::Value =
+        serde_json::from_str(include_str!("parity_subagent/subagent.json")).expect("journal");
+    let views = fx["views"].as_object().unwrap();
+    let sub_sse = |r: &serde_json::Value| -> String {
+        if let Some(code) = r["status"].as_u64() {
+            return format!("STATUS {code}\n{}", r["content"].as_str().unwrap_or(""));
+        }
+        let content = r["content"].as_str().unwrap_or("");
+        if let Some(tool) = r["tool"].as_str() {
+            let call = serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"s1","type":"function","function":{"name":tool,"arguments":r["args"].as_str().unwrap_or("")}}]}}]});
+            let mut chunks = Vec::new();
+            if !content.is_empty() {
+                chunks.push(serde_json::json!({"choices":[{"delta":{"content":content}}]}));
+            }
+            chunks.push(call);
+            chunks.push(serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}));
+            return sse(&chunks);
+        }
+        answer(content)
+    };
+    for st in fx["steps"].as_array().unwrap() {
+        let name = st["name"].as_str().unwrap();
+        let args: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_value(st["args"].clone()).unwrap();
+        let want = st["result"].as_str().unwrap();
+        let reqs = st["requests"].as_array().unwrap();
+        if reqs.is_empty() {
+            let got =
+                loki_rs::chat::subagent::precheck(&args, st["parent_role"].as_str().unwrap_or(""));
+            assert_eq!(got.err().as_deref(), Some(want), "{name}");
+            continue;
+        }
+        let call = sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"d1","type":"function","function":{"name":"subagent","arguments":serde_json::Value::Object(args.clone()).to_string()}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]);
+        let mut replies = vec![call];
+        let scripted = st["replies"].as_array().cloned().unwrap_or_default();
+        for i in 0..reqs.len() {
+            replies.push(scripted.get(i).map(sub_sse).unwrap_or_else(|| answer("")));
+        }
+        replies.push(answer("fini"));
+        let (url, seen) = fake_engine(replies).await;
+        let ws = tempfile::tempdir().unwrap();
+        std::fs::write(ws.path().join("cache.go"), "package x\n// cache LRU\n").unwrap();
+        let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+        *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+            "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+        }));
+        for (role, v) in views {
+            go.subagent_views
+                .lock()
+                .unwrap()
+                .insert(role.clone(), v.clone());
+        }
+        svc.send(serde_json::json!({"message": "délègue", "cid": "s"}))
+            .await
+            .unwrap();
+        until_done(&svc, 1).await;
+        let seen = seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), reqs.len() + 2, "{name} : requêtes au moteur");
+        let role = args["role"].as_str().unwrap().trim();
+        for (i, want_req) in reqs.iter().enumerate() {
+            let b = &seen[1 + i].1;
+            let msgs = b["messages"].as_array().unwrap();
+            let tools: Vec<&str> = b["tools"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|t| t["function"]["name"].as_str())
+                .collect();
+            let got = serde_json::json!({
+                "system_is_view": msgs[0]["content"] == views[role]["system"],
+                "user": msgs[1]["content"],
+                "temperature": b["temperature"],
+                "tools": tools,
+                "messages": msgs.len(),
+            });
+            assert_eq!(&got, want_req, "{name} : requête {i} du rôle");
+        }
+        let last = seen.last().unwrap().1["messages"]
+            .as_array()
+            .unwrap()
+            .clone();
+        let tool = last.iter().rfind(|m| m["role"] == "tool").unwrap();
+        assert_eq!(tool["content"], want, "{name} : rapport rendu au builder");
+        // Travail annexe : ouvert et fermé autour du tour du rôle.
+        let side = go.side_jobs.lock().unwrap().clone();
+        assert_eq!(side.len(), 2, "{name} : {side:?}");
+    }
 }
 
 /// Lot 46 : `recall` et `recall_search` sont exécutés par la façade sur

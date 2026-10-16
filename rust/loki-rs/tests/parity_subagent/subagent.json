@@ -1,0 +1,843 @@
+{
+  "steps": [
+    {
+      "name": "rôle inconnu",
+      "args": {
+        "role": "architecte",
+        "task": "x"
+      },
+      "result": "[erreur] rôle inconnu : architecte (attendu : explorer, code-reviewer, planner)",
+      "requests": []
+    },
+    {
+      "name": "verifier refusé",
+      "args": {
+        "role": "verifier",
+        "task": "x"
+      },
+      "result": "[erreur] rôle inconnu : verifier (attendu : explorer, code-reviewer, planner)",
+      "requests": []
+    },
+    {
+      "name": "sans rôle",
+      "args": {
+        "task": "x"
+      },
+      "result": "[erreur] rôle inconnu :  (attendu : explorer, code-reviewer, planner)",
+      "requests": []
+    },
+    {
+      "name": "tâche vide",
+      "args": {
+        "role": "explorer",
+        "task": "  "
+      },
+      "result": "[erreur] tâche vide — décris ce que le rôle doit chercher ou relire",
+      "requests": []
+    },
+    {
+      "name": "tâche absente",
+      "args": {
+        "role": "planner"
+      },
+      "result": "[erreur] tâche vide — décris ce que le rôle doit chercher ou relire",
+      "requests": []
+    },
+    {
+      "name": "pas de récursion",
+      "args": {
+        "role": "explorer",
+        "task": "x"
+      },
+      "parent_role": "explorer",
+      "result": "[erreur] un sous-agent ne peut pas en appeler un autre — réponds avec ce que tu as",
+      "requests": []
+    },
+    {
+      "name": "vérificateur qui délègue",
+      "args": {
+        "role": "planner",
+        "task": "x"
+      },
+      "parent_role": "verifier",
+      "result": "[erreur] un sous-agent ne peut pas en appeler un autre — réponds avec ce que tu as",
+      "requests": []
+    },
+    {
+      "name": "réponse directe",
+      "args": {
+        "role": "explorer",
+        "task": "  Où est le cache ?  "
+      },
+      "replies": [
+        {
+          "content": "  Dans cache.go:2.  \n"
+        }
+      ],
+      "result": "[explorer]\nDans cache.go:2.",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Où est le cache ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        }
+      ]
+    },
+    {
+      "name": "rapport après le dernier outil",
+      "args": {
+        "role": " code-reviewer ",
+        "task": "Relis cache.go"
+      },
+      "replies": [
+        {
+          "tool": "grep",
+          "args": "{\"pattern\":\"cache\"}",
+          "content": "Je cherche d'abord."
+        },
+        {
+          "tool": "read",
+          "args": "{\"path\":\"cache.go\"}"
+        },
+        {
+          "content": "RAS : cache.go:2 documente le LRU."
+        }
+      ],
+      "result": "[code-reviewer]\nRAS : cache.go:2 documente le LRU.",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Relis cache.go\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        },
+        {
+          "system_is_view": true,
+          "user": "Relis cache.go\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 4
+        },
+        {
+          "system_is_view": true,
+          "user": "Relis cache.go\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 6
+        }
+      ]
+    },
+    {
+      "name": "rien répondu",
+      "args": {
+        "role": "explorer",
+        "task": "Vide ?"
+      },
+      "replies": [
+        {
+          "content": "   "
+        }
+      ],
+      "result": "[explorer]\n_(le modèle n'a pas produit de réponse — finish: stop)_",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Vide ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        },
+        {
+          "system_is_view": true,
+          "user": "Vide ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 3
+        },
+        {
+          "system_is_view": true,
+          "user": "Vide ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 4
+        }
+      ]
+    },
+    {
+      "name": "rien après l'outil",
+      "args": {
+        "role": "explorer",
+        "task": "Encore ?"
+      },
+      "replies": [
+        {
+          "tool": "grep",
+          "args": "{\"pattern\":\"x\"}",
+          "content": "narration"
+        },
+        {}
+      ],
+      "result": "[explorer]\n_(le modèle n'a pas produit de réponse — finish: stop)_",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Encore ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        },
+        {
+          "system_is_view": true,
+          "user": "Encore ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 4
+        },
+        {
+          "system_is_view": true,
+          "user": "Encore ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 5
+        },
+        {
+          "system_is_view": true,
+          "user": "Encore ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 6
+        }
+      ]
+    },
+    {
+      "name": "rapport tronqué",
+      "args": {
+        "role": "explorer",
+        "task": "Tout ?"
+      },
+      "replies": [
+        {
+          "content": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+        }
+      ],
+      "result": "[explorer]\néééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\n…[tronqué]",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Tout ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        }
+      ]
+    },
+    {
+      "name": "cadrage du planner",
+      "args": {
+        "role": "planner",
+        "task": "Découpe le chantier"
+      },
+      "replies": [
+        {
+          "content": "1. lire\n2. écrire"
+        }
+      ],
+      "result": "[planner]\n1. lire\n2. écrire",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Découpe le chantier\n\nYou are a delegated pass: nobody will answer you. Record the acceptance criteria with the criteria tool, then give the ordered steps. Do not ask for confirmation.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "criteria"
+          ],
+          "messages": 2
+        }
+      ]
+    },
+    {
+      "name": "moteur qui refuse",
+      "args": {
+        "role": "explorer",
+        "task": "Panne ?"
+      },
+      "replies": [
+        {
+          "content": "{\"error\":{\"message\":\"requête refusée\"}}",
+          "status": 400
+        }
+      ],
+      "result": "[erreur] sous-agent explorer : llama-server a renvoyé 400 : {\"error\":{\"message\":\"requête refusée\"}}",
+      "requests": [
+        {
+          "system_is_view": true,
+          "user": "Panne ?\n\nAnswer with your findings only: what you found and where (file:line). No preamble.",
+          "temperature": 0.6,
+          "tools": [
+            "read",
+            "grep",
+            "glob",
+            "git_status",
+            "git_diff",
+            "bash"
+          ],
+          "messages": 2
+        }
+      ]
+    }
+  ],
+  "views": {
+    "code-reviewer": {
+      "caps": {
+        "Agent": true,
+        "Internet": false,
+        "Mem": "off",
+        "Code": true,
+        "Role": "code-reviewer",
+        "ComputerUse": false
+      },
+      "system": "You are the CODE REVIEW pass of code mode. Review the current changes (git_diff) for real defects.\n\nLook for, in this order: correctness bugs (wrong logic, unhandled errors, races), security issues (injection, path traversal, secrets), then significant simplifications. Ignore style and taste.\n\nFor each finding: file:line, one-line problem, one-line fix. If the diff is sound, say so in one sentence. Do not modify anything.\n\nMachine: host=vm, linux/amd64, user=root, cwd={{WS}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{HOME}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read",
+            "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+            "parameters": {
+              "properties": {
+                "file": {
+                  "description": "Path (relative to the working folder)",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Lines (default 400, max 1000)",
+                  "type": "integer"
+                },
+                "offset": {
+                  "description": "Start line (default 1)",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "file"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+            "parameters": {
+              "properties": {
+                "glob": {
+                  "description": "Only files matching this glob (e.g. *.go)",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "File or directory to search (default .)",
+                  "type": "string"
+                },
+                "pattern": {
+                  "description": "Go regexp",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "glob",
+            "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+            "parameters": {
+              "properties": {
+                "pattern": {
+                  "description": "Glob, e.g. src/**/*.ts",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_status",
+            "description": "git status of the working folder (branch + changed files, porcelain format).",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_diff",
+            "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                },
+                "file": {
+                  "description": "Limit the diff to this path",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "bash",
+            "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+            "parameters": {
+              "properties": {
+                "command": {
+                  "description": "The command",
+                  "type": "string"
+                },
+                "timeout": {
+                  "description": "Timeout s (default 30, max 300)",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "explorer": {
+      "caps": {
+        "Agent": true,
+        "Internet": false,
+        "Mem": "off",
+        "Code": true,
+        "Role": "explorer",
+        "ComputerUse": false
+      },
+      "system": "You are the EXPLORATION pass of code mode. Answer questions about the codebase without modifying anything.\n\nUse read, grep, glob and git tools to locate and understand code. Cite files as path:line. Be concise: report what you found and where, not everything you read. If the answer spans several places, list them with one line each.\n\nMachine: host=vm, linux/amd64, user=root, cwd={{WS}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{HOME}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read",
+            "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+            "parameters": {
+              "properties": {
+                "file": {
+                  "description": "Path (relative to the working folder)",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Lines (default 400, max 1000)",
+                  "type": "integer"
+                },
+                "offset": {
+                  "description": "Start line (default 1)",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "file"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+            "parameters": {
+              "properties": {
+                "glob": {
+                  "description": "Only files matching this glob (e.g. *.go)",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "File or directory to search (default .)",
+                  "type": "string"
+                },
+                "pattern": {
+                  "description": "Go regexp",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "glob",
+            "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+            "parameters": {
+              "properties": {
+                "pattern": {
+                  "description": "Glob, e.g. src/**/*.ts",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_status",
+            "description": "git status of the working folder (branch + changed files, porcelain format).",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_diff",
+            "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                },
+                "file": {
+                  "description": "Limit the diff to this path",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "bash",
+            "description": "Run a shell command (bash syntax) and return stdout, stderr and exit code: inspect the system, read files and logs, run scripts. To CREATE or REWRITE a file use write instead — never echo/cat/python -c. Avoid destructive commands unless asked.",
+            "parameters": {
+              "properties": {
+                "command": {
+                  "description": "The command",
+                  "type": "string"
+                },
+                "timeout": {
+                  "description": "Timeout s (default 30, max 300)",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "planner": {
+      "caps": {
+        "Agent": true,
+        "Internet": false,
+        "Mem": "off",
+        "Code": true,
+        "Role": "planner",
+        "ComputerUse": false
+      },
+      "system": "You are the PLANNING pass of code mode. Break the user's task down BEFORE any code is written.\n\nProduce:\n1. A short restatement of the goal (one sentence).\n2. Acceptance criteria via the criteria tool (action=add): 2-6 short, testable statements of what DONE means.\n3. The implementation steps, ordered, with the files each step touches.\n\nExplore the code (read, grep, glob, git_status) as needed to make the plan concrete — real file paths, real function names. Do not modify anything. End by asking the user to confirm the plan or amend it.\n\nMachine: host=vm, linux/amd64, user=root, cwd={{WS}}. This is your working folder: relative paths in write/edit/bash resolve here, and it is the DEFAULT place for scratch work — notes, outputs, a clone, a test. But it is DISPOSABLE: deleting the discussion wipes it. Any script you want to KEEP (or schedule), write it into your scripts folder {{HOME}}/scripts instead — a separate folder a workspace wipe won't touch; you write and run scripts there normally. Do NOT install or write files into system directories such as /usr/local/bin, /usr, /bin or /etc: those need root and are not yours. Only use an absolute path outside this folder (except your scripts folder) when the user explicitly named that location.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read",
+            "description": "Read a file with 1-indexed line numbers (offset/limit for long files). ALWAYS use this instead of cat/type: output is bounded and reading a file is REQUIRED before you may edit or overwrite it.",
+            "parameters": {
+              "properties": {
+                "file": {
+                  "description": "Path (relative to the working folder)",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Lines (default 400, max 1000)",
+                  "type": "integer"
+                },
+                "offset": {
+                  "description": "Start line (default 1)",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "file"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "description": "Search file contents with a Go regular expression. Returns path:line: text matches (bounded). path may be a file or a directory (default: whole working folder).",
+            "parameters": {
+              "properties": {
+                "glob": {
+                  "description": "Only files matching this glob (e.g. *.go)",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "File or directory to search (default .)",
+                  "type": "string"
+                },
+                "pattern": {
+                  "description": "Go regexp",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "glob",
+            "description": "List files matching a glob pattern (** supported, e.g. **/*.go), most recently modified first.",
+            "parameters": {
+              "properties": {
+                "pattern": {
+                  "description": "Glob, e.g. src/**/*.ts",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_status",
+            "description": "git status of the working folder (branch + changed files, porcelain format).",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "git_diff",
+            "description": "git diff of the working folder (unstaged + staged). Optional file to diff a single path.",
+            "parameters": {
+              "properties": {
+                "dir": {
+                  "description": "Repository subfolder (default: auto-detected)",
+                  "type": "string"
+                },
+                "file": {
+                  "description": "Limit the diff to this path",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "criteria",
+            "description": "Manage the acceptance criteria of the current task (the contract that defines DONE). action=add posits new criteria (texts[]), action=set updates one (id + status, optional note), action=list shows them, action=clear removes them all. Set criteria BEFORE building. Builder: mark each criterion completed once you have done AND checked it — verification only starts when nothing is left pending. Only the verification pass may mark passed or failed.",
+            "parameters": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "add",
+                    "set",
+                    "list",
+                    "clear"
+                  ],
+                  "type": "string"
+                },
+                "id": {
+                  "description": "set: criterion id",
+                  "type": "integer"
+                },
+                "note": {
+                  "description": "set: why it failed / how it was verified",
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "pending",
+                    "completed",
+                    "passed",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                "texts": {
+                  "description": "add: one entry per criterion, short and testable",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "action"
+              ],
+              "type": "object"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

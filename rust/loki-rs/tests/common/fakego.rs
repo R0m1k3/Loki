@@ -56,6 +56,8 @@ pub struct FakeGo {
     /// reçues (« block <seq> », « blocks »).
     pub recall_blocks: Mutex<Vec<serde_json::Value>>,
     pub recall_log: Mutex<Vec<String>>,
+    /// Vues des rôles délégués (/internal/v1/turn/subagent, lot 47), par rôle.
+    pub subagent_views: Mutex<HashMap<String, serde_json::Value>>,
     /// Discussion active annoncée et discussions supprimées.
     pub conv_log: Mutex<Vec<String>>,
     /// Tours : débuts, vues et fins demandés.
@@ -473,6 +475,19 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 st.set("chat", "index", &serde_json::to_string(&idx).unwrap());
             }
             resp(204, "")
+        }
+        "/internal/v1/turn/subagent" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let role = v["role"].as_str().unwrap_or_default().to_string();
+            st.turn_log.lock().unwrap().push(format!("subagent {role}"));
+            match st.subagent_views.lock().unwrap().get(&role) {
+                Some(view) => resp(200, view.to_string()),
+                None => resp(
+                    400,
+                    serde_json::json!({ "error": format!("rôle inconnu : {role}") }).to_string(),
+                ),
+            }
         }
         "/internal/v1/turn/verifier" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

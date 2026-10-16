@@ -58,7 +58,7 @@ pub struct Criterion {
 
 /// `engineSideJob` : début d'un travail annexe auprès du Go ; `None` s'il ne
 /// répond pas.
-async fn side_job_begin(store: &Store) -> Option<i64> {
+pub(super) async fn side_job_begin(store: &Store) -> Option<i64> {
     store
         .internal_post("/internal/v1/engine/sidejob", &json!({}))
         .await
@@ -68,7 +68,7 @@ async fn side_job_begin(store: &Store) -> Option<i64> {
 
 /// Fin du travail annexe. Les requêtes servies ont déjà été comptées une à
 /// une (`/internal/v1/oai/served`) : rien à ajouter.
-async fn side_job_end(store: &Store, id: Option<i64>) {
+pub(super) async fn side_job_end(store: &Store, id: Option<i64>) {
     if let Some(id) = id {
         let _ = store
             .internal_post(
@@ -478,7 +478,7 @@ impl ChatService {
             queued: Box::new(Vec::new),
             deltas: {
                 let conv = conv.clone();
-                Box::new(move |d| {
+                Arc::new(move |d| {
                     conv.append_delta(conv.epoch(), d);
                 })
             },
@@ -491,6 +491,15 @@ impl ChatService {
             side_slot: Default::default(),
             projsnap: snap_turn,
             snap_refreshed: Default::default(),
+            // Le builder relancé délègue comme dans son tour ; la
+            // vérification, elle, ne délègue pas (garde-fou du rôle).
+            sub: Some(super::subagent::SubTurn {
+                ep: env.ep.clone(),
+                reasoning: pe.reasoning.clone(),
+                echo: env.echo.clone(),
+                patterns: self.shared.patterns.clone(),
+                cancel: run.cancel.clone(),
+            }),
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {
