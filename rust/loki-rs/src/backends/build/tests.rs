@@ -135,10 +135,7 @@ async fn plan_par_machine() {
         root: root.path().to_path_buf(),
     };
     let script = |name: &str, body: &str| {
-        let p = tools.path().join(name);
-        std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        write_script(&tools.path().join(name), &format!("#!/bin/sh\n{body}\n"));
     };
     let base = [
         "-DCMAKE_BUILD_TYPE=Release",
@@ -230,9 +227,10 @@ async fn erreurs_des_commandes() {
         root: tools.path().to_path_buf(),
     };
     let p = tools.path().join("outil");
-    std::fs::write(&p, "#!/bin/sh\necho un\necho deux >&2\nprintf trois\n[ -n \"$X\" ] && echo \"X=$X\"\nexit $1\n").unwrap();
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    write_script(
+        &p,
+        "#!/bin/sh\necho un\necho deux >&2\nprintf trois\n[ -n \"$X\" ] && echo \"X=$X\"\nexit $1\n",
+    );
     let args = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     let mut got = Vec::new();
     let log = tools.path().join("x.log");
@@ -265,7 +263,23 @@ async fn erreurs_des_commandes() {
         r,
         Err("exec: \"absent\": executable file not found in $PATH".into())
     );
-    std::fs::write(&p, "#!/bin/sh\nkill -9 $$\n").unwrap();
+    write_script(&p, "#!/bin/sh\nkill -9 $$\n");
     let r = run_lines_with(&probe, None, &[], "outil", &[], true, None, |_| {}).await;
     assert_eq!(r, Err("signal: killed".into()));
+}
+
+/// Écrit un script exécutable par un `sh` à part : si ce process tenait
+/// lui-même le fichier ouvert en écriture, un `fork` lancé au même moment
+/// par un test voisin en hériterait, et l'`exec` du script échouerait sur
+/// ETXTBSY (l'outil paraîtrait absent).
+#[cfg(unix)]
+fn write_script(p: &std::path::Path, body: &str) {
+    let ok = std::process::Command::new("sh")
+        .args(["-c", r#"printf '%s' "$1" > "$2" && chmod 755 "$2""#, "sh"])
+        .arg(body)
+        .arg(p)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "script non écrit : {}", p.display());
 }

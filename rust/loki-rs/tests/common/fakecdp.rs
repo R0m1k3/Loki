@@ -32,9 +32,16 @@ exec sleep 600
 "#,
         args.display()
     );
-    std::fs::write(&p, script).unwrap();
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    // Écrit par un `sh` à part : un `fork` d'un test voisin hériterait sinon
+    // du fichier ouvert en écriture, et son `exec` échouerait sur ETXTBSY.
+    let ok = std::process::Command::new("sh")
+        .args(["-c", r#"printf '%s' "$1" > "$2" && chmod 755 "$2""#, "sh"])
+        .arg(script)
+        .arg(&p)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "faux Chrome non écrit");
     p
 }
 
