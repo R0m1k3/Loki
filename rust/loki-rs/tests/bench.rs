@@ -536,6 +536,74 @@ async fn stop_du_chat_et_bail_perdu() {
     );
 }
 
+/// Pendant la prise du bail, un second lancement est refusé ; le preset
+/// relu au départ du job l'emporte sur celui lu au lancement.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn relu_au_depart_du_job() {
+    let bn = Arc::new(start().await);
+    bn.base(16384, Duration::ZERO);
+    *bn.go.lease_delay.lock().unwrap() = Some(Duration::from_millis(400));
+    let first = {
+        let bn = bn.clone();
+        tokio::spawn(async move { bn.call("POST", "/api/bench", "{}").await })
+    };
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let (code, out) = bn.call("POST", "/api/bench", "{}").await;
+    assert_eq!(
+        (code, out),
+        (
+            409,
+            json!({"ok": false, "error": "un benchmark tourne déjà"})
+        )
+    );
+    // Le preset devient une API externe pendant la prise du bail.
+    bn.go.set("config", "EXTERNAL", "1");
+    assert_eq!(first.await.unwrap().0, 202);
+    bn.wait("externe").await;
+    assert_eq!(
+        bn.status().await["error"],
+        json!("benchmark indisponible : le preset actif est une API externe")
+    );
+    // L'optimiseur démarre pendant la prise du bail.
+    bn.go.set("config", "EXTERNAL", "");
+    let first = {
+        let bn = bn.clone();
+        tokio::spawn(async move { bn.call("POST", "/api/bench", "{}").await })
+    };
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    *bn.go.tune_busy.lock().unwrap() = Some(TUNE_BUSY.to_string());
+    assert_eq!(first.await.unwrap().0, 202);
+    bn.wait("optimiseur").await;
+    *bn.go.tune_busy.lock().unwrap() = None;
+    assert_eq!(bn.status().await["error"], json!(TUNE_BUSY));
+    assert!(
+        bn.fake.lock().unwrap().chats == 0,
+        "rien n'est parti au moteur"
+    );
+}
+
+/// La mesure s'enregistre sous le preset ACTIF, pas sous le premier de la
+/// liste.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mesure_du_preset_actif() {
+    let bn = start().await;
+    bn.base(16384, Duration::ZERO);
+    let dir = bn.home.join("presets");
+    std::fs::create_dir_all(&dir).unwrap();
+    let active = format!(
+        "MODEL=/models/qwen.gguf\nPORT={}\nCTX=16384\nREASONING=off\nCACHE_ISOLATE=off\n",
+        bn.port
+    );
+    std::fs::write(dir.join("qwen.env"), active).unwrap();
+    std::fs::write(dir.join("autre.env"), "MODEL=/models/autre.gguf\n").unwrap();
+    let (code, _) = bn.call("POST", "/api/bench", "{}").await;
+    assert_eq!(code, 202);
+    bn.wait("bench").await;
+    let saved: Value = serde_json::from_str(&bn.go.get("state", "bench_presets").unwrap()).unwrap();
+    let ids: Vec<&String> = saved.as_object().unwrap().keys().collect();
+    assert_eq!(ids, ["qwen"]);
+}
+
 /// Sans la façade pour le bench, ses routes partent au Go.
 #[tokio::test]
 async fn sans_la_facade() {

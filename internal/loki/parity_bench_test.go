@@ -319,6 +319,8 @@ func TestPariteBench(t *testing.T) {
 			Method: "POST", Path: "/api/bench", Body: `{"prompt":99999,"n":9999,"mode":"quick"}`, Wait: true},
 		{Name: "petits paramètres", Engine: &parityBenchEngine{NCtx: 16384},
 			Method: "POST", Path: "/api/bench", Body: `{"prompt":100,"n":8}`, Wait: true},
+		{Name: "prompt juste au-delà de la prose", Engine: &parityBenchEngine{NCtx: 16384},
+			Method: "POST", Path: "/api/bench", Body: `{"prompt":900,"n":16}`, Wait: true},
 		{Name: "corps illisible : défauts", Engine: &parityBenchEngine{NCtx: 16384},
 			Method: "POST", Path: "/api/bench", Body: `{"prompt":"beaucoup"}`, Wait: true},
 		{Name: "le préchauffage échoue", Engine: &parityBenchEngine{NCtx: 16384, FailAt: 1},

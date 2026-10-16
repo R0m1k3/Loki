@@ -115,6 +115,8 @@ pub struct FakeGo {
     pub side_jobs: Mutex<Vec<String>>,
     /// /internal/v1/bench/perf reçus.
     pub bench_perfs: Mutex<Vec<serde_json::Value>>,
+    /// Délai avant de répondre à une prise de bail.
+    pub lease_delay: Mutex<Option<std::time::Duration>>,
 }
 
 impl FakeGo {
@@ -245,6 +247,10 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         }
         "/internal/v1/engine/lease" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
+            let delay = *st.lease_delay.lock().unwrap();
+            if let Some(d) = delay {
+                tokio::time::sleep(d).await;
+            }
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
             if let Some(why) = v["why"].as_str() {
                 st.lease_whys.lock().unwrap().push(why.to_string());

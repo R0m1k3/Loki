@@ -180,6 +180,8 @@ fn morceaux_du_corpus() {
     assert_eq!(slice("ab\ncdefgh", 0, 8), ("ab\ncdefg", 8));
     assert_eq!(slice("abcde\nfgh", 0, 8), ("abcde\n", 6));
     assert_eq!(slice("abcd\nfgh", 0, 8), ("abcd\nfgh", 8));
+    // Pile à la fin du texte : tout, sans chercher de fin de ligne.
+    assert_eq!(slice("abcdefg\nh", 0, 9), ("abcdefg\nh", 9));
     assert_eq!(line_start("ab\ncd", 1), 3);
     assert_eq!(line_start("ab\ncd", 3), 3);
     assert_eq!(line_start("ab\ncd", 0), 0);
@@ -207,6 +209,8 @@ fn reprise_du_cache() {
     assert_eq!(r, -1.0);
     assert!(!note.is_empty());
     assert_eq!(reuse(&[t(10, 0)], false).0, -1.0);
+    // Un tour sans attendu ne compte pas, même à côté d'un tour mesuré.
+    assert_eq!(reuse(&[t(50, 100), t(5, -10)], false).0, 0.5);
     // Un cache plus grand que l'attendu compte pour l'attendu.
     assert_eq!(reuse(&[t(5000, 3000)], false).0, 1.0);
 }
@@ -278,6 +282,12 @@ fn reponse_du_moteur() {
     assert_eq!(r.turn.predicted_per_second, 0.0);
     assert_eq!(r.turn.draft, None);
     assert_eq!(r.prompt_total(), 13);
+    // Débits nuls donnés par le moteur : recalculés.
+    let r = parse_reply(br#"{"timings":{"prompt_n":100,"prompt_ms":50,"predicted_n":10,"predicted_ms":200,"prompt_per_second":0,"predicted_per_second":0}}"#).unwrap();
+    assert_eq!(
+        (r.turn.prompt_per_second, r.turn.predicted_per_second),
+        (2000.0, 50.0)
+    );
     // Cache inconnu : -1, et le total sans lui.
     let r = parse_reply(
         br#"{"timings":{"prompt_n":8,"prompt_ms":4,"predicted_n":2,"predicted_ms":1}} trailing"#,
@@ -341,4 +351,334 @@ fn flottants_du_go() {
         serde_json::to_value(&d).unwrap(),
         json!({ "ctx": 0, "target": 0, "reuse": -1 })
     );
+}
+
+/// Un mini moteur : chaque chemin rend (statut, corps) ; compte les
+/// requêtes reçues.
+async fn mini_engine(
+    routes: Vec<(&'static str, u16, &'static str)>,
+) -> (
+    Engine,
+    Arc<std::sync::atomic::AtomicUsize>,
+    watch::Sender<bool>,
+) {
+    let (e, _, hits, tx) = rec_engine(routes).await;
+    (e, hits, tx)
+}
+
+/// Requêtes reçues par le mini moteur : (chemin, corps).
+type Reqs = Arc<std::sync::Mutex<Vec<(String, String)>>>;
+
+/// `mini_engine`, qui garde aussi les corps des requêtes.
+async fn rec_engine(
+    routes: Vec<(&'static str, u16, &'static str)>,
+) -> (
+    Engine,
+    Reqs,
+    Arc<std::sync::atomic::AtomicUsize>,
+    watch::Sender<bool>,
+) {
+    use std::sync::atomic::AtomicUsize;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    let hits = Arc::new(AtomicUsize::new(0));
+    let reqs: Reqs = Arc::default();
+    let (h, rq) = (hits.clone(), reqs.clone());
+    tokio::spawn(async move {
+        while let Ok((mut st, _)) = l.accept().await {
+            let routes = routes.clone();
+            let (h, rq) = (h.clone(), rq.clone());
+            tokio::spawn(async move {
+                let mut buf = vec![0u8; 65536];
+                let mut got = Vec::new();
+                let head = loop {
+                    if let Some(i) = got.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break i + 4;
+                    }
+                    let n = st.read(&mut buf).await.unwrap_or(0);
+                    if n == 0 {
+                        return;
+                    }
+                    got.extend_from_slice(&buf[..n]);
+                };
+                let text = String::from_utf8_lossy(&got[..head]).to_string();
+                let len = text
+                    .lines()
+                    .filter_map(|l| l.split_once(':'))
+                    .find(|(k, _)| k.eq_ignore_ascii_case("content-length"))
+                    .and_then(|(_, v)| v.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                while got.len() < head + len {
+                    let n = st.read(&mut buf).await.unwrap_or(0);
+                    if n == 0 {
+                        break;
+                    }
+                    got.extend_from_slice(&buf[..n]);
+                }
+                let n = h.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                let line = text.lines().next().unwrap_or("").to_string();
+                let path = line.split(' ').nth(1).unwrap_or("").to_string();
+                let end = got.len().min(head + len);
+                let body = String::from_utf8_lossy(&got[head..end]).to_string();
+                rq.lock().unwrap().push((path.clone(), body));
+                let (code, body) = routes
+                    .iter()
+                    .find(|(p, _, _)| *p == path)
+                    .map_or((404, "{}"), |(_, c, b)| (*c, *b));
+                // « {{N}} » : le rang de la requête.
+                let body = body.replace("{{N}}", &n.to_string());
+                let reason = reqwest::StatusCode::from_u16(code)
+                    .ok()
+                    .and_then(|s| s.canonical_reason())
+                    .unwrap_or("");
+                let resp = format!(
+                    "HTTP/1.1 {code} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = st.write_all(resp.as_bytes()).await;
+            });
+        }
+    });
+    crate::chat::engine::install_crypto();
+    let (tx, rx) = watch::channel(false);
+    let e = Engine {
+        base: format!("http://{addr}"),
+        key: String::new(),
+        client: reqwest::Client::builder().build().unwrap(),
+        cancel: rx,
+        req_timeout: Duration::from_secs(5),
+        served: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+    };
+    (e, reqs, hits, tx)
+}
+
+use std::sync::Arc;
+
+#[tokio::test]
+async fn reponses_du_moteur() {
+    let ok = r#"{"timings":{"prompt_n":8,"prompt_ms":4,"predicted_n":2,"predicted_ms":1}}"#;
+    let (e, hits, cancel) = mini_engine(vec![
+        ("/v1/chat/completions", 201, ok),
+        (
+            "/props",
+            200,
+            r#"{"n_ctx":8192,"build_info":"b1","default_generation_settings":{"n_ctx":0}}"#,
+        ),
+        ("/tokenize", 200, r#"{"tokens":[]}"#),
+    ])
+    .await;
+    // Seul un 200 vaut réponse.
+    match e.chat(&json!({})).await {
+        Err(ReqError::Http { status, .. }) => assert_eq!(status, "201 Created"),
+        r => panic!("201 : {r:?}"),
+    }
+    assert_eq!(e.served.load(std::sync::atomic::Ordering::SeqCst), 0);
+    // n_ctx du slot nul : celui du serveur.
+    assert_eq!(e.props().await, (8192, "b1".to_string()));
+    // /tokenize sans jetons : le repli ; échantillon vide : rien n'est envoyé.
+    assert_eq!(e.bytes_per_token("abcd").await, FALLBACK_RATIO);
+    let sent = hits.load(std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(e.bytes_per_token("").await, FALLBACK_RATIO);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), sent);
+    // Annulé avant d'envoyer : rien ne part.
+    let before = hits.load(std::sync::atomic::Ordering::SeqCst);
+    cancel.send(true).unwrap();
+    match e.chat(&json!({})).await {
+        Err(ReqError::Canceled(m)) => assert!(m.ends_with("context canceled"), "{m}"),
+        r => panic!("annulé : {r:?}"),
+    }
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), before);
+}
+
+/// Le refus du gabarit Qwen (`chat/wire.rs`).
+const QWEN_REFUS: &str = r#"{"error":{"code":500,"message":"\n------------\nWhile executing CallExpression at line 49, column 28 in source:\n...', 'low') %}\n {{- raise_exception('Unexpected reasoning effort ' ~ reason...\n ^\nError: Jinja Exception: Unexpected reasoning effort high. Supported types are xhigh (default), medium, and low.","type":"server_error"}}"#;
+
+const CHAT: &str = "/v1/chat/completions";
+
+fn chats(reqs: &Reqs) -> Vec<Value> {
+    reqs.lock()
+        .unwrap()
+        .iter()
+        .filter(|(p, _)| p == CHAT)
+        .map(|(_, b)| serde_json::from_str(b).unwrap())
+        .collect()
+}
+
+fn content(v: &Value) -> String {
+    v["messages"][v["messages"].as_array().unwrap().len() - 1]["content"]
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+
+#[tokio::test]
+async fn niveau_rejoue_une_seule_fois() {
+    let (e, reqs, _, _c) = rec_engine(vec![(CHAT, 500, QWEN_REFUS)]).await;
+    let mut s = setup_from(
+        &cfg(&[("REASONING_EFFORT", "high")]),
+        &HashMap::new(),
+        &EffortFallbacks::new(),
+    );
+    let learned = std::sync::Mutex::new(Vec::new());
+    let learn = |w: &str, f: &str| learned.lock().unwrap().push(format!("{w}>{f}"));
+    let msgs = vec![("user".to_string(), "x".to_string())];
+    assert!(s.ask(&e, &msgs, 8, false, &learn).await.is_err());
+    assert!(s.ask(&e, &msgs, 8, false, &learn).await.is_err());
+    let sent: Vec<String> = chats(&reqs)
+        .iter()
+        .map(|b| b["reasoning_effort"].as_str().unwrap_or("").to_string())
+        .collect();
+    // Rejoué une fois, avec le niveau accepté, puis plus jamais.
+    assert_eq!(sent, ["high", "xhigh", "xhigh"]);
+    assert_eq!(*learned.lock().unwrap(), ["high>xhigh"]);
+}
+
+fn tokens(n: usize) -> &'static str {
+    Box::leak(format!(r#"{{"tokens":[{}]}}"#, vec!["1"; n].join(",")).into_boxed_str())
+}
+
+const REPLY: &str = r#"{"choices":[{"message":{"content":"ok"}}],"timings":{"prompt_n":1000,"prompt_ms":5,"predicted_n":2,"predicted_ms":1}}"#;
+
+#[tokio::test]
+async fn prechauffage_et_ligne_courte() {
+    // 100 jetons : la prose fait 2 octets par jeton, le code 4.
+    let (e, reqs, _, _c) = rec_engine(vec![
+        ("/props", 200, r#"{"n_ctx":100,"build_info":"b9"}"#),
+        ("/tokenize", 200, tokens(100)),
+        (CHAT, 200, REPLY),
+    ])
+    .await;
+    let corp = Corpora {
+        prose: "mot ".repeat(50),
+        code: "abc\n".repeat(100),
+    };
+    let mut s = setup_from(&cfg(&[]), &HashMap::new(), &EffortFallbacks::new());
+    let phases = std::sync::Mutex::new(Vec::new());
+    let progress = |p: &str, n: i64, of: i64| phases.lock().unwrap().push(format!("{p} {n}/{of}"));
+    let opts = Opts {
+        mode: String::new(),
+        prompt: 0,
+        predict: 0,
+        depth: 0,
+    };
+    let res = run(&e, opts, &mut s, &corp, &progress, &|_, _| {}, &|| None)
+        .await
+        .unwrap();
+    assert_eq!(
+        *phases.lock().unwrap(),
+        ["préchauffage 1/2", "ligne courte (2000 + 300 jetons) 2/2"]
+    );
+    assert_eq!((res.engine.as_str(), res.prompt_n), ("b9", 1000));
+    let c = chats(&reqs);
+    assert_eq!(c.len(), 2);
+    // Le préchauffage : 64 jetons au moins (le quart du contexte en vaut
+    // 25), pris en fin de code au ratio du code.
+    assert_eq!(c[0]["max_tokens"], 32);
+    assert_eq!(
+        content(&c[0]),
+        format!("{}\n\n{ASK_FIRST}", "abc\n".repeat(64))
+    );
+    // La ligne courte : toute la prose, puis le code du milieu.
+    assert_eq!(c[1]["max_tokens"], 300);
+    assert_eq!(
+        content(&c[1]),
+        format!(
+            "{}\n\n{}abc{ASK_PROSE}",
+            "mot ".repeat(50),
+            "abc\n".repeat(49)
+        )
+    );
+
+    // Juste au-delà de la prose : 50 jetons de code encore.
+    let opts = Opts {
+        mode: String::new(),
+        prompt: 150,
+        predict: 7,
+        depth: 0,
+    };
+    run(&e, opts, &mut s, &corp, &|_, _, _| {}, &|_, _| {}, &|| None)
+        .await
+        .unwrap();
+    let c = chats(&reqs);
+    assert_eq!(c[3]["max_tokens"], 7);
+    assert_eq!(
+        content(&c[3]),
+        format!(
+            "{}\n\n{}abc{ASK_PROSE}",
+            "mot ".repeat(50),
+            "abc\n".repeat(49)
+        )
+    );
+}
+
+#[tokio::test]
+async fn profondeur_arretee() {
+    // Une réponse par requête ; 10 jetons repris sur 1010.
+    let (e, reqs, _, _c) = rec_engine(vec![(
+        CHAT,
+        200,
+        r#"{"choices":[{"message":{"content":"r{{N}}"}}],"timings":{"prompt_n":1000,"cache_n":10,"prompt_ms":5,"predicted_n":2,"predicted_ms":1}}"#,
+    )])
+    .await;
+    let mut s = setup_from(&cfg(&[]), &HashMap::new(), &EffortFallbacks::new());
+    let go = async |code: &str, ctx: i64, target: i64, s: &mut Setup| {
+        let mut d = Depth {
+            ctx,
+            target,
+            reuse: -1.0,
+            ..Default::default()
+        };
+        depth_run(&e, s, code, 4.0, &mut d, &|_| {}, &|_, _| {}, &|| None)
+            .await
+            .unwrap();
+        d
+    };
+    let short = "abc\n".repeat(1000);
+    // 1010 jetons déjà là : deux réponses, un tour et la marge ne tiennent
+    // plus dans 4000.
+    let d = go(&short, 4000, 100, &mut s).await;
+    assert_eq!(d.partial, "contexte plein après 0 tour(s)");
+    assert!(d.turns.is_empty());
+    assert_eq!(chats(&reqs).len(), 1);
+    // Tout le code lu au prefill : rien à ajouter.
+    let d = go(&short, 1 << 20, 1000, &mut s).await;
+    assert_eq!(d.partial, "corpus épuisé après 0 tour(s)");
+    assert_eq!(chats(&reqs).len(), 2);
+    // Deux tours, puis le code manque.
+    let d = go(&"abc\n".repeat(3000), 1 << 20, 100, &mut s).await;
+    assert_eq!(d.partial, "corpus épuisé après 2 tour(s)");
+    assert_eq!(d.turns.len(), 2);
+    assert_eq!(d.turns[0].expected, 1010);
+    // Chaque tour reprend la réponse du précédent.
+    let c = chats(&reqs);
+    assert_eq!(c.len(), 5);
+    let roles = |v: &Value| -> Vec<String> {
+        v["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| {
+                format!(
+                    "{}:{}",
+                    m["role"].as_str().unwrap(),
+                    m["content"].as_str().unwrap().len().min(2)
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        roles(&c[4]),
+        ["user:2", "assistant:2", "user:2", "assistant:2", "user:2"]
+    );
+    assert_eq!(c[4]["messages"][1]["content"], "r3");
+    assert_eq!(c[4]["messages"][3]["content"], "r4");
+    // Reprise partielle hors modèle hybride : le gabarit en cause.
+    assert!((d.reuse - 10.0 / 1010.0).abs() < 1e-12, "{}", d.reuse);
+    assert!(d.reuse_note.contains("gabarit"), "{}", d.reuse_note);
+    s.hybrid = true;
+    let d = go(&"abc\n".repeat(3000), 1 << 20, 100, &mut s).await;
+    assert!(d.reuse_note.contains("hybride"), "{}", d.reuse_note);
 }

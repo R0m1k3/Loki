@@ -115,6 +115,32 @@ Autres tests :
     expiration ;
   - le travail annexe et la trace.
 
+## Mutations
+
+84 mutations du port Rust, dont 81 tuées. Les survivantes du premier passage
+l'ont été par les tests ajoutés :
+
+- `bench/tests.rs` : la tranche pile à la fin du corpus, un tour sans
+  attendu à côté d'un tour mesuré, les débits nuls rendus par le moteur
+  (recalculés), le niveau de raisonnement rejoué une seule fois, le
+  préchauffage et la ligne courte d'un `run` rapide (paramètres par défaut,
+  64 jetons de préchauffage au moins, code ajouté juste au-delà de la
+  prose), la profondeur arrêtée (contexte plein, corpus épuisé, réponse du
+  tour précédent reprise, note de reprise selon le modèle hybride) ;
+- `tests/bench.rs` : un second lancement pendant la prise du bail, le preset
+  relu au départ du job (devenu externe, ou optimiseur lancé entre-temps),
+  la mesure enregistrée sous le preset ACTIF ;
+- le journal : un prompt juste au-delà de la prose.
+
+Restent trois équivalentes :
+
+- l'annulation vérifiée avant d'envoyer : déjà annulé, le `select!` rend
+  l'annulation à son premier tour, avant que la requête ne parte ;
+- la progression d'un job remplacé : un seul bench à la fois, un job fini ne
+  rapporte plus rien ;
+- le PID nul du moteur : `/proc/0` n'existe pas, la lecture échoue de toute
+  façon.
+
 ## Écarts assumés
 
 - Une erreur réseau vers le moteur garde le texte de `reqwest` après le

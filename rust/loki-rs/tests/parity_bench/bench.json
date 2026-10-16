@@ -1989,6 +1989,173 @@
       }
     },
     {
+      "name": "prompt juste au-delà de la prose",
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"prompt\":900,\"n\":16}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (900 + 16 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 320,
+          "predicted_n": 16,
+          "predicted_per_second": 50,
+          "prompt_ms": 470,
+          "prompt_n": 940,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 16,
+            "messages": [
+              {
+                "content": "<3745 octets 5578a8f2779c>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 320,
+          "predicted_n": 16,
+          "predicted_per_second": 50,
+          "prompt_ms": 470,
+          "prompt_n": 940,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 320,
+            "predicted_n": 16,
+            "predicted_per_second": 50,
+            "prompt_ms": 470,
+            "prompt_n": 940,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
       "name": "corps illisible : défauts",
       "engine": {
         "n_ctx": 16384
