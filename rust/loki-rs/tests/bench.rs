@@ -469,12 +469,19 @@ async fn bail_travail_annexe_et_trace() {
         *bn.go.side_jobs.lock().unwrap(),
         vec!["begin 1".to_string(), "end 1 true".to_string()]
     );
+    // La longueur du prompt suit le corpus de code, c'est-à-dire l'UI
+    // embarquée : la vérifier en dur cassait le test à chaque retouche de
+    // l'interface. On vérifie la forme de la trace.
+    let perfs = bn.go.bench_perfs.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 1, "{perfs:?}");
+    let n = perfs[0]["prompt_n"].as_i64().unwrap_or(0);
+    assert!(n > 0, "{perfs:?}");
     assert_eq!(
-        *bn.go.bench_perfs.lock().unwrap(),
-        vec![json!({
-            "prompt_n": 2036, "prompt_ms": 1018.0, "prompt_per_second": 2000.0,
+        perfs[0],
+        json!({
+            "prompt_n": n, "prompt_ms": n as f64 / 2.0, "prompt_per_second": 2000.0,
             "predicted_n": 300, "predicted_per_second": 50.0,
-        })]
+        })
     );
     // La clé de l'API locale accompagne les requêtes du bench.
     let auth = bn.fake.lock().unwrap().auth.clone();
