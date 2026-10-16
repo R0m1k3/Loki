@@ -695,6 +695,8 @@ async fn tour_complet_par_le_go() {
         queued: Box::new(Vec::new),
         perf_kind: "main",
         side_slot: Default::default(),
+        projsnap: None,
+        snap_refreshed: Default::default(),
     };
     let bash = Tool {
         kind: "function".into(),
@@ -1072,6 +1074,8 @@ async fn hote_et_sonde_de_gabarit() {
             queued: Box::new(Vec::new),
             perf_kind: "main",
             side_slot: Default::default(),
+            projsnap: None,
+            snap_refreshed: Default::default(),
         }
     };
     let bash = Tool {
@@ -2172,6 +2176,14 @@ async fn prechauffage_par_la_facade() {
             .iter()
             .any(|p| p["kind"] == "prewarm" && p["stats"]["prompt_tokens_total"] == 60)
     );
+    // La vue du préchauffage est demandée sans rien à ranger (PROJ_SNAPSHOT).
+    assert!(
+        go.turn_view_bodies
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|b| b["dry"] == true)
+    );
 }
 
 /// Le Go refuse (moteur occupé) : rien ne part ; annulé par une autre
@@ -2213,5 +2225,162 @@ async fn prechauffage_refuse_ou_annule() {
             .unwrap()
             .iter()
             .all(|p| p["kind"] != "prewarm")
+    );
+}
+
+fn proj_snap(desc: &str, delta_tok: i64) -> serde_json::Value {
+    serde_json::json!({
+        "at": 1,
+        "msgs": [{"role": "system", "content": format!("Project context — {desc}")}],
+        "state": {"desc": desc},
+        "key": "k1",
+        "sys_hash": "h1",
+        "delta_tok": delta_tok
+    })
+}
+
+/// Lot 34 : PROJ_SNAPSHOT tenu par la façade. Le Go décide (instantané pris,
+/// mise à jour, rafraîchissement) ; la façade range l'instantané avec la
+/// discussion et pose la mise à jour en tête du message, dans la requête et
+/// dans l'historique.
+#[tokio::test]
+async fn bloc_projet_fige_par_la_facade() {
+    use loki_rs::chat::persist::ProjSnapshot;
+    let (url, seen) = fake_engine(vec![answer("un"), answer("deux"), answer("trois")]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    let delta = "<context_update from=\"loki\" at=\"x\">\n+ neuf\n</context_update>\n\n";
+    go.projsnaps.lock().unwrap().extend([
+        serde_json::json!({"refresh": true, "snap": proj_snap("figé", 0), "key": "k1", "sys_hash": "h1"}),
+        serde_json::json!({"refresh": false, "delta": delta, "snap": proj_snap("neuf", 5), "key": "k1", "sys_hash": "h1"}),
+        serde_json::json!({"refresh": true, "snap": proj_snap("frais", 0), "key": "k1", "sys_hash": "h1"}),
+    ]);
+    let stored = |svc: &ChatService| -> ProjSnapshot {
+        svc.sessions
+            .conv()
+            .with_state(|st| st.proj_snap.clone())
+            .expect("instantané rangé")
+    };
+    let as_snap = |v: serde_json::Value| -> ProjSnapshot { serde_json::from_value(v).unwrap() };
+
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "s1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert_eq!(stored(&svc), as_snap(proj_snap("figé", 0)));
+    let views = go.turn_view_bodies.lock().unwrap().clone();
+    assert_eq!(views[0]["snap"], serde_json::Value::Null);
+    assert_eq!(views[0]["dry"], false);
+
+    // Un changement : mise à jour en tête du nouveau message, rangée telle
+    // quelle (le tour suivant renvoie les mêmes octets).
+    svc.send(serde_json::json!({"message": "suite", "cid": "s2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let views = go.turn_view_bodies.lock().unwrap().clone();
+    assert_eq!(
+        as_snap(views[1]["snap"].clone()),
+        as_snap(proj_snap("figé", 0))
+    );
+    let sent = seen.lock().unwrap()[1].1.clone();
+    let msgs = sent["messages"].as_array().unwrap();
+    assert_eq!(msgs.last().unwrap()["content"], format!("{delta}suite"));
+    assert!(
+        msgs.last().unwrap().get("ctx_upd").is_none(),
+        "marque envoyée au moteur"
+    );
+    let hist = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let upd = hist.iter().find(|m| m.ctx_upd).expect("mise à jour rangée");
+    assert_eq!(
+        upd.content,
+        Some(serde_json::json!(format!("{delta}suite")))
+    );
+    assert_eq!(stored(&svc), as_snap(proj_snap("neuf", 5)));
+
+    // Rafraîchi : instantané neuf, mise à jour retirée de l'historique.
+    svc.send(serde_json::json!({"message": "fin", "cid": "s3"}))
+        .await
+        .unwrap();
+    until_done(&svc, 3).await;
+    let sent = seen.lock().unwrap()[2].1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["content"] == "suite"),
+        "{sent}"
+    );
+    let hist = svc.sessions.conv().with_state(|st| st.messages.clone());
+    assert!(hist.iter().all(|m| !m.ctx_upd));
+    assert_eq!(stored(&svc), as_snap(proj_snap("frais", 0)));
+}
+
+/// Réduction forcée en plein tour : le bloc vivant remplace le figé, et
+/// devient l'instantané du tour suivant.
+#[tokio::test]
+async fn bloc_projet_rafraichi_en_plein_tour() {
+    use loki_rs::chat::persist::ProjSnapshot;
+    let (url, seen) = fake_engine(vec![
+        "STATUS 400\nrequest (400000 tokens) exceeds the available context size (32768 tokens)".into(),
+        serde_json::json!({"choices": [{"message": {"content": "résumé des échanges"}, "finish_reason": "stop"}]})
+            .to_string(),
+        answer("ok"),
+    ])
+    .await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    // Un historique assez long pour qu'il y ait de quoi résumer.
+    svc.sessions.conv().with_state(|st| {
+        for i in 0..8 {
+            st.messages.push(loki_rs::chat::types::Message {
+                role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
+                content: Some(serde_json::json!(format!(
+                    "échange {i} {}",
+                    "x".repeat(800)
+                ))),
+                ..Default::default()
+            });
+        }
+    });
+    go.projsnaps.lock().unwrap().push_back(serde_json::json!(
+        {"refresh": true, "snap": proj_snap("figé", 0), "key": "k1", "sys_hash": "h1"}
+    ));
+    *go.projsnap_refresh.lock().unwrap() = Some(serde_json::json!({
+        "block": [{"role": "system", "content": "Project context — vivant"}],
+        "snap": proj_snap("vivant", 0)
+    }));
+    *go.turn_view.lock().unwrap() = None;
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "m1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    let refreshes = go.projsnap_refreshes.lock().unwrap().clone();
+    assert_eq!(refreshes.len(), 1, "{refreshes:?}");
+    assert_eq!(
+        (
+            refreshes[0]["key"].clone(),
+            refreshes[0]["sys_hash"].clone()
+        ),
+        (serde_json::json!("k1"), serde_json::json!("h1"))
+    );
+    let sent = seen.lock().unwrap().last().unwrap().1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["content"]
+                .as_str()
+                .is_some_and(|c| c.contains("Project context — vivant"))),
+        "{sent}"
+    );
+    let stored: ProjSnapshot = svc
+        .sessions
+        .conv()
+        .with_state(|st| st.proj_snap.clone())
+        .unwrap();
+    assert_eq!(
+        stored,
+        serde_json::from_value(proj_snap("vivant", 0)).unwrap()
     );
 }

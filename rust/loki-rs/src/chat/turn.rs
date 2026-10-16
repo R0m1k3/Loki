@@ -42,8 +42,9 @@
 //! préchauffage en vol le garde ([`TurnHost::prewarm_keeps`]) ; toute autre
 //! l'annule ([`super::prewarm`]).
 //!
-//! Non porté : PROJ_SNAPSHOT. Avec cette clé, le Go garde la conversation
-//! (`facadeChatBlocker`, décidé au démarrage).
+//! Bloc projet figé (PROJ_SNAPSHOT, lot 34) : une compaction ou une réduction
+//! en plein tour fait remplacer le bloc figé par le vivant
+//! ([`TurnHost::project_refresh`]).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -150,6 +151,13 @@ pub trait TurnHost: Send + Sync {
         body: Vec<u8>,
         keep_prewarm: bool,
     ) -> impl Future<Output = Result<Reply, SendError>> + Send;
+    /// PROJ_SNAPSHOT : une compaction ou une réduction vient de réécrire
+    /// l'historique en plein tour — le début du prompt change de toute façon,
+    /// le bloc projet figé est remplacé par le vivant et les mises à jour
+    /// retirées (`projSnapTurn.refresh`). Sans la clé : tel quel.
+    fn project_refresh(&self, msgs: Vec<Message>) -> impl Future<Output = Vec<Message>> + Send {
+        async { msgs }
+    }
     /// PREWARM : la requête qui part (empreintes cumulées de ses messages,
     /// corps) prolonge-t-elle exactement le préchauffage en vol ?
     fn prewarm_keeps(&self, _prefix: &[u64], _payload: &Value) -> bool {
@@ -691,7 +699,7 @@ async fn run_turn_loop<H: TurnHost>(
                 if let Some(c) = c {
                     s.compacted_retry = true;
                     log_compact(ccfg, "réactif", 0, &messages, &c, true);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
                     publish_history(cb, kt, &messages);
                     continue;
@@ -703,7 +711,7 @@ async fn run_turn_loop<H: TurnHost>(
                 if changed {
                     s.shrink_retries += 1;
                     log_compact(ccfg, "réduction", actual, &messages, &c, true);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
                     publish_history(cb, kt, &messages);
                     continue;
@@ -1124,7 +1132,7 @@ async fn run_turn_loop<H: TurnHost>(
                 );
                 if let Some(c) = c {
                     s.last_est = 0;
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
                     publish_history(cb, kt, &messages);
                 }
@@ -1183,7 +1191,7 @@ async fn run_turn_loop<H: TurnHost>(
                 );
                 if let Some(c) = c {
                     cb(StreamEvent::DropReasoning);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
                     publish_history(cb, kt, &messages);
                     continue;

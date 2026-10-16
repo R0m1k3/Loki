@@ -247,8 +247,8 @@ fn serve() -> ExitCode {
         let sup = child::Supervisor::spawn(go_bin, go_port, env);
         wait_for(backend, Duration::from_secs(30)).await;
         let engine_paths = engine::Paths::from_env();
-        // Le Go peut garder la conversation malgré LOKI_CHAT=rust (réglage que
-        // la façade ne sait pas encore honorer) : sa décision fait foi.
+        // Le Go confirme qu'il remet la conversation (adresse et jeton bien
+        // reçus) : sa réponse fait foi.
         let chat_rust = chat_rust
             && match go_keeps_chat(backend, &token).await {
                 Ok(None) => true,
@@ -415,9 +415,8 @@ fn serve() -> ExitCode {
 }
 
 /// Conversation tenue par la façade : c'est le défaut. `LOKI_CHAT=go` (ou
-/// 0/off/false/no) la rend au Go — porte de sortie. Le Go la garde de toute
-/// façon si un réglage que la façade ne sait pas honorer est posé
-/// (`facadeChatBlocker`).
+/// 0/off/false/no) la rend au Go — porte de sortie. Plus aucun réglage ne la
+/// garde au Go (lot 34).
 fn chat_held_by_facade() -> bool {
     chat_wanted(std::env::var("LOKI_CHAT").ok().as_deref())
 }

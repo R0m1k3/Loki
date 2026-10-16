@@ -22,8 +22,10 @@
 //! corrections du builder) suit le tour, avant la compaction de fin
 //! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
 //!
-//! Écart assumé (reste au Go) : PROJ_SNAPSHOT (refusé par `/turn/view`). Le
-//! préchauffage (PREWARM, lot 33) part en fin de tour ([`super::prewarm`]).
+//! Le bloc projet figé (PROJ_SNAPSHOT, lot 34) : le Go décide avec la vue du
+//! tour, la façade range l'instantané et pose les mises à jour
+//! ([`ChatService::assemble_turn`]). Le préchauffage (PREWARM, lot 33) part en
+//! fin de tour ([`super::prewarm`]).
 //! Les images gardées (KEEP_TURN_IMAGES, lot 32)
 //! partent en début et en fin de tour quand il le faut
 //! ([`ChatService::kept_images_turn_start`]). La télémétrie des complétions
@@ -46,18 +48,19 @@ use tokio::sync::watch;
 use super::compact::{
     CompactCaps, CompactConfig, CompactOpts, Compactor, TurnView, compact_needed, compact_opts_for,
     ctx_pending, drop_kept_images, estimate_tokens, log_compact, log_ctx_estimate,
-    log_kept_images_dropped, strip_context_updates,
+    log_kept_images_dropped, prepend_ctx_update, strip_context_updates,
 };
 use super::engine::EngineHttp;
 use super::history::{
     drop_stray_nudges, history_from_view, inject_prefix, remind_read_mem_pages, tool_used_delta,
 };
 use super::host::{
-    ChatShared, EngineSummarizer, GoTurnHost, StoreRecall, TurnCompact, keep_images_state,
+    ChatShared, EngineSummarizer, GoTurnHost, SnapTurn, StoreRecall, TurnCompact, keep_images_state,
 };
 use super::journal::Delta;
 use super::keepimg::{has_kept_images, keep_turn_images_on};
 use super::lease::{EngineLease, LEASE_TTL, LeaseError, LeaseSignal, engine_stop};
+use super::persist::ProjSnapshot;
 use super::sessions::{GoSessionHooks, Sessions};
 use super::turn::{Cancel, TurnConfig, run_turn};
 use super::types::{Message, ReasoningEcho, StreamEvent, Tool};
@@ -175,6 +178,42 @@ pub(super) struct TurnEnv {
     pub(super) ccfg: CompactConfig,
     pub(super) port: u16,
     pub(super) summarizer: EngineSummarizer,
+}
+
+/// La décision PROJ_SNAPSHOT rendue avec la vue du tour (`projsnap`).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(super) struct SnapDecision {
+    /// Instantané neuf : blocs `<context_update>` retirés de l'historique.
+    #[serde(default)]
+    pub(super) refresh: bool,
+    /// Mise à jour à poser en tête du dernier message utilisateur.
+    #[serde(default)]
+    pub(super) delta: String,
+    /// L'instantané à ranger (absent en préchauffage).
+    #[serde(default)]
+    pub(super) snap: Option<ProjSnapshot>,
+    #[serde(default)]
+    pub(super) key: String,
+    #[serde(default)]
+    pub(super) sys_hash: String,
+}
+
+/// Les pièces de la vue d'envoi.
+pub(super) struct ViewParts {
+    pub(super) head: Vec<Message>,
+    pub(super) prefix: String,
+    pub(super) tools: Vec<Tool>,
+    pub(super) snap: Option<SnapDecision>,
+}
+
+/// Une étape assemblée : ce qui part, les outils, l'historique d'où part la
+/// vue (`historyFromView`), et de quoi rafraîchir le bloc projet en plein
+/// tour (PROJ_SNAPSHOT).
+pub(super) struct Assembled {
+    pub(super) sent: Vec<Message>,
+    pub(super) tools: Vec<Tool>,
+    pub(super) hist: Vec<Message>,
+    pub(super) snap_turn: Option<SnapTurn>,
 }
 
 /// Le chat tenu par la façade : la discussion ouverte, ses tours et sa file.
@@ -523,29 +562,124 @@ impl ChatService {
         Some(compacted)
     }
 
-    /// `/internal/v1/turn/view` : tête (prompt du preset, consignes,
-    /// projet), préambule et outils du tour ; `Err` : le message à journaliser.
+    /// Les pièces de la vue d'envoi (`/internal/v1/turn/view`) : tête du Go
+    /// (prompt du preset, consignes, projet), préambule, outils ; avec
+    /// PROJ_SNAPSHOT et l'agent, la décision sur le bloc figé (`snap` :
+    /// l'instantané de la discussion ; `dry` : préchauffage, rien à ranger).
     pub(super) async fn turn_view(
         &self,
         caps: &Value,
-    ) -> Result<(Vec<Message>, String, Vec<Tool>), String> {
+        snap: Option<&ProjSnapshot>,
+        dry: bool,
+    ) -> Result<ViewParts, String> {
         match self
             .shared
             .store
-            .internal_post("/internal/v1/turn/view", &json!({ "caps": caps }))
+            .internal_post(
+                "/internal/v1/turn/view",
+                &json!({ "caps": caps, "snap": snap, "dry": dry }),
+            )
             .await
         {
-            Ok((s, v)) if s.as_u16() == 200 => Ok((
-                serde_json::from_value::<Vec<Message>>(v["head"].clone()).unwrap_or_default(),
-                v["prefix"].as_str().unwrap_or("").to_string(),
-                serde_json::from_value::<Vec<Tool>>(v["tools"].clone()).unwrap_or_default(),
-            )),
+            Ok((s, v)) if s.as_u16() == 200 => Ok(ViewParts {
+                head: serde_json::from_value::<Vec<Message>>(v["head"].clone()).unwrap_or_default(),
+                prefix: v["prefix"].as_str().unwrap_or("").to_string(),
+                tools: serde_json::from_value::<Vec<Tool>>(v["tools"].clone()).unwrap_or_default(),
+                snap: v
+                    .get("projsnap")
+                    .filter(|p| p.is_object())
+                    .and_then(|p| serde_json::from_value(p.clone()).ok()),
+            }),
             Ok((_, v)) => Err(v["error"]
                 .as_str()
                 .unwrap_or("vue du tour refusée")
                 .to_string()),
             Err(e) => Err(e),
         }
+    }
+
+    /// `turnView` : la séquence envoyée pour une étape de la discussion (tour,
+    /// relance du builder) — tête du Go, historique, préambule. Avec
+    /// PROJ_SNAPSHOT : l'instantané de la discussion rangé, rafraîchi (blocs
+    /// `<context_update>` retirés de l'historique), ou complété d'une mise à
+    /// jour posée en tête du dernier message utilisateur, dans la discussion
+    /// et dans `msgs`. Sans la clé, une discussion qui porte encore des blocs
+    /// d'une époque où elle servait en est nettoyée.
+    pub(super) async fn assemble_turn(
+        &self,
+        epoch: i64,
+        caps: &Value,
+        mut msgs: Vec<Message>,
+    ) -> Result<Assembled, String> {
+        let conv = self.sessions.conv();
+        let snap = conv.with_state(|st| st.proj_snap.clone());
+        let v = self.turn_view(caps, snap.as_ref(), false).await?;
+        let agent = caps.get("Agent").and_then(Value::as_bool).unwrap_or(false);
+        let mut snap_turn = None;
+        let hist = match v.snap {
+            Some(d) => {
+                let applied = conv.with_state_if(epoch, |st| {
+                    if d.refresh {
+                        st.messages = strip_context_updates(std::mem::take(&mut st.messages));
+                        st.proj_snap = d.snap.clone();
+                        return (true, false);
+                    }
+                    if d.delta.is_empty() {
+                        return (false, false);
+                    }
+                    // Pas de message utilisateur où la poser : l'état annoncé
+                    // ne bouge pas, elle partira au tour suivant.
+                    let Some(m) = st
+                        .messages
+                        .last()
+                        .and_then(|m| prepend_ctx_update(m, &d.delta))
+                    else {
+                        return (false, false);
+                    };
+                    if let Some(last) = st.messages.last_mut() {
+                        *last = m;
+                    }
+                    st.proj_snap = d.snap.clone();
+                    (false, true)
+                });
+                if let Some((refresh, updated)) = applied {
+                    if refresh {
+                        msgs = strip_context_updates(msgs);
+                    }
+                    if updated
+                        && let Some(m) = msgs.last().and_then(|m| prepend_ctx_update(m, &d.delta))
+                        && let Some(last) = msgs.last_mut()
+                    {
+                        *last = m;
+                    }
+                }
+                snap_turn = Some(SnapTurn {
+                    caps: caps.clone(),
+                    key: d.key,
+                    sys_hash: d.sys_hash,
+                });
+                msgs
+            }
+            None => {
+                if agent {
+                    conv.with_state_if(epoch, |st| {
+                        if st.proj_snap.is_some() || st.messages.iter().any(|m| m.ctx_upd) {
+                            st.proj_snap = None;
+                            st.messages = strip_context_updates(std::mem::take(&mut st.messages));
+                        }
+                    });
+                }
+                strip_context_updates(msgs)
+            }
+        };
+        let mut sent = v.head;
+        sent.extend(hist.iter().cloned());
+        Ok(Assembled {
+            sent: inject_prefix(sent, &v.prefix),
+            tools: v.tools,
+            hist,
+            snap_turn,
+        })
     }
 
     /// Configuration, point de chat et résumeur d'un tour (lus une fois).
@@ -827,30 +961,21 @@ impl ChatService {
             }
         }
 
-        // Vue d'envoi : tête du Go (prompt du preset, consignes, projet),
-        // l'historique sans bloc <context_update>, le préambule.
-        let (head, prefix, tools) = match self.turn_view(&prep.turn_caps).await {
-            Ok(v) => v,
+        // Vue d'envoi : tête du Go (prompt du preset, consignes, projet ou
+        // bloc figé), l'historique, le préambule.
+        let Assembled {
+            sent,
+            tools,
+            hist,
+            snap_turn,
+        } = match self.assemble_turn(epoch, &prep.turn_caps, msgs).await {
+            Ok(a) => a,
             Err(e) => {
                 conv.append_delta(epoch, obj("error", e));
                 self.finish(epoch, &cancel, lease, turn_start).await;
                 return;
             }
         };
-        if agent {
-            // Une discussion qui porte encore des blocs d'une époque où
-            // PROJ_SNAPSHOT servait en est nettoyée (comme assembleTurn).
-            conv.with_state_if(epoch, |st| {
-                if st.proj_snap.is_some() || st.messages.iter().any(|m| m.ctx_upd) {
-                    st.proj_snap = None;
-                    st.messages = strip_context_updates(std::mem::take(&mut st.messages));
-                }
-            });
-        }
-        let hist = strip_context_updates(msgs);
-        let mut sent = head;
-        sent.extend(hist.iter().cloned());
-        let sent = inject_prefix(sent, &prefix);
 
         let temperature = if prep.temperature == 0.0 {
             0.7
@@ -889,6 +1014,8 @@ impl ChatService {
             queued: Box::new(move || me.drain_queued(epoch)),
             perf_kind: super::perf::KIND_MAIN,
             side_slot: Default::default(),
+            projsnap: snap_turn,
+            snap_refreshed: Default::default(),
         };
 
         // Chaque événement devient un delta du journal.
@@ -967,6 +1094,9 @@ impl ChatService {
                 }
             }
         };
+        // Bloc projet rafraîchi par une compaction en cours de tour
+        // (PROJ_SNAPSHOT) : c'est lui que le tour suivant renvoie.
+        let refreshed = host.take_refreshed_snap();
         drop(host);
 
         // Vue modèle rangée : outils puis réponse finale — sauf si un reset
@@ -974,6 +1104,9 @@ impl ChatService {
         let after = conv.with_state_if(epoch, |st| {
             if let Some(base) = new_base.take() {
                 st.messages = base;
+            }
+            if let Some(s) = refreshed {
+                st.proj_snap = Some(s);
             }
             st.messages.extend(res.extra.iter().cloned());
             if !content.trim().is_empty() {

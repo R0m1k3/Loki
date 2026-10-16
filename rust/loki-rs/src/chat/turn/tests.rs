@@ -52,6 +52,9 @@ struct Fake {
     /// a reçu.
     prewarm_match: Mutex<bool>,
     sent_keeps: Mutex<Vec<bool>>,
+    /// PROJ_SNAPSHOT : clé posée pour ce tour ; rafraîchissements demandés.
+    snap_on: Mutex<bool>,
+    refreshes: Mutex<usize>,
 }
 
 impl Fake {
@@ -172,6 +175,13 @@ impl TurnHost for Fake {
     }
     async fn keep_images(&self) -> Option<i64> {
         *self.keep.lock().unwrap()
+    }
+    async fn project_refresh(&self, mut msgs: Vec<Message>) -> Vec<Message> {
+        if *self.snap_on.lock().unwrap() {
+            *self.refreshes.lock().unwrap() += 1;
+            msgs.insert(0, text_msg("system", "BLOC VIVANT"));
+        }
+        msgs
     }
     fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {
         // Ce que l'hôte reçoit : les empreintes des messages envoyés et le
@@ -1093,4 +1103,54 @@ async fn prechauffage_garde_par_la_requete_qui_le_prolonge() {
     let (r, _) = run(&host, &tc, &Cancel::never()).await;
     assert_eq!(r.err, None);
     assert_eq!(*host.sent_keeps.lock().unwrap(), [false]);
+}
+
+/// PROJ_SNAPSHOT : une compaction ou une réduction en plein tour fait
+/// rafraîchir le bloc projet (le début du prompt change de toute façon) ;
+/// l'historique publié et la requête rejouée le portent. Le retrait d'images
+/// gardées, lui, ne touche pas au début du prompt.
+#[tokio::test]
+async fn bloc_projet_rafraichi_par_la_compaction() {
+    let host = Fake::new(vec![
+        Script::Status(400, "the request exceeds the available context size".into()),
+        answer("après compaction"),
+    ]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    *host.snap_on.lock().unwrap() = true;
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None, "{:?}", host.bodies.lock().unwrap());
+    assert_eq!(*host.refreshes.lock().unwrap(), 1);
+    assert!(evs.iter().any(|e| matches!(e, StreamEvent::NewHistory(h)
+        if h.first().and_then(|m| m.content.as_ref()) == Some(&json!("BLOC VIVANT")))));
+    assert_eq!(host.body(1)["messages"][0]["content"], "BLOC VIVANT");
+    // Réduction forcée (pas de résumé possible) : rafraîchi aussi.
+    let host = Fake::new(vec![
+        Script::Status(
+            400,
+            "request (400000 tokens) exceeds the available context size (32768 tokens)".into(),
+        ),
+        answer("ok"),
+    ]);
+    *host.snap_on.lock().unwrap() = true;
+    let hist: Vec<Message> = (0..12)
+        .map(|i| um(&format!("message {i} {}", "x".repeat(400))))
+        .collect();
+    let (r, _) = run_hist(&host, &config(&[]), hist).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.refreshes.lock().unwrap(), 1);
+    assert!(
+        host.phases.lock().unwrap().len() == 1,
+        "résumé tenté puis réduction"
+    );
+    assert_eq!(host.body(1)["messages"][0]["content"], "BLOC VIVANT");
+    // Images gardées retirées au filet réactif : pas de rafraîchissement.
+    let host = Fake::new(vec![
+        Script::Status(400, "the request exceeds the available context size".into()),
+        answer_u("fini", 0),
+    ]);
+    *host.snap_on.lock().unwrap() = true;
+    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let (r, _) = run_hist(&host, &config(&[]), hist).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.refreshes.lock().unwrap(), 0);
 }

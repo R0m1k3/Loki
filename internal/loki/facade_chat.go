@@ -39,52 +39,14 @@ const (
 )
 
 // facadeChat : la façade tient-elle la conversation ? Il faut aussi son
-// adresse et le jeton interne, sans lesquels rien ne peut lui être remis — et
-// aucun réglage qu'elle ne sait pas honorer (facadeChatBlocker).
+// adresse et le jeton interne, sans lesquels rien ne peut lui être remis.
+// Plus aucun réglage ne garde la conversation ici : la façade honore
+// NUDGE_IN_TOOL (lot 23), les motifs de relance personnalisés (lot 30),
+// SIDE_SLOT et SLOT_PERSIST (lot 31), KEEP_TURN_IMAGES (lot 32), PREWARM
+// (lot 33) et PROJ_SNAPSHOT (lot 34, facade_projsnap.go).
 func facadeChat() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") &&
-		facadeAddr() != "" && internalToken() != "" && facadeChatDecision() == ""
-}
-
-// facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
-// en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
-// figé). NUDGE_IN_TOOL n'en est plus (lot 23) : la façade a sa
-// sonde de gabarit ; ni les motifs de relance personnalisés (retry_patterns,
-// lot 30) : la façade les lit et les compile ; ni SIDE_SLOT et SLOT_PERSIST
-// (lot 31) : la façade demande son slot avant chaque requête
-// (facade_slots.go) ; ni KEEP_TURN_IMAGES (lot 32) : la façade tient l'état
-// du tour, le Go range les images (facade_keepimg.go) ; ni PREWARM (lot 33) :
-// la façade assemble le préchauffage, le Go l'inscrit et l'annule
-// (facade_prewarm.go).
-func facadeChatBlocker(cfg map[string]string) string {
-	switch {
-	case projSnapEnabled(cfg):
-		return "PROJ_SNAPSHOT"
-	}
-	return ""
-}
-
-// Décision prise UNE fois par process : passer la conversation d'un détenteur
-// à l'autre en cours de route laisserait chacun avec sa copie — un réglage
-// changé vaut au redémarrage suivant. La façade la lit au démarrage
-// (/internal/v1/chat/holder) et s'y range.
-var (
-	facadeDecisionMu   sync.Mutex
-	facadeDecisionDone bool
-	facadeDecisionWhy  string
-)
-
-func facadeChatDecision() string {
-	facadeDecisionMu.Lock()
-	defer facadeDecisionMu.Unlock()
-	if !facadeDecisionDone {
-		facadeDecisionWhy = facadeChatBlocker(ReadConfig())
-		facadeDecisionDone = true
-		if facadeDecisionWhy != "" {
-			fmt.Fprintf(os.Stderr, "[chat] %s posé : la conversation reste tenue par le Go (LOKI_CHAT=rust ignoré)\n", facadeDecisionWhy)
-		}
-	}
-	return facadeDecisionWhy
+		facadeAddr() != "" && internalToken() != ""
 }
 
 // handleInternalChatHolder : qui tient la conversation ({"holder":"rust"} ou
@@ -98,7 +60,7 @@ func handleInternalChatHolder(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string]any{"holder": "rust"})
 		return
 	}
-	why := facadeChatDecision()
+	why := "adresse de la façade ou jeton interne manquant"
 	if !strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") {
 		why = facadeChatEnv + " absent"
 	}

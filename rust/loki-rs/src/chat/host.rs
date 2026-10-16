@@ -37,7 +37,7 @@ use super::compact::{
     parse_summary_response,
 };
 use super::engine::{EngineHttp, classify, friendly_error};
-use super::persist::{Persister, StoreSink, ToolResJob};
+use super::persist::{Persister, ProjSnapshot, StoreSink, ToolResJob};
 use super::stream::{CacheHintFn, PreflightFn, RetryPatterns};
 use super::turn::{CompactPhase, PerfMarks, PerfRec, Reply, SendError, ToolOutcome, TurnHost};
 use super::types::{AskEvent, DiffLine, Message, Tool};
@@ -366,6 +366,30 @@ pub struct GoTurnHost {
     /// La requête qui part va sur le second slot (posé par `engine_slot`,
     /// lu par `send` pour le ticket « en vol »).
     pub side_slot: AtomicBool,
+    /// PROJ_SNAPSHOT : la clé et le système du tour (`None` sans la clé), et
+    /// l'instantané posé par un rafraîchissement en cours de tour.
+    pub projsnap: Option<SnapTurn>,
+    pub snap_refreshed: Mutex<Option<ProjSnapshot>>,
+}
+
+/// PROJ_SNAPSHOT (lot 34) : ce qu'un tour avec la clé garde pour rafraîchir
+/// le bloc projet quand une compaction réécrit l'historique en plein tour
+/// (`projSnapTurn`).
+#[derive(Debug, Clone)]
+pub struct SnapTurn {
+    pub caps: Value,
+    pub key: String,
+    pub sys_hash: String,
+}
+
+impl GoTurnHost {
+    /// L'instantané posé en cours de tour (`takeRefreshed`), s'il y en a un.
+    pub fn take_refreshed_snap(&self) -> Option<ProjSnapshot> {
+        self.snap_refreshed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
 }
 
 /// Délai d'une demande de slot : le rechargement SLOT_PERSIST relit jusqu'à
@@ -736,6 +760,40 @@ impl TurnHost for GoTurnHost {
 
     fn echo_refuse(&self, model: &str) {
         self.shared.echo_refusals.refuse(model);
+    }
+
+    async fn project_refresh(&self, msgs: Vec<Message>) -> Vec<Message> {
+        let Some(t) = &self.projsnap else {
+            return msgs;
+        };
+        let got = self
+            .shared
+            .store
+            .internal_post(
+                "/internal/v1/turn/projsnap/refresh",
+                &json!({ "caps": t.caps, "key": t.key, "sys_hash": t.sys_hash }),
+            )
+            .await;
+        let (block, snap) = match got {
+            Ok((code, v)) if code.is_success() => (
+                serde_json::from_value::<Vec<Message>>(v["block"].clone()).ok(),
+                serde_json::from_value::<ProjSnapshot>(v["snap"].clone()).ok(),
+            ),
+            _ => (None, None),
+        };
+        // Go injoignable : le bloc figé reste, sans les mises à jour (le début
+        // du prompt change de toute façon) ; l'instantané n'est pas remplacé.
+        let msgs = super::compact::strip_context_updates(msgs);
+        match (block, snap) {
+            (Some(block), Some(snap)) => {
+                *self
+                    .snap_refreshed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(snap);
+                super::compact::replace_project_head(msgs, &block)
+            }
+            _ => msgs,
+        }
     }
 
     fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {

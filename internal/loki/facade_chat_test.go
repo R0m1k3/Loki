@@ -27,22 +27,8 @@ type fausseFacade struct {
 	internalBody   string
 }
 
-// oublierDecisionFacade : la décision « qui tient la conversation » est prise
-// une fois par process ; chaque test repart de zéro.
-func oublierDecisionFacade(t *testing.T) {
-	t.Helper()
-	reset := func() {
-		facadeDecisionMu.Lock()
-		facadeDecisionDone, facadeDecisionWhy = false, ""
-		facadeDecisionMu.Unlock()
-	}
-	reset()
-	t.Cleanup(reset)
-}
-
 func demarrerFacade(t *testing.T) *fausseFacade {
 	t.Helper()
-	oublierDecisionFacade(t)
 	f := &fausseFacade{t: t, reply: `{"ok":true,"de":"facade"}`}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
@@ -266,56 +252,36 @@ func TestFacadeActivationDeProjet(t *testing.T) {
 	}
 }
 
-// Un réglage que la façade ne sait pas honorer garde la conversation ici :
-// rien ne lui est remis, et elle l'apprend au démarrage. La décision tient
-// jusqu'au redémarrage.
-func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
+// Plus aucun réglage ne garde la conversation ici (lot 34) : avec chacune des
+// clés opt-in posée, la façade la tient et le trafic de chat lui est remis.
+// Sans LOKI_CHAT=rust, ou sans son adresse : le Go, et pourquoi.
+func TestFacadeAucunReglageNeGardeLaConversation(t *testing.T) {
 	testHome(t)
 	f := demarrerFacade(t)
 	t.Setenv(internalTokenEnv, jetonTest)
+	for _, k := range []string{"PROJ_SNAPSHOT", "NUDGE_IN_TOOL", "SIDE_SLOT", "SLOT_PERSIST", "KEEP_TURN_IMAGES", "PREWARM"} {
+		if err := SetConfigKey(k, "on"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	putStr(bkState, "retry_patterns", `["oups"]`)
+	if !facadeChat() {
+		t.Fatal("réglages opt-in posés : la façade doit tenir la conversation")
+	}
 	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"holder":"rust"`) {
 		t.Fatalf("détenteur : %d %s", w.Code, w.Body.String())
-	}
-	// Posé après la décision : sans effet avant le redémarrage.
-	if err := SetConfigKey("PROJ_SNAPSHOT", "on"); err != nil {
-		t.Fatal(err)
-	}
-	if !facadeChat() {
-		t.Fatal("décision changée en cours de route")
-	}
-	oublierDecisionFacade(t)
-	if facadeChat() {
-		t.Fatal("PROJ_SNAPSHOT posé : la conversation doit rester au Go")
-	}
-	w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", "")
-	if !strings.Contains(w.Body.String(), `"holder":"go"`) || !strings.Contains(w.Body.String(), "PROJ_SNAPSHOT") {
-		t.Fatalf("détenteur : %s", w.Body.String())
 	}
 	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
 	rec := httptest.NewRecorder()
 	withFacadeChat("/api/chat/send", local)(rec, httptest.NewRequest("POST", "/api/chat/send", strings.NewReader(`{}`)))
-	if rec.Body.String() != "go" || len(f.recu()) != 0 {
-		t.Fatalf("remis à la façade malgré le réglage : %q %v", rec.Body.String(), f.recu())
-	}
-	for k, want := range map[string]string{
-		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "", "SIDE_SLOT": "",
-		"SLOT_PERSIST": "", "KEEP_TURN_IMAGES": "", "PREWARM": "",
-	} {
-		if got := facadeChatBlocker(map[string]string{k: "on"}); got != want {
-			t.Errorf("%s : %q", k, got)
-		}
-	}
-	if got := facadeChatBlocker(map[string]string{}); got != "" {
-		t.Errorf("sans réglage : %q", got)
-	}
-	// Les motifs de relance personnalisés ne gardent plus la conversation.
-	putStr(bkState, "retry_patterns", `["oups"]`)
-	if got := facadeChatBlocker(map[string]string{}); got != "" {
-		t.Errorf("retry_patterns : %q", got)
+	if rec.Body.String() == "go" || len(f.recu()) != 1 {
+		t.Fatalf("pas remis à la façade : %q %v", rec.Body.String(), f.recu())
 	}
 	putStr(bkState, "retry_patterns", "")
-	// Sans LOKI_CHAT=rust : le Go, et pourquoi.
-	oublierDecisionFacade(t)
+	t.Setenv(facadeAddrEnv, "")
+	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); !strings.Contains(w.Body.String(), "adresse de la façade") {
+		t.Fatalf("sans adresse : %s", w.Body.String())
+	}
 	t.Setenv(facadeChatEnv, "")
 	if w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", ""); !strings.Contains(w.Body.String(), "LOKI_CHAT absent") {
 		t.Fatalf("sans la variable : %s", w.Body.String())
@@ -1076,7 +1042,6 @@ func TestFacadeBackends(t *testing.T) {
 func TestFacadeSondeDeGabarit(t *testing.T) {
 	testHome(t)
 	freshTplProbe(t)
-	oublierDecisionFacade(t)
 	verdict := `{"ok":true,"result":{"preserves_history":"no","prefix_stable":"no","renders_reasoning":"yes","model":"m1.gguf","tools":2,"at":"2026-10-15T20:00:00.5Z"}}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(internalTokenHeader) != jetonTest || r.URL.Path != "/internal/facade/v1/chat/tpl" {

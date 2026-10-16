@@ -73,6 +73,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIServed(w, r)
 		case "/internal/v1/turn/perf":
 			handleInternalTurnPerf(w, r)
+		case "/internal/v1/turn/projsnap/refresh":
+			handleInternalTurnProjSnapRefresh(w, r)
 		case "/internal/v1/turn/slot":
 			handleInternalTurnSlot(w, r)
 		case "/internal/v1/prewarm/check":

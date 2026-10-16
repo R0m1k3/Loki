@@ -141,6 +141,13 @@ pub struct FakeGo {
     /// (« check », « begin {corps} », « end {corps} »).
     pub prewarm_refuse: Mutex<Option<String>>,
     pub prewarm_log: Mutex<Vec<String>>,
+    /// PROJ_SNAPSHOT : corps reçus par /internal/v1/turn/view ; décisions à
+    /// rendre (une par appel, dans l'ordre) ; réponse de
+    /// /internal/v1/turn/projsnap/refresh et corps reçus.
+    pub turn_view_bodies: Mutex<Vec<serde_json::Value>>,
+    pub projsnaps: Mutex<std::collections::VecDeque<serde_json::Value>>,
+    pub projsnap_refresh: Mutex<Option<serde_json::Value>>,
+    pub projsnap_refreshes: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeGo {
@@ -360,15 +367,30 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         }
         "/internal/v1/turn/view" => {
             st.turn_log.lock().unwrap().push("view".into());
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.turn_view_bodies.lock().unwrap().push(v);
             if let Some(v) = st.turn_view.lock().unwrap().clone() {
                 return resp(200, v.to_string());
             }
-            let out = serde_json::json!({
+            let mut out = serde_json::json!({
                 "head": [{"role": "system", "content": "Tu es Loki."}],
                 "prefix": "PRÉAMBULE",
                 "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
             });
+            if let Some(d) = st.projsnaps.lock().unwrap().pop_front() {
+                out["projsnap"] = d;
+            }
             resp(200, out.to_string())
+        }
+        "/internal/v1/turn/projsnap/refresh" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.projsnap_refreshes.lock().unwrap().push(v);
+            match st.projsnap_refresh.lock().unwrap().clone() {
+                Some(r) => resp(200, r.to_string()),
+                None => resp(500, r#"{"error":"non prévu"}"#),
+            }
         }
         "/internal/v1/chat/holder" => match st.go_keeps_chat.lock().unwrap().clone() {
             None => resp(200, r#"{"holder":"rust"}"#),

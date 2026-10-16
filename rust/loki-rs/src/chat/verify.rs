@@ -23,12 +23,13 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::watch;
 
-use super::compact::{CompactCaps, is_loki_injected, strip_context_updates, without_ctx_update};
-use super::generate::{ChatService, TurnEnv, obj};
-use super::history::{drop_stray_nudges, history_from_view, inject_prefix, tool_used_delta};
-use super::host::{GoTurnHost, TurnCompact};
+use super::compact::{CompactCaps, is_loki_injected, without_ctx_update};
+use super::generate::{Assembled, ChatService, TurnEnv, obj};
+use super::history::{drop_stray_nudges, history_from_view, tool_used_delta};
+use super::host::{GoTurnHost, SnapTurn, TurnCompact};
 use super::lease::{EngineLease, LeaseSignal};
 use super::persist::BK_CHAT;
+use super::persist::ProjSnapshot;
 use super::turn::{Cancel, TurnConfig, run_turn};
 use super::types::{Message, ReasoningEcho, StreamEvent, Tool};
 use super::wire::{TurnReasoning, with_echo};
@@ -166,6 +167,8 @@ struct PassOut {
     echo: Option<ReasoningEcho>,
     saw_usage: bool,
     asked: bool,
+    /// Bloc projet rafraîchi en cours de passe (PROJ_SNAPSHOT).
+    snap: Option<ProjSnapshot>,
 }
 
 fn cap_bool(caps: &Value, k: &str) -> bool {
@@ -304,8 +307,18 @@ impl ChatService {
                 // Travail annexe : le Go efface le slot à la fin s'il a servi
                 // (les requêtes de la passe le lui disent en passant).
                 let side = side_job_begin(&self.shared.store).await;
-                self.run_pass(pe, epoch, msgs, tools, v["caps"].clone(), true, &[], run)
-                    .await;
+                self.run_pass(
+                    pe,
+                    epoch,
+                    msgs,
+                    tools,
+                    v["caps"].clone(),
+                    true,
+                    &[],
+                    None,
+                    run,
+                )
+                .await;
                 side_job_end(&self.shared.store, side).await;
             }
             other => {
@@ -359,18 +372,19 @@ impl ChatService {
             return false;
         };
         // Même contexte que le tour de build : sinon le début du prompt change
-        // et tout le cache est à refaire.
-        let (head, prefix, tools) = match self.turn_view(pe.turn_caps).await {
-            Ok(v) => v,
+        // et tout le cache est à refaire (PROJ_SNAPSHOT compris).
+        let Assembled {
+            sent,
+            tools,
+            hist,
+            snap_turn,
+        } = match self.assemble_turn(epoch, pe.turn_caps, msgs).await {
+            Ok(a) => a,
             Err(e) => {
                 conv.append_delta(epoch, obj("error", e));
                 return false;
             }
         };
-        let hist = strip_context_updates(msgs);
-        let mut sent = head;
-        sent.extend(hist.iter().cloned());
-        let sent = inject_prefix(sent, &prefix);
         let out = self
             .run_pass(
                 pe,
@@ -380,12 +394,17 @@ impl ChatService {
                 pe.turn_caps.clone(),
                 false,
                 &hist,
+                snap_turn,
                 run,
             )
             .await;
         conv.with_state_if(epoch, |st| {
             if let Some(base) = out.new_base {
                 st.messages = base;
+            }
+            // Même règle que le tour : le bloc rafraîchi en cours de passe.
+            if let Some(s) = out.snap {
+                st.proj_snap = Some(s);
             }
             st.messages.extend(out.extra);
             if !out.content.trim().is_empty() {
@@ -421,6 +440,7 @@ impl ChatService {
         caps: Value,
         isolated: bool,
         base: &[Message],
+        snap_turn: Option<SnapTurn>,
         run: &mut PassRun<'_>,
     ) -> PassOut {
         let conv = self.sessions.conv().clone();
@@ -463,6 +483,8 @@ impl ChatService {
                 super::perf::KIND_MAIN
             },
             side_slot: Default::default(),
+            projsnap: snap_turn,
+            snap_refreshed: Default::default(),
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {
@@ -546,6 +568,7 @@ impl ChatService {
             }
         };
         out.extra = res.extra;
+        out.snap = host.take_refreshed_snap();
         out
     }
 }

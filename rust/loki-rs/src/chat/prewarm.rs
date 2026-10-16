@@ -319,10 +319,10 @@ impl ChatService {
         if conv.is_generating() {
             return Err("moteur occupé");
         }
-        let (mut msgs, ctx_now, peak) = conv.with_state(|st| {
+        let (mut msgs, ctx_now, peak, snap) = conv.with_state(|st| {
             let msgs = st.messages.clone();
             let used = ctx_pending(st.ctx_used, st.ctx_used_len, &msgs, &env.echo);
-            (msgs, used, st.gen_peak)
+            (msgs, used, st.gen_peak, st.proj_snap.clone())
         });
         // Sans message utilisateur, le contexte projet irait en tête de la
         // sentinelle : rien à préparer.
@@ -338,13 +338,20 @@ impl ChatService {
         if compact_needed(&env.ccfg, &msgs, ctx_now, peak) {
             return Err("compaction attendue au prochain tour");
         }
-        let (head, prefix, tools) = self
-            .turn_view(&turn_caps)
+        // Mêmes décisions que le vrai tour (PROJ_SNAPSHOT compris), sans rien
+        // ranger : bloc figé gardé avec ses mises à jour, ou rafraîchi.
+        let v = self
+            .turn_view(&turn_caps, snap.as_ref(), true)
             .await
             .map_err(|_| "vue du tour refusée")?;
-        let mut sent = head;
-        sent.extend(strip_context_updates(msgs));
-        let sent = inject_prefix(sent, &prefix);
+        let tools = v.tools;
+        let hist = match &v.snap {
+            Some(d) if !d.refresh => msgs,
+            _ => strip_context_updates(msgs),
+        };
+        let mut sent = v.head;
+        sent.extend(hist);
+        let sent = inject_prefix(sent, &v.prefix);
         let reasoning = turn_reasoning(&env.cfg, &self.shared.effort);
         let pol = turn_echo_policy(false, || env.echo.clone());
         self.shared.images.prefetch(&self.shared.store, &sent).await;
