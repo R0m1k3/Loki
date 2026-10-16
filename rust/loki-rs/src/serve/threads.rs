@@ -219,7 +219,7 @@ fn ceil_quota(quota: &str, period: &str) -> i64 {
     }
 }
 
-fn read_cpu_list(root: &Path, rel: &str) -> Option<Vec<i64>> {
+pub(crate) fn read_cpu_list(root: &Path, rel: &str) -> Option<Vec<i64>> {
     parse_cpu_list(&read(root, rel)?)
 }
 

@@ -373,7 +373,7 @@ pub(crate) async fn generating(ctx: &Ctx) -> bool {
 
 /// `asrShutdownVite` : la dictée de la façade si elle la tient, sinon celle
 /// du Go.
-async fn dictate_stop(ctx: &Ctx) {
+pub(crate) async fn dictate_stop(ctx: &Ctx) {
     if let Some(d) = &ctx.dictate {
         d.shutdown_fast().await;
         return;

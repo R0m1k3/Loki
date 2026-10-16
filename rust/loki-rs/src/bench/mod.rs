@@ -44,10 +44,10 @@ const DEPTH_MAX: i64 = 32768;
 const DEPTH_CPU: i64 = 16384;
 const DEPTH_MIN: i64 = 4096;
 const MARGIN: i64 = 512;
-const WARM_GEN: i64 = 32;
+pub(crate) const WARM_GEN: i64 = 32;
 const SEED: i64 = 1234;
 const REUSE_SLACK: i64 = 16;
-const SAMPLE_BYTES: usize = 160 << 10;
+pub(crate) const SAMPLE_BYTES: usize = 160 << 10;
 const FALLBACK_RATIO: f64 = 2.5;
 const THRASH_BYTES: i64 = 512 << 20;
 
@@ -62,7 +62,7 @@ pub const ERR_NO_TIMINGS: &str =
 pub const CORPUS: &str = include_str!("corpus.txt");
 
 const ASK_PROSE: &str = "\n\nContinue this passage with another 1000+ words of original varied prose, mixing French and English narrative paragraphs on different topics.";
-const ASK_FIRST: &str = "Résume en quelques phrases le rôle de ce fichier.";
+pub(crate) const ASK_FIRST: &str = "Résume en quelques phrases le rôle de ce fichier.";
 const ASK_NEXT: &str =
     "Écris en JavaScript une fonction courte inspirée de cette partie, sans explication.";
 

@@ -64,6 +64,9 @@ func handleInternalCDPShutdown(w http.ResponseWriter, r *http.Request) {
 // internalServiceAction : serviceAction, variable pour les tests.
 var internalServiceAction = serviceAction
 
+// internalServiceActionOS : serviceActionOS, variable pour les tests.
+var internalServiceActionOS = func(a string) error { return serviceActionOSFn(a) }
+
 // handleInternalServiceAction : POST {action, if_active} → 200 {ran, error}.
 // if_active : seulement si le moteur tourne (une clé neuve ne s'applique qu'au
 // redémarrage, inutile de démarrer un moteur arrêté pour elle).
@@ -75,6 +78,9 @@ func handleInternalServiceAction(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Action   string `json:"action"`
 		IfActive bool   `json:"if_active"`
+		// OS : sans le refus de l'optimiseur (serviceActionOS) — pour la
+		// façade qui tient elle-même son verrou (LOKI_TUNE=rust).
+		OS bool `json:"os"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		sendJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -90,9 +96,16 @@ func handleInternalServiceAction(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string]any{"ran": false, "error": ""})
 		return
 	}
+	act := internalServiceAction
+	if in.OS {
+		act = internalServiceActionOS
+	}
 	msg := ""
-	if err := internalServiceAction(in.Action); err != nil {
+	if err := act(in.Action); err != nil {
 		msg = err.Error()
+	}
+	if in.OS {
+		gpuMonitor.invalidate()
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"ran": true, "error": msg})
 }

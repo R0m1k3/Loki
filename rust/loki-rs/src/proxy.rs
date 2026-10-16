@@ -109,6 +109,7 @@ pub struct Config {
     /// Banc d'essai (routes, job, protocole de mesure) tenu par la façade
     /// (`LOKI_BENCH=rust`) ; `None` : au Go.
     pub bench: Option<Arc<crate::bench::job::Bench>>,
+    pub tune: Option<Arc<crate::tune::job::Tune>>,
 }
 
 /// Arrête la tâche de fond tenue à sa sortie de portée.
@@ -164,6 +165,7 @@ pub async fn serve(
             strata: cfg.strata,
             tasks: cfg.tasks,
             bench: cfg.bench,
+            tune: cfg.tune,
             internal_token: cfg.internal_token.clone(),
         },
     });
@@ -295,6 +297,11 @@ impl Proxy {
             && crate::bench::job::handles(path)
         {
             return crate::bench::job::serve(&self.ctx, b, req, from_go).await;
+        }
+        if let Some(t) = &self.ctx.tune
+            && crate::tune::job::handles(path)
+        {
+            return crate::tune::job::serve(&self.ctx, t, req, from_go).await;
         }
         if let Some(b) = &self.ctx.backends
             && crate::backends::handles(path)

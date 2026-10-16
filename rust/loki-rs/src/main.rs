@@ -186,6 +186,13 @@ fn serve() -> ExitCode {
         // LOKI_BENCH=rust : le banc d'essai (routes, job, protocole) ; le
         // verrou de génération reste celui du Go, pris par le bail du moteur.
         let bench_rust = held_by_facade("LOKI_BENCH");
+        // LOKI_TUNE=rust : l'optimiseur (routes, job, essais, application).
+        // Sous Unix seulement : l'identité des processus que porte son verrou
+        // (procIdentity du Go) n'est pas portée ailleurs.
+        let tune_rust = held_by_facade("LOKI_TUNE") && cfg!(unix);
+        if held_by_facade("LOKI_TUNE") && !tune_rust {
+            eprintln!("[loki-rs] optimiseur tenu par le Go (Unix seulement)");
+        }
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -222,11 +229,16 @@ fn serve() -> ExitCode {
             ("LOKI_STRATA", strata_rust),
             ("LOKI_TASKS", tasks_rust),
             ("LOKI_BENCH", bench_rust),
+            ("LOKI_TUNE", tune_rust),
         ];
         for (var, on) in held {
             if on {
                 env.push((var.into(), "rust".into()));
             }
+        }
+        // Demandé mais pas tenu : le Go ne doit pas relayer ces routes.
+        if !tune_rust && held_by_facade("LOKI_TUNE") {
+            env.push(("LOKI_TUNE".into(), String::new()));
         }
         if held.iter().any(|(_, on)| *on) {
             env.push(("LOKI_FACADE_ADDR".into(), format!("127.0.0.1:{web_port}")));
@@ -357,6 +369,12 @@ fn serve() -> ExitCode {
             .then(|| std::sync::Arc::new(loki_rs::tasks::Tasks::new(engine_paths.home.clone())));
         let bench = bench_rust
             .then(|| std::sync::Arc::new(loki_rs::bench::job::Bench::new(engine_paths.clone())));
+        let tune = tune_rust.then(|| {
+            std::sync::Arc::new(loki_rs::tune::job::Tune::new(
+                engine_paths.home.clone(),
+                go_bin_path.clone(),
+            ))
+        });
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -380,6 +398,7 @@ fn serve() -> ExitCode {
             strata,
             tasks,
             bench,
+            tune,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

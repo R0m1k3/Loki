@@ -481,7 +481,7 @@ async fn load_last(ctx: &Ctx) -> Option<Saved> {
 
 /// Le modèle du preset est-il hybride (reprise du cache aux points de
 /// contrôle) ?
-async fn model_hybrid(ctx: &Ctx, cfg: &Cfg) -> bool {
+pub(crate) async fn model_hybrid(ctx: &Ctx, cfg: &Cfg) -> bool {
     let m = cfg.get("MODEL").map(|s| s.trim()).unwrap_or("");
     if m.is_empty() {
         return false;

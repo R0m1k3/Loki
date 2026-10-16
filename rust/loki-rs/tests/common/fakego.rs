@@ -117,6 +117,14 @@ pub struct FakeGo {
     pub bench_perfs: Mutex<Vec<serde_json::Value>>,
     /// Délai avant de répondre à une prise de bail.
     pub lease_delay: Mutex<Option<std::time::Duration>>,
+    /// /internal/v1/tune/context : refus du processus web et télémétrie
+    /// (« main_active » : `service_active`).
+    pub tune_ctx_busy: Mutex<String>,
+    pub tune_perf: Mutex<serde_json::Value>,
+    /// /internal/v1/service/action reçus avec « os » ; une erreur à rendre
+    /// pour une action donnée.
+    pub service_os: Mutex<Vec<String>>,
+    pub service_os_fail: Mutex<Option<(String, String)>>,
 }
 
 impl FakeGo {
@@ -470,6 +478,19 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
             let if_active = v["if_active"].as_bool().unwrap_or(false);
+            if v["os"].as_bool() == Some(true) {
+                let action = v["action"].as_str().unwrap_or("").to_string();
+                st.service_os.lock().unwrap().push(action.clone());
+                let fail = st.service_os_fail.lock().unwrap().clone();
+                if let Some((a, e)) = fail.filter(|(a, _)| *a == action) {
+                    let _ = a;
+                    return resp(
+                        200,
+                        serde_json::json!({"ran": true, "error": e}).to_string(),
+                    );
+                }
+                return resp(200, r#"{"ran":true,"error":""}"#);
+            }
             st.service_actions
                 .lock()
                 .unwrap()
@@ -478,6 +499,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(200, r#"{"ran":false,"error":""}"#);
             }
             resp(200, r#"{"ran":true,"error":""}"#)
+        }
+        "/internal/v1/tune/context" => {
+            let v = serde_json::json!({
+                "busy": *st.tune_ctx_busy.lock().unwrap(),
+                "main_active": *st.service_active.lock().unwrap(),
+                "perf": *st.tune_perf.lock().unwrap(),
+            });
+            resp(200, v.to_string())
         }
         "/internal/v1/dictate/stop" => {
             *st.dictate_stops.lock().unwrap() += 1;
@@ -756,6 +785,7 @@ pub struct Opts {
     pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
     pub tasks: Option<Arc<loki_rs::tasks::Tasks>>,
     pub bench: Option<Arc<loki_rs::bench::job::Bench>>,
+    pub tune: Option<Arc<loki_rs::tune::job::Tune>>,
     /// Base de départ, posée avant que la façade démarre : (bucket, clé,
     /// valeur).
     pub seed: Vec<(String, String, String)>,
@@ -868,6 +898,7 @@ pub async fn start_with(
         strata: opts.strata,
         tasks: opts.tasks,
         bench: opts.bench,
+        tune: opts.tune,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

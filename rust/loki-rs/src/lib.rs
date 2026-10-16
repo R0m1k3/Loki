@@ -47,6 +47,7 @@ pub mod system;
 pub mod sysupdate;
 pub mod tasks;
 pub mod tools;
+pub mod tune;
 pub mod tz;
 pub mod ui;
 pub mod update;

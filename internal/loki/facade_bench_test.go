@@ -109,7 +109,7 @@ func TestFacadeBench(t *testing.T) {
 	conv.extLeaseClearLocked()
 	conv.Generating = false
 	conv.mu.Unlock()
-	if _, err := conv.extLeaseAcquire(5*time.Second, true); err != nil {
+	if _, err := conv.extLeaseAcquire(5*time.Second, errBenchBusy); err != nil {
 		t.Fatal(err)
 	}
 	conv.mu.Lock()

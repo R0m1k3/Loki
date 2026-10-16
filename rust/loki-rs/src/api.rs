@@ -67,6 +67,8 @@ pub struct Ctx {
     pub tasks: Option<std::sync::Arc<crate::tasks::Tasks>>,
     /// Banc d'essai tenu par la façade (`LOKI_BENCH=rust`).
     pub bench: Option<std::sync::Arc<crate::bench::job::Bench>>,
+    /// Optimiseur tenu par la façade (`LOKI_TUNE=rust`).
+    pub tune: Option<std::sync::Arc<crate::tune::job::Tune>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
@@ -93,6 +95,7 @@ impl Ctx {
             || self.strata.is_some()
             || self.tasks.is_some()
             || self.bench.is_some()
+            || self.tune.is_some()
     }
 
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par

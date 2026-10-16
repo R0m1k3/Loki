@@ -111,6 +111,7 @@ async fn banc(cle: Option<&str>) -> Banc {
         strata: None,
         tasks: None,
         bench: None,
+        tune: None,
     };
     tokio::spawn(loki_rs::proxy::serve(l, cfg, async move {
         let _ = rx.await;
