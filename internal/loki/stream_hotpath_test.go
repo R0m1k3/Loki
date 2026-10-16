@@ -340,15 +340,24 @@ func TestRetryScanStartWindows(t *testing.T) {
 // Surcharge retry_patterns : ses motifs ne sont pas bornés, donc pas de fenêtre.
 func TestTextualToolCallFromCustomFullScan(t *testing.T) {
 	retryPatterns()
+	retryMu.Lock()
 	saved := retryRes
 	savedCustom := retryCustom
-	defer func() { retryRes, retryCustom = saved, savedCustom }()
 	retryRes, retryCustom = []*regexp.Regexp{regexp.MustCompile(`(?mi)\Aoups`)}, true
+	retryChecked = time.Now() // pas de relecture pendant le test
+	retryMu.Unlock()
+	defer func() {
+		retryMu.Lock()
+		retryRes, retryCustom = saved, savedCustom
+		retryMu.Unlock()
+	}()
 	s := "oups.\n" + strings.Repeat("Une phrase, puis une autre.\n", 400)
 	if !textualToolCallFrom(s, len(s)-10) {
 		t.Fatal("motif ancré en tête manqué")
 	}
+	retryMu.Lock()
 	retryCustom = false
+	retryMu.Unlock()
 	if textualToolCallFrom(s, len(s)-10) {
 		t.Fatal("la fenêtre aurait dû le manquer (le test ne prouve rien sinon)")
 	}

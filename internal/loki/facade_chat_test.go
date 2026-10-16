@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -857,10 +858,10 @@ func TestFacadeMCP(t *testing.T) {
 	if len(tools) != 1 || tools[0].Function.Name != "mcp__a__t" || mcpPromptLine(tools) == "" {
 		t.Fatalf("outils : %+v", tools)
 	}
-	if got := mcpCall("mcp__a__t", map[string]any{"x": 1}); got != "fait" {
+	if got := mcpCall(context.Background(), "mcp__a__t", map[string]any{"x": 1}); got != "fait" {
 		t.Fatalf("appel : %q", got)
 	}
-	if got := mcpCall("mcp__a__t", nil); got != "fait" || !strings.HasSuffix(calls[len(calls)-1], `{"args":{},"name":"mcp__a__t"}`) {
+	if got := mcpCall(context.Background(), "mcp__a__t", nil); got != "fait" || !strings.HasSuffix(calls[len(calls)-1], `{"args":{},"name":"mcp__a__t"}`) {
 		t.Fatalf("appel sans arguments : %q (%v)", got, calls)
 	}
 	MCPPrewarm()
@@ -872,7 +873,7 @@ func TestFacadeMCP(t *testing.T) {
 	}
 	// Façade injoignable : une erreur lisible, pas de panique.
 	t.Setenv(facadeAddrEnv, "127.0.0.1:1")
-	if got := mcpCall("mcp__a__t", nil); !strings.HasPrefix(got, "[erreur MCP] façade injoignable") {
+	if got := mcpCall(context.Background(), "mcp__a__t", nil); !strings.HasPrefix(got, "[erreur MCP] façade injoignable") {
 		t.Fatalf("façade injoignable : %q", got)
 	}
 	if tools := mcpTools(); tools != nil {

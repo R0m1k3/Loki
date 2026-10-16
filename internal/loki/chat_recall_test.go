@@ -221,3 +221,47 @@ func TestCompactSummaryUserMsg(t *testing.T) {
 		t.Fatalf("l'index des blocs rappelables est absent :\n%s", avec)
 	}
 }
+
+// Les blocs d'une compaction s'écrivent en une seule transaction : ids dans
+// l'ordre des blocs, croissants, chacun relisible mot pour mot.
+func TestArchiveRecallBlocksBatch(t *testing.T) {
+	testHome(t)
+	if e, err := archiveRecallBlocks(nil); err != nil || e != nil {
+		t.Fatalf("lot vide : %v, %v", e, err)
+	}
+	in := []recallArchiveInput{
+		{Label: "un", Role: "tool", Content: bigBlock("PREMIER")},
+		{Label: "deux", Role: "user", Content: bigBlock("SECOND")},
+		{Label: "trois", Role: "assistant", Content: bigBlock("TROISIEME")},
+	}
+	entries, err := archiveRecallBlocks(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != len(in) {
+		t.Fatalf("%d entrées pour %d blocs", len(entries), len(in))
+	}
+	var last uint64
+	for i, e := range entries {
+		seq, ok := recallIDToSeq(e.id)
+		if !ok || seq <= last {
+			t.Fatalf("id %q non croissant (précédent %d)", e.id, last)
+		}
+		last = seq
+		if e.label != in[i].Label {
+			t.Fatalf("entrée %d : libellé %q, attendu %q", i, e.label, in[i].Label)
+		}
+		blk, ok := recallGet(e.id)
+		if !ok || blk.Content != in[i].Content || blk.Role != in[i].Role {
+			t.Fatalf("bloc %s mal relu : %+v", e.id, blk)
+		}
+	}
+	// Un archivage isolé suit la même séquence.
+	id, err := archiveRecallBlock("quatre", "tool", bigBlock("QUATRE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seq, _ := recallIDToSeq(id); seq != last+1 {
+		t.Fatalf("id isolé %q, attendu r%d", id, last+1)
+	}
+}

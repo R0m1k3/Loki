@@ -78,58 +78,88 @@ func recallIDToSeq(id string) (uint64, bool) {
 	return n, true
 }
 
-// archiveRecallBlock enregistre un bloc et renvoie son id ("r<seq>"). L'id est
-// alloué par NextSequence dans la transaction d'écriture : monotone, sans
-// collision, même si deux compactages se croisent. En cas d'échec d'écriture
-// (base indisponible, ex. tests sans LOKI_HOME) on renvoie une erreur et
-// l'appelant se rabat sur le compactage classique (troncature sans id).
-func archiveRecallBlock(label, role, content string) (string, error) {
+// recallArchiveInput : un bloc à archiver (voir archiveRecallBlocks).
+type recallArchiveInput struct {
+	Label   string
+	Role    string
+	Content string
+}
+
+// archiveRecallBlocks enregistre tous les blocs d'une compaction dans UNE
+// transaction et renvoie leurs entrées, dans l'ordre des blocs fournis. Les ids
+// sont alloués par NextSequence dans la transaction : monotones, sans
+// collision, même si deux compactages se croisent. Une transaction par bloc
+// payait une ouverture de la base et une synchronisation disque chacune, sous
+// le verrou global de la base, en plein tour (AJEAN #130). Tout ou rien : en
+// cas d'échec (base indisponible, ex. tests sans LOKI_HOME, mémoire
+// verrouillée) aucun id n'est rendu, et l'appelant se rabat sur le compactage
+// classique (troncature sans id).
+func archiveRecallBlocks(blocks []recallArchiveInput) ([]recallEntry, error) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
 	// Résolu AVANT d'ouvrir la base : chiffrer dans la transaction relirait la
 	// configuration, donc la base, qui n'est pas rentrante (voir memEncoderNow).
 	encode, err := memEncoderNow()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	var id string
+	now := time.Now().Unix()
+	var entries []recallEntry
 	err = withDB(func(d *bolt.DB) error {
 		return d.Update(func(tx *bolt.Tx) error {
+			entries = entries[:0]
 			b, err := tx.CreateBucketIfNotExists([]byte(bkRecall))
 			if err != nil {
 				return err
 			}
-			seq, err := b.NextSequence()
-			if err != nil {
-				return err
+			for _, in := range blocks {
+				seq, err := b.NextSequence()
+				if err != nil {
+					return err
+				}
+				blk := recallBlock{
+					ID:      "r" + strconv.FormatUint(seq, 10),
+					Seq:     seq,
+					Label:   in.Label,
+					Role:    in.Role,
+					Content: in.Content,
+					Created: now,
+				}
+				raw, err := json.Marshal(blk)
+				if err != nil {
+					return err
+				}
+				// Un bloc archivé, c'est du verbatim de conversation : chiffré
+				// comme le reste quand la mémoire l'est (l'encodeur rend le clair
+				// inchangé si le chiffrement est inactif ; verrouillé,
+				// memEncoderNow a déjà refusé plus haut).
+				enc, err := encode(raw)
+				if err != nil {
+					return err
+				}
+				if err := b.Put(recallKey(seq), enc); err != nil {
+					return err
+				}
+				entries = append(entries, recallEntry{id: blk.ID, label: blk.Label})
 			}
-			blk := recallBlock{
-				ID:      "r" + strconv.FormatUint(seq, 10),
-				Seq:     seq,
-				Label:   label,
-				Role:    role,
-				Content: content,
-				Created: time.Now().Unix(),
-			}
-			id = blk.ID
-			raw, err := json.Marshal(blk)
-			if err != nil {
-				return err
-			}
-			// Un bloc archivé, c'est du verbatim de conversation : chiffré comme
-			// le reste quand la mémoire l'est (l'encodeur rend le clair inchangé
-			// si le chiffrement est inactif ; verrouillé, memEncoderNow a déjà
-			// refusé plus haut).
-			enc, err := encode(raw)
-			if err != nil {
-				return err
-			}
-			return b.Put(recallKey(seq), enc)
+			return nil
 		})
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	cacheBust(bkRecall)
-	return id, nil
+	return entries, nil
+}
+
+// archiveRecallBlock enregistre un seul bloc et renvoie son id ("r<seq>").
+func archiveRecallBlock(label, role, content string) (string, error) {
+	e, err := archiveRecallBlocks([]recallArchiveInput{{Label: label, Role: role, Content: content}})
+	if err != nil {
+		return "", err
+	}
+	return e[0].id, nil
 }
 
 // recallGet ramène un bloc par son id. false si l'id est mal formé ou absent.

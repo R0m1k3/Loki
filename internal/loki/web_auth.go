@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 // web_auth.go protège l'API de pilotage (loki web) quand elle est exposée sur
@@ -19,7 +21,8 @@ import (
 // La clé de pilotage est volontairement DISTINCTE de .api_key (qui, elle,
 // protège llama-server / les complétions). On veut pouvoir donner à un client
 // un accès aux complétions sans lui donner le droit de redémarrer la machine,
-// et inversement. Elle est relue à chaque requête (pas de cache) pour qu'un
+// et inversement. Elle est relue à chaque requête,
+// depuis un cache invalidé à chaque écriture (voir readWebKeyErr), pour qu'un
 // changement de clé prenne effet sans redémarrer le serveur web.
 
 // readWebKeyErr renvoie la clé de pilotage en distinguant « aucune clé » d'une
@@ -27,9 +30,62 @@ import (
 // ouverte. Confondre les deux, c'est ouvrir l'API parce que la base était
 // momentanément verrouillée par une commande CLI — une panne d'E/S qui désarme
 // l'authentification. requireWebAuth refuse donc plutôt que d'ouvrir.
+//
+// requireWebAuth la consulte à CHAQUE requête : sans cache, chacune payait une
+// ouverture complète de la base sous dbMu (vignettes chargées deux par deux,
+// SSE, statut…), en concurrence avec l'écrivain des discussions (AJEAN #120).
+// On garde la dernière lecture RÉUSSIE, invalidée comme cachedKV : écriture de
+// ce process (cacheBust du bucket d'état), date/taille du fichier pour les
+// autres process (la CLI), une seconde au plus. Une lecture ratée n'est jamais
+// mise en cache : elle remonte, et l'API reste fermée.
 func readWebKeyErr() (string, error) {
+	path := dbPath()
+	mtime, size := dbStamp()
+	c := &webKeyCache
+	c.Lock()
+	if c.ok && c.path == path && c.size == size && c.mtime.Equal(mtime) && time.Since(c.when) < cacheMaxAge {
+		k := c.key
+		c.Unlock()
+		return k, nil
+	}
+	gen := c.gen
+	c.Unlock()
 	b, err := getBytesErr(bkState, "web_key")
-	return string(b), err
+	if err != nil {
+		return "", err
+	}
+	// Date et taille relevées APRÈS la lecture : ouvrir la base peut à lui seul
+	// toucher le fichier (Windows), et un relevé d'avant ne correspondait alors
+	// jamais. Une écriture externe glissée entre la lecture et le relevé reste
+	// couverte par l'âge maximal.
+	mtime, size = dbStamp()
+	c.Lock()
+	// Une invalidation pendant la lecture : la valeur lue est peut-être déjà
+	// l'ancienne — ne pas la garder.
+	if c.gen == gen {
+		c.ok, c.path, c.key, c.when, c.mtime, c.size = true, path, string(b), time.Now(), mtime, size
+	}
+	c.Unlock()
+	return string(b), nil
+}
+
+var webKeyCache struct {
+	sync.Mutex
+	ok    bool
+	gen   uint64 // incrémenté à chaque invalidation
+	path  string // la base lue (LOKI_HOME change d'un test à l'autre)
+	key   string
+	when  time.Time
+	mtime time.Time
+	size  int64
+}
+
+// webKeyCacheBust : appelé par cacheBust pour toute écriture du bucket d'état.
+func webKeyCacheBust() {
+	webKeyCache.Lock()
+	webKeyCache.ok = false
+	webKeyCache.gen++
+	webKeyCache.Unlock()
 }
 
 // readWebKey renvoie la clé de pilotage, ou "" si aucune n'est définie (ou

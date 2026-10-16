@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -73,6 +74,14 @@ const (
 	lspMaxDiags    = 10                      // diagnostics montrés au modèle
 )
 
+// lspDiagQuiet : calme attendu après une publication avant de la croire
+// définitive. gopls, rust-analyzer et pyright publient souvent en plusieurs
+// fois pour une même version (liste vide d'abord, puis leur analyse, puis
+// celle d'un outil externe) : rendre la PREMIÈRE donnait « propre » à une
+// édition qui cassait la compilation. OpenFox attend 400 ms ; variable pour
+// les tests.
+var lspDiagQuiet = 350 * time.Millisecond
+
 type lspServer struct {
 	lang    string
 	root    string
@@ -82,11 +91,17 @@ type lspServer struct {
 	nextID  int
 	version map[string]int // uri → version de document
 	// diags : dernier publishDiagnostics reçu par uri, et signal d'arrivée.
-	diagMu   sync.Mutex
-	diags    map[string][]lspDiagnostic
+	diagMu sync.Mutex
+	diags  map[string][]lspDiagnostic
+	// diagVer : version de document annoncée par la dernière publication de
+	// l'uri, -1 quand le serveur n'en donne pas (champ facultatif du protocole).
+	diagVer  map[string]int
 	diagCh   chan string // uri fraîchement publié
 	lastUsed time.Time
-	dead     bool
+	// dead : atomique, pas sous mu. writeMsg le pose sur une écriture ratée, et
+	// writeMsg tourne DANS check, qui tient déjà mu : le prendre là bloquait le
+	// serveur (et le tour) à vie. lspGet le lit aussi sans mu.
+	dead atomic.Bool
 }
 
 type lspDiagnostic struct {
@@ -214,7 +229,7 @@ func lspGet(lang *lspLanguage, root string) (*lspServer, error) {
 	key := lang.ID + "\x00" + root
 	lspMu.Lock()
 	defer lspMu.Unlock()
-	if s := lspServers[key]; s != nil && !s.dead {
+	if s := lspServers[key]; s != nil && !s.dead.Load() {
 		return s, nil
 	}
 	s, err := lspStart(lang, root)
@@ -242,7 +257,7 @@ func lspStart(lang *lspLanguage, root string) (*lspServer, error) {
 	}
 	s := &lspServer{
 		lang: lang.ID, root: root, cmd: cmd, stdin: stdin,
-		version: map[string]int{}, diags: map[string][]lspDiagnostic{},
+		version: map[string]int{}, diags: map[string][]lspDiagnostic{}, diagVer: map[string]int{},
 		diagCh: make(chan string, 16), lastUsed: time.Now(),
 	}
 	go s.readLoop(stdout)
@@ -268,7 +283,7 @@ func lspStart(lang *lspLanguage, root string) (*lspServer, error) {
 func (s *lspServer) check(absPath string) ([]lspDiagnostic, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.dead {
+	if s.dead.Load() {
 		return nil, false
 	}
 	s.lastUsed = time.Now()
@@ -277,16 +292,29 @@ func (s *lspServer) check(absPath string) ([]lspDiagnostic, bool) {
 		return nil, false
 	}
 	uri := fileURI(absPath)
+	// Signaux en attente : tous PÉRIMÉS. Un serveur qui republie après le
+	// retour du check précédent laisse son uri dans le tampon ; lu ici tout de
+	// suite après didChange, il faisait rendre « aucun diagnostic » avant même
+	// que le serveur ait vu la nouvelle version.
+	for drained := false; !drained; {
+		select {
+		case <-s.diagCh:
+		default:
+			drained = true
+		}
+	}
 	// Vide les publications en attente pour cet uri : on veut la PROCHAINE.
 	s.diagMu.Lock()
 	delete(s.diags, uri)
+	delete(s.diagVer, uri)
 	s.diagMu.Unlock()
 	v, open := s.version[uri]
 	if !open {
-		s.version[uri] = 1
+		v = 1
+		s.version[uri] = v
 		s.notify("textDocument/didOpen", map[string]any{
 			"textDocument": map[string]any{
-				"uri": uri, "languageId": s.lang, "version": 1, "text": string(content),
+				"uri": uri, "languageId": s.lang, "version": v, "text": string(content),
 			},
 		})
 	} else {
@@ -297,24 +325,56 @@ func (s *lspServer) check(absPath string) ([]lspDiagnostic, bool) {
 			"contentChanges": []map[string]any{{"text": string(content)}},
 		})
 	}
-	// Attend la publication pour CET uri, bornée.
-	deadline := time.After(lspDiagWait)
+	if s.dead.Load() {
+		return nil, false // écriture ratée : le serveur ne verra jamais cette version
+	}
+	// current : les diagnostics publiés pour CETTE version (ou sans version),
+	// pas ceux d'une version antérieure arrivés en retard.
+	current := func() ([]lspDiagnostic, bool) {
+		s.diagMu.Lock()
+		defer s.diagMu.Unlock()
+		d, ok := s.diags[uri]
+		if !ok {
+			return nil, false
+		}
+		if pv, has := s.diagVer[uri]; has && pv >= 0 && pv < v {
+			return nil, false
+		}
+		return d, true
+	}
+	// Attend la publication pour CET uri, puis un calme de lspDiagQuiet sans
+	// nouvelle publication ; le tout borné par lspDiagWait.
+	deadline := time.NewTimer(lspDiagWait)
+	defer deadline.Stop()
+	var quiet <-chan time.Time
+	var quietT *time.Timer
+	defer func() {
+		if quietT != nil {
+			quietT.Stop()
+		}
+	}()
 	for {
 		select {
 		case got := <-s.diagCh:
 			if got != uri {
 				continue
 			}
-			s.diagMu.Lock()
-			d := s.diags[uri]
-			s.diagMu.Unlock()
+			if _, ok := current(); !ok {
+				continue // publication d'une version antérieure
+			}
+			if quietT == nil {
+				quietT = time.NewTimer(lspDiagQuiet)
+			} else {
+				quietT.Reset(lspDiagQuiet)
+			}
+			quiet = quietT.C
+		case <-quiet:
+			d, _ := current()
 			return d, true
-		case <-deadline:
+		case <-deadline.C:
 			// Pas de publication à temps : certains serveurs ne publient rien
 			// quand il n'y a AUCUN diagnostic. On rend « rien », pas un échec.
-			s.diagMu.Lock()
-			d := s.diags[uri]
-			s.diagMu.Unlock()
+			d, _ := current()
 			return d, true
 		}
 	}
@@ -353,6 +413,7 @@ func (s *lspServer) readLoop(r io.Reader) {
 			Method string `json:"method"`
 			Params struct {
 				URI         string          `json:"uri"`
+				Version     *int            `json:"version"`
 				Diagnostics []lspDiagnostic `json:"diagnostics"`
 			} `json:"params"`
 		}
@@ -362,6 +423,11 @@ func (s *lspServer) readLoop(r io.Reader) {
 		if msg.Method == "textDocument/publishDiagnostics" {
 			s.diagMu.Lock()
 			s.diags[msg.Params.URI] = msg.Params.Diagnostics
+			ver := -1
+			if msg.Params.Version != nil {
+				ver = *msg.Params.Version
+			}
+			s.diagVer[msg.Params.URI] = ver
 			s.diagMu.Unlock()
 			select {
 			case s.diagCh <- msg.Params.URI:
@@ -377,7 +443,7 @@ func (s *lspServer) idleWatch() {
 	for range t.C {
 		s.mu.Lock()
 		idle := time.Since(s.lastUsed) > lspIdleTimeout
-		dead := s.dead
+		dead := s.dead.Load()
 		s.mu.Unlock()
 		if dead {
 			return
@@ -401,11 +467,7 @@ func (s *lspServer) shutdown() {
 	lspMu.Unlock()
 }
 
-func (s *lspServer) markDead() {
-	s.mu.Lock()
-	s.dead = true
-	s.mu.Unlock()
-}
+func (s *lspServer) markDead() { s.dead.Store(true) }
 
 func (s *lspServer) send(method string, params any, isRequest bool) {
 	s.nextID++
