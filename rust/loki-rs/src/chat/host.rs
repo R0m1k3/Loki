@@ -179,9 +179,10 @@ pub struct EngineSummarizer {
     pub cfg: HashMap<String, String>,
     pub patterns: Arc<RetryPatterns>,
     pub port: u16,
-    /// Le Go et la discussion des résumés : télémétrie (kind=compact),
-    /// requêtes en vol et slot du moteur. `None` sans base (tests).
-    pub go: Option<(Store, String)>,
+    /// Le Go et la discussion des résumés (requêtes en vol, slot du
+    /// moteur), et l'anneau de télémétrie (kind=compact). `None` sans base
+    /// (tests).
+    pub go: Option<(Store, String, Arc<crate::perfring::PerfRing>)>,
 }
 
 impl EngineSummarizer {
@@ -191,7 +192,7 @@ impl EngineSummarizer {
     async fn post(&self, mut payload: Value, main: bool) -> Result<SummaryChoice, SummaryError> {
         let mut _gate = None;
         if !self.ep.external
-            && let Some((store, _)) = &self.go
+            && let Some((store, _, _)) = &self.go
         {
             let slot = engine_slot_for(store, "", main).await;
             if let Some(n) = slot
@@ -235,7 +236,7 @@ impl EngineSummarizer {
             Err(SummaryError::Other(e)) => e == super::compact::ERR_EMPTY_SUMMARY,
             Err(_) => false,
         };
-        if decoded && let Some((store, conv)) = &self.go {
+        if decoded && let Some((store, conv, ring)) = &self.go {
             let (complete, stats) = super::perf::wire_stats(&raw);
             let rec = PerfRec {
                 complete,
@@ -243,7 +244,7 @@ impl EngineSummarizer {
                 stats,
                 ..Default::default()
             };
-            super::perf::record(store, super::perf::KIND_COMPACT, conv, &rec).await;
+            super::perf::record(store, ring, super::perf::KIND_COMPACT, conv, &rec).await;
         }
         out
     }
@@ -333,6 +334,9 @@ pub struct ChatShared {
     pub tpl: Arc<super::tplprobe::TplProbe>,
     /// Préchauffage (PREWARM) : celui en vol, capacités des discussions.
     pub prewarm: super::prewarm::Prewarm,
+    /// L'anneau de télémétrie des complétions (lot 39) : celles de la
+    /// façade, et celles que le Go lui confie.
+    pub perf: Arc<crate::perfring::PerfRing>,
     /// Le pool MCP, quand la façade le tient (LOKI_MCP=rust) : les appels
     /// `mcp__*` du tour y vont directement (lot 36).
     pub mcp: Option<Arc<crate::mcp::Mcp>>,
@@ -935,7 +939,14 @@ impl TurnHost for GoTurnHost {
     }
 
     async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
-        super::perf::record(&self.shared.store, self.perf_kind, &self.conv_id, &rec).await
+        super::perf::record(
+            &self.shared.store,
+            &self.shared.perf,
+            self.perf_kind,
+            &self.conv_id,
+            &rec,
+        )
+        .await
     }
 
     fn preflight(&self) -> Option<PreflightFn> {

@@ -93,10 +93,16 @@ async fn criteria_comme_le_go() {
         }
         let args = st["args"].as_object().cloned().unwrap_or_default();
         let verifier = st["verifier"].as_bool() == Some(true);
-        let before = store.get_open("chat", &format!("crit:{conv}")).await.unwrap();
+        let before = store
+            .get_open("chat", &format!("crit:{conv}"))
+            .await
+            .unwrap();
         let out = exec(&store, conv, &args, verifier).await;
         assert_eq!(out.result, st["out"].as_str().unwrap(), "{name}");
-        let raw = store.get_open("chat", &format!("crit:{conv}")).await.unwrap();
+        let raw = store
+            .get_open("chat", &format!("crit:{conv}"))
+            .await
+            .unwrap();
         let stored = raw
             .as_deref()
             .filter(|b| !b.is_empty())
@@ -110,7 +116,11 @@ async fn criteria_comme_le_go() {
         // L'écran reçoit la liste quand elle change (vide : effacée).
         match &out.notify {
             Some(list) => {
-                let want = if stored.is_null() { json!([]) } else { stored.clone() };
+                let want = if stored.is_null() {
+                    json!([])
+                } else {
+                    stored.clone()
+                };
                 assert_eq!(json!(list), want, "{name}");
             }
             None => assert_eq!(raw, before, "{name} : rien ne change sans notification"),

@@ -500,7 +500,8 @@ impl ChatService {
                         stats,
                         ..Default::default()
                     };
-                    perf::record(store, perf::KIND_PREWARM, &conv_id, &rec).await;
+                    perf::record(store, &self.shared.perf, perf::KIND_PREWARM, &conv_id, &rec)
+                        .await;
                 }
                 None => {}
             }

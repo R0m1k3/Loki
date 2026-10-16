@@ -343,7 +343,15 @@ func (p *perfStore) snapshot() []perfRec {
 // perfRecord range une complétion et, si LOKI_PERF_LOG est posée, l'écrit sur
 // stderr. Une ligne par complétion, c'est des dizaines par tour d'agent : pas
 // par défaut, les journaux Docker ont déjà celles de llama-server.
+//
+// Quand la façade tient la conversation, l'anneau est le sien (facade_perf.go) :
+// elle range et écrit la ligne.
 func perfRecord(r perfRec, prefix []uint64) perfRec {
+	if facadeChat() {
+		if got, ok := facadePerfRecord(r, prefix); ok {
+			return got
+		}
+	}
 	r = perfLog.record(r, prefix)
 	if perfLogOn() {
 		fmt.Fprintln(os.Stderr, perfLine(r))

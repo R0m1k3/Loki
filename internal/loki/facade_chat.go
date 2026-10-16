@@ -89,6 +89,8 @@ var facadeChatRoutes = map[string]bool{
 	"/api/chat/export":   true,
 	"/api/chat/mode":     true,
 	"/api/chat/criteria": true,
+	// Lot 39 : l'anneau de télémétrie est celui de la façade.
+	"/api/perf/summary": true,
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la

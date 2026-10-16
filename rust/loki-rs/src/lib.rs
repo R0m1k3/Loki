@@ -33,6 +33,7 @@ pub mod memory;
 pub mod models;
 pub mod oai;
 pub mod paths;
+pub mod perfring;
 pub mod presets;
 pub mod presets_api;
 pub mod projects_api;

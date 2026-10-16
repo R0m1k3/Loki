@@ -66,5 +66,5 @@ func handleInternalTuneContext(w http.ResponseWriter, r *http.Request) {
 			bgJobsRunning())
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"busy": busy, "main_active": engineNeedsStop(),
-		"perf": perfLog.snapshot()})
+		"perf": perfSnapshot()})
 }

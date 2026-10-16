@@ -667,6 +667,7 @@ async fn tour_complet_par_le_go() {
         patterns: RetryPatterns::builtin(),
         tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
         prewarm: Default::default(),
+        perf: Arc::new(loki_rs::perfring::PerfRing::new(Default::default())),
         mcp: None,
         tasks: None,
         go_version: Default::default(),
@@ -771,29 +772,26 @@ async fn tour_complet_par_le_go() {
         })
         .collect();
     assert_eq!(answer, "Voilà.");
-    // Télémétrie : chaque complétion rangée par le Go, rattachée à la
-    // discussion ; la première, sans usage, reste incomplète.
-    let perfs = go.perf_records.lock().unwrap().clone();
-    assert_eq!(perfs.len(), 2);
-    assert_eq!(perfs[0]["complete"], false);
-    assert_eq!(perfs[0]["prefix"], serde_json::json!([]));
-    let r1 = &perfs[1];
+    // Télémétrie (lot 39) : chaque complétion rangée dans l'anneau de la
+    // façade, rattachée à la discussion ; la première, sans usage, reste
+    // incomplète.
+    let recs = shared.perf.snapshot();
+    let got: Vec<_> = recs
+        .iter()
+        .map(|r| {
+            (
+                r.kind.as_str(),
+                r.conv.as_str(),
+                r.iter,
+                r.complete,
+                r.total,
+            )
+        })
+        .collect();
     assert_eq!(
-        (
-            r1["conv"].clone(),
-            r1["kind"].clone(),
-            r1["iter"].clone(),
-            r1["stats"]["prompt_tokens_total"].clone()
-        ),
-        (
-            serde_json::json!("c7"),
-            serde_json::json!("main"),
-            serde_json::json!(1),
-            serde_json::json!(50)
-        )
+        got,
+        [("main", "c7", 0, false, 0), ("main", "c7", 1, true, 50)]
     );
-    assert_eq!(perfs[1]["prefix"].as_array().unwrap().len(), 3);
-    assert_eq!(perfs[1]["external"], false);
     let last = evs
         .iter()
         .rev()
@@ -802,9 +800,10 @@ async fn tour_complet_par_le_go() {
             _ => None,
         })
         .unwrap();
+    // Rien de comparable avant : la perte reste inconnue.
     assert_eq!(
         (last.kind.as_str(), last.lost, last.lost_after.as_str()),
-        ("main", Some(3), "tâche")
+        ("main", None, "")
     );
 }
 
@@ -992,22 +991,30 @@ async fn tour_de_bout_en_bout() {
         2,
         "{log:?}"
     );
-    // Appel d'outil sans usage ni timings : complétion incomplète (comme le
-    // Go : ni empreintes) ; la réponse finale, avec usage, complète. La
-    // sonde du gabarit reste à la façade (`sonde_de_gabarit_apres_un_tour`).
-    for want in [
-        format!("perf kind=main conv={id} iter=0 complete=false prefix=0"),
-        format!("perf kind=main conv={id} iter=1 complete=true prefix=4"),
-    ] {
-        assert!(log.contains(&want), "{want} absent de {log:?}");
-    }
+    // Appel d'outil sans usage ni timings : complétion incomplète ; la
+    // réponse finale, avec usage, complète — dans l'anneau de la façade
+    // (lot 39), rien par le Go.
+    assert!(!log.iter().any(|l| l.starts_with("perf ")), "{log:?}");
+    let recs: Vec<_> = svc
+        .shared
+        .perf
+        .snapshot()
+        .into_iter()
+        .map(|r| (r.kind, r.conv, r.iter, r.complete))
+        .collect();
+    assert_eq!(
+        recs,
+        [
+            ("main".to_string(), id.clone(), 0, false),
+            ("main".to_string(), id.clone(), 1, true)
+        ]
+    );
     let finals: Vec<_> = deltas(&svc, "stats")
         .into_iter()
-        .filter(|s| s["lost_alert"] == true)
+        .filter(|s| s["kind"] == "main")
         .collect();
-    assert_eq!(finals.len(), 1, "stats finales sans les marques du Go");
-    assert_eq!(finals[0]["lost"], 3);
-    assert_eq!(finals[0]["kind"], "main");
+    assert_eq!(finals.len(), 1, "stats finales sans leur nature");
+    assert_eq!(finals[0].get("lost_alert"), None);
     let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
     assert_eq!(decode_state(&body).messages.len(), 4);
     // Réessai du même envoi : reconnu.
@@ -1943,6 +1950,7 @@ async fn telemetrie_des_resumes() {
         .to_string(),
     ])
     .await;
+    let ring = Arc::new(loki_rs::perfring::PerfRing::new(Default::default()));
     let s = EngineSummarizer {
         http: EngineHttp::new(),
         ep: ChatEndpoint {
@@ -1954,7 +1962,7 @@ async fn telemetrie_des_resumes() {
         cfg: Default::default(),
         patterns: RetryPatterns::builtin(),
         port: 8080,
-        go: Some((st, "c9".into())),
+        go: Some((st, "c9".into(), ring.clone())),
     };
     *go.turn_side_live.lock().unwrap() = true;
     let req = || TranscriptRequest {
@@ -2018,16 +2026,16 @@ async fn telemetrie_des_resumes() {
             .contains(&"begin main_conv=".to_string())
     })
     .await;
-    let perfs = go.perf_records.lock().unwrap().clone();
+    let perfs = ring.snapshot();
     assert_eq!(perfs.len(), 3, "la réponse illisible n'est pas rangée");
+    let mut first = serde_json::to_value(&perfs[0]).unwrap();
+    first.as_object_mut().unwrap().remove("at");
     assert_eq!(
-        perfs[0],
-        serde_json::json!({ "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
-            "external": false, "prefix": [],
-            "stats": { "prompt_tokens_total": 3000, "prompt_tokens": 3000, "prompt_ms": 1500.0,
-                       "gen_tokens": 200, "gen_per_second": 40.0 } })
+        first,
+        serde_json::json!({ "seq": 1, "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
+            "total": 3000, "new": 3000, "pp_ms": 1500, "gen": 200, "tg_tps": 40 })
     );
-    assert_eq!(perfs[1]["complete"], false);
+    assert!(!perfs[1].complete);
 }
 
 /// Lot 32 : KEEP_TURN_IMAGES tenu par la façade. L'image relayée par un
@@ -2202,11 +2210,12 @@ async fn prechauffage_par_la_facade() {
     let first_end = log.iter().find(|l| l.starts_with("end")).unwrap();
     let v: serde_json::Value = serde_json::from_str(first_end.trim_start_matches("end ")).unwrap();
     assert_eq!(v, serde_json::json!({"id": 5, "total": 60, "cached": 42}));
-    let perfs = go.perf_records.lock().unwrap().clone();
     assert!(
-        perfs
+        svc.shared
+            .perf
+            .snapshot()
             .iter()
-            .any(|p| p["kind"] == "prewarm" && p["stats"]["prompt_tokens_total"] == 60)
+            .any(|p| p.kind == "prewarm" && p.total == 60)
     );
     // La vue du préchauffage est demandée sans rien à ranger (PROJ_SNAPSHOT).
     assert!(
@@ -2252,11 +2261,11 @@ async fn prechauffage_refuse_ou_annule() {
         r#"end {"cached":null,"id":5,"total":0}"#
     );
     assert!(
-        go.perf_records
-            .lock()
-            .unwrap()
+        svc.shared
+            .perf
+            .snapshot()
             .iter()
-            .all(|p| p["kind"] != "prewarm")
+            .all(|p| p.kind != "prewarm")
     );
 }
 
@@ -2565,4 +2574,137 @@ async fn outil_task_par_la_facade() {
             t.id
         ))
     );
+}
+
+/// Lot 39 : l'anneau de télémétrie tenu par la façade. D'un tour à l'autre
+/// de la même discussion, le cache perdu est mesuré ici et signalé dans les
+/// stats finales (au-delà du seuil du preset).
+#[tokio::test]
+async fn cache_perdu_mesure_par_la_facade() {
+    let reply = |total: i64, cached: i64| {
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content":"vu"}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],
+                "usage":{"prompt_tokens":total,"completion_tokens":2},
+                "timings":{"cache_n":cached,"prompt_n":total - cached,"prompt_ms":10.0,"prompt_per_second":100.0}}),
+        ])
+    };
+    let (url, _seen) = fake_engine(vec![reply(5000, 0), reply(6000, 200)]).await;
+    let (svc, _go, _stop, _t) = service(Some(&url)).await;
+    for (i, m) in ["un", "deux"].iter().enumerate() {
+        svc.send(serde_json::json!({"message": m, "cid": format!("p{i}")}))
+            .await
+            .unwrap();
+        until_done(&svc, i + 1).await;
+    }
+    let id = svc.sessions.conv().id();
+    let recs = svc.shared.perf.snapshot();
+    let got: Vec<_> = recs
+        .iter()
+        .map(|r| (r.conv.as_str(), r.total, r.cached, r.lost))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (id.as_str(), 5000, Some(0), None),
+            (id.as_str(), 6000, Some(200), Some(4800))
+        ]
+    );
+    let finals: Vec<_> = deltas(&svc, "stats")
+        .into_iter()
+        .filter(|s| s["kind"] == "main")
+        .collect();
+    assert_eq!(finals.len(), 2);
+    assert_eq!(finals[0].get("lost_alert"), None);
+    assert_eq!(
+        (finals[1]["lost"].clone(), finals[1]["lost_alert"].clone()),
+        (serde_json::json!(4800), serde_json::json!(true))
+    );
+}
+
+/// Lot 39 : ce que le Go confie à l'anneau de la façade, ce qu'il en relit,
+/// et /api/perf/summary servi par elle.
+#[tokio::test]
+async fn anneau_de_la_facade_pour_le_go() {
+    let t = tempfile::tempdir().unwrap();
+    let (facade, go, _stop, chat) = fakego::start_with(
+        t.path().into(),
+        fakego::Opts {
+            chat: true,
+            ..Default::default()
+        },
+    )
+    .await;
+    let chat = chat.unwrap();
+    let tok = [(loki_rs::auth::INTERNAL_HEADER, fakego::JETON)];
+    let rec = |total: i64, cached: Option<i64>, kind: &str| {
+        serde_json::json!({ "at": "0001-01-01T00:00:00Z", "seq": 0, "kind": kind, "conv": "c1",
+            "iter": 0, "complete": true, "total": total, "cached": cached })
+    };
+    let post = |body: serde_json::Value, path: &'static str| {
+        let b = body.to_string();
+        async move {
+            let (code, out) = fakego::send(facade, "POST", path, &tok, &b).await;
+            assert_eq!(code, 200, "{}", String::from_utf8_lossy(&out));
+            serde_json::from_slice::<serde_json::Value>(&out).unwrap()
+        }
+    };
+    let r = post(
+        serde_json::json!({ "rec": rec(3000, Some(0), "subagent"), "prefix": [11, 12] }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    assert_eq!(
+        (r["rec"]["seq"].clone(), r["rec"]["lost"].clone()),
+        (serde_json::json!(1), serde_json::Value::Null)
+    );
+    assert_ne!(r["rec"]["at"], "0001-01-01T00:00:00Z", "heure posée");
+    // Un client externe passe, puis la suite du sous-agent : perte, et ce qui
+    // s'est intercalé.
+    post(
+        serde_json::json!({ "rec": { "kind": "foreign" } }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    let r = post(
+        serde_json::json!({ "rec": rec(3500, Some(1000), "subagent"), "prefix": [11, 12, 13] }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    assert_eq!(
+        (r["rec"]["lost"].clone(), r["rec"]["lost_after"].clone()),
+        (serde_json::json!(2000), serde_json::json!("foreign"))
+    );
+    let snap = post(serde_json::json!({}), "/internal/facade/v1/perf/snapshot").await;
+    let kinds: Vec<_> = snap["recs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["kind"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(kinds, ["subagent", "foreign", "subagent"]);
+    assert_eq!(chat.shared.perf.snapshot().len(), 3);
+    // Sans jeton : refusé.
+    let (code, _) = fakego::send(
+        facade,
+        "POST",
+        "/internal/facade/v1/perf/snapshot",
+        &[],
+        "{}",
+    )
+    .await;
+    assert_ne!(code, 200);
+    // Le résumé, servi par la façade.
+    let (code, out) = fakego::send(facade, "GET", "/api/perf/summary", &[], "").await;
+    assert_eq!(code, 200);
+    let s: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(s["entries"], 3);
+    assert_eq!(s["kinds"]["subagent"]["completions"], 2);
+    assert_eq!(s["kinds"]["subagent"]["lost_tokens"], 2000);
+    assert_eq!(s["kinds"]["foreign"]["incomplete"], 1);
+    assert_eq!(s["depth"].as_array().unwrap().len(), 4);
+    assert_eq!(s.get("template"), None);
+    let (code, _) = fakego::send(facade, "POST", "/api/perf/summary", &[], "").await;
+    assert_eq!(code, 405);
+    drop(go);
 }

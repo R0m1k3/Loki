@@ -29,8 +29,8 @@
 //! Les images gardées (KEEP_TURN_IMAGES, lot 32)
 //! partent en début et en fin de tour quand il le faut
 //! ([`ChatService::kept_images_turn_start`]). La télémétrie des complétions
-//! (tours, vérifications, résumés) rejoint l'anneau du Go
-//! (`/internal/v1/turn/perf`) ; les motifs `retry_patterns` personnalisés
+//! (tours, vérifications, résumés) rejoint l'anneau tenu ici
+//! ([`crate::perfring`], lot 39) ; les motifs `retry_patterns` personnalisés
 //! sont lus au démarrage ([`retry_patterns`]). Chaque requête au moteur local
 //! part sur le slot que rend le Go (SIDE_SLOT, rechargement SLOT_PERSIST,
 //! lot 31).
@@ -702,7 +702,11 @@ impl ChatService {
             cfg: cfg.clone(),
             patterns: self.shared.patterns.clone(),
             port,
-            go: Some((store.clone(), self.sessions.conv().id())),
+            go: Some((
+                store.clone(),
+                self.sessions.conv().id(),
+                self.shared.perf.clone(),
+            )),
         };
         TurnEnv {
             cfg,
@@ -1296,6 +1300,13 @@ impl ChatShared {
         store: crate::store::Store,
         img_dir: std::path::PathBuf,
     ) -> Self {
+        // LOKI_HOME : le dossier des images en est un sous-dossier.
+        let perf = std::sync::Arc::new(crate::perfring::PerfRing::new(
+            img_dir
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_default(),
+        ));
         ChatShared {
             http: EngineHttp::new(),
             store,
@@ -1307,6 +1318,7 @@ impl ChatShared {
             patterns: super::stream::RetryPatterns::builtin(),
             tpl: std::sync::Arc::new(super::tplprobe::TplProbe::new()),
             prewarm: Default::default(),
+            perf,
             mcp: None,
             tasks: None,
             go_version: Default::default(),

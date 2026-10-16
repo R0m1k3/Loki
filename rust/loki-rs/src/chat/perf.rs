@@ -1,19 +1,19 @@
-//! Télémétrie des complétions de la façade (lot 29). Toutes rejoignent
-//! l'anneau du Go (`perf_log.go`) par `/internal/v1/turn/perf` : le Go les
-//! range, calcule la perte de cache contre la précédente de la même
-//! discussion et l'alerte au seuil du preset actif. `/api/perf/summary`
-//! reste au Go.
+//! Télémétrie des complétions de la façade (lots 29 et 39). Toutes
+//! rejoignent l'anneau tenu ici ([`crate::perfring`]) : il les range,
+//! calcule la perte de cache contre la précédente de la même discussion et
+//! l'alerte au seuil du preset actif ; il nourrit `/api/perf/summary`.
 //!
 //! Ce module porte ce que la façade relève elle-même : la réponse entière
-//! d'un résumé de compaction (`perfRecFromWire`), et l'envoi au Go. Des
-//! identifiants et des compteurs, jamais de texte. Rien ne retourne au
-//! moteur.
+//! d'un résumé de compaction (`perfRecFromWire`), et le passage des stats
+//! d'une complétion à l'anneau (`perfRecFromStats`). Des identifiants et
+//! des compteurs, jamais de texte. Rien ne retourne au moteur.
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::turn::{PerfMarks, PerfRec};
 use super::types::StatsEvent;
-use crate::store::Store;
+use crate::perfring::{PerfRing, perf_alert};
+use crate::store::{BK_STATE, Store};
 
 /// Nature d'une complétion.
 pub const KIND_MAIN: &str = "main";
@@ -75,32 +75,56 @@ fn perf_num(v: Option<&Value>) -> Option<f64> {
     (f.is_finite() && (0.0..1e12).contains(&f)).then_some(f)
 }
 
-/// Range la complétion dans l'anneau du Go et rend ce qu'il en tire. Le Go
-/// injoignable : rien (la télémétrie ne fait jamais échouer un tour).
-pub async fn record(store: &Store, kind: &str, conv: &str, rec: &PerfRec) -> PerfMarks {
-    let body = json!({
-        "kind": kind,
-        "conv": conv,
-        "iter": rec.iter,
-        "complete": rec.complete,
-        "external": rec.external,
-        "stats": rec.stats,
-        "prefix": rec.prefix,
-    });
-    match store
-        .internal_json(hyper::Method::POST, "/internal/v1/turn/perf", Some(&body))
-        .await
-    {
-        Ok(v) => PerfMarks {
-            kind: v["kind"].as_str().unwrap_or("").to_string(),
-            lost: v["lost"].as_i64(),
-            lost_after: v["lost_after"].as_str().unwrap_or("").to_string(),
-            lost_alert: v["lost_alert"].as_bool().unwrap_or(false),
-        },
-        Err(e) => {
-            eprintln!("[loki-rs] télémétrie : {e}");
-            PerfMarks::default()
-        }
+/// Range la complétion dans l'anneau et rend ce qu'il en tire : la perte
+/// de cache, ce qui s'est intercalé, et l'alerte au seuil du preset actif
+/// (jamais sur une API externe). La télémétrie ne fait jamais échouer un
+/// tour.
+pub async fn record(
+    store: &Store,
+    ring: &PerfRing,
+    kind: &str,
+    conv: &str,
+    rec: &PerfRec,
+) -> PerfMarks {
+    let kind = if kind.is_empty() { KIND_MAIN } else { kind };
+    let s = &rec.stats;
+    let r = crate::perfring::PerfRec {
+        kind: kind.to_string(),
+        conv: conv.to_string(),
+        iter: rec.iter,
+        complete: rec.complete,
+        total: s.prompt_tokens_total,
+        cached: s.cache_tokens,
+        new: s.prompt_tokens,
+        pp_ms: s.prompt_ms,
+        pp_tps: s.prompt_per_second,
+        gen_tokens: s.gen_tokens,
+        tg_tps: s.gen_per_second,
+        draft_n: s.draft_n,
+        draft_accepted: s.draft_accepted,
+        ttft_ms: s.ttft_ms,
+        ..Default::default()
+    };
+    let prefix: &[u64] = if rec.complete { &rec.prefix } else { &[] };
+    let got = ring.record(r, prefix);
+    let mut alert = false;
+    if rec.complete && !rec.external && (got.lost.is_some_and(|l| l > 0) || got.cached == Some(0)) {
+        let cfg = store.config().await;
+        let stored = crate::gguf::parse_stored_model_dirs(
+            store
+                .get(BK_STATE, crate::gguf::STATE_MODEL_DIRS_KEY)
+                .await
+                .ok()
+                .flatten()
+                .as_deref(),
+        );
+        alert = perf_alert(&got, ring.lost_alert_at(&cfg, &stored));
+    }
+    PerfMarks {
+        kind: got.kind,
+        lost: got.lost,
+        lost_after: got.lost_after,
+        lost_alert: alert,
     }
 }
 
@@ -109,6 +133,7 @@ mod tests {
     use super::super::turn::perf_prefix;
     use super::super::types::Message;
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn releve_d_une_reponse_entiere() {

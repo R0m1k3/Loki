@@ -51,6 +51,7 @@ pub fn handles(path: &str) -> bool {
             | "/api/conversations/switch"
             | "/api/conversations/rename"
             | "/api/conversations/delete"
+            | "/api/perf/summary"
     )
 }
 
@@ -68,6 +69,8 @@ pub fn is_internal(path: &str) -> bool {
             | "/internal/facade/v1/chat/tpl"
             | "/internal/facade/v1/chat/prewarm"
             | "/internal/facade/v1/chat/prewarm/cancel"
+            | "/internal/facade/v1/perf/record"
+            | "/internal/facade/v1/perf/snapshot"
     )
 }
 
@@ -109,6 +112,34 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
                 None => send_json(StatusCode::OK, &json!({ "ok": false })),
             }
         }
+        // Télémétrie (lot 39) : une complétion faite par le Go (sous-agent,
+        // tâche IA, bench, compaction de ses tours, client externe de /v1),
+        // rangée dans l'anneau tenu ici ; rendue telle que rangée (numéro,
+        // perte de cache, ce qui s'est intercalé).
+        "/internal/facade/v1/perf/record" => match read_json(req.into_body()).await {
+            Ok(v) => {
+                let rec: crate::perfring::PerfRec =
+                    serde_json::from_value(v.get("rec").cloned().unwrap_or_default())
+                        .unwrap_or_default();
+                let prefix: Vec<u64> = v
+                    .get("prefix")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(Value::as_u64).collect())
+                    .unwrap_or_default();
+                let got = chat.shared.perf.record(rec, &prefix);
+                send_json(StatusCode::OK, &json!({ "rec": got }))
+            }
+            Err(_) => send_json(
+                StatusCode::BAD_REQUEST,
+                &json!({ "error": "télémétrie illisible" }),
+            ),
+        },
+        // L'anneau, de la plus ancienne à la plus récente (poids de
+        // l'optimiseur).
+        "/internal/facade/v1/perf/snapshot" => send_json(
+            StatusCode::OK,
+            &json!({ "recs": chat.shared.perf.snapshot() }),
+        ),
         // PREWARM (lot 33) : déclencheur venu du Go (fin d'une tâche
         // planifiée), annulation relayée (une autre requête est partie).
         "/internal/facade/v1/chat/prewarm" => {
@@ -202,6 +233,23 @@ pub async fn serve(
     }
     let path = parts.uri.path().to_string();
     match path.as_str() {
+        // `handlePerfSummary` : des agrégats seulement, aucun texte.
+        "/api/perf/summary" => {
+            if parts.method != Method::GET {
+                return send_json(
+                    StatusCode::METHOD_NOT_ALLOWED,
+                    &json!({ "error": "GET seulement" }),
+                );
+            }
+            let mut s = crate::perfring::summarize(&chat.shared.perf.snapshot());
+            let cfg = chat.shared.store.config().await;
+            s.template = chat
+                .shared
+                .tpl
+                .caps_current(crate::engstatus::is_external(&cfg))
+                .map(|r| r.to_json());
+            send_json(StatusCode::OK, &json!(s))
+        }
         "/api/chat" => match read_json(body).await {
             Ok(v) => subscribe(chat, &v),
             Err(e) => plain(StatusCode::BAD_REQUEST, &e),

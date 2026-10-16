@@ -128,8 +128,6 @@ pub struct FakeGo {
     /// pour une action donnée.
     pub service_os: Mutex<Vec<String>>,
     pub service_os_fail: Mutex<Option<(String, String)>>,
-    /// /internal/v1/turn/perf reçus (corps entiers).
-    pub perf_records: Mutex<Vec<serde_json::Value>>,
     /// /internal/v1/turn/slot : second slot en service (le fil de la
     /// discussion sur le 0, le reste sur le 1 ; sinon aucun) ; demandes
     /// reçues (« conv main »).
@@ -780,26 +778,6 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 .unwrap()
                 .push(format!("served {}", v["ticket"]));
             resp(204, "")
-        }
-        "/internal/v1/turn/perf" => {
-            let body = req.into_body().collect().await.unwrap().to_bytes();
-            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-            st.oai_log.lock().unwrap().push(format!(
-                "perf kind={} conv={} iter={} complete={} prefix={}",
-                v["kind"].as_str().unwrap_or(""),
-                v["conv"].as_str().unwrap_or(""),
-                v["iter"],
-                v["complete"],
-                v["prefix"].as_array().map_or(0, Vec::len),
-            ));
-            // Comme le Go : la nature reçue (un tour sans nature).
-            let kind = v["kind"]
-                .as_str()
-                .filter(|k| !k.is_empty())
-                .unwrap_or("main");
-            let out = serde_json::json!({"kind": kind, "lost": 3, "lost_after": "tâche", "lost_alert": true});
-            st.perf_records.lock().unwrap().push(v);
-            resp(200, out.to_string())
         }
         "/internal/v1/oai/end" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

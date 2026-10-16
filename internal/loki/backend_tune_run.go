@@ -552,7 +552,7 @@ func runTune(ctx context.Context, opts tuneOpts, tr *tuneTracker) (out *tuneResu
 
 	res := &tuneResult{PresetID: preset.ID, PresetName: preset.Name, BaseFP: configFingerprint(cfg),
 		PresetFP: presetFingerprint([]byte(content)), OptIn: opts.OptIn, At: time.Now().Unix(),
-		Weights: tuneWeightsFrom(perfLog.snapshot())}
+		Weights: tuneWeightsFrom(perfSnapshot())}
 
 	// Référence : la ligne composée telle quelle, la sonde de la machine.
 	tr.setPhase("référence : composition de la ligne de commande")
