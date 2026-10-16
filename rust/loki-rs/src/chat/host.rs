@@ -718,6 +718,16 @@ impl TurnHost for GoTurnHost {
                 ..Default::default()
             };
         }
+        // Mémoire longue de la conversation (lot 46) : l'archive est au Go,
+        // l'id, le score et la mise en forme ici ; Go injoignable : par lui.
+        if crate::recall::is_tool(name)
+            && let Some(result) = crate::recall::exec(&self.shared.store, name, args).await
+        {
+            return ToolOutcome {
+                result,
+                ..Default::default()
+            };
+        }
         // Outils d'image (lot 45) : see_image dans le dossier de la
         // discussion, web_screenshot par Playwright ; l'image relayée au
         // modèle s'il la voit.

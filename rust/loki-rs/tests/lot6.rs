@@ -2843,6 +2843,45 @@ async fn job_arriere_plan_par_la_facade() {
     assert_eq!(jobs.running(), 0);
 }
 
+/// Lot 46 : `recall` et `recall_search` sont exécutés par la façade sur
+/// l'archive du Go (rien par /tool/exec).
+#[tokio::test]
+async fn recall_par_la_facade() {
+    let calls = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[
+            {"index":0,"id":"c1","type":"function","function":{"name":"recall","arguments":"{\"id\":\"R2 \"}"}},
+            {"index":1,"id":"c2","type":"function","function":{"name":"recall_search","arguments":"{\"query\":\"Gratin\"}"}}
+        ]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![calls, answer("rappelé")]).await;
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    *go.recall_blocks.lock().unwrap() = vec![
+        serde_json::json!({"id":"r1","seq":1,"label":"web_read: gratin","role":"tool","content":"recette du gratin"}),
+        serde_json::json!({"id":"r2","seq":2,"label":"bash: ls","role":"tool","content":"a.go\nb.go"}),
+    ];
+    svc.send(serde_json::json!({"message": "rappelle", "cid": "r"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tools: Vec<String> = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .map(|m| m["content"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        tools,
+        [
+            "[r2 — bash: ls, rappelé verbatim]\na.go\nb.go",
+            "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r1 — web_read: gratin\n  recette du gratin",
+        ]
+    );
+}
+
 /// Lot 45 : `see_image` et `web_screenshot` sont exécutés par la façade
 /// (rien par le Go) : sans projecteur, l'image n'est pas lue ; une capture
 /// sans url est refusée avant Playwright.

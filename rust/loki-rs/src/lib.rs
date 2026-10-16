@@ -41,6 +41,7 @@ pub mod presets_api;
 pub mod projects_api;
 pub mod proxy;
 pub mod push;
+pub mod recall;
 pub mod serve;
 pub mod settings;
 pub mod store;

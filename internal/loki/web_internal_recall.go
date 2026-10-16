@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 // API interne de l'archive recall (lot 6 de la migration Rust).
@@ -16,6 +17,12 @@ import (
 //
 //	POST /internal/v1/recall/archive  {"label":…,"role":…,"content":…}
 //	→ 200 {"id":"r7"} · 423 mémoire verrouillée (rien d'écrit en clair)
+//
+// Les outils recall et recall_search de la façade (lot 46) lisent l'archive
+// ici ; le reste (id tolérant, score, mise en forme) est chez elle :
+//
+//	GET /internal/v1/recall/block?seq=7 → 200 bloc · 404 absent ou illisible
+//	GET /internal/v1/recall/blocks      → 200 [blocs lisibles, par séquence]
 
 const internalRecallMaxBody = 32 << 20
 
@@ -45,4 +52,36 @@ func handleInternalRecallArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"id": id})
+}
+
+func handleInternalRecallBlock(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET attendu"})
+		return
+	}
+	seq, err := strconv.ParseUint(r.URL.Query().Get("seq"), 10, 64)
+	if err != nil {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "seq illisible"})
+		return
+	}
+	blk, ok := recallGetSeq(seq)
+	if !ok {
+		sendJSON(w, http.StatusNotFound, map[string]any{"error": "bloc introuvable"})
+		return
+	}
+	sendJSON(w, http.StatusOK, blk)
+}
+
+func handleInternalRecallBlocks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET attendu"})
+		return
+	}
+	blks := recallAll()
+	if blks == nil {
+		blks = []recallBlock{}
+	}
+	sendJSON(w, http.StatusOK, blks)
 }

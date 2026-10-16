@@ -104,6 +104,17 @@ impl Store {
         serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
 
+    /// GET à l'API interne, statut compris (404 à distinguer d'une panne).
+    /// Corps vide ou illisible → `Value::Null`.
+    pub async fn internal_get(
+        &self,
+        path: &str,
+    ) -> Result<(StatusCode, serde_json::Value), String> {
+        let (status, bytes) = self.call(Method::GET, path, Vec::new()).await?;
+        let v = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        Ok((status, v))
+    }
+
     /// POST JSON à l'API interne, statut compris (refus métier à distinguer :
     /// 409, 410…). Corps vide ou illisible → `Value::Null`.
     pub async fn internal_post(

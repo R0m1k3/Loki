@@ -107,6 +107,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalEngineStop(w, r)
 		case "/internal/v1/recall/archive":
 			handleInternalRecallArchive(w, r)
+		case "/internal/v1/recall/block":
+			handleInternalRecallBlock(w, r)
+		case "/internal/v1/recall/blocks":
+			handleInternalRecallBlocks(w, r)
 		case "/internal/v1/turn/start":
 			handleInternalTurnStart(w, r)
 		case "/internal/v1/turn/view":

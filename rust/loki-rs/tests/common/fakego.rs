@@ -52,6 +52,10 @@ pub struct FakeGo {
     /// Résultat imposé à tout outil (sinon « exec:<nom> »), et archive recall.
     pub tool_result: Mutex<Option<String>>,
     pub recall: Mutex<Vec<String>>,
+    /// Blocs servis par /internal/v1/recall/block(s) (lot 46), et lectures
+    /// reçues (« block <seq> », « blocks »).
+    pub recall_blocks: Mutex<Vec<serde_json::Value>>,
+    pub recall_log: Mutex<Vec<String>>,
     /// Discussion active annoncée et discussions supprimées.
     pub conv_log: Mutex<Vec<String>>,
     /// Tours : débuts, vues et fins demandés.
@@ -502,6 +506,34 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             ),
             None => resp(200, r#"{"busy":false}"#),
         },
+        "/internal/v1/recall/block" => {
+            let seq = req
+                .uri()
+                .query()
+                .unwrap_or("")
+                .strip_prefix("seq=")
+                .unwrap_or("")
+                .to_string();
+            st.recall_log.lock().unwrap().push(format!("block {seq}"));
+            let found = st
+                .recall_blocks
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|b| b["seq"].as_u64().map(|n| n.to_string()).as_deref() == Some(seq.as_str()))
+                .cloned();
+            match found {
+                Some(b) => resp(200, b.to_string()),
+                None => resp(404, r#"{"error":"bloc introuvable"}"#),
+            }
+        }
+        "/internal/v1/recall/blocks" => {
+            st.recall_log.lock().unwrap().push("blocks".into());
+            resp(
+                200,
+                serde_json::Value::Array(st.recall_blocks.lock().unwrap().clone()).to_string(),
+            )
+        }
         "/internal/v1/service/prestart" => {
             *st.prestarts.lock().unwrap() += 1;
             let e = st.tune_busy.lock().unwrap().clone().unwrap_or_default();
