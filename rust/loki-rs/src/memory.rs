@@ -43,6 +43,8 @@ use crate::gojson::{self, Kind};
 use crate::proxy::Body;
 use crate::store::{BK_CONFIG, BK_STATE, CryptError, Store};
 
+pub mod tools;
+
 /// Index du projet, tenu par le code.
 pub const MEM_INDEX_FILE: &str = "MEMORY.md";
 /// Magic des contenus chiffrés (`memPageMagic`).
@@ -1022,6 +1024,20 @@ impl Memory {
         when: &str,
         text: &str,
     ) -> Result<String, String> {
+        self.tracker_add_at(store, proj, name, when, text, now_ms())
+            .await
+    }
+
+    /// [`Self::tracker_add`], « maintenant » donné (`when` vide).
+    async fn tracker_add_at(
+        &self,
+        store: &Store,
+        proj: &str,
+        name: &str,
+        when: &str,
+        text: &str,
+        now: i64,
+    ) -> Result<String, String> {
         let name = go_trim(name).to_string();
         if name.is_empty() {
             return Err("nom de tracker vide".into());
@@ -1029,7 +1045,7 @@ impl Memory {
         if go_trim(text).is_empty() {
             return Err("contenu vide".into());
         }
-        let (ts, date_only) = parse_when(when, now_ms(), self.tz)?;
+        let (ts, date_only) = parse_when(when, now, self.tz)?;
         let mut slug = slugify_ident(&name);
         if slug.is_empty() {
             slug = "tracker".into();

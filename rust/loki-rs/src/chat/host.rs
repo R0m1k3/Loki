@@ -5,7 +5,8 @@
 //! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
 //!   tenu par le Go), outils MCP par le pool de la façade quand elle le tient
 //!   (lot 36), outils task_* quand elle tient les tâches (lot 37), critères
-//!   du mode Code (lot 38) ; les autres
+//!   du mode Code (lot 38), outils mémoire quand elle tient la mémoire
+//!   (lot 40) ; les autres
 //!   par le Go (`/internal/v1/tool/exec`), avec
 //!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
 //!   image relayée) ;
@@ -343,6 +344,9 @@ pub struct ChatShared {
     /// Les tâches, quand la façade les tient (LOKI_TASKS=rust) : les outils
     /// `task_*` du tour s'exécutent ici (lot 37).
     pub tasks: Option<Arc<crate::tasks::Tasks>>,
+    /// La mémoire, quand la façade la tient (LOKI_MEM=rust) : les outils
+    /// `mem_*` et `tracker` du tour s'exécutent ici (lot 40).
+    pub memory: Option<Arc<crate::memory::Memory>>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -674,6 +678,25 @@ impl TurnHost for GoTurnHost {
                 result: out.result,
                 ..Default::default()
             };
+        }
+        // Outils mémoire, quand la façade tient la mémoire (lot 40).
+        if crate::memory::tools::is_tool(name)
+            && let Some(mem) = &self.shared.memory
+        {
+            let env = crate::memory::tools::MemEnv {
+                store: &self.shared.store,
+                mem,
+                now_ms: crate::memory::now_ms(),
+            };
+            if let Some(o) = crate::memory::tools::exec(&env, name, args, label).await {
+                return ToolOutcome {
+                    result: o.result,
+                    diff: o.diff,
+                    added: o.added,
+                    removed: o.removed,
+                    ..Default::default()
+                };
+            }
         }
         // Outils task_*, quand la façade tient les tâches (lot 37).
         if crate::tasks::tools::is_tool(name)

@@ -670,6 +670,7 @@ async fn tour_complet_par_le_go() {
         perf: Arc::new(loki_rs::perfring::PerfRing::new(Default::default())),
         mcp: None,
         tasks: None,
+        memory: None,
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -2707,4 +2708,41 @@ async fn anneau_de_la_facade_pour_le_go() {
     let (code, _) = fakego::send(facade, "POST", "/api/perf/summary", &[], "").await;
     assert_eq!(code, 405);
     drop(go);
+}
+
+/// Lot 40 : un outil mémoire appelé par un tour de la façade s'exécute ici
+/// quand elle tient la mémoire — la page rangée dans le projet actif, l'index
+/// tenu, le diff montré, rien par le Go.
+#[tokio::test]
+async fn outil_memoire_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"m1","type":"function","function":{"name":"mem_add","arguments":"{\"file\":\"chat\",\"content\":\"# Chat\\nIl s'appelle Pixel.\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("noté")]).await;
+    let dir = tempfile::tempdir().unwrap();
+    let mem = Arc::new(loki_rs::memory::Memory::new(dir.path().to_path_buf()));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.memory = Some(mem.clone())).await;
+    *go.crypt_mode.lock().unwrap() = fakego::CryptMode::Plain;
+    svc.send(serde_json::json!({"message": "retiens le nom du chat", "cid": "m"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let page = dir.path().join("memory/generale/chat.md");
+    assert_eq!(
+        std::fs::read_to_string(&page).unwrap(),
+        "# Chat\nIl s'appelle Pixel.\n"
+    );
+    let index = std::fs::read_to_string(dir.path().join("memory/generale/MEMORY.md")).unwrap();
+    assert!(index.ends_with("- [Chat](chat.md)\n"), "{index}");
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(tool, serde_json::json!("[ok] page 'chat' créée"));
 }

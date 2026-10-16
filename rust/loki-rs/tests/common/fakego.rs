@@ -970,6 +970,7 @@ pub async fn start_with(
         shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
         shared.mcp = opts.mcp.clone();
         shared.tasks = opts.tasks.clone();
+        shared.memory = opts.mem.clone();
         Some(ChatService::new(Arc::new(s), Arc::new(shared)))
     } else {
         None

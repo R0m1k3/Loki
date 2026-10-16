@@ -268,8 +268,14 @@ fn serve() -> ExitCode {
             .then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(engine_paths.home.clone())));
         let tasks = tasks_rust
             .then(|| std::sync::Arc::new(loki_rs::tasks::Tasks::new(engine_paths.home.clone())));
+        let mem = mem_rust
+            .then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(engine_paths.home.clone())));
         let chat = if chat_rust {
-            let held = (mcp.clone(), tasks.clone());
+            let held = ChatHeld {
+                mcp: mcp.clone(),
+                tasks: tasks.clone(),
+                mem: mem.clone(),
+            };
             match start_chat(backend, &token, &engine_paths.home, held).await {
                 Ok(c) => Some(c),
                 Err(e) => {
@@ -345,7 +351,6 @@ fn serve() -> ExitCode {
             }
         };
         eprintln!("[loki-rs] façade : http://{addr} → {backend}");
-        let mem_home = engine_paths.home.clone();
         // Le superviseur reçoit ce que le Go lui passait (rustSvcAction), et de
         // quoi joindre l'API interne du Go pour « loki-rs engine serve ».
         let engine_ctl = engine_rust.then(|| {
@@ -391,7 +396,7 @@ fn serve() -> ExitCode {
             settings: settings_rust,
             files,
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
-            mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
+            mem,
             presets: presets_rust,
             engine_ctl,
             system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
@@ -509,15 +514,20 @@ async fn go_keeps_chat(backend: SocketAddr, token: &str) -> Result<Option<String
     Err(last)
 }
 
+/// Ce que la façade tient aussi pour les outils de ses tours : le pool MCP,
+/// les tâches, la mémoire (les mêmes que pour leurs routes).
+struct ChatHeld {
+    mcp: Option<std::sync::Arc<loki_rs::mcp::Mcp>>,
+    tasks: Option<std::sync::Arc<loki_rs::tasks::Tasks>>,
+    mem: Option<std::sync::Arc<loki_rs::memory::Memory>>,
+}
+
 /// Charge la discussion active et prépare le service des tours.
 async fn start_chat(
     backend: SocketAddr,
     token: &str,
     home: &std::path::Path,
-    (mcp, tasks): (
-        Option<std::sync::Arc<loki_rs::mcp::Mcp>>,
-        Option<std::sync::Arc<loki_rs::tasks::Tasks>>,
-    ),
+    held: ChatHeld,
 ) -> Result<std::sync::Arc<loki_rs::chat::generate::ChatService>, String> {
     use loki_rs::chat::{conv::Conversation, generate::ChatService, host::ChatShared, sessions};
     let store = loki_rs::store::Store::new(backend, token.to_string());
@@ -529,8 +539,9 @@ async fn start_chat(
     s.load().await?;
     let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
     shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
-    shared.mcp = mcp;
-    shared.tasks = tasks;
+    shared.mcp = held.mcp;
+    shared.tasks = held.tasks;
+    shared.memory = held.mem;
     eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=go pour la rendre au Go)");
     Ok(ChatService::new(
         std::sync::Arc::new(s),

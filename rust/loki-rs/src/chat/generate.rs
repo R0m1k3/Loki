@@ -1321,6 +1321,7 @@ impl ChatShared {
             perf,
             mcp: None,
             tasks: None,
+            memory: None,
             go_version: Default::default(),
         }
     }

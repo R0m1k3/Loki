@@ -392,3 +392,149 @@ async fn coffre_et_projets_restent_au_go() {
         assert_eq!(&b[..], format!("go:{p}").as_bytes());
     }
 }
+
+/// Lot 40 : les outils mémoire de l'agent (mem_search, mem_read, mem_add,
+/// mem_edit, tracker), rejoués contre le journal du Go
+/// (`parity_mem_tools_test.go` → `parity_mem/outils.json`) : résultat,
+/// diff, fichiers de la mémoire et trackers après chaque appel.
+#[tokio::test]
+async fn outils_memoire_comme_le_go() {
+    use loki_rs::memory::tools::{MemEnv, exec, is_tool};
+    let fx: Value = serde_json::from_str(include_str!("parity_mem/outils.json")).expect("journal");
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().to_path_buf();
+    let (_f, go, _stop) = fakego::start(home.clone()).await;
+    *go.crypt_mode.lock().unwrap() = CryptMode::Plain;
+    let backend = go.backend.lock().unwrap().unwrap();
+    let store = loki_rs::store::Store::new(backend, fakego::JETON.into());
+    let mem = Memory::with_tz(home.clone(), Tz::Fixed(0));
+    let dir = home.join("memory").join("generale");
+    let mut ids = TrackerIds::default();
+    let mut now = 0i64;
+    for st in fx.as_array().unwrap() {
+        let name = st["name"].as_str().unwrap();
+        if let Some(n) = st["now"].as_str() {
+            now = rfc3339_ms(n);
+        }
+        let tool = st["tool"].as_str().unwrap();
+        assert!(is_tool(tool), "{name}");
+        // Les identifiants de points déjà vus : {{Tn}} → valeur.
+        let raw = ids.unmask(&st["args"].to_string());
+        let args: serde_json::Map<String, Value> = serde_json::from_str(&raw).unwrap();
+        let label = st["label"].as_str().unwrap();
+        assert_eq!(
+            loki_rs::chat::stream::tool_call_label(tool, &args),
+            label,
+            "{name} : libellé"
+        );
+        let env = MemEnv {
+            store: &store,
+            mem: &mem,
+            now_ms: now,
+        };
+        let out = exec(&env, tool, &args, label).await.expect("outil mémoire");
+        assert_eq!(ids.mask(&out.result), st["out"].as_str().unwrap(), "{name}");
+        let diff = serde_json::to_value(&out.diff).unwrap();
+        if st["diff"].is_null() {
+            assert!(out.diff.is_empty(), "{name} : diff {diff}");
+        } else {
+            assert_eq!(diff, st["diff"], "{name} : diff");
+        }
+        assert_eq!(
+            (out.added, out.removed),
+            (
+                st["added"].as_i64().unwrap(),
+                st["removed"].as_i64().unwrap()
+            ),
+            "{name}"
+        );
+        let mut files = serde_json::Map::new();
+        for (rel, content) in walk(&dir) {
+            files.insert(rel, Value::String(content));
+        }
+        assert_eq!(Value::Object(files), st["files"], "{name} : fichiers");
+        let mut trackers = serde_json::Map::new();
+        let all = store.all("tracker").await.unwrap_or_default();
+        for k in all.keys() {
+            let b = store.get_open("tracker", k).await.unwrap().unwrap();
+            let v: Value = serde_json::from_str(&ids.mask(&String::from_utf8_lossy(&b))).unwrap();
+            trackers.insert(k.clone(), v);
+        }
+        assert_eq!(Value::Object(trackers), st["trackers"], "{name} : trackers");
+    }
+    assert!(
+        exec(
+            &MemEnv {
+                store: &store,
+                mem: &mem,
+                now_ms: now
+            },
+            "bash",
+            &serde_json::Map::new(),
+            ""
+        )
+        .await
+        .is_none()
+    );
+}
+
+/// Identifiants de points de trackers → {{T1}}, {{T2}}… dans l'ordre où
+/// ils apparaissent (même règle que le journal du Go).
+#[derive(Default)]
+struct TrackerIds {
+    ids: Vec<(String, String)>,
+}
+
+impl TrackerIds {
+    fn mask(&mut self, s: &str) -> String {
+        let re = regex::Regex::new(r"\b[0-9]{18,20}\b").unwrap();
+        re.replace_all(s, |c: &regex::Captures| {
+            let id = c[0].to_string();
+            if let Some((_, p)) = self.ids.iter().find(|(i, _)| *i == id) {
+                return p.clone();
+            }
+            let p = format!("{{{{T{}}}}}", self.ids.len() + 1);
+            self.ids.push((id, p.clone()));
+            p
+        })
+        .into_owned()
+    }
+
+    fn unmask(&self, s: &str) -> String {
+        let mut s = s.to_string();
+        // Les plus longs d'abord : {{T10}} avant {{T1}}.
+        let mut ids: Vec<_> = self.ids.iter().collect();
+        ids.sort_by_key(|(_, p)| std::cmp::Reverse(p.len()));
+        for (id, p) in ids {
+            s = s.replace(p, id);
+        }
+        s
+    }
+}
+
+fn rfc3339_ms(v: &str) -> i64 {
+    let p: Vec<i64> = v[..10].split('-').map(|x| x.parse().unwrap()).collect();
+    let h: Vec<i64> = v[11..19].split(':').map(|x| x.parse().unwrap()).collect();
+    loki_rs::tz::Location::utc().date(p[0], p[1], p[2], h[0], h[1], h[2]) * 1000
+}
+
+/// Les fichiers d'un dossier, chemin relatif → contenu.
+fn walk(dir: &Path) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else {
+                let rel = p.strip_prefix(dir).unwrap().to_string_lossy().into_owned();
+                out.insert(rel, std::fs::read_to_string(&p).unwrap_or_default());
+            }
+        }
+    }
+    out
+}
