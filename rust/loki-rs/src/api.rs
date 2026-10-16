@@ -136,11 +136,21 @@ pub fn handles(_method: &Method, path: &str) -> bool {
     )
 }
 
-pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
+/// `from_go` : relayée par le Go (tunnel du relais), qui l'a déjà
+/// authentifiée.
+pub async fn serve(ctx: &Ctx, req: Request<Incoming>, from_go: bool) -> Response<Body> {
     let (parts, _body) = req.into_parts();
-    let version = match ctx.guard(&parts.headers).await {
-        Ok(v) => v,
-        Err(refus) => return *refus,
+    let version = if from_go {
+        ctx.internal
+            .auth()
+            .await
+            .map(|i| i.version)
+            .unwrap_or_default()
+    } else {
+        match ctx.guard(&parts.headers).await {
+            Ok(v) => v,
+            Err(refus) => return *refus,
+        }
     };
     match parts.uri.path() {
         // Vérifie la connectivité ET la clé (200 = bonne clé, 401 = mauvaise).

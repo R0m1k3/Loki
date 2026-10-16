@@ -76,6 +76,12 @@ struct Banc {
 }
 
 async fn banc(cle: Option<&str>) -> Banc {
+    banc_avec(cle, false).await
+}
+
+/// `tenu` : la façade tient au moins un groupe de routes (le Go lui en
+/// relaie alors par le tunnel du relais).
+async fn banc_avec(cle: Option<&str>, tenu: bool) -> Banc {
     let etat = Arc::new(FauxGo::default());
     *etat.cle.lock().unwrap() = cle.map(String::from);
     let backend = faux_go(etat.clone()).await;
@@ -96,7 +102,7 @@ async fn banc(cle: Option<&str>) -> Banc {
         chat: None,
         models: None,
         dictate: None,
-        settings: false,
+        settings: tenu,
         files: None,
         push: None,
         mem: None,
@@ -234,4 +240,40 @@ async fn ui_servie_par_rust() {
         1,
         "seule la police inconnue doit atteindre le Go : {vus:?}"
     );
+}
+
+/// Lot 35 : les routes de base arrivent aussi par le tunnel du relais, que
+/// le Go a déjà authentifiées (jeton interne) : ni clé ni hôte local exigés.
+/// Sans le jeton, la règle de toujours.
+#[tokio::test]
+async fn routes_de_base_relayees_par_le_go() {
+    let b = banc_avec(Some("secret"), true).await;
+    let (code, _, body) = get(
+        &b,
+        "/api/ping",
+        &[("host", "loki.distant.example"), ("x-loki-internal", JETON)],
+    )
+    .await;
+    assert_eq!(code, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
+    assert!(
+        b.etat
+            .vus
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|(p, _)| p != "/api/ping"),
+        "servie par la façade, pas relayée au Go"
+    );
+    let (code, _, _) = get(&b, "/api/ping", &[("host", "loki.distant.example")]).await;
+    assert_ne!(code, StatusCode::OK);
+    let (code, _, _) = get(
+        &b,
+        "/api/ping",
+        &[
+            ("host", "loki.distant.example"),
+            ("x-loki-internal", "faux"),
+        ],
+    )
+    .await;
+    assert_ne!(code, StatusCode::OK);
 }

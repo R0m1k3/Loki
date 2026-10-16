@@ -266,7 +266,7 @@ impl Proxy {
             return oai::serve(&self.ctx, &self.engine, req).await;
         }
         if api::handles(req.method(), path) {
-            return api::serve(&self.ctx, req).await;
+            return api::serve(&self.ctx, req, from_go).await;
         }
         if let Some(chat) = &self.ctx.chat
             && crate::chatx::handles(path)

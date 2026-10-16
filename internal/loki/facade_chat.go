@@ -142,6 +142,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeBench, "banc d'essai indisponible : "
 	case facadeTuneRoutes[path]:
 		held, unavailable = facadeTune, "optimiseur indisponible : "
+	case facadeCoreRoutes[path]:
+		held, unavailable = facadeCore, "façade indisponible : "
 	default:
 		return h
 	}

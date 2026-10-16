@@ -312,7 +312,7 @@ func TestFacadeRelaieLesModeles(t *testing.T) {
 		t.Fatalf("reçu par la façade : %v", got)
 	}
 	// Le chat, lui, reste ici (LOKI_CHAT absent), et les routes voisines aussi.
-	for _, p := range []string{"/api/chat/send", "/api/model/layers", "/api/presets"} {
+	for _, p := range []string{"/api/chat/send", "/api/mem/health", "/api/presets"} {
 		w := httptest.NewRecorder()
 		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
 		if w.Body.String() != "go" {
@@ -1125,9 +1125,9 @@ func TestFacadeMoteurImage(t *testing.T) {
 		t.Fatalf("relais : %v", calls)
 	}
 	w := httptest.NewRecorder()
-	withFacadeChat("/api/engine/cmdline", local)(w, httptest.NewRequest("GET", "/api/engine/cmdline", nil))
+	withFacadeChat("/api/llamacpp/install", local)(w, httptest.NewRequest("POST", "/api/llamacpp/install", nil))
 	if w.Body.String() != "go" {
-		t.Fatalf("/api/engine/cmdline doit rester au Go : %q", w.Body.String())
+		t.Fatalf("/api/llamacpp/install doit rester au Go : %q", w.Body.String())
 	}
 
 	// Sans jeton interne, rien ne part.
