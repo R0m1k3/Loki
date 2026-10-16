@@ -208,13 +208,16 @@ fn serve() {
     if get("ECHEC") == ub {
         die("llama_model_load: error loading model: out of memory");
     }
-    // Un essai qui ne répond jamais.
-    if get("MUET") == ub {
-        std::thread::sleep(Duration::from_secs(600));
-        return;
-    }
     let port: u16 = get("PORT").parse().unwrap();
     let l = TcpListener::bind(("127.0.0.1", port)).unwrap();
+    // Un essai qui ne répond jamais : il tient son port (sinon un autre test
+    // lancé en parallèle peut le prendre et répondre à sa place) sans jamais
+    // accepter.
+    if get("MUET") == ub {
+        std::thread::sleep(Duration::from_secs(600));
+        drop(l);
+        return;
+    }
     let _ = std::io::stdout().write_all(b"load_tensors: offloaded 33/33 layers to GPU\n");
     let knobs = Knobs::default();
     // Un essai qui ne garde pas le contexte de la référence.
