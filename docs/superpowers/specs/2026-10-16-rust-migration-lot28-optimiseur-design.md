@@ -173,6 +173,87 @@ Côté Go, `TestFacadeTune` vérifie :
 - le contexte : au repos, pendant l'optimisation, pendant un bench ;
 - le démarrage et l'arrêt sans le refus de l'optimiseur.
 
+## Mutations
+
+105 mutations du port Rust (verrou et job). Le premier passage en a tué 39.
+Les survivantes l'ont été ensuite par les tests ajoutés :
+
+- `tune/tests.rs` :
+  - un verrou sans PID ;
+  - l'identité d'un processus (démarrage noté, binaire admis) ;
+  - l'application planifiée : clé sur option refusée sans l'option, valeur
+    vide qui retire la clé ;
+- `tune/job.rs` : l'ETA du suivi, l'arrondi à la minute, le numéro de build ;
+- `tests/tune.rs` :
+  - **une optimisation entière** :
+    - l'essai noté dans le verrou pendant la mesure ;
+    - l'application refusée pendant la mesure ;
+    - la progression, les confirmations, le gain ;
+    - aucun changement de moteur signalé quand son build est inconnu ;
+    - la cible inconnue ;
+  - **l'application gardée** :
+    - preset qui n'est plus celui en service, API externe ;
+    - clé changée ailleurs pendant l'application (défaite) ;
+    - sauvegarde notée dans le verrou avant d'écrire ;
+  - **les essais** :
+    - écartés (ligne dénaturée, doublon, contexte perdu) ;
+    - muets (délai de chargement) ;
+  - **la mesure** :
+    - VRAM mesurée par un faux nvidia-smi ;
+    - budget atteint, profondeur commune ;
+    - notes et poids tirés de la télémétrie ;
+    - écarts de mesure (sous le seuil, nul, decode plus lent) ;
+  - **le moteur** :
+    - `/props` sans `default_generation_settings` ;
+    - SIDE_SLOT sur un seul slot ;
+    - threads comptés sur les cœurs de la sonde ;
+    - piloté par la façade (LOKI_ENGINE=rust) ;
+  - **les refus** :
+    - un second lancement pendant la prise du bail ;
+    - une application refusée sans journal ;
+    - hors phase d'application, un verrou périmé n'est pas défait.
+
+Une mutation du premier passage ne changeait rien (`plan_apply(…).and(Ok(()))`
+garde l'erreur) : elle est remplacée par une qui retire vraiment le contrôle,
+et tuée.
+
+Restent vingt équivalentes, ou hors de portée d'un test :
+
+- **le verrou** :
+  - le fichier retiré quand son écriture échoue après sa création (disque
+    plein), que les tests ne provoquent pas ;
+  - deux re-vérifications du ménage, contre un propriétaire qui revient
+    entre deux lectures : courses seulement ;
+  - la réécriture neutre (essai, moteur actif, sauvegarde effacés) avant le
+    retrait du verrou : sous Unix le retrait suit aussitôt ; elle ne compte
+    que si le retrait échoue ;
+- **le suivi** :
+  - le résultat montré hors mesure : il est effacé au départ d'une mesure ;
+  - l'annulation n'est posée que pendant une mesure ;
+  - la borne de 6 h du budget, la durée d'un doublon, les étapes restantes :
+    l'estimation seulement ;
+  - l'annulation vérifiée entre deux essais et à la fin : l'essai en cours
+    l'a déjà dite (course) ;
+- **la mesure** :
+  - VRAM nulle et nvidia-smi absent vont ensemble ;
+  - les candidats générés passent toujours `cfg_check` (garde contre une
+    génération fautive) ;
+  - la fin d'un essai constatée avant d'attendre : un réveil perdu, quand
+    l'essai meurt entre deux attentes (course) ;
+  - l'essai effacé du verrou après son arrêt : le suivant le remplace, ou le
+    verrou est rendu ; laissé, un Loki redémarré vérifie son identité avant
+    tout arrêt ;
+- **l'application** :
+  - une valeur vide gardée dans la configuration gagnante : `cfg_check` et la
+    réécriture la traitent en clé absente ;
+  - la configuration active comparée à celle de la mesure : les empreintes
+    du preset et de la configuration sont prises ensemble, sur le preset dont
+    l'empreinte est celle de la configuration ; les deux contrôles qui
+    précèdent (preset inchangé, preset en service) l'impliquent ;
+  - le preset « non appliqué » : la configuration a changé entre le contrôle
+    et l'écriture (course) ; le contrôle suivant défait aussi, avec un autre
+    message.
+
 ## Écarts assumés
 
 - Une sortie à blanc qui échoue est lue dans un fichier où vont les deux

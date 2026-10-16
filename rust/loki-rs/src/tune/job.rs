@@ -304,6 +304,12 @@ pub struct Tune {
     pub trial_env: Vec<(String, String)>,
     /// Durée du bail du moteur (renouvelé au tiers).
     pub lease_ttl: Duration,
+    /// nvidia-smi (un faux dans les tests).
+    pub nvidia_smi: String,
+    /// Entre deux lectures du bilan de VRAM (500 ms).
+    pub gpu_pause: Duration,
+    /// Unité de `budget_min` (une minute ; plus court dans les tests).
+    pub budget_unit: Duration,
 }
 
 impl Tune {
@@ -328,7 +334,31 @@ impl Tune {
             settle: Duration::from_secs(2),
             trial_env: Vec::new(),
             lease_ttl: LEASE_TTL,
+            nvidia_smi: "nvidia-smi".into(),
+            gpu_pause: Duration::from_millis(500),
+            budget_unit: Duration::from_secs(60),
         }
+    }
+
+    /// `gpuStats` : lecture FRAÎCHE, vide sans nvidia-smi.
+    async fn gpus(&self) -> Vec<crate::sysinfo::GpuStat> {
+        crate::sysinfo::nvidia_smi_query_bin(&self.nvidia_smi)
+            .await
+            .map(|o| crate::sysinfo::parse_nvidia_smi(&String::from_utf8_lossy(&o)))
+            .unwrap_or_default()
+    }
+
+    /// `gpuUsedSettled`.
+    async fn gpu_settled(&self, before: i64) -> i64 {
+        crate::enginectl::gpu_settle(
+            before,
+            || async {
+                let g = self.gpus().await;
+                (crate::enginectl::gpu_used_mb(&g), !g.is_empty())
+            },
+            self.gpu_pause,
+        )
+        .await
     }
 
     fn st(&self) -> MutexGuard<'_, State> {
@@ -789,7 +819,7 @@ impl Tune {
         };
         if held.snapshot().main_was_active {
             tr.set_phase("arrêt du moteur principal");
-            let gpus = crate::sysinfo::gpu_stats().await;
+            let gpus = self.gpus().await;
             let before = crate::enginectl::gpu_used_mb(&gpus);
             if let Err(e) = Self::svc_os(ctx, "stop").await {
                 return Err(format!(
@@ -799,7 +829,7 @@ impl Tune {
             }
             crate::enginectl::dictate_stop(ctx).await;
             if !gpus.is_empty() {
-                gpu_settled(before).await;
+                self.gpu_settled(before).await;
             }
             crate::sysinfo::GPU_MONITOR.invalidate().await;
         }
@@ -824,7 +854,7 @@ impl Tune {
             .await
             .map_err(|e| format!("la configuration active ne se lance pas : {e}"))?;
         let probe = base_launch.probe.clone().unwrap_or_default();
-        let smi = crate::sysinfo::gpu_stats().await;
+        let smi = self.gpus().await;
         let mut env = tc::Env {
             help: probe.help.clone(),
             gpus: probe.gpus,
@@ -925,7 +955,8 @@ impl Tune {
             if !env.smi {
                 return (-1, false);
             }
-            let g: Vec<(i64, i64)> = crate::sysinfo::gpu_stats()
+            let g: Vec<(i64, i64)> = self
+                .gpus()
                 .await
                 .iter()
                 .map(|g| (g.total, g.used))
@@ -1621,7 +1652,7 @@ struct Loaded {
 struct Stopper<'a> {
     run: Option<(i64, Arc<AtomicBool>)>,
     held: &'a Held<'a>,
-    settle: Duration,
+    tune: &'a Tune,
 }
 
 impl Stopper<'_> {
@@ -1629,7 +1660,7 @@ impl Stopper<'_> {
         let Some((pid, done)) = self.run.take() else {
             return;
         };
-        let before = crate::enginectl::gpu_used_mb(&crate::sysinfo::gpu_stats().await);
+        let before = crate::enginectl::gpu_used_mb(&self.tune.gpus().await);
         let d = done.clone();
         let _ = tokio::task::spawn_blocking(move || {
             lock::kill_tree(pid, &|| d.load(Ordering::SeqCst));
@@ -1643,9 +1674,9 @@ impl Stopper<'_> {
             eprintln!("[loki tune] l'essai (PID {pid}) ne s'est pas arrêté dans les temps");
         }
         if before > 0 {
-            gpu_settled(before).await;
+            self.tune.gpu_settled(before).await;
         } else {
-            tokio::time::sleep(self.settle).await;
+            tokio::time::sleep(self.tune.settle).await;
         }
     }
 }
@@ -1744,7 +1775,7 @@ impl<'a> Trialer<'a> {
         let mut stopper = Stopper {
             run: None,
             held: self.held,
-            settle: self.tune.settle,
+            tune: self.tune,
         };
         let log_path = dir.join("engine.log");
         let (out, err) =
@@ -1998,19 +2029,6 @@ fn phys_cores(probe: &tc::Probe) -> i64 {
     crate::serve::threads::physical_cores(root, &online, &atom).unwrap_or(0)
 }
 
-/// `gpuUsedSettled`.
-async fn gpu_settled(before: i64) -> i64 {
-    crate::enginectl::gpu_settle(
-        before,
-        || async {
-            let g = crate::sysinfo::gpu_stats().await;
-            (crate::enginectl::gpu_used_mb(&g), !g.is_empty())
-        },
-        Duration::from_millis(500),
-    )
-    .await
-}
-
 /// La dernière ligne de la sortie, sans couleurs ; vide : `fallback`.
 fn last_line(path: &Path, fallback: &str) -> String {
     let out = std::fs::read(path)
@@ -2173,7 +2191,7 @@ pub async fn serve(
                 ..Default::default()
             };
             if d.int("budget_min") > 0 {
-                opts.budget = Duration::from_secs(d.int("budget_min") as u64 * 60);
+                opts.budget = tune.budget_unit * d.int("budget_min").min(1 << 20) as u32;
             }
             let (code, out) = tune.start(ctx, opts).await;
             send_json(code, &out)
@@ -2204,5 +2222,61 @@ pub async fn serve(
             StatusCode::NOT_FOUND,
             &json!({ "ok": false, "error": "route inconnue" }),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// L'ETA : inconnue (-1) tant qu'aucun essai n'est mesuré ; ensuite la
+    /// moyenne fois les essais restants, bornée par le budget qui reste,
+    /// jamais négative.
+    #[test]
+    fn eta_du_suivi() {
+        let tr = Tracker::new();
+        tr.lock().budget = Duration::from_secs(600);
+        assert_eq!(tr.snapshot()["eta_sec"], json!(-1));
+        assert_eq!(tr.snapshot()["trials"], Value::Null);
+        {
+            let mut st = tr.lock();
+            st.avg_sec = 10.0;
+            st.left = 5;
+        }
+        assert_eq!(tr.snapshot()["eta_sec"], json!(50));
+        tr.lock().left = 100;
+        let eta = tr.snapshot()["eta_sec"].as_f64().unwrap();
+        assert!(eta > 590.0 && eta <= 600.0, "{eta}");
+        tr.lock().started = Instant::now() - Duration::from_secs(700);
+        assert_eq!(tr.snapshot()["eta_sec"], json!(0));
+        // Fin : le temps écoulé s'arrête.
+        let started = tr.lock().started;
+        tr.lock().ended = Some(started + Duration::from_secs(3));
+        assert_eq!(tr.snapshot()["elapsed_sec"], json!(3));
+        // Un essai remplacé à sa place, un nouveau ajouté.
+        let i = tr.put(None, Trial::default());
+        tr.put(
+            Some(i),
+            Trial {
+                label: "a".into(),
+                ..Default::default()
+            },
+        );
+        tr.put(Some(9), Trial::default());
+        let t = tr.snapshot()["trials"].clone();
+        assert_eq!(t.as_array().unwrap().len(), 2);
+        assert_eq!(t[0]["label"], json!("a"));
+    }
+
+    #[test]
+    fn arrondi_a_la_minute() {
+        let m = |s: u64| round_minute(Duration::from_secs(s)).as_secs();
+        assert_eq!(
+            (m(29), m(30), m(89), m(90), m(3600)),
+            (0, 60, 60, 120, 3600)
+        );
+        assert_eq!(build_number("b7000-x"), 7000);
+        assert_eq!(build_number("7000"), 0);
+        assert_eq!(build_number("b"), 0);
     }
 }

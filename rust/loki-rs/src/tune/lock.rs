@@ -213,7 +213,12 @@ pub fn pid_alive(_pid: i64) -> bool {
 
 /// `tuneProcAlive` : `p` désigne-t-il encore le MÊME processus ?
 pub fn proc_alive(p: &Proc) -> bool {
-    let Some((start, exe)) = proc_identity(p.pid) else {
+    same_proc(p, proc_identity(p.pid))
+}
+
+/// [`proc_alive`], l'identité lue (`None` : processus absent).
+pub fn same_proc(p: &Proc, identity: Option<(String, String)>) -> bool {
+    let Some((start, exe)) = identity else {
         return false;
     };
     if !p.start.is_empty() && start != p.start {
@@ -251,6 +256,12 @@ pub fn self_proc() -> Proc {
 /// sondé pour un orphelin d'un ancien Loki).
 #[cfg(unix)]
 pub fn kill_tree(pid: i64, gone: &dyn Fn() -> bool) {
+    kill_tree_within(pid, gone, Duration::from_secs(10));
+}
+
+/// [`kill_tree`], `grace` laissé au SIGTERM.
+#[cfg(unix)]
+pub fn kill_tree_within(pid: i64, gone: &dyn Fn() -> bool, grace: Duration) {
     let Ok(p) = i32::try_from(pid) else {
         return;
     };
@@ -273,7 +284,7 @@ pub fn kill_tree(pid: i64, gone: &dyn Fn() -> bool) {
             libc::kill(p, libc::SIGTERM);
         }
     }
-    if wait(Duration::from_secs(10)) {
+    if wait(grace) {
         return;
     }
     // SAFETY: idem.

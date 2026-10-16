@@ -72,11 +72,13 @@ async fn verrou() {
     drop(l);
     alive.store(true, Ordering::SeqCst);
     let l2 = lf.acquire("web", false, no_reap).await.unwrap();
-    // Un verrou rendu par sa poignée n'emporte pas celui d'un autre.
-    let other = l2.snapshot();
-    l2.release();
+    // Un verrou d'un autre processus (même PID et même prise, autre
+    // démarrage) n'est jamais retiré par release.
+    let mut other = l2.snapshot();
+    other.owner.start = "autre".into();
     std::fs::write(&lf.path, serde_json::to_vec(&other).unwrap()).unwrap();
-    assert!(lf.path.exists());
+    l2.release();
+    assert_eq!(read_owner(&lf.path), Some(other), "verrou d'autrui retiré");
 }
 
 /// Un verrou périmé dans la place, et `acquire` qui le fait écarter.
@@ -213,6 +215,45 @@ async fn menage_jamais_sur_un_verrou_vivant() {
     );
 }
 
+/// Un verrou sans PID n'en est pas un.
+#[test]
+fn verrou_sans_pid() {
+    let tmp = tempfile::tempdir().unwrap();
+    let p = tmp.path().join(LOCK_NAME);
+    std::fs::write(&p, r#"{"owner":{"pid":0},"via":"cli"}"#).unwrap();
+    assert_eq!(read_owner(&p), None);
+    std::fs::write(&p, r#"{"owner":{"pid":-3},"via":"cli"}"#).unwrap();
+    assert_eq!(read_owner(&p), None);
+    std::fs::write(&p, r#"{"owner":{"pid":7},"via":"cli"}"#).unwrap();
+    assert_eq!(read_owner(&p).map(|o| o.owner.pid), Some(7));
+    std::fs::write(&p, r#"{"owner":{"pid":"7"}}"#).unwrap();
+    assert_eq!(read_owner(&p), None, "illisible");
+}
+
+/// `tuneProcAlive` : l'instant de démarrage doit concorder s'il est noté ;
+/// le binaire, s'il est lisible et noté, doit être l'un des admis.
+#[test]
+fn meme_processus() {
+    let id = |s: &str, e: &str| Some((s.to_string(), e.to_string()));
+    let p = Proc {
+        pid: 9,
+        start: "b/1".into(),
+        exes: vec!["/usr/bin/loki".into(), "/opt/llama-server".into()],
+    };
+    assert!(same_proc(&p, id("b/1", "/opt/llama-server")));
+    assert!(same_proc(&p, id("b/1", "/usr/bin/loki")));
+    assert!(!same_proc(&p, id("b/2", "/usr/bin/loki")), "PID recyclé");
+    assert!(!same_proc(&p, id("b/1", "/usr/bin/autre")));
+    // Binaire illisible (droits) : l'instant suffit.
+    assert!(same_proc(&p, id("b/1", "")));
+    assert!(!same_proc(&p, None));
+    let bare = Proc {
+        pid: 9,
+        ..Default::default()
+    };
+    assert!(same_proc(&bare, id("x", "/quoi/que/ce/soit")));
+}
+
 /// `TestTuneSameExeDeleted`.
 #[test]
 fn binaire_remplace() {
@@ -222,6 +263,9 @@ fn binaire_remplace() {
     ));
     assert!(!same_exe("/usr/local/bin/loki", "/usr/bin/llama-server"));
     assert!(!same_exe("", ""));
+    // Un nom vide n'est jamais le même binaire, même face à « . ».
+    assert!(!same_exe(".", ""));
+    assert!(!same_exe("", "."));
 }
 
 /// L'identité d'un processus comme le Go l'écrit : instant de démarrage
@@ -291,4 +335,58 @@ fn arret_du_groupe() {
     waiter.join().unwrap();
     assert!(t0.elapsed() < Duration::from_secs(5), "SIGTERM ignoré ?");
     assert!(!pid_alive(pid));
+
+    // Un essai qui ignore SIGTERM : SIGKILL au groupe après le délai.
+    let mut child = std::process::Command::new("sh")
+        .args(["-c", "trap '' TERM; while :; do sleep 1; done"])
+        .process_group(0)
+        .spawn()
+        .unwrap();
+    let pid = i64::from(child.id());
+    std::thread::sleep(Duration::from_millis(200));
+    let reaped = Arc::new(AtomicBool::new(false));
+    let r = reaped.clone();
+    let waiter = std::thread::spawn(move || {
+        let _ = child.wait();
+        r.store(true, Ordering::SeqCst);
+    });
+    kill_tree_within(
+        pid,
+        &|| reaped.load(Ordering::SeqCst),
+        Duration::from_millis(300),
+    );
+    waiter.join().unwrap();
+    assert!(reaped.load(Ordering::SeqCst), "essai toujours là");
+}
+
+/// `plan_apply` : un résultat qui touche une clé sur option sans l'option
+/// (enregistré par une autre version, ou altéré) est refusé avant toute
+/// écriture ; avec l'option, le preset est réécrit ; une valeur vide retire
+/// la clé.
+#[test]
+fn application_planifiee() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("presets");
+    std::fs::create_dir_all(&dir).unwrap();
+    let content = "# NAME=Dense\nCTX=32768\nUBATCH=2048\nBATCH=1024\n";
+    std::fs::write(dir.join("dense.env"), content).unwrap();
+    let tune = super::job::Tune::new(tmp.path().to_path_buf(), "loki".into());
+    let mut res = super::job::TuneResult {
+        preset_id: "dense".into(),
+        preset_name: "Dense".into(),
+        preset_fp: crate::presets::preset_fingerprint(content),
+        ..Default::default()
+    };
+    res.set.insert("SPEC".into(), "ngram".into());
+    assert_eq!(tune.plan_apply(&res), Err("clé SPEC intouchable".into()));
+    res.opt_in = true;
+    let (before, patched) = tune.plan_apply(&res).unwrap();
+    assert_eq!(before, content);
+    assert!(patched.contains("SPEC=ngram"), "{patched}");
+    res.set.insert("BATCH".into(), String::new());
+    let (_, patched) = tune.plan_apply(&res).unwrap();
+    assert!(
+        !crate::presets::parse_env(&patched).contains_key("BATCH"),
+        "{patched}"
+    );
 }

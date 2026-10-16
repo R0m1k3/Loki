@@ -81,6 +81,9 @@ pub struct FakeGo {
     /// /internal/v1/preset/apply écrit-il le preset dans la configuration
     /// (`applyPresetFile` : clés « appareil » et BIN de la machine gardés) ?
     pub apply_presets: Mutex<bool>,
+    /// Clés que l'application d'un preset ajoute à la configuration (un
+    /// réglage changé ailleurs pendant l'application).
+    pub apply_extra: Mutex<Vec<(String, String)>>,
     /// /internal/v1/chat/generating : le Go écrit une réponse.
     pub generating: Mutex<bool>,
     /// /internal/v1/service/prestart reçus.
@@ -570,6 +573,9 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 }
                 if let Some(bin) = cur.get("BIN").filter(|v| !v.is_empty()) {
                     next.insert("BIN".into(), String::from_utf8_lossy(bin).into_owned());
+                }
+                for (k, v) in st.apply_extra.lock().unwrap().iter() {
+                    next.insert(k.clone(), v.clone());
                 }
                 *cur = next.into_iter().map(|(k, v)| (k, v.into_bytes())).collect();
             }
