@@ -34,9 +34,13 @@
 //! SLOT_PERSIST et le comptage des requêtes en vol passent par le Go (l'hôte,
 //! autour de [`TurnHost::engine_slot`] et de [`TurnHost::send`]).
 //!
+//! Images gardées (KEEP_TURN_IMAGES, lot 32) : une image relayée par un outil
+//! est gardée à l'essai jusqu'à la mesure de son coût par le moteur
+//! ([`super::keepimg`]) ; les images gardées partent avant tout résumé.
+//!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
-//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, préchauffage. Avec l'une de ces clés, le
-//! Go garde la conversation (`facadeChatBlocker`, décidé au démarrage).
+//! PROJ_SNAPSHOT, préchauffage. Avec l'une de ces clés, le Go garde la
+//! conversation (`facadeChatBlocker`, décidé au démarrage).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -51,13 +55,15 @@ use tokio::sync::watch;
 
 use super::compact::cap_tool_result;
 use super::compact::{
-    CompactConfig, compact_needed, compact_would_trigger, context_overflow, estimate_tokens,
-    log_compact, log_ctx, log_ctx_estimate, overflow_tokens, shrink_to_fit,
+    CompactConfig, compact_needed, compact_would_trigger, context_overflow, drop_kept_images,
+    estimate_tokens, log_compact, log_ctx, log_ctx_estimate, log_kept_images_dropped,
+    overflow_tokens, shrink_to_fit,
 };
 use super::engine::{
     LineError, Lines, NET_RETRIES, NetKind, net_delay, retryable, retryable_status,
     stream_cut_error,
 };
+use super::keepimg::{KeepImages, has_kept_images, publishable};
 use super::nudges::{
     MAX_NUDGES, THINK_NUDGE_FIRST, THINK_NUDGE_STUCK, append_nudge, budget_nudge, dedupable_tool,
     log_budget, repeated_call_result, steer_system, tool_result_preview,
@@ -192,6 +198,17 @@ pub trait TurnHost: Send + Sync {
     /// Garde d'écriture du mode Code (`codeWriteGuard`).
     fn preflight(&self) -> Option<PreflightFn> {
         None
+    }
+    /// KEEP_TURN_IMAGES : le budget des images gardées si la clé vaut pour
+    /// ce tour (fil principal, vision active) ; `None` : images éphémères.
+    fn keep_images(&self) -> impl Future<Output = Option<i64>> + Send {
+        async { None }
+    }
+    /// Range par référence l'image d'un relais (`refRelayImage`) : le
+    /// message qui la porte ainsi et son poids en octets ; `None` : elle
+    /// reste éphémère.
+    fn keep_image(&self, _m: &Message) -> impl Future<Output = Option<(Message, i64)>> + Send {
+        async { None }
     }
     /// Slot du moteur où envoyer la requête qui part (`engineSlotFor`) ;
     /// `None` : aucun `id_slot`. Appelé avant chaque requête, moteur local ou
@@ -428,13 +445,46 @@ struct Loop {
     pool_retries: u32,
 }
 
-/// `runChatLoop` : le tour, de la première requête à la réponse finale.
+/// `runChatTools` : le tour, de la première requête à la réponse finale.
+/// KEEP_TURN_IMAGES : en fin de tour, une image gardée à l'essai mais jamais
+/// mesurée redevient éphémère, quelle que soit la sortie de la boucle.
 pub async fn run_turn<H: TurnHost>(
+    host: &H,
+    tc: &TurnConfig,
+    messages: Vec<Message>,
+    cancel: &Cancel,
+    cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+) -> TurnResult {
+    let mut kt = host.keep_images().await.map(KeepImages::new);
+    let mut r = run_turn_loop(host, tc, messages, cancel, cb, &mut kt).await;
+    if let Some(k) = kt.as_mut() {
+        k.finish(&mut r.extra);
+    }
+    r
+}
+
+/// `publishHistory` : publie l'historique réécrit en cours de tour
+/// (compaction, réduction, retrait des images gardées). KEEP_TURN_IMAGES :
+/// une image non gardée n'y entre pas ; sans la clé, tel quel.
+fn publish_history(
+    cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+    kt: &mut Option<KeepImages>,
+    m: &[Message],
+) {
+    if let Some(k) = kt.as_mut() {
+        k.rewritten();
+    }
+    cb(StreamEvent::NewHistory(publishable(kt.as_ref(), m)));
+}
+
+/// `runChatLoop` : la boucle de [`run_turn`].
+async fn run_turn_loop<H: TurnHost>(
     host: &H,
     tc: &TurnConfig,
     mut messages: Vec<Message>,
     cancel: &Cancel,
     cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+    kt: &mut Option<KeepImages>,
 ) -> TurnResult {
     let mut extra: Vec<Message> = Vec::new();
     let mut s = Loop::default();
@@ -451,9 +501,6 @@ pub async fn run_turn<H: TurnHost>(
     if tc.code {
         budget *= super::nudges::CODE_BUDGET_FACTOR;
     }
-    let new_history = |cb: &mut (dyn FnMut(StreamEvent) -> bool + Send), m: &[Message]| {
-        cb(StreamEvent::NewHistory(m.to_vec()));
-    };
     let fail =
         |cb: &mut (dyn FnMut(StreamEvent) -> bool + Send), extra: Vec<Message>, err: String| {
             cb(StreamEvent::Err(err.clone()));
@@ -524,6 +571,10 @@ pub async fn run_turn<H: TurnHost>(
             )
         };
         let t_req = Instant::now();
+        // KEEP_TURN_IMAGES : rien sans la clé.
+        if let Some(k) = kt.as_mut() {
+            k.sending(messages.len());
+        }
         let reply = match cancel.or_stop(host.send(ep, body)).await {
             None => return TurnResult { extra, err: None },
             Some(Ok(r)) => r,
@@ -603,6 +654,18 @@ pub async fn run_turn<H: TurnHost>(
             if s.echo_off_turn {
                 messages = strip_reasoning(&messages).into_owned();
             }
+            // KEEP_TURN_IMAGES : les images gardées partent d'abord, et la
+            // requête est rejouée sans elles ; le résumé (avec perte) ne vient
+            // qu'ensuite, s'il le faut encore.
+            if context_overflow(ccfg, &msg, &messages)
+                && let Some((c, freed)) = drop_kept_images(&messages)
+            {
+                log_kept_images_dropped("réactif", freed);
+                messages = c;
+                extra.clear();
+                publish_history(cb, kt, &messages);
+                continue;
+            }
             let overflow = context_overflow(ccfg, &msg, &messages);
             if ccfg.enabled && !s.compacted_retry && overflow {
                 let Some(c) = cancel
@@ -616,7 +679,7 @@ pub async fn run_turn<H: TurnHost>(
                     log_compact(ccfg, "réactif", 0, &messages, &c, true);
                     messages = c;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }
@@ -628,7 +691,7 @@ pub async fn run_turn<H: TurnHost>(
                     log_compact(ccfg, "réduction", actual, &messages, &c, true);
                     messages = c;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }
@@ -760,6 +823,11 @@ pub async fn run_turn<H: TurnHost>(
                 }
             }
             s.last_est = 0;
+        }
+        // KEEP_TURN_IMAGES : coût des images de l'étape précédente, mesuré sur
+        // cette complétion ; gardées ou rendues éphémères.
+        if let Some(k) = kt.as_mut() {
+            k.observe(complete, &out.stats, &mut messages, &mut extra);
         }
         if out.finish_reason == "length" {
             log_ctx(&format!(
@@ -980,7 +1048,20 @@ pub async fn run_turn<H: TurnHost>(
                 // Plafond pour le MODÈLE seulement : l'UI a reçu le résultat.
                 push_result(&mut messages, &mut extra, cap_tool_result(&ex.result));
                 if let Some(img) = ex.relay {
-                    messages.push(img); // éphémère : jamais dans l'historique
+                    match kt.as_mut() {
+                        // Éphémère : jamais dans l'historique.
+                        None => messages.push(img),
+                        // KEEP_TURN_IMAGES : gardée par référence, à l'essai
+                        // jusqu'à la mesure de son coût.
+                        Some(k) => {
+                            let stored = if k.wants(&messages) {
+                                host.keep_image(&img).await
+                            } else {
+                                None
+                            };
+                            k.relay(&mut messages, &mut extra, img, step_start, stored);
+                        }
+                    }
                 }
             }
             // Compaction EN COURS DE TOUR, sur le contexte réel du dernier appel
@@ -990,6 +1071,21 @@ pub async fn run_turn<H: TurnHost>(
             if base > 0 {
                 used = base + estimate_tokens(&messages[step_start..], &ccfg.echo);
                 s.last_est = used;
+            }
+            // KEEP_TURN_IMAGES : les images gardées partent AVANT tout résumé ;
+            // la compaction ne suit que si elle reste nécessaire.
+            if has_kept_images(&messages)
+                && compact_needed(ccfg, &messages, used, s.peak_gen)
+                && let Some((c, freed)) = drop_kept_images(&messages)
+            {
+                log_kept_images_dropped("en-tour", freed);
+                messages = c;
+                if used > 0 {
+                    used = (used - freed).max(1);
+                    s.last_est = used;
+                }
+                extra.clear();
+                publish_history(cb, kt, &messages);
             }
             if compact_needed(ccfg, &messages, used, s.peak_gen)
                 && !host.compact_refused(used, &messages)
@@ -1016,7 +1112,7 @@ pub async fn run_turn<H: TurnHost>(
                     s.last_est = 0;
                     messages = c;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                 }
             }
             continue;
@@ -1043,6 +1139,18 @@ pub async fn run_turn<H: TurnHost>(
                 && compact_would_trigger(ccfg, &messages, known)
             {
                 s.length_replays += 1;
+                // KEEP_TURN_IMAGES : les images gardées d'abord ; le résumé ne
+                // suit que s'il reste nécessaire.
+                if let Some((c, freed)) = drop_kept_images(&messages) {
+                    log_kept_images_dropped("fenêtre-pleine", freed);
+                    messages = c;
+                    extra.clear();
+                    publish_history(cb, kt, &messages);
+                    if !compact_would_trigger(ccfg, &messages, (known - freed).max(1)) {
+                        cb(StreamEvent::DropReasoning);
+                        continue;
+                    }
+                }
                 cb(StreamEvent::Compacting(true));
                 let c = cancel
                     .or_stop(host.compact(CompactPhase::FullWindow, &messages))
@@ -1063,7 +1171,7 @@ pub async fn run_turn<H: TurnHost>(
                     cb(StreamEvent::DropReasoning);
                     messages = c;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }

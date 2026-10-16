@@ -1992,3 +1992,93 @@ async fn telemetrie_des_resumes() {
     );
     assert_eq!(perfs[1]["complete"], false);
 }
+
+/// Lot 32 : KEEP_TURN_IMAGES tenu par la façade. L'image relayée par un
+/// outil est rangée par le Go, gardée au coût mesuré par le moteur ; au tour
+/// suivant, clé retirée, elle part d'abord (légende et marque gardées).
+#[tokio::test]
+async fn images_gardees_par_la_facade() {
+    use loki_rs::chat::compact::{IMAGE_LOST_MARKER, msg_tokens};
+    use loki_rs::chat::types::Message;
+    let tool = Message {
+        role: "tool".into(),
+        tool_call_id: "c1".into(),
+        content: Some(serde_json::json!("exec:bash")),
+        ..Default::default()
+    };
+    let prompt2 = 1020 + msg_tokens(&tool) + 300;
+    let (url, seen) = fake_engine(vec![
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1000,"completion_tokens":20}}),
+        ]),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content": "vu"}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":prompt2,"completion_tokens":5}}),
+        ]),
+        answer("ensuite"),
+    ])
+    .await;
+    let (svc, go, _stop, t) = service(Some(&url)).await;
+    // Le fichier que le Go range (ici, le faux ne l'écrit pas).
+    std::fs::create_dir_all(t.path().join("chatimg")).unwrap();
+    std::fs::write(t.path().join("chatimg/k1.png"), b"\x89PNG\r\n").unwrap();
+    go.set("config", "KEEP_TURN_IMAGES", "on");
+    *go.keep_vision.lock().unwrap() = true;
+    *go.tool_relay.lock().unwrap() = Some(serde_json::json!({
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Voici la capture demandée."},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0K"}}
+        ]
+    }));
+    svc.send(serde_json::json!({"message": "capture", "cid": "k1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+    // Rangée par le Go, vue en data-URL par le moteur.
+    assert_eq!(go.keep_stores.lock().unwrap().len(), 1);
+    let sent = seen.lock().unwrap()[1].1.clone();
+    let relay = &sent["messages"].as_array().unwrap()[4];
+    assert_eq!(
+        relay["content"][1]["image_url"]["url"],
+        "data:image/png;base64,iVBORw0K"
+    );
+    assert!(relay.get("img_relay").is_none(), "marque envoyée au moteur");
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let kept = msgs.iter().find(|m| m.img_relay).expect("relais gardé");
+    assert_eq!(kept.img_tokens, 300);
+    assert_eq!(
+        kept.content.as_ref().unwrap()[1]["image_url"]["url"],
+        "loki-img:k1.png"
+    );
+
+    // Clé retirée : l'image gardée part au début du tour suivant.
+    go.set("config", "KEEP_TURN_IMAGES", "off");
+    svc.send(serde_json::json!({"message": "et ensuite ?", "cid": "k2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let stub = msgs
+        .iter()
+        .find(|m| m.img_relay)
+        .expect("relais gardé en légende");
+    assert_eq!(stub.img_tokens, 0);
+    assert_eq!(
+        stub.content,
+        Some(serde_json::json!(format!(
+            "Voici la capture demandée.{IMAGE_LOST_MARKER}"
+        )))
+    );
+    let sent = seen.lock().unwrap()[2].1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| !m["content"].to_string().contains("image_url")),
+        "image encore envoyée : {sent}"
+    );
+}

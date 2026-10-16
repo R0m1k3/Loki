@@ -416,7 +416,7 @@ pub(crate) fn is_loki_injected(m: &Message) -> bool {
 
 /// `dropKeptImages` : copie où chaque image gardée devient sa légende suivie
 /// d'[`IMAGE_LOST_MARKER`], et coût libéré. `None` : aucune image gardée.
-fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
+pub fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
     if !msgs.iter().any(|m| m.img_tokens > 0) {
         return None;
     }
@@ -441,7 +441,7 @@ fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
     Some((out, freed))
 }
 
-fn log_kept_images_dropped(phase: &str, freed: i64) {
+pub fn log_kept_images_dropped(phase: &str, freed: i64) {
     eprintln!("[images] {phase} : images gardées retirées ({freed} jetons)");
 }
 

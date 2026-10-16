@@ -28,6 +28,7 @@ pub mod generate;
 pub mod history;
 pub mod host;
 pub mod journal;
+pub mod keepimg;
 pub mod lease;
 pub mod nudges;
 pub mod perf;

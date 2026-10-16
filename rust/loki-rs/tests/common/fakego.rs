@@ -132,6 +132,11 @@ pub struct FakeGo {
     /// reçues (« conv main »).
     pub turn_side_live: Mutex<bool>,
     pub turn_slots: Mutex<Vec<String>>,
+    /// Message relayé par chaque outil exécuté ici (image d'une capture).
+    pub tool_relay: Mutex<Option<serde_json::Value>>,
+    /// /internal/v1/turn/keepimg : vision active ; rangements reçus.
+    pub keep_vision: Mutex<bool>,
+    pub keep_stores: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeGo {
@@ -648,11 +653,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let result = by_name
                 .or_else(|| st.tool_result.lock().unwrap().clone())
                 .unwrap_or_else(|| format!("exec:{}", v["name"].as_str().unwrap()));
-            let out = serde_json::json!({
+            let mut out = serde_json::json!({
                 "label": v["args"]["command"],
                 "result": result,
                 "caps_agent": v["caps"]["Agent"],
             });
+            if let Some(r) = st.tool_relay.lock().unwrap().clone() {
+                out["relay"] = r;
+            }
             resp(200, out.to_string())
         }
         "/internal/v1/oai/route" => {
@@ -686,6 +694,24 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(200, serde_json::json!({ "refuse": r }).to_string());
             }
             resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/turn/keepimg" => {
+            let v = serde_json::json!({
+                "vision": *st.keep_vision.lock().unwrap(),
+                "budget": 3276,
+            });
+            resp(200, v.to_string())
+        }
+        "/internal/v1/turn/keepimg/store" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let mut msg = v["msg"].clone();
+            st.keep_stores.lock().unwrap().push(msg.clone());
+            msg["content"][1]["image_url"]["url"] = serde_json::json!("loki-img:k1.png");
+            resp(
+                200,
+                serde_json::json!({ "ok": true, "msg": msg, "weight": 4 }).to_string(),
+            )
         }
         "/internal/v1/turn/slot" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

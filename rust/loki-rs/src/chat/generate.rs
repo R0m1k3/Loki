@@ -22,15 +22,17 @@
 //! corrections du builder) suit le tour, avant la compaction de fin
 //! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
 //!
-//! Écarts assumés (restent au Go) : PROJ_SNAPSHOT et KEEP_TURN_IMAGES
-//! (refusés par `/turn/view`), préchauffage. La télémétrie des complétions
+//! Écarts assumés (restent au Go) : PROJ_SNAPSHOT (refusé par
+//! `/turn/view`), préchauffage. Les images gardées (KEEP_TURN_IMAGES, lot 32)
+//! partent en début et en fin de tour quand il le faut
+//! ([`ChatService::kept_images_turn_start`]). La télémétrie des complétions
 //! (tours, vérifications, résumés) rejoint l'anneau du Go
 //! (`/internal/v1/turn/perf`) ; les motifs `retry_patterns` personnalisés
 //! sont lus au démarrage ([`retry_patterns`]). Chaque requête au moteur local
 //! part sur le slot que rend le Go (SIDE_SLOT, rechargement SLOT_PERSIST,
 //! lot 31).
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -42,14 +44,18 @@ use tokio::sync::watch;
 
 use super::compact::{
     CompactCaps, CompactConfig, CompactOpts, Compactor, TurnView, compact_needed, compact_opts_for,
-    ctx_pending, estimate_tokens, log_compact, log_ctx_estimate, strip_context_updates,
+    ctx_pending, drop_kept_images, estimate_tokens, log_compact, log_ctx_estimate,
+    log_kept_images_dropped, strip_context_updates,
 };
 use super::engine::EngineHttp;
 use super::history::{
     drop_stray_nudges, history_from_view, inject_prefix, remind_read_mem_pages, tool_used_delta,
 };
-use super::host::{ChatShared, EngineSummarizer, GoTurnHost, StoreRecall, TurnCompact};
+use super::host::{
+    ChatShared, EngineSummarizer, GoTurnHost, StoreRecall, TurnCompact, keep_images_state,
+};
 use super::journal::Delta;
+use super::keepimg::{has_kept_images, keep_turn_images_on};
 use super::lease::{EngineLease, LEASE_TTL, LeaseError, LeaseSignal, engine_stop};
 use super::sessions::{GoSessionHooks, Sessions};
 use super::turn::{Cancel, TurnConfig, run_turn};
@@ -410,6 +416,55 @@ impl ChatService {
         }
     }
 
+    /// `keptImagesTurnStart` : début (ou fin) d'un tour. Les images gardées
+    /// (KEEP_TURN_IMAGES) sont retirées d'abord — avant toute compaction, qui
+    /// ne résume alors que si c'est encore nécessaire — quand le contexte la
+    /// réclame, ou quand elles ne doivent plus partir : clé retirée, vision
+    /// absente (un moteur sans projecteur refuserait la requête). Rend
+    /// l'historique et le contexte à jour.
+    async fn kept_images_turn_start(
+        &self,
+        epoch: i64,
+        cfg: &HashMap<String, String>,
+        ccfg: &CompactConfig,
+        msgs: Vec<Message>,
+        ctx_used: i64,
+        peak: i64,
+    ) -> (Vec<Message>, i64) {
+        if !has_kept_images(&msgs) {
+            return (msgs, ctx_used);
+        }
+        if keep_turn_images_on(cfg)
+            && matches!(keep_images_state(&self.shared.store).await, Some((true, _)))
+            && !compact_needed(ccfg, &msgs, ctx_used, peak)
+        {
+            return (msgs, ctx_used);
+        }
+        let Some((out, freed)) = drop_kept_images(&msgs) else {
+            return (msgs, ctx_used);
+        };
+        log_kept_images_dropped("début-tour", freed);
+        let ctx_used = if ctx_used > 0 {
+            (ctx_used - freed).max(1)
+        } else {
+            ctx_used
+        };
+        let conv = self.sessions.conv();
+        let cur = conv
+            .with_state_if(epoch, |st| {
+                st.messages = out.clone();
+                if st.ctx_used > 0 {
+                    st.ctx_used = (st.ctx_used - freed).max(1);
+                }
+                st.ctx_used
+            })
+            .unwrap_or(0);
+        if cur > 0 {
+            conv.append_delta(epoch, obj("ctx_used", cur));
+        }
+        (out, ctx_used)
+    }
+
     /// `compactAndPublish` : bannière, journal, installation du résultat,
     /// jauge de contexte. Rend l'historique compacté, `None` s'il n'a pas
     /// changé.
@@ -718,10 +773,15 @@ impl ChatService {
             let peak = std::mem::take(&mut st.gen_peak);
             (msgs, used, peak)
         });
-        let Some((mut msgs, ctx_used, peak)) = snap else {
+        let Some((msgs, ctx_used, peak)) = snap else {
             lease.release().await;
             return;
         };
+        // KEEP_TURN_IMAGES : images gardées retirées d'abord si le contexte le
+        // demande ou si elles ne doivent plus partir.
+        let (mut msgs, ctx_used) = self
+            .kept_images_turn_start(epoch, &cfg, &ccfg, msgs, ctx_used, peak)
+            .await;
 
         // Compaction de début de tour.
         let mut start_est = ctx_used;
@@ -972,7 +1032,13 @@ impl ChatService {
         }
 
         // Compaction de fin de tour : la jauge retombe tout de suite, le tour
-        // suivant démarre avec de la marge. Pas après un stop.
+        // suivant démarre avec de la marge. Pas après un stop. Les images
+        // gardées partent d'abord, comme en début de tour.
+        if !cancel.is_cancelled() {
+            (msgs, ctx_used) = self
+                .kept_images_turn_start(epoch, &cfg, &ccfg, msgs, ctx_used, peak)
+                .await;
+        }
         if !cancel.is_cancelled()
             && compact_needed(&ccfg, &msgs, ctx_used, peak)
             && !self

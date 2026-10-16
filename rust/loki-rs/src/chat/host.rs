@@ -420,6 +420,22 @@ pub async fn engine_begin(store: &Store, main_conv: &str, side: bool) -> Option<
     }
 }
 
+/// KEEP_TURN_IMAGES (lot 32) : la vision est-elle réellement active
+/// (projecteur déclaré et vu par le moteur) et le budget des images gardées.
+/// Go injoignable : `None` (images éphémères).
+pub async fn keep_images_state(store: &Store) -> Option<(bool, i64)> {
+    match store
+        .internal_post("/internal/v1/turn/keepimg", &json!({}))
+        .await
+    {
+        Ok((code, v)) if code.is_success() => Some((
+            v["vision"].as_bool().unwrap_or(false),
+            v["budget"].as_i64().unwrap_or(0),
+        )),
+        _ => None,
+    }
+}
+
 /// Rend le ticket « en vol » au Go quand la réponse du moteur est lue ou
 /// abandonnée (`engineRequestBeginSide` … `end`).
 pub struct GateTicket {
@@ -702,6 +718,35 @@ impl TurnHost for GoTurnHost {
 
     fn echo_refuse(&self, model: &str) {
         self.shared.echo_refusals.refuse(model);
+    }
+
+    async fn keep_images(&self) -> Option<i64> {
+        // Fil principal d'une discussion seulement : la vérification ne
+        // persiste pas son historique.
+        if !super::keepimg::keep_turn_images_on(&self.cfg)
+            || self.perf_kind != super::perf::KIND_MAIN
+            || self.conv_id.is_empty()
+        {
+            return None;
+        }
+        match keep_images_state(&self.shared.store).await {
+            Some((true, budget)) => Some(budget),
+            _ => None,
+        }
+    }
+
+    async fn keep_image(&self, m: &Message) -> Option<(Message, i64)> {
+        let (code, v) = self
+            .shared
+            .store
+            .internal_post("/internal/v1/turn/keepimg/store", &json!({ "msg": m }))
+            .await
+            .ok()?;
+        if !code.is_success() || v["ok"] != true {
+            return None;
+        }
+        let msg: Message = serde_json::from_value(v["msg"].clone()).ok()?;
+        Some((msg, v["weight"].as_i64().unwrap_or(0)))
     }
 
     async fn engine_slot(&self, ep: &ChatEndpoint) -> Option<u8> {
