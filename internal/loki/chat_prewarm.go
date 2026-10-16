@@ -245,6 +245,8 @@ func prewarmNearMidnight(now time.Time) bool {
 
 // Points d'accroche remplaçables par les tests.
 var (
+	// prewarmNow : l'heure du garde-fou de minuit.
+	prewarmNow = time.Now
 	// prewarmAsync : false = le préchauffage tourne dans l'appelant (tests).
 	prewarmAsync = true
 	// prewarmSlots : nombre de slots du moteur local (/props total_slots).
@@ -375,7 +377,7 @@ func (c *Conversation) prewarm(why string) {
 			return
 		}
 	}
-	if sideJobs.Load() > 0 || benchRunning() || tuneGuard() != nil || prewarmNearMidnight(time.Now()) {
+	if sideJobs.Load() > 0 || benchRunning() || tuneGuard() != nil || prewarmNearMidnight(prewarmNow()) {
 		return
 	}
 	if !healthCheck() {

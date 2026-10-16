@@ -1,0 +1,3980 @@
+{
+  "steps": [
+    {
+      "name": "statut sans bench",
+      "config": {
+        "CACHE_ISOLATE": "off",
+        "CTX": "16384",
+        "MIN_P": "0.05",
+        "MODEL": "/models/qwen.gguf",
+        "PORT": "{{PORT}}",
+        "REASONING": "off",
+        "TOP_K": "40"
+      },
+      "files": {
+        "presets/qwen.env": "MODEL=/models/qwen.gguf\nPORT={{PORT}}\nCTX=16384\nTOP_K=40\nMIN_P=0.05\nREASONING=off\nCACHE_ISOLATE=off\n"
+      },
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "GET",
+      "path": "/api/bench/status",
+      "status": 200,
+      "out": {
+        "id": "",
+        "mode": "",
+        "ok": true,
+        "running": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "dernier bench : aucun",
+      "method": "GET",
+      "path": "/api/bench/last",
+      "status": 200,
+      "out": {
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "lancement en GET",
+      "method": "GET",
+      "path": "/api/bench",
+      "status": 405,
+      "out": {
+        "error": "méthode GET refusée : POST attendu",
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "annulation en GET",
+      "method": "GET",
+      "path": "/api/bench/cancel",
+      "status": 405,
+      "out": {
+        "error": "méthode GET refusée : POST attendu",
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "annulation sans bench",
+      "method": "POST",
+      "path": "/api/bench/cancel",
+      "status": 200,
+      "out": {
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "preset externe",
+      "config": {
+        "EXTERNAL": "1"
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 400,
+      "out": {
+        "error": "benchmark indisponible : le preset actif est une API externe",
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "optimisation en cours",
+      "config": {
+        "EXTERNAL": ""
+      },
+      "tune": true,
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "modèle pas prêt",
+      "config": {
+        "PORT": "{{CLOSED}}"
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 503,
+      "out": {
+        "error": "⏳ Le modèle est encore en train de charger — réessaie dans quelques secondes.",
+        "ok": false
+      },
+      "calls": [],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "génération en cours",
+      "config": {
+        "PORT": "{{PORT}}"
+      },
+      "generating": true,
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 409,
+      "out": {
+        "error": "génération en cours",
+        "ok": false
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        }
+      ],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "moteur occupé par un autre",
+      "engine": {
+        "n_ctx": 16384,
+        "busy": true
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "le moteur traite déjà une requête : relance le bench une fois libre",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "démarrage",
+        "running": false,
+        "step": 0,
+        "steps": 0
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        }
+      ],
+      "last": null,
+      "presets": null
+    },
+    {
+      "name": "mode rapide",
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "dernier bench",
+      "method": "GET",
+      "path": "/api/bench/last",
+      "status": 200,
+      "out": {
+        "at": "{{T}}",
+        "model": "qwen.gguf",
+        "ok": true,
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "calls": [],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "mode complet",
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\" FULL \"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "tour 3/3 en profondeur",
+        "result": {
+          "depth": {
+            "cached_per_second": 2000,
+            "cold": {
+              "cached": 0,
+              "draft": {
+                "accepted": 7,
+                "n": 10
+              },
+              "expected": 0,
+              "new": 7672,
+              "predicted_ms": 5120,
+              "predicted_n": 256,
+              "predicted_per_second": 50,
+              "prompt_ms": 3836,
+              "prompt_per_second": 2000
+            },
+            "ctx": 16384,
+            "decode_per_second": 50,
+            "draft": {
+              "accepted": 21,
+              "n": 30
+            },
+            "reuse": 1,
+            "target": 7648,
+            "turns": [
+              {
+                "cached": 7672,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 7672,
+                "new": 2076,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1038,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 9748,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 9748,
+                "new": 2075,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1037.5,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 11823,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 11823,
+                "new": 2078,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1039,
+                "prompt_per_second": 2000
+              }
+            ]
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 6,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8263 octets 273e9def4ac3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8263 octets 273e9def4ac3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8273 octets 6c5196e1654d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "depth": {
+            "cached_per_second": 2000,
+            "cold": {
+              "cached": 0,
+              "draft": {
+                "accepted": 7,
+                "n": 10
+              },
+              "expected": 0,
+              "new": 7672,
+              "predicted_ms": 5120,
+              "predicted_n": 256,
+              "predicted_per_second": 50,
+              "prompt_ms": 3836,
+              "prompt_per_second": 2000
+            },
+            "ctx": 16384,
+            "decode_per_second": 50,
+            "draft": {
+              "accepted": 21,
+              "n": 30
+            },
+            "reuse": 1,
+            "target": 7648,
+            "turns": [
+              {
+                "cached": 7672,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 7672,
+                "new": 2076,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1038,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 9748,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 9748,
+                "new": 2075,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1037.5,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 11823,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 11823,
+                "new": 2078,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1039,
+                "prompt_per_second": 2000
+              }
+            ]
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "depth": {
+              "cached_per_second": 2000,
+              "cold": {
+                "cached": 0,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 0,
+                "new": 7672,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 3836,
+                "prompt_per_second": 2000
+              },
+              "ctx": 16384,
+              "decode_per_second": 50,
+              "draft": {
+                "accepted": 21,
+                "n": 30
+              },
+              "reuse": 1,
+              "target": 7648,
+              "turns": [
+                {
+                  "cached": 7672,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 7672,
+                  "new": 2076,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1038,
+                  "prompt_per_second": 2000
+                },
+                {
+                  "cached": 9748,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 9748,
+                  "new": 2075,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1037.5,
+                  "prompt_per_second": 2000
+                },
+                {
+                  "cached": 11823,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 11823,
+                  "new": 2078,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1039,
+                  "prompt_per_second": 2000
+                }
+              ]
+            },
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "full",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "mode complet, contexte trop petit",
+      "engine": {
+        "n_ctx": 4096
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "result": {
+          "depth": {
+            "ctx": 4096,
+            "reuse": -1,
+            "skipped": "contexte de 4096 jetons trop petit pour la mesure en profondeur",
+            "target": 0
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "depth": {
+            "ctx": 4096,
+            "reuse": -1,
+            "skipped": "contexte de 4096 jetons trop petit pour la mesure en profondeur",
+            "target": 0
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "depth": {
+              "ctx": 4096,
+              "reuse": -1,
+              "skipped": "contexte de 4096 jetons trop petit pour la mesure en profondeur",
+              "target": 0
+            },
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "full",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "contexte inconnu du moteur : celui du preset",
+      "engine": {
+        "n_ctx": 0
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "tour 3/3 en profondeur",
+        "result": {
+          "depth": {
+            "cached_per_second": 2000,
+            "cold": {
+              "cached": 0,
+              "draft": {
+                "accepted": 7,
+                "n": 10
+              },
+              "expected": 0,
+              "new": 7672,
+              "predicted_ms": 5120,
+              "predicted_n": 256,
+              "predicted_per_second": 50,
+              "prompt_ms": 3836,
+              "prompt_per_second": 2000
+            },
+            "ctx": 16384,
+            "decode_per_second": 50,
+            "draft": {
+              "accepted": 21,
+              "n": 30
+            },
+            "reuse": 1,
+            "target": 7648,
+            "turns": [
+              {
+                "cached": 7672,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 7672,
+                "new": 2076,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1038,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 9748,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 9748,
+                "new": 2075,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1037.5,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 11823,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 11823,
+                "new": 2078,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1039,
+                "prompt_per_second": 2000
+              }
+            ]
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 6,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8263 octets 273e9def4ac3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8263 octets 273e9def4ac3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8273 octets 6c5196e1654d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "depth": {
+            "cached_per_second": 2000,
+            "cold": {
+              "cached": 0,
+              "draft": {
+                "accepted": 7,
+                "n": 10
+              },
+              "expected": 0,
+              "new": 7672,
+              "predicted_ms": 5120,
+              "predicted_n": 256,
+              "predicted_per_second": 50,
+              "prompt_ms": 3836,
+              "prompt_per_second": 2000
+            },
+            "ctx": 16384,
+            "decode_per_second": 50,
+            "draft": {
+              "accepted": 21,
+              "n": 30
+            },
+            "reuse": 1,
+            "target": 7648,
+            "turns": [
+              {
+                "cached": 7672,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 7672,
+                "new": 2076,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1038,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 9748,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 9748,
+                "new": 2075,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1037.5,
+                "prompt_per_second": 2000
+              },
+              {
+                "cached": 11823,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 11823,
+                "new": 2078,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 1039,
+                "prompt_per_second": 2000
+              }
+            ]
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "depth": {
+              "cached_per_second": 2000,
+              "cold": {
+                "cached": 0,
+                "draft": {
+                  "accepted": 7,
+                  "n": 10
+                },
+                "expected": 0,
+                "new": 7672,
+                "predicted_ms": 5120,
+                "predicted_n": 256,
+                "predicted_per_second": 50,
+                "prompt_ms": 3836,
+                "prompt_per_second": 2000
+              },
+              "ctx": 16384,
+              "decode_per_second": 50,
+              "draft": {
+                "accepted": 21,
+                "n": 30
+              },
+              "reuse": 1,
+              "target": 7648,
+              "turns": [
+                {
+                  "cached": 7672,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 7672,
+                  "new": 2076,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1038,
+                  "prompt_per_second": 2000
+                },
+                {
+                  "cached": 9748,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 9748,
+                  "new": 2075,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1037.5,
+                  "prompt_per_second": 2000
+                },
+                {
+                  "cached": 11823,
+                  "draft": {
+                    "accepted": 7,
+                    "n": 10
+                  },
+                  "expected": 11823,
+                  "new": 2078,
+                  "predicted_ms": 5120,
+                  "predicted_n": 256,
+                  "predicted_per_second": 50,
+                  "prompt_ms": 1039,
+                  "prompt_per_second": 2000
+                }
+              ]
+            },
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "full",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "paramètres bornés",
+      "engine": {
+        "n_ctx": 65536
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"prompt\":99999,\"n\":9999,\"mode\":\"quick\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (32768 + 4096 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 81920,
+          "predicted_n": 4096,
+          "predicted_per_second": 50,
+          "prompt_ms": 16403,
+          "prompt_n": 32806,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "content": "<131209 octets a079a2b6a1db>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 81920,
+          "predicted_n": 4096,
+          "predicted_per_second": 50,
+          "prompt_ms": 16403,
+          "prompt_n": 32806,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 81920,
+            "predicted_n": 4096,
+            "predicted_per_second": 50,
+            "prompt_ms": 16403,
+            "prompt_n": 32806,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "petits paramètres",
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"prompt\":100,\"n\":8}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (100 + 8 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 160,
+          "predicted_n": 8,
+          "predicted_per_second": 50,
+          "prompt_ms": 69.5,
+          "prompt_n": 139,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 8,
+            "messages": [
+              {
+                "content": "<542 octets 4782ba6c4bb7>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 160,
+          "predicted_n": 8,
+          "predicted_per_second": 50,
+          "prompt_ms": 69.5,
+          "prompt_n": 139,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 160,
+            "predicted_n": 8,
+            "predicted_per_second": 50,
+            "prompt_ms": 69.5,
+            "prompt_n": 139,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "corps illisible : défauts",
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"prompt\":\"beaucoup\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "le préchauffage échoue",
+      "engine": {
+        "n_ctx": 16384,
+        "fail_at": 1
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "préchauffage : POST /v1/chat/completions : 500 Internal Server Error {\"error\":\"boom\"}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "préchauffage",
+        "running": false,
+        "step": 1,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "la ligne courte échoue",
+      "engine": {
+        "n_ctx": 16384,
+        "fail_at": 2
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "ligne courte : POST /v1/chat/completions : 500 Internal Server Error {\"error\":\"boom\"}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "running": false,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "le prefill à froid échoue",
+      "engine": {
+        "n_ctx": 16384,
+        "fail_at": 3
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "prefill à froid : POST /v1/chat/completions : 500 Internal Server Error {\"error\":\"boom\"}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "prefill à froid (7648 jetons)",
+        "running": false,
+        "step": 3,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "un tour en profondeur échoue",
+      "engine": {
+        "n_ctx": 16384,
+        "fail_at": 5
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "tour 2 en profondeur : POST /v1/chat/completions : 500 Internal Server Error {\"error\":\"boom\"}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "tour 2/3 en profondeur",
+        "running": false,
+        "step": 5,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8263 octets 273e9def4ac3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "sans timings",
+      "engine": {
+        "n_ctx": 16384,
+        "no_timing": true
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "préchauffage : le moteur n'a pas renvoyé de mesures (timings) : rien à enregistrer",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "préchauffage",
+        "running": false,
+        "step": 1,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "niveau de raisonnement refusé puis rejoué",
+      "config": {
+        "REASONING": "",
+        "REASONING_EFFORT": "high"
+      },
+      "engine": {
+        "n_ctx": 16384,
+        "reject_effort": "high"
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "reasoning_effort": "high"
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "reasoning_effort": "high",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "reasoning_effort": "xhigh"
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "reasoning_effort": "xhigh",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "reasoning_effort": "xhigh"
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "reasoning_effort": "xhigh",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "niveau appris : envoyé d'emblée",
+      "engine": {
+        "n_ctx": 16384,
+        "reject_effort": "high"
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "ligne courte (2000 + 300 jetons)",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": true,
+        "step": 2,
+        "steps": 2
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "reasoning_effort": "xhigh"
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "reasoning_effort": "xhigh",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "reasoning_effort": "xhigh"
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "reasoning_effort": "xhigh",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "budget d'une requête dépassé : profondeur partielle",
+      "config": {
+        "REASONING": "off",
+        "REASONING_EFFORT": ""
+      },
+      "engine": {
+        "n_ctx": 16384,
+        "slow_hot_ms": 400,
+        "timeout_ms": 150
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "elapsed_sec": "{{T}}",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "tour 1/3 en profondeur",
+        "result": {
+          "depth": {
+            "cold": {
+              "cached": 0,
+              "draft": {
+                "accepted": 7,
+                "n": 10
+              },
+              "expected": 0,
+              "new": 7672,
+              "predicted_ms": 5120,
+              "predicted_n": 256,
+              "predicted_per_second": 50,
+              "prompt_ms": 3836,
+              "prompt_per_second": 2000
+            },
+            "ctx": 16384,
+            "partial": "tour 1 interrompu après 150ms",
+            "reuse": -1,
+            "reuse_note": "le moteur ne dit pas combien de jetons il reprend du cache",
+            "target": 7648
+          },
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "full",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        },
+        "running": false,
+        "saved": false,
+        "step": 4,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "annulation pendant la profondeur",
+      "engine": {
+        "n_ctx": 16384,
+        "slow_hot_ms": 20000
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{\"mode\":\"full\"}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "again": true,
+      "again_out": {
+        "error": "un benchmark tourne déjà",
+        "ok": false
+      },
+      "cancel_at": "tour 1/",
+      "job": {
+        "canceled": true,
+        "elapsed_sec": "{{T}}",
+        "error": "benchmark annulé",
+        "id": "{{ID}}",
+        "mode": "full",
+        "ok": true,
+        "phase": "tour 1/3 en profondeur",
+        "running": false,
+        "step": 4,
+        "steps": 6
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/slots"
+        },
+        {
+          "method": "GET",
+          "path": "/props"
+        },
+        {
+          "body": {
+            "content": "<163664 octets b7452851885a>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "content": "<3561 octets f977dc7d4950>"
+          },
+          "method": "POST",
+          "path": "/tokenize"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 32,
+            "messages": [
+              {
+                "content": "<4110 octets c386aa380c09>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 300,
+            "messages": [
+              {
+                "content": "<8129 octets ae9cc838495d>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": false,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        },
+        {
+          "body": {
+            "cache_prompt": true,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            },
+            "max_tokens": 256,
+            "messages": [
+              {
+                "content": "<30673 octets 41db43c5b144>",
+                "role": "user"
+              },
+              {
+                "content": "réponse",
+                "role": "assistant"
+              },
+              {
+                "content": "<8264 octets eb0a24749ba3>",
+                "role": "user"
+              }
+            ],
+            "min_p": 0.05,
+            "model": "loki",
+            "seed": 1234,
+            "stream": false,
+            "temperature": 0.7,
+            "top_k": 40
+          },
+          "method": "POST",
+          "path": "/v1/chat/completions"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "preset Strata",
+      "config": {
+        "ENGINE": "strata"
+      },
+      "engine": {
+        "n_ctx": 16384
+      },
+      "method": "POST",
+      "path": "/api/bench",
+      "body": "{}",
+      "status": 202,
+      "out": {
+        "id": "{{ID}}",
+        "ok": true
+      },
+      "wait": true,
+      "job": {
+        "canceled": false,
+        "elapsed_sec": "{{T}}",
+        "error": "benchmark indisponible : le preset actif tourne sur Strata (le débit s'affiche sous chaque réponse)",
+        "id": "{{ID}}",
+        "mode": "quick",
+        "ok": true,
+        "phase": "démarrage",
+        "running": false,
+        "step": 0,
+        "steps": 0
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "path": "/health"
+        }
+      ],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "dernier bench, inchangé",
+      "config": {
+        "ENGINE": ""
+      },
+      "method": "GET",
+      "path": "/api/bench/last",
+      "status": 200,
+      "out": {
+        "at": "{{T}}",
+        "model": "qwen.gguf",
+        "ok": true,
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "calls": [],
+      "last": {
+        "at": "{{T}}",
+        "fingerprint": "{{FP}}",
+        "model": "qwen.gguf",
+        "result": {
+          "draft": {
+            "accepted": 7,
+            "n": 10
+          },
+          "elapsed_sec": "{{T}}",
+          "engine": "b9999-test",
+          "kv": "f16",
+          "mode": "quick",
+          "predicted_ms": 6000,
+          "predicted_n": 300,
+          "predicted_per_second": 50,
+          "prompt_ms": 1018,
+          "prompt_n": 2036,
+          "prompt_per_second": 2000,
+          "protocol": 2
+        }
+      },
+      "presets": {
+        "qwen": {
+          "at": "{{T}}",
+          "fingerprint": "{{FP}}",
+          "model": "qwen.gguf",
+          "result": {
+            "draft": {
+              "accepted": 7,
+              "n": 10
+            },
+            "elapsed_sec": "{{T}}",
+            "engine": "b9999-test",
+            "kv": "f16",
+            "mode": "quick",
+            "predicted_ms": 6000,
+            "predicted_n": 300,
+            "predicted_per_second": 50,
+            "prompt_ms": 1018,
+            "prompt_n": 2036,
+            "prompt_per_second": 2000,
+            "protocol": 2
+          }
+        }
+      }
+    }
+  ]
+}

@@ -79,6 +79,11 @@ func (m *moteurPrewarm) completions() []string {
 // prewarmSetup : base neuve, discussion active, faux moteur à un slot,
 // préchauffage synchrone. keys : réglages posés.
 func prewarmSetup(t *testing.T, keys map[string]string) *moteurPrewarm {
+	// Le préchauffage se tait dans les dix minutes avant minuit : midi ici,
+	// pour que les tests ne dépendent pas de l'heure à laquelle ils tournent.
+	oldNow := prewarmNow
+	prewarmNow = func() time.Time { return time.Date(2026, 1, 1, 12, 0, 0, 0, time.Local) }
+	t.Cleanup(func() { prewarmNow = oldNow })
 	t.Helper()
 	withWorkspace(t)
 	activeProjMu.Lock()

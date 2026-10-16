@@ -181,6 +181,8 @@ func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
 		held, unavailable = facadeStrata, "Strata indisponible : "
 	case facadeTasksRoutes[path]:
 		held, unavailable = facadeTasks, "tâches indisponibles : "
+	case facadeBenchRoutes[path]:
+		held, unavailable = facadeBench, "banc d'essai indisponible : "
 	default:
 		return h
 	}

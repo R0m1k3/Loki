@@ -183,6 +183,9 @@ fn serve() -> ExitCode {
         // LOKI_TASKS=rust : les tâches planifiées (routes, planificateur,
         // tâches script) ; une tâche IA reste exécutée par le Go.
         let tasks_rust = held_by_facade("LOKI_TASKS");
+        // LOKI_BENCH=rust : le banc d'essai (routes, job, protocole) ; le
+        // verrou de génération reste celui du Go, pris par le bail du moteur.
+        let bench_rust = held_by_facade("LOKI_BENCH");
         let engine_rust = held_by_facade("LOKI_ENGINE")
             && match loki_rs::enginectl::usable(
                 std::env::var("LOKI_CONTAINER").ok().as_deref(),
@@ -218,6 +221,7 @@ fn serve() -> ExitCode {
             ("LOKI_ENGINE_IMAGE", engineimg_rust),
             ("LOKI_STRATA", strata_rust),
             ("LOKI_TASKS", tasks_rust),
+            ("LOKI_BENCH", bench_rust),
         ];
         for (var, on) in held {
             if on {
@@ -351,6 +355,8 @@ fn serve() -> ExitCode {
         });
         let tasks = tasks_rust
             .then(|| std::sync::Arc::new(loki_rs::tasks::Tasks::new(engine_paths.home.clone())));
+        let bench = bench_rust
+            .then(|| std::sync::Arc::new(loki_rs::bench::job::Bench::new(engine_paths.clone())));
         let cfg = proxy::Config {
             backend,
             internal_token: token,
@@ -373,6 +379,7 @@ fn serve() -> ExitCode {
             engineimg,
             strata,
             tasks,
+            bench,
             mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;

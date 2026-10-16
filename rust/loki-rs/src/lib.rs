@@ -13,6 +13,7 @@
 pub mod api;
 pub mod auth;
 pub mod backends;
+pub mod bench;
 pub mod chat;
 pub mod chatapi;
 pub mod chatx;

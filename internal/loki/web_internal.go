@@ -129,6 +129,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalProjectSwitch(w, r)
 		case "/internal/v1/project/drop-convs":
 			handleInternalProjectDropConvs(w, r)
+		case "/internal/v1/engine/sidejob":
+			handleInternalSideJob(w, r)
+		case "/internal/v1/bench/perf":
+			handleInternalBenchPerf(w, r)
 		case "/internal/v1/tasks/run":
 			handleInternalTaskRun(w, r)
 		case "/internal/v1/push/send":

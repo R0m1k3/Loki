@@ -184,7 +184,7 @@ pub fn service_log_tail(paths: &Paths, n: usize) -> String {
 
 /// Valeur brute de PORT comme `LLMPort` du Go (`strconv.Atoi`, > 0), sans
 /// borne haute : un port > 65535 doit faire échouer la sonde, pas viser 8080.
-fn llm_port_raw(cfg: &HashMap<String, String>) -> i64 {
+pub fn llm_port_raw(cfg: &HashMap<String, String>) -> i64 {
     if let Some(p) = cfg.get("PORT")
         && let Ok(n) = p.parse::<i64>()
         && n > 0

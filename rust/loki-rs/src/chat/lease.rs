@@ -76,7 +76,17 @@ pub struct EngineLease {
 impl EngineLease {
     /// Prend le verrou de génération pour `ttl` (borné par le Go à 5 s – 5 min).
     pub async fn acquire(store: Store, ttl: Duration) -> Result<Self, LeaseError> {
-        let body = json!({ "ttl_ms": ttl.as_millis() as u64 });
+        Self::acquire_for(store, ttl, "").await
+    }
+
+    /// Comme [`Self::acquire`], avec un motif : « bench » — le Go refuse alors
+    /// les autres avec le message du benchmark, et changer de discussion ne
+    /// rompt pas le bail.
+    pub async fn acquire_for(store: Store, ttl: Duration, why: &str) -> Result<Self, LeaseError> {
+        let mut body = json!({ "ttl_ms": ttl.as_millis() as u64 });
+        if !why.is_empty() {
+            body["why"] = json!(why);
+        }
         let (status, v) = store
             .internal_post(PATH_LEASE, &body)
             .await

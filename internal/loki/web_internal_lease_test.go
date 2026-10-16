@@ -86,7 +86,7 @@ func TestBailInterneVerrouPartage(t *testing.T) {
 func TestBailInterneNeLibereQueLeSien(t *testing.T) {
 	testHome(t)
 	libérerVerrou(t)
-	id, err := conv.extLeaseAcquire(time.Minute)
+	id, err := conv.extLeaseAcquire(time.Minute, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestBailInterneNeLibereQueLeSien(t *testing.T) {
 func TestBailInterneExpire(t *testing.T) {
 	testHome(t)
 	libérerVerrou(t)
-	id, err := conv.extLeaseAcquire(50 * time.Millisecond)
+	id, err := conv.extLeaseAcquire(50*time.Millisecond, false)
 	if err != nil {
 		t.Fatal(err)
 	}

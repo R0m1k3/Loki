@@ -109,6 +109,12 @@ pub struct FakeGo {
     pub task_run_delay: Mutex<Option<std::time::Duration>>,
     /// /internal/v1/push/send reçus : (titre, corps).
     pub push_sends: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/engine/lease reçus avec un motif (« bench »).
+    pub lease_whys: Mutex<Vec<String>>,
+    /// /internal/v1/engine/sidejob : « begin n » ou « end n served ».
+    pub side_jobs: Mutex<Vec<String>>,
+    /// /internal/v1/bench/perf reçus.
+    pub bench_perfs: Mutex<Vec<serde_json::Value>>,
 }
 
 impl FakeGo {
@@ -119,6 +125,19 @@ impl FakeGo {
             .entry(bucket.into())
             .or_default()
             .insert(key.into(), val.as_bytes().to_vec());
+    }
+    /// La configuration rangée.
+    pub fn config_map(&self) -> HashMap<String, String> {
+        self.store
+            .lock()
+            .unwrap()
+            .get("config")
+            .map(|m| {
+                m.iter()
+                    .map(|(k, v)| (k.clone(), String::from_utf8_lossy(v).into_owned()))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
     pub fn del(&self, bucket: &str, key: &str) {
         if let Some(b) = self.store.lock().unwrap().get_mut(bucket) {
@@ -227,6 +246,9 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/engine/lease" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            if let Some(why) = v["why"].as_str() {
+                st.lease_whys.lock().unwrap().push(why.to_string());
+            }
             if let Some(why) = st.go_busy.lock().unwrap().clone() {
                 let out = serde_json::json!({"error": why, "task_id": "t1", "task_name": "veille"});
                 return resp(409, out.to_string());
@@ -508,6 +530,28 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             }
             resp(200, r#"{"busy":true}"#)
         }
+        "/internal/v1/engine/sidejob" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let mut log = st.side_jobs.lock().unwrap();
+            match v["end"].as_i64() {
+                Some(id) if id != 0 => {
+                    log.push(format!("end {id} {}", v["served"]));
+                    resp(204, "")
+                }
+                _ => {
+                    let id = log.len() + 1;
+                    log.push(format!("begin {id}"));
+                    resp(200, serde_json::json!({ "id": id }).to_string())
+                }
+            }
+        }
+        "/internal/v1/bench/perf" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.bench_perfs.lock().unwrap().push(v);
+            resp(204, "")
+        }
         "/internal/v1/push/send" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
@@ -705,6 +749,7 @@ pub struct Opts {
     pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
     pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
     pub tasks: Option<Arc<loki_rs::tasks::Tasks>>,
+    pub bench: Option<Arc<loki_rs::bench::job::Bench>>,
     /// Base de départ, posée avant que la façade démarre : (bucket, clé,
     /// valeur).
     pub seed: Vec<(String, String, String)>,
@@ -816,6 +861,7 @@ pub async fn start_with(
         engineimg: opts.engineimg,
         strata: opts.strata,
         tasks: opts.tasks,
+        bench: opts.bench,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;

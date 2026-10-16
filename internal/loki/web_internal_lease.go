@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 )
 
@@ -43,18 +44,29 @@ type extLeaseState struct {
 	stop  bool
 	ttl   time.Duration
 	timer *time.Timer
+	// bench : le bail d'un benchmark de la façade (LOKI_BENCH=rust) — les
+	// autres reçoivent errBenchBusy, et changer de discussion ne le rompt pas.
+	bench bool
 }
 
 // extLeaseClearLocked oublie le bail de la façade. c.mu détenu.
+// benchLeaseHeld : un bail « bench » de la façade est tenu. Lu sans le verrou
+// de la conversation (benchRunning est appelé par des chemins qui le tiennent
+// déjà, le préchauffage par exemple).
+var benchLeaseHeld atomic.Bool
+
 func (c *Conversation) extLeaseClearLocked() {
 	if c.extLease != nil {
+		if c.extLease.bench {
+			benchLeaseHeld.Store(false)
+		}
 		c.extLease.timer.Stop()
 		c.extLease = nil
 	}
 }
 
 // extLeaseAcquire prend le verrou de génération pour la façade.
-func (c *Conversation) extLeaseAcquire(ttl time.Duration) (string, error) {
+func (c *Conversation) extLeaseAcquire(ttl time.Duration, bench bool) (string, error) {
 	if err := tuneGuard(); err != nil {
 		return "", err
 	}
@@ -67,9 +79,13 @@ func (c *Conversation) extLeaseAcquire(ttl time.Duration) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	st := &extLeaseState{id: fmt.Sprintf("%x", b), ttl: ttl}
+	st := &extLeaseState{id: fmt.Sprintf("%x", b), ttl: ttl, bench: bench}
 	st.timer = time.AfterFunc(ttl, func() { c.extLeaseExpire(st) })
 	c.Generating = true
+	if bench {
+		c.benching, c.leaseWhy = true, errBenchBusy
+		benchLeaseHeld.Store(true)
+	}
 	c.cancel = func() {
 		c.mu.Lock()
 		st.stop = true
@@ -88,6 +104,10 @@ func (c *Conversation) extLeaseExpire(st *extLeaseState) {
 	}
 	c.extLease = nil
 	c.Generating, c.cancel = false, nil
+	if st.bench {
+		c.benching, c.leaseWhy = false, nil
+		benchLeaseHeld.Store(false)
+	}
 	fmt.Fprintf(os.Stderr, "[lease] bail de la façade expiré sans renouvellement (%s) : verrou du moteur rendu\n", st.ttl)
 }
 
@@ -110,9 +130,15 @@ func (c *Conversation) extLeaseRelease(id string) {
 	if c.extLease == nil || c.extLease.id != id {
 		return
 	}
+	if c.extLease.bench {
+		c.benching, c.leaseWhy = false, nil
+	}
 	c.extLeaseClearLocked()
 	c.Generating, c.cancel = false, nil
 }
+
+// benchLeased : un benchmark de la façade tient-il le verrou ?
+func benchLeased() bool { return benchLeaseHeld.Load() }
 
 func readLeaseBody(w http.ResponseWriter, r *http.Request, v any) bool {
 	if r.Method != http.MethodPost {
@@ -134,7 +160,8 @@ func readLeaseBody(w http.ResponseWriter, r *http.Request, v any) bool {
 
 func handleInternalLease(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		TTLms int64 `json:"ttl_ms"`
+		TTLms int64  `json:"ttl_ms"`
+		Why   string `json:"why"` // "bench" : le bail d'un benchmark
 	}
 	if !readLeaseBody(w, r, &in) {
 		return
@@ -143,7 +170,7 @@ func handleInternalLease(w http.ResponseWriter, r *http.Request) {
 	if in.TTLms > 0 {
 		ttl = min(max(time.Duration(in.TTLms)*time.Millisecond, extLeaseMinTTL), extLeaseMaxTTL)
 	}
-	id, err := conv.extLeaseAcquire(ttl)
+	id, err := conv.extLeaseAcquire(ttl, in.Why == "bench")
 	if err != nil {
 		if err == ErrBusy {
 			err = conv.busyReason() // dit QUI occupe le moteur
