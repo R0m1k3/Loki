@@ -282,10 +282,96 @@ type dlState struct {
 	Part      int    `json:"part"`  // tranche en cours (1-based)
 	Finished  bool   `json:"finished"`
 	Canceled  bool   `json:"canceled"`
+	Paused    bool   `json:"paused"`
 	Err       string `json:"error"`
 	StartedAt int64  `json:"started_at"`
 
 	cancel context.CancelFunc `json:"-"` // set while in flight, cleared on finish
+	gate   *dlGate            `json:"-"`
+}
+
+// dlGate met un téléchargement en pause (repris d'AJEAN v0.18.1) : les
+// connexions en cours sont coupées (rien ne reste ouvert vers le CDN pendant la
+// pause), et chaque morceau attend la reprise puis repart de l'octet où il
+// s'était arrêté, par une requête de plage.
+type dlGate struct {
+	mu      sync.Mutex
+	paused  bool
+	wake    chan struct{}              // fermé à la reprise
+	attempt map[int]context.CancelFunc // requêtes en cours, coupées par la pause
+	next    int
+}
+
+func newDlGate() *dlGate { return &dlGate{attempt: map[int]context.CancelFunc{}} }
+
+func (g *dlGate) setPaused(p bool) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if p == g.paused {
+		return
+	}
+	g.paused = p
+	if p {
+		g.wake = make(chan struct{})
+		for _, c := range g.attempt {
+			c()
+		}
+		return
+	}
+	close(g.wake)
+}
+
+// wait bloque tant que le téléchargement est en pause. false = annulé entre-temps.
+func (g *dlGate) wait(ctx context.Context) bool {
+	if g == nil {
+		return ctx.Err() == nil
+	}
+	g.mu.Lock()
+	paused, wake := g.paused, g.wake
+	g.mu.Unlock()
+	if !paused {
+		return ctx.Err() == nil
+	}
+	select {
+	case <-wake:
+		return ctx.Err() == nil
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (g *dlGate) isPaused() bool {
+	if g == nil {
+		return false
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.paused
+}
+
+// begin ouvre une requête que la pause pourra couper ; la fonction rendue la referme.
+func (g *dlGate) begin(ctx context.Context) (context.Context, func()) {
+	if g == nil {
+		return ctx, func() {}
+	}
+	actx, cancel := context.WithCancel(ctx)
+	g.mu.Lock()
+	id := g.next
+	g.next++
+	g.attempt[id] = cancel
+	if g.paused {
+		cancel() // pause tombée entre wait et begin
+	}
+	g.mu.Unlock()
+	return actx, func() {
+		g.mu.Lock()
+		delete(g.attempt, id)
+		g.mu.Unlock()
+		cancel()
+	}
 }
 
 var (
@@ -429,7 +515,7 @@ func handleModelDownload(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 	st := &dlState{
 		Filename: name, URL: urls[0], Dir: filepath.Dir(dests[0]),
-		Parts: len(todoURLs), StartedAt: time.Now().Unix(), cancel: cancel,
+		Parts: len(todoURLs), StartedAt: time.Now().Unix(), cancel: cancel, gate: newDlGate(),
 	}
 	dlDownloads[name] = st
 	dlMu.Unlock()
@@ -759,7 +845,9 @@ func runDownloadSet(ctx context.Context, st *dlState, urls, dests []string) {
 				dt := now.Sub(lastAt).Seconds()
 				dlMu.Lock()
 				st.Done = cur
-				if dt > 0 {
+				if st.Paused {
+					st.Speed = 0
+				} else if dt > 0 {
 					inst := int64(float64(cur-last) / dt)
 					if st.Speed == 0 {
 						st.Speed = inst
@@ -827,7 +915,7 @@ func dlOnePart(ctx context.Context, st *dlState, dlURL, dest string, total int64
 			return err
 		}
 	}
-	if err := dlFetch(ctx, f, dlURL, total, conns, done); err != nil {
+	if err := dlFetch(ctx, st.gate, f, dlURL, total, conns, done); err != nil {
 		f.Close()
 		_ = os.Remove(tmp)
 		return err
@@ -845,9 +933,9 @@ func dlOnePart(ctx context.Context, st *dlState, dlURL, dest string, total int64
 
 // dlFetch writes the whole body into f, either as one stream or as `conns`
 // parallel byte ranges. done is incremented atomically as bytes land on disk.
-func dlFetch(ctx context.Context, f *os.File, dlURL string, total int64, conns int, done *int64) error {
+func dlFetch(ctx context.Context, g *dlGate, f *os.File, dlURL string, total int64, conns int, done *int64) error {
 	if conns <= 1 {
-		return dlChunk(ctx, f, dlURL, 0, total-1, total <= 0, done)
+		return dlChunk(ctx, g, f, dlURL, 0, total-1, total <= 0, done)
 	}
 	size := total / int64(conns)
 	var wg sync.WaitGroup
@@ -861,7 +949,7 @@ func dlFetch(ctx context.Context, f *os.File, dlURL string, total int64, conns i
 		wg.Add(1)
 		go func(i int, start, end int64) {
 			defer wg.Done()
-			errs[i] = dlChunk(ctx, f, dlURL, start, end, false, done)
+			errs[i] = dlChunk(ctx, g, f, dlURL, start, end, false, done)
 		}(i, start, end)
 	}
 	wg.Wait()
@@ -876,11 +964,15 @@ func dlFetch(ctx context.Context, f *os.File, dlURL string, total int64, conns i
 // dlChunk downloads [start,end] into f at the right offset, retrying from where
 // it stopped if the connection drops mid-chunk. With whole=true it streams the
 // entire body sequentially (server without range support, unknown size).
-func dlChunk(ctx context.Context, f *os.File, dlURL string, start, end int64, whole bool, done *int64) error {
+func dlChunk(ctx context.Context, g *dlGate, f *os.File, dlURL string, start, end int64, whole bool, done *int64) error {
 	const attempts = 4
 	pos := start
 	var lastErr error
 	for try := 0; try < attempts; try++ {
+		// Une pause n'est pas un échec : on attend la reprise sans consommer d'essai.
+		if !g.wait(ctx) {
+			return ctx.Err()
+		}
 		if err := ctx.Err(); err != nil {
 			return err // cancelled: never retry
 		}
@@ -900,18 +992,26 @@ func dlChunk(ctx context.Context, f *os.File, dlURL string, start, end int64, wh
 		} else if pos > start {
 			rng = fmt.Sprintf("bytes=%d-", pos) // best-effort resume
 		}
-		req, err := dlRequest(ctx, dlURL, rng)
+		actx, release := g.begin(ctx)
+		req, err := dlRequest(actx, dlURL, rng)
 		if err != nil {
+			release()
 			return err
 		}
 		resp, err := dlClient.Do(req)
 		if err != nil {
+			release()
+			if g.isPaused() && ctx.Err() == nil {
+				try--
+				continue
+			}
 			lastErr = err
 			continue
 		}
 		if resp.StatusCode != 200 && resp.StatusCode != 206 {
 			err := dlSourceError(resp, dlURL)
 			resp.Body.Close()
+			release()
 			return err
 		}
 		if resp.StatusCode == 200 && pos > start {
@@ -921,9 +1021,14 @@ func dlChunk(ctx context.Context, f *os.File, dlURL string, start, end int64, wh
 		}
 		n, cerr := dlCopy(f, resp.Body, pos, done)
 		resp.Body.Close()
+		release()
 		pos += n
 		if cerr == nil {
 			return nil
+		}
+		if g.isPaused() && ctx.Err() == nil {
+			try-- // coupé par la pause : la reprise repart de pos
+			continue
 		}
 		lastErr = cerr
 	}
@@ -979,6 +1084,35 @@ func handleModelDownloadCancel(w http.ResponseWriter, r *http.Request) {
 		cancel()
 	}
 	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+// handleModelDownloadPause met en pause ({"pause":true}) ou reprend
+// ({"pause":false}) un téléchargement en cours. Le fichier partiel est gardé.
+func handleModelDownloadPause(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Filename string `json:"filename"`
+		Pause    bool   `json:"pause"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	name := filepath.Base(strings.TrimSpace(req.Filename))
+	dlMu.Lock()
+	st, ok := dlDownloads[name]
+	if !ok || st.Finished {
+		dlMu.Unlock()
+		sendJSON(w, 404, map[string]any{"ok": false, "error": "aucun téléchargement en cours pour " + name})
+		return
+	}
+	st.Paused = req.Pause
+	if req.Pause {
+		st.Speed = 0
+	}
+	g := st.gate
+	dlMu.Unlock()
+	g.setPaused(req.Pause)
+	sendJSON(w, 200, map[string]any{"ok": true, "paused": req.Pause})
 }
 
 // cleanStalePartFiles removes leftover *.gguf.part files in every model dir at

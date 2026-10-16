@@ -300,7 +300,7 @@ func TestFacadeRelaieLesModeles(t *testing.T) {
 	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
 
 	routes := []string{"/api/models/download", "/api/models/download/probe",
-		"/api/models/download/status", "/api/models/download/cancel", "/api/models",
+		"/api/models/download/status", "/api/models/download/cancel", "/api/models/download/pause", "/api/models",
 		"/api/models/delete", "/api/models/dirs", "/api/hf/search", "/api/hf/files", "/api/hf/token"}
 	for _, p := range routes {
 		w := httptest.NewRecorder()

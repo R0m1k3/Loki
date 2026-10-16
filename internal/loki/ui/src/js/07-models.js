@@ -1501,6 +1501,7 @@ function dlEls(){
     prog: document.getElementById('m-hf-progress'),
     bar:  document.getElementById('m-hf-bar'),
     cancel: document.getElementById('m-hf-cancel'),
+    pause: document.getElementById('m-hf-pause'),
   };
 }
 // Arrête le poll local sans toucher au téléchargement serveur.
@@ -1510,7 +1511,7 @@ function resetDlUI(){
   const e = dlEls();
   stopDlPoll(); dlName='';
   e.prog.style.display='none'; e.bar.style.display='none';
-  e.cancel.style.display='none'; e.btn.disabled=false;
+  e.cancel.style.display='none'; e.pause.style.display='none'; e.btn.disabled=false;
 }
 // Remplit le sélecteur de destination avec les dossiers de modèles connus.
 // L'espace libre est dans le libellé de l'option : c'est l'info utile au moment
@@ -1627,6 +1628,22 @@ async function cancelDownload(){
   await jpost('/api/models/download/cancel', {filename: dlName});
   // L'état « annulé » est confirmé par le prochain tick de poll.
 }
+// Met en pause ou reprend : le fichier partiel est gardé, la reprise repart
+// de là où le transfert s'était arrêté (repris d'AJEAN v0.18.1).
+let dlPaused = false;
+async function togglePauseDownload(){
+  if(!dlName) return;
+  const e = dlEls();
+  e.pause.disabled = true;
+  try{
+    const r = await jpost('/api/models/download/pause', {filename: dlName, pause: !dlPaused});
+    if(r.ok) setDlPaused(r.paused);
+  }finally{ e.pause.disabled = false; }
+}
+function setDlPaused(p){
+  dlPaused = !!p;
+  dlEls().pause.textContent = dlPaused ? 'Reprendre' : 'Mettre en pause';
+}
 // Suit un téléchargement (nouveau ou déjà en cours) et pilote barre + texte.
 function watchDownload(fname){
   const e = dlEls();
@@ -1637,7 +1654,10 @@ function watchDownload(fname){
   e.bar.style.display = 'block';
   e.cancel.style.display = 'inline';
   e.cancel.disabled = false;
-  const stop = ()=>{ stopDlPoll(); dlName=''; e.btn.disabled=false; e.cancel.style.display='none'; };
+  e.pause.style.display = 'inline';
+  e.pause.disabled = false;
+  setDlPaused(false);
+  const stop = ()=>{ stopDlPoll(); dlName=''; e.btn.disabled=false; e.cancel.style.display='none'; e.pause.style.display='none'; };
   const tick = async ()=>{
     const list = await jget('/api/models/download/status');
     const st = (list||[]).find(d=>d.filename===fname);
@@ -1661,6 +1681,7 @@ function watchDownload(fname){
       if(dlQueue.length) startDownloadURL(dlQueue.shift());
       return;
     }
+    if(!!st.paused !== dlPaused) setDlPaused(st.paused);
     const pct = st.total>0 ? st.done*100/st.total : 0;
     if(st.total>0){
       e.bar.className = 'pe-bar';
@@ -1670,7 +1691,8 @@ function watchDownload(fname){
     }
     const tot = st.total>0 ? ' / '+fmtSize(st.total)+' ('+Math.round(pct)+'%)' : '';
     let extra = '';
-    if(st.speed>0){
+    if(st.paused) extra += ' — en pause';
+    else if(st.speed>0){
       extra += ' — '+fmtSize(st.speed)+'/s';
       if(st.total>0){
         const eta = Math.max(0, Math.round((st.total-st.done)/st.speed));

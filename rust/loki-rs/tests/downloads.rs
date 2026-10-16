@@ -260,6 +260,13 @@ async fn wait_finished(dl: &Downloads, name: &str) -> DlState {
     panic!("téléchargement {name} jamais terminé : {:?}", dl.status());
 }
 
+fn state_of(dl: &Downloads, name: &str) -> DlState {
+    dl.status()
+        .into_iter()
+        .find(|s| s.filename == name)
+        .unwrap()
+}
+
 fn models(home: &Path) -> PathBuf {
     home.join("models")
 }
@@ -535,6 +542,58 @@ async fn annulation_efface_le_part() {
     assert!(st.canceled && st.err.is_empty(), "{st:?}");
     assert_eq!(st.speed, 0);
     assert_eq!(entries(&models(tmp.path())), Vec::<String>::new());
+}
+
+// `TestRunDownloadPauseResume` : la pause coupe le flux et garde ce qui est
+// écrit ; la reprise repart de là par une plage et termine un fichier
+// identique à la source.
+#[tokio::test]
+async fn pause_puis_reprise() {
+    let (addr, hf) = fake_hf().await;
+    let data = payload(8 << 20, 5);
+    hf.files
+        .lock()
+        .unwrap()
+        .insert("/m.gguf".into(), Arc::new(data.clone()));
+    *hf.slow.lock().unwrap() = true;
+    let tmp = tempfile::tempdir().unwrap();
+    let dl = Arc::new(Downloads::new());
+    let (code, _) = dl.start(
+        env(),
+        &dirs_at(tmp.path()),
+        &format!("http://{addr}/m.gguf"),
+        "",
+    );
+    assert_eq!(code, StatusCode::OK);
+    assert!(!dl.pause("autre.gguf", true));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(dl.pause("m.gguf", true));
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let a = state_of(&dl, "m.gguf");
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let b = state_of(&dl, "m.gguf");
+    assert!(
+        a.paused && !b.finished && a.done == b.done && a.done > 0 && b.speed == 0,
+        "pause inopérante : {a:?} puis {b:?}"
+    );
+    let before = hf.log.lock().unwrap().len();
+    assert!(dl.pause("m.gguf", false));
+    let end = wait_finished(&dl, "m.gguf").await;
+    assert!(
+        end.err.is_empty() && !end.canceled && !end.paused,
+        "{end:?}"
+    );
+    let got = std::fs::read(models(tmp.path()).join("m.gguf")).unwrap();
+    assert!(got == data, "fichier différent de la source après reprise");
+    // La reprise demande la suite, pas le début.
+    let log = hf.log.lock().unwrap().clone();
+    let resumed = log[before..]
+        .iter()
+        .filter_map(|l| l.strip_prefix("/m.gguf bytes="))
+        .any(|r| !r.starts_with("0-"));
+    assert!(resumed, "{log:?}");
+    // Terminé : plus rien à mettre en pause.
+    assert!(!dl.pause("m.gguf", true));
 }
 
 #[tokio::test]

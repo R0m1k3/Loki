@@ -49,4 +49,5 @@ var facadeModelRoutes = map[string]bool{
 	"/api/models/download/probe":  true,
 	"/api/models/download/status": true,
 	"/api/models/download/cancel": true,
+	"/api/models/download/pause":  true,
 }

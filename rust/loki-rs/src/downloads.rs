@@ -3,7 +3,7 @@
 //! `backend_model_dirs.go` et `backend_hf.go` (lot 8 de la migration).
 //!
 //! Tenus par la façade quand `LOKI_MODELS=rust` (expérimental ; le Go
-//! par défaut) : `POST /api/models/download`, `/probe`, `/cancel`,
+//! par défaut) : `POST /api/models/download`, `/probe`, `/cancel`, `/pause`,
 //! `GET /api/models/download/status`. Le Go remet alors à la façade ces
 //! routes quand elles lui arrivent par le tunnel du relais, et ne vide plus
 //! les `.part` au démarrage (c'est la façade qui le fait).
@@ -71,6 +71,7 @@ pub fn handles(path: &str) -> bool {
             | "/api/models/download/probe"
             | "/api/models/download/status"
             | "/api/models/download/cancel"
+            | "/api/models/download/pause"
     )
 }
 
@@ -519,6 +520,7 @@ pub struct DlState {
     pub part: i64,
     pub finished: bool,
     pub canceled: bool,
+    pub paused: bool,
     #[serde(rename = "error")]
     pub err: String,
     pub started_at: i64,
@@ -527,6 +529,8 @@ pub struct DlState {
 struct Entry {
     state: Mutex<DlState>,
     cancel: watch::Sender<bool>,
+    /// `dlGate` : vrai pendant une pause.
+    pause: watch::Sender<bool>,
 }
 
 impl Entry {
@@ -546,6 +550,37 @@ impl Stop {
     async fn wait(&self) {
         let mut rx = self.0.clone();
         let _ = rx.wait_for(|v| *v).await;
+    }
+}
+
+/// `dlGate` : la pause d'un téléchargement. Les requêtes en cours sont
+/// coupées (rien ne reste ouvert vers le CDN pendant la pause), et chaque
+/// morceau attend la reprise puis repart de l'octet où il s'était arrêté, par
+/// une requête de plage.
+#[derive(Clone)]
+struct Gate(watch::Receiver<bool>);
+
+impl Gate {
+    fn is_paused(&self) -> bool {
+        *self.0.borrow()
+    }
+    /// Attend la reprise ; `false` : annulé entre-temps.
+    async fn wait(&self, stop: &Stop) -> bool {
+        if self.is_paused() {
+            let mut rx = self.0.clone();
+            tokio::select! {
+                _ = rx.wait_for(|p| !*p) => {}
+                _ = stop.wait() => return false,
+            }
+        }
+        !stop.is_set()
+    }
+    /// Se résout quand la pause tombe (jamais si l'émetteur a disparu).
+    async fn paused(&self) {
+        let mut rx = self.0.clone();
+        if rx.wait_for(|p| *p).await.is_err() {
+            std::future::pending::<()>().await;
+        }
     }
 }
 
@@ -613,6 +648,28 @@ impl Downloads {
             }
             None => false,
         }
+    }
+
+    /// `handleModelDownloadPause` : met en pause ou reprend ; `false` :
+    /// inconnu ou terminé. Le fichier partiel est gardé.
+    pub fn pause(&self, name: &str, paused: bool) -> bool {
+        let Some(e) = self.map().get(name).cloned() else {
+            return false;
+        };
+        let running = e.with(|s| {
+            if s.finished {
+                return false;
+            }
+            s.paused = paused;
+            if paused {
+                s.speed = 0;
+            }
+            true
+        });
+        if running {
+            let _ = e.pause.send_replace(paused);
+        }
+        running
     }
 
     fn request(&self, env: &DlEnv, url: &str, range: Option<&str>) -> reqwest::RequestBuilder {
@@ -722,6 +779,7 @@ impl Downloads {
             );
         }
         let (tx, rx) = watch::channel(false);
+        let (pause_tx, pause_rx) = watch::channel(false);
         let entry = Arc::new(Entry {
             state: Mutex::new(DlState {
                 filename: name.clone(),
@@ -732,12 +790,14 @@ impl Downloads {
                 ..Default::default()
             }),
             cancel: tx,
+            pause: pause_tx,
         });
         map.insert(name.clone(), entry.clone());
         drop(map);
         let parts = todo.len();
         let me = self.clone();
-        tokio::spawn(async move { me.run_set(env, entry, Stop(rx), todo).await });
+        let gate = Gate(pause_rx);
+        tokio::spawn(async move { me.run_set(env, entry, Stop(rx), gate, todo).await });
         (
             StatusCode::OK,
             json!({ "ok": true, "filename": name, "parts": parts }),
@@ -752,6 +812,7 @@ impl Downloads {
         env: DlEnv,
         entry: Arc<Entry>,
         stop: Stop,
+        gate: Gate,
         todo: Vec<(String, String)>,
     ) {
         let done = Arc::new(AtomicI64::new(0));
@@ -812,7 +873,9 @@ impl Downloads {
                     let dt = now.duration_since(last_at).as_secs_f64();
                     entry.with(|s| {
                         s.done = cur;
-                        if dt > 0.0 {
+                        if s.paused {
+                            s.speed = 0;
+                        } else if dt > 0.0 {
                             let inst = ((cur - last) as f64 / dt) as i64;
                             s.speed = if s.speed == 0 {
                                 inst
@@ -829,7 +892,7 @@ impl Downloads {
         for (i, ((u, dest), (total, ranged))) in todo.iter().zip(sizes).enumerate() {
             entry.with(|s| s.part = i as i64 + 1);
             if let Err(h) = self
-                .one_part(&env, &entry, &stop, u, dest, total, ranged, &done)
+                .one_part(&env, &entry, &stop, &gate, u, dest, total, ranged, &done)
                 .await
             {
                 ticker.abort();
@@ -851,6 +914,7 @@ impl Downloads {
         env: &DlEnv,
         entry: &Entry,
         stop: &Stop,
+        gate: &Gate,
         url: &str,
         dest: &str,
         total: i64,
@@ -877,7 +941,7 @@ impl Downloads {
             path: tmp.clone(),
         });
         let res = if conns <= 1 {
-            self.chunk(env, stop, &file, url, 0, total - 1, total <= 0, done)
+            self.chunk(env, stop, gate, &file, url, 0, total - 1, total <= 0, done)
                 .await
         } else {
             let size = total / conns as i64;
@@ -888,7 +952,7 @@ impl Downloads {
                 } else {
                     start + size - 1
                 };
-                self.chunk(env, stop, &file, url, start, end, false, done)
+                self.chunk(env, stop, gate, &file, url, start, end, false, done)
             });
             futures_util::future::join_all(parts)
                 .await
@@ -918,6 +982,7 @@ impl Downloads {
         &self,
         env: &DlEnv,
         stop: &Stop,
+        gate: &Gate,
         file: &Arc<PartFile>,
         url: &str,
         start: i64,
@@ -927,7 +992,13 @@ impl Downloads {
     ) -> Result<(), Halt> {
         let mut pos = start;
         let mut last_err = String::new();
-        for attempt in 0..DL_ATTEMPTS {
+        let mut attempt: u64 = 0;
+        while attempt < DL_ATTEMPTS {
+            // Une pause n'est pas un échec : on attend la reprise sans
+            // consommer d'essai.
+            if !gate.wait(stop).await {
+                return Err(Halt::Canceled);
+            }
             if stop.is_set() {
                 return Err(Halt::Canceled);
             }
@@ -948,13 +1019,16 @@ impl Downloads {
                 None
             };
             let resp = tokio::select! {
-                r = self.request(env, url, range.as_deref()).send() => r,
+                r = self.request(env, url, range.as_deref()).send() => r.map_err(|e| e.to_string()),
                 _ = stop.wait() => return Err(Halt::Canceled),
+                _ = gate.paused() => Err("en pause".to_string()),
             };
             let resp = match resp {
                 Ok(r) => r,
+                Err(_) if gate.is_paused() && !stop.is_set() => continue,
                 Err(e) => {
-                    last_err = e.to_string();
+                    last_err = e;
+                    attempt += 1;
                     continue;
                 }
             };
@@ -967,7 +1041,7 @@ impl Downloads {
                 done.fetch_add(start - pos, Ordering::Relaxed);
                 pos = start;
             }
-            match copy_at(stop, file, resp, pos, done).await {
+            match copy_at(stop, gate, file, resp, pos, done).await {
                 (n, Ok(())) => {
                     let _ = n;
                     return Ok(());
@@ -975,7 +1049,12 @@ impl Downloads {
                 (_, Err(Halt::Canceled)) => return Err(Halt::Canceled),
                 (n, Err(Halt::Err(e))) => {
                     pos += n;
+                    // coupé par la pause : la reprise repart de pos
+                    if gate.is_paused() && !stop.is_set() {
+                        continue;
+                    }
                     last_err = e;
+                    attempt += 1;
                 }
             }
         }
@@ -987,6 +1066,7 @@ impl Downloads {
 /// même en cas d'erreur (pour reprendre).
 async fn copy_at(
     stop: &Stop,
+    gate: &Gate,
     file: &Arc<PartFile>,
     resp: reqwest::Response,
     off: i64,
@@ -999,6 +1079,17 @@ async fn copy_at(
         let next = tokio::select! {
             n = stream.next() => n,
             _ = stop.wait() => return (written, Err(Halt::Canceled)),
+            _ = gate.paused() => {
+                // pause : ce qui est reçu est écrit, le flux est coupé
+                return match flush(file, &mut buf, off + written).await {
+                    Ok(k) => {
+                        written += k;
+                        done.fetch_add(k, Ordering::Relaxed);
+                        (written, Err(Halt::Err("en pause".into())))
+                    }
+                    Err(we) => (written, Err(Halt::Err(we))),
+                };
+            }
         };
         let eof = next.is_none();
         match next {
@@ -1183,6 +1274,22 @@ pub async fn serve(
                 send_json(
                     StatusCode::NOT_FOUND,
                     &json!({ "ok": false, "error": format!("aucun téléchargement pour {name}") }),
+                )
+            }
+        }
+        "/api/models/download/pause" => {
+            let v = match body_json(body).await {
+                Ok(v) => v,
+                Err(e) => return bad(e),
+            };
+            let name = filepath_base(str_of(&v, "filename").trim());
+            let paused = v.get("pause").and_then(Value::as_bool).unwrap_or(false);
+            if dl.pause(&name, paused) {
+                send_json(StatusCode::OK, &json!({ "ok": true, "paused": paused }))
+            } else {
+                send_json(
+                    StatusCode::NOT_FOUND,
+                    &json!({ "ok": false, "error": format!("aucun téléchargement en cours pour {name}") }),
                 )
             }
         }

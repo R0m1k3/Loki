@@ -259,6 +259,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/models/download/probe", handleModelDownloadProbe) // taille + espace libre avant de lancer
 	api("/api/models/download/status", handleModelDownloadStatus)
 	api("/api/models/download/cancel", handleModelDownloadCancel)
+	api("/api/models/download/pause", handleModelDownloadPause)
 	api("/api/hf/search", handleHFSearch) // chercher un modèle GGUF sur Hugging Face
 	api("/api/hf/files", handleHFFiles)   // quants et projecteurs d'un dépôt
 	api("/api/hf/token", handleHFToken)   // jeton pour les dépôts à accès restreint

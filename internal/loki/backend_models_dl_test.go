@@ -231,3 +231,96 @@ func TestDLProbeSurfacesExplainedError(t *testing.T) {
 		t.Errorf("message %q sans indication sur le jeton", err)
 	}
 }
+
+type slowWriter struct{ http.ResponseWriter }
+
+func (s slowWriter) Write(b []byte) (int, error) {
+	time.Sleep(2 * time.Millisecond)
+	return s.ResponseWriter.Write(b)
+}
+
+// Une pause coupe le flux, garde ce qui est écrit, et la reprise termine un
+// fichier identique à la source (repris d'AJEAN v0.18.1).
+func TestRunDownloadPauseResume(t *testing.T) {
+	data := make([]byte, 48<<20)
+	rand.New(rand.NewSource(2)).Read(data)
+	t.Setenv("LOKI_DL_CONNS", "4")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(slowWriter{w}, r, "m.gguf", time.Time{}, bytes.NewReader(data))
+	}))
+	defer srv.Close()
+
+	dest := filepath.Join(t.TempDir(), "m.gguf")
+	st := &dlState{Filename: "m.gguf", gate: newDlGate()}
+	done := make(chan struct{})
+	go func() {
+		runDownloadSet(context.Background(), st, []string{srv.URL + "/m.gguf"}, []string{dest})
+		close(done)
+	}()
+
+	time.Sleep(300 * time.Millisecond)
+	st.gate.setPaused(true)
+	time.Sleep(1500 * time.Millisecond) // le compteur publié se fige
+	dlMu.Lock()
+	a := st.Done
+	dlMu.Unlock()
+	time.Sleep(1500 * time.Millisecond)
+	dlMu.Lock()
+	b, fin := st.Done, st.Finished
+	dlMu.Unlock()
+	if fin || a != b || a == 0 {
+		t.Fatalf("pause inopérante : %d puis %d octets, terminé=%v", a, b, fin)
+	}
+	st.gate.setPaused(false)
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("pas terminé après la reprise")
+	}
+	if st.Err != "" {
+		t.Fatalf("erreur après reprise : %s", st.Err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("fichier différent de la source après reprise (err=%v)", err)
+	}
+}
+
+// La route : pause puis reprise d'un téléchargement connu, refus pour
+// l'inconnu et pour un téléchargement terminé.
+func TestHandleModelDownloadPause(t *testing.T) {
+	dlMu.Lock()
+	saved := dlDownloads
+	dlDownloads = map[string]*dlState{
+		"a.gguf": {Filename: "a.gguf", Speed: 9, gate: newDlGate()},
+		"b.gguf": {Filename: "b.gguf", Finished: true},
+	}
+	dlMu.Unlock()
+	t.Cleanup(func() { dlMu.Lock(); dlDownloads = saved; dlMu.Unlock() })
+	post := func(body string) (int, string) {
+		w := httptest.NewRecorder()
+		handleModelDownloadPause(w, httptest.NewRequest("POST", "/api/models/download/pause", strings.NewReader(body)))
+		return w.Code, strings.TrimSpace(w.Body.String())
+	}
+	if code, out := post(`{"filename":"../a.gguf","pause":true}`); code != 200 || out != `{"ok":true,"paused":true}` {
+		t.Fatalf("pause : %d %s", code, out)
+	}
+	dlMu.Lock()
+	st := dlDownloads["a.gguf"]
+	paused, speed := st.Paused, st.Speed
+	dlMu.Unlock()
+	if !paused || speed != 0 || !st.gate.isPaused() {
+		t.Errorf("état après pause : paused=%v speed=%d porte=%v", paused, speed, st.gate.isPaused())
+	}
+	if code, out := post(`{"filename":"a.gguf","pause":false}`); code != 200 || out != `{"ok":true,"paused":false}` || st.gate.isPaused() {
+		t.Fatalf("reprise : %d %s", code, out)
+	}
+	for _, body := range []string{`{"filename":"b.gguf","pause":true}`, `{"filename":"x.gguf","pause":true}`} {
+		if code, _ := post(body); code != 404 {
+			t.Errorf("%s : %d, attendu 404", body, code)
+		}
+	}
+	if code, _ := post(`[`); code != 400 {
+		t.Errorf("corps illisible : %d", code)
+	}
+}
