@@ -12,9 +12,10 @@
 //! en base (`chat/crit:<id>`, chiffrés comme le reste) ; le contexte isolé du
 //! vérificateur vient de `/internal/v1/turn/verifier`.
 //!
-//! Écart assumé : l'isolation du slot du moteur après la passe de
-//! vérification (`engineSideJob`, effacement du cache) reste au Go, qui ne
-//! voit pas passer les requêtes de la façade.
+//! La passe de vérification est un travail annexe (`engineSideJob`, lot 31) :
+//! le Go voit passer ses requêtes (tickets « en vol », moteur qui les accepte)
+//! et, à la fin, efface le slot local s'il a servi — la discussion se
+//! recharge alors depuis le cache RAM du moteur au lieu de se recalculer.
 
 use std::sync::Arc;
 
@@ -52,6 +53,29 @@ pub struct Criterion {
     pub status: String,
     #[serde(default)]
     pub note: String,
+}
+
+/// `engineSideJob` : début d'un travail annexe auprès du Go ; `None` s'il ne
+/// répond pas.
+async fn side_job_begin(store: &Store) -> Option<i64> {
+    store
+        .internal_post("/internal/v1/engine/sidejob", &json!({}))
+        .await
+        .ok()
+        .and_then(|(_, v)| v.get("id").and_then(Value::as_i64))
+}
+
+/// Fin du travail annexe. Les requêtes servies ont déjà été comptées une à
+/// une (`/internal/v1/oai/served`) : rien à ajouter.
+async fn side_job_end(store: &Store, id: Option<i64>) {
+    if let Some(id) = id {
+        let _ = store
+            .internal_post(
+                "/internal/v1/engine/sidejob",
+                &json!({ "end": id, "served": false }),
+            )
+            .await;
+    }
 }
 
 /// `critList` : les critères de la discussion (vide si absents ou illisibles,
@@ -277,8 +301,12 @@ impl ChatService {
                         ..Default::default()
                     },
                 ];
+                // Travail annexe : le Go efface le slot à la fin s'il a servi
+                // (les requêtes de la passe le lui disent en passant).
+                let side = side_job_begin(&self.shared.store).await;
                 self.run_pass(pe, epoch, msgs, tools, v["caps"].clone(), true, &[], run)
                     .await;
+                side_job_end(&self.shared.store, side).await;
             }
             other => {
                 let e = match other {
@@ -434,6 +462,7 @@ impl ChatService {
             } else {
                 super::perf::KIND_MAIN
             },
+            side_slot: Default::default(),
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {

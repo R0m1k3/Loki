@@ -39,6 +39,9 @@ struct Fake {
     /// Télémétrie rangée ; et ce que le Go en tire.
     perfs: Mutex<Vec<PerfRec>>,
     marks: Mutex<PerfMarks>,
+    /// Slot rendu par l'hôte (SIDE_SLOT) ; demandes reçues.
+    slot: Mutex<Option<u8>>,
+    slot_asks: Mutex<usize>,
 }
 
 impl Fake {
@@ -149,6 +152,10 @@ impl TurnHost for Fake {
     async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
         self.perfs.lock().unwrap().push(rec);
         self.marks.lock().unwrap().clone()
+    }
+    async fn engine_slot(&self, _ep: &ChatEndpoint) -> Option<u8> {
+        *self.slot_asks.lock().unwrap() += 1;
+        *self.slot.lock().unwrap()
     }
 }
 
@@ -373,6 +380,95 @@ async fn erreur_500_tool_choice_none_puis_outils_retires() {
     assert_eq!(r.err, None);
     assert_eq!(host.body(1)["tool_choice"], "none");
     assert!(host.completions.lock().unwrap().is_empty());
+}
+
+/// SIDE_SLOT : chaque requête porte le slot que rend l'hôte, demandé avant
+/// chaque envoi ; sans slot, aucun `id_slot`.
+#[tokio::test]
+async fn slot_du_moteur_dans_chaque_requete() {
+    let host = Fake::new(vec![
+        tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
+        answer("Trouvé"),
+    ]);
+    *host.slot.lock().unwrap() = Some(1);
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(
+        (
+            host.body(0)["id_slot"].clone(),
+            host.body(1)["id_slot"].clone()
+        ),
+        (json!(1), json!(1))
+    );
+    assert_eq!(*host.slot_asks.lock().unwrap(), 2);
+    let host = Fake::new(vec![answer("ok")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert!(host.body(0).get("id_slot").is_none());
+}
+
+/// Cache KV plein en plein calcul avec deux slots : rejouée telle quelle,
+/// deux fois au plus, sans compaction ; au-delà, l'erreur. Sans second slot,
+/// c'est un débordement comme un autre.
+#[tokio::test(start_paused = true)]
+async fn cache_kv_plein_rejoue_sans_compaction() {
+    let plein = r#"{"error":{"code":500,"message":"Context size has been exceeded.","type":"server_error"}}"#;
+    let host = Fake::new(vec![
+        Script::Status(500, plein.into()),
+        Script::Status(500, plein.into()),
+        answer("ok"),
+    ]);
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(text(&evs), "ok");
+    assert_eq!(host.sent(), 3);
+    assert!(host.phases.lock().unwrap().is_empty(), "pas de compaction");
+    assert_eq!(host.body(2)["messages"], host.body(0)["messages"]);
+    // Trois fois de suite : l'erreur telle quelle, sans compaction.
+    let host = Fake::new((0..3).map(|_| Script::Status(500, plein.into())).collect());
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    // Le corps du refus tel quel, comme le Go.
+    assert_eq!(r.err, Some(format!("llama-server a renvoyé 500 : {plein}")));
+    assert_eq!(host.sent(), 3);
+    assert!(host.phases.lock().unwrap().is_empty());
+    // Sans second slot : compaction réactive.
+    let host = Fake::new(vec![Script::Status(500, plein.into()), answer("ok")]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.phases.lock().unwrap(), [CompactPhase::Reactive]);
+    // Moteur externe : jamais (le slot vient d'un moteur local).
+    let host = Fake::new(vec![Script::Status(500, plein.into()), answer("ok")]);
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.phases.lock().unwrap(), [CompactPhase::Reactive]);
+}
+
+#[test]
+fn cache_kv_plein_ou_prompt_trop_long() {
+    for (msg, want) in [
+        (
+            r#"{"error":{"code":500,"message":"Context size has been exceeded.","type":"server_error"}}"#,
+            true,
+        ),
+        (
+            r#"{"error":{"message":"request (40000 tokens) exceeds the available context size (32768 tokens), try increasing it","type":"exceed_context_size_error"}}"#,
+            false,
+        ),
+        ("the request exceeds the available context size", false),
+        ("CONTEXT SIZE HAS BEEN EXCEEDED, Request (12 TOKENS)", false),
+        ("failed to parse tool call", false),
+    ] {
+        assert_eq!(side_slot_pool_error(msg), want, "{msg}");
+    }
 }
 
 #[tokio::test]

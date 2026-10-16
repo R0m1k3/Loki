@@ -27,12 +27,16 @@
 //! [`TurnHost::perf_record`]) ; la dernière statistique d'une complétion
 //! complète porte la nature et la perte de cache qu'il a calculées.
 //!
+//! Slots du moteur (lot 31) : chaque requête part sur le slot que rend
+//! [`TurnHost::engine_slot`] (SIDE_SLOT : 0 pour le fil de la discussion, 1
+//! pour une vérification ; aucun sans second slot en service), et un cache KV
+//! à court de place en plein calcul est rejoué tel quel. Le rechargement
+//! SLOT_PERSIST et le comptage des requêtes en vol passent par le Go (l'hôte,
+//! autour de [`TurnHost::engine_slot`] et de [`TurnHost::send`]).
+//!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
-//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, SIDE_SLOT (slot et rejeux « cache KV
-//! plein »), SLOT_PERSIST, préchauffage. Avec l'une de ces clés, le Go garde
-//! la conversation (`facadeChatBlocker`, décidé au démarrage). Le comptage
-//! des requêtes en vol du moteur passe par le Go (l'hôte autour de
-//! [`TurnHost::send`]).
+//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, préchauffage. Avec l'une de ces clés, le
+//! Go garde la conversation (`facadeChatBlocker`, décidé au démarrage).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -189,6 +193,12 @@ pub trait TurnHost: Send + Sync {
     fn preflight(&self) -> Option<PreflightFn> {
         None
     }
+    /// Slot du moteur où envoyer la requête qui part (`engineSlotFor`) ;
+    /// `None` : aucun `id_slot`. Appelé avant chaque requête, moteur local ou
+    /// non : l'hôte y recharge aussi l'état SLOT_PERSIST de la discussion.
+    fn engine_slot(&self, _ep: &ChatEndpoint) -> impl Future<Output = Option<u8>> + Send {
+        async { None }
+    }
     /// Télémétrie d'une complétion (`perfRecord`) : la rend au Go, qui la
     /// range dans l'anneau de `/api/perf/summary` et dit quoi poser sur la
     /// copie finale des stats (nature, jetons perdus, alerte).
@@ -324,6 +334,20 @@ fn log_stream_retry(attempt: u32, cause: &str) {
     );
 }
 
+/// `sideSlotPoolError` : « Context size has been exceeded. » sans le nombre
+/// de jetons de la requête n'est pas un prompt trop long, c'est le cache KV
+/// qui a manqué de place pendant le calcul — avec deux slots, la faute du
+/// voisin, pas de la conversation.
+pub fn side_slot_pool_error(msg: &str) -> bool {
+    static REQ_EXCEEDS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?i)exceeds the available context size|request \([0-9]+ tokens\)")
+            .expect("motif fixe")
+    });
+    msg.to_lowercase()
+        .contains("context size has been exceeded")
+        && !REQ_EXCEEDS.is_match(msg)
+}
+
 fn text_msg(role: &str, text: impl Into<String>) -> Message {
     Message {
         role: role.into(),
@@ -400,6 +424,8 @@ struct Loop {
     budget_nudges: i64,
     /// `perfIter` : complétions de ce tour, complètes ou non.
     perf_iter: i64,
+    /// Rejeux « cache KV plein » (SIDE_SLOT).
+    pool_retries: u32,
 }
 
 /// `runChatLoop` : le tour, de la première requête à la réponse finale.
@@ -467,9 +493,10 @@ pub async fn run_turn<H: TurnHost>(
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
+        let slot = host.engine_slot(ep).await;
         let (body, echo_sent, prefix) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
-            let payload = build_chat_payload(
+            let mut payload = build_chat_payload(
                 ep,
                 &sent,
                 tc.temperature,
@@ -484,6 +511,12 @@ pub async fn run_turn<H: TurnHost>(
                 &tc.cfg,
                 &|r| host.image_data_url(r),
             );
+            // SIDE_SLOT : le slot rendu par l'hôte ; aucun, la requête d'avant.
+            if let Some(n) = slot
+                && let Some(o) = payload.as_object_mut()
+            {
+                o.insert("id_slot".into(), Value::from(n));
+            }
             (
                 serde_json::to_vec(&payload).unwrap_or_default(),
                 echo_sent,
@@ -531,6 +564,26 @@ pub async fn run_turn<H: TurnHost>(
                 kwargs = reasoning_template_kwargs(think_off, &fixed);
                 effort = fixed;
                 continue;
+            }
+            // SIDE_SLOT : un cache KV à court de place en plein calcul n'est
+            // pas un prompt trop long. Rejouée telle quelle, sans compaction ni
+            // réduction — deux fois au plus, le temps que l'autre slot finisse,
+            // puis l'erreur telle quelle. Sans second slot en service, rien.
+            if !ep.external && slot.is_some() && side_slot_pool_error(&msg) {
+                if s.pool_retries < 2 {
+                    s.pool_retries += 1;
+                    log_ctx(
+                        "cache KV plein pendant le calcul (deux slots) : requête rejouée telle quelle, sans compaction",
+                    );
+                    if cancel.backoff(s.pool_retries - 1).await {
+                        continue;
+                    }
+                }
+                return fail(
+                    cb,
+                    extra,
+                    format!("llama-server a renvoyé {status} : {msg}"),
+                );
             }
             if echo_sent > 0 && echo_template_error(status, &msg) {
                 s.echo_off_turn = true;

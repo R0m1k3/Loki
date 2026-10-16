@@ -11,7 +11,11 @@
 //!   ([`EngineSummarizer`]), blocs archivés pour recall par le Go
 //!   ([`StoreRecall`]) ;
 //! - images jointes (`loki-img:…`) lues sur disque et ouvertes par le Go
-//!   (déchiffrées), gardées en cache comme `chatImageDataURL`.
+//!   (déchiffrées), gardées en cache comme `chatImageDataURL` ;
+//! - slots du moteur (lot 31) : avant chaque requête au moteur local, le Go
+//!   rend le slot où l'envoyer (SIDE_SLOT) et recharge au besoin l'état
+//!   gardé de la discussion (SLOT_PERSIST) ; la requête est comptée en vol,
+//!   sur ce slot, jusqu'à la fin de sa lecture.
 //!
 //! Écarts assumés : le résumé en continuation (COMPACT_CONTINUATION) demande
 //! l'état du slot du moteur, tenu par le Go — `slot_holds` rend faux et la
@@ -20,7 +24,9 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde_json::{Map, Value, json};
@@ -170,13 +176,28 @@ pub struct EngineSummarizer {
     pub cfg: HashMap<String, String>,
     pub patterns: Arc<RetryPatterns>,
     pub port: u16,
-    /// Télémétrie des résumés (kind=compact), rattachée à cette discussion :
-    /// `None` sans base (tests).
-    pub perf: Option<(Store, String)>,
+    /// Le Go et la discussion des résumés : télémétrie (kind=compact),
+    /// requêtes en vol et slot du moteur. `None` sans base (tests).
+    pub go: Option<(Store, String)>,
 }
 
 impl EngineSummarizer {
-    async fn post(&self, payload: Value) -> Result<SummaryChoice, SummaryError> {
+    /// `postSummary`. `main` : le résumé prolonge le prompt du slot de la
+    /// discussion (continuation) ; sinon c'est un prompt neuf, sur le second
+    /// slot quand il est en service (SIDE_SLOT).
+    async fn post(&self, mut payload: Value, main: bool) -> Result<SummaryChoice, SummaryError> {
+        let mut _gate = None;
+        if !self.ep.external
+            && let Some((store, _)) = &self.go
+        {
+            let slot = engine_slot_for(store, "", main).await;
+            if let Some(n) = slot
+                && let Some(o) = payload.as_object_mut()
+            {
+                o.insert("id_slot".into(), Value::from(n));
+            }
+            _gate = engine_begin(store, "", slot == Some(1)).await;
+        }
         let body = serde_json::to_vec(&payload).unwrap_or_default();
         let resp = self
             .http
@@ -211,7 +232,7 @@ impl EngineSummarizer {
             Err(SummaryError::Other(e)) => e == super::compact::ERR_EMPTY_SUMMARY,
             Err(_) => false,
         };
-        if decoded && let Some((store, conv)) = &self.perf {
+        if decoded && let Some((store, conv)) = &self.go {
             let (complete, stats) = super::perf::wire_stats(&raw);
             let rec = PerfRec {
                 complete,
@@ -247,7 +268,7 @@ impl Summarizer for EngineSummarizer {
         {
             o.remove("chat_template_kwargs");
         }
-        self.post(p).await
+        self.post(p, false).await
     }
 
     async fn summarize_continuation(
@@ -274,7 +295,7 @@ impl Summarizer for EngineSummarizer {
             o.remove("stream_options");
             o.insert("max_tokens".into(), json!(req.max_tokens));
         }
-        self.post(p).await
+        self.post(p, true).await
     }
 
     fn slot_holds(&self, _conv: &str) -> bool {
@@ -340,11 +361,68 @@ pub struct GoTurnHost {
     /// Nature des complétions pour la télémétrie : `main` (tour de la
     /// discussion), `verify` (passe de vérification du mode Code).
     pub perf_kind: &'static str,
+    /// La requête qui part va sur le second slot (posé par `engine_slot`,
+    /// lu par `send` pour le ticket « en vol »).
+    pub side_slot: AtomicBool,
+}
+
+/// Délai d'une demande de slot : le rechargement SLOT_PERSIST relit jusqu'à
+/// 8 Gio (`slotPersistRestoreTimeout`, deux minutes).
+const SLOT_ASK_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// `engineSlotFor` demandé au Go (`/internal/v1/turn/slot`). `main` : fil de
+/// la discussion ; `conv` (étape d'un tour seulement) : le Go recharge
+/// d'abord l'état SLOT_PERSIST de cette discussion. Go injoignable : aucun
+/// `id_slot`, la requête d'avant la clé.
+pub async fn engine_slot_for(store: &Store, conv: &str, main: bool) -> Option<u8> {
+    match store
+        .internal_post_within(
+            "/internal/v1/turn/slot",
+            &json!({ "conv": conv, "main": main }),
+            SLOT_ASK_TIMEOUT,
+        )
+        .await
+    {
+        Ok((code, v)) if code.is_success() => v["slot"].as_i64().and_then(|n| u8::try_from(n).ok()),
+        Ok((code, v)) => {
+            eprintln!("[loki-rs] moteur : slot non demandé ({code} {v})");
+            None
+        }
+        Err(e) => {
+            eprintln!("[loki-rs] moteur : slot non demandé ({e})");
+            None
+        }
+    }
+}
+
+/// Ouvre un ticket « en vol » auprès du Go (`engineRequestBeginSide`) : le
+/// slot de la discussion n'est pas effacé pendant la requête, et un
+/// préchauffage est annulé. `main_conv` : étape d'un tour de cette
+/// discussion ; `side` : requête sur le second slot. `None` si le Go ne
+/// répond pas — la requête part quand même.
+pub async fn engine_begin(store: &Store, main_conv: &str, side: bool) -> Option<GateTicket> {
+    match store
+        .internal_json(
+            hyper::Method::POST,
+            "/internal/v1/oai/begin",
+            Some(&json!({ "main_conv": main_conv, "side": side })),
+        )
+        .await
+    {
+        Ok(v) => v["ticket"].as_u64().map(|ticket| GateTicket {
+            store: store.clone(),
+            ticket,
+        }),
+        Err(e) => {
+            eprintln!("[loki-rs] moteur : requête non comptée en vol ({e})");
+            None
+        }
+    }
 }
 
 /// Rend le ticket « en vol » au Go quand la réponse du moteur est lue ou
 /// abandonnée (`engineRequestBeginSide` … `end`).
-struct GateTicket {
+pub struct GateTicket {
     store: Store,
     ticket: u64,
 }
@@ -367,34 +445,14 @@ impl Drop for GateTicket {
 }
 
 impl GoTurnHost {
-    /// Ouvre un ticket « en vol » auprès du Go : le slot de la discussion
-    /// n'est pas effacé pendant la requête, et un préchauffage est annulé.
-    /// `None` si le Go ne répond pas — la requête part quand même.
     async fn gate_begin(&self) -> Option<GateTicket> {
         let main_conv = if self.perf_kind == super::perf::KIND_MAIN {
             self.conv_id.as_str()
         } else {
             ""
         };
-        match self
-            .shared
-            .store
-            .internal_json(
-                hyper::Method::POST,
-                "/internal/v1/oai/begin",
-                Some(&json!({ "main_conv": main_conv })),
-            )
-            .await
-        {
-            Ok(v) => v["ticket"].as_u64().map(|ticket| GateTicket {
-                store: self.shared.store.clone(),
-                ticket,
-            }),
-            Err(e) => {
-                eprintln!("[loki-rs] moteur : requête non comptée en vol ({e})");
-                None
-            }
-        }
+        let side = self.side_slot.load(Ordering::SeqCst);
+        engine_begin(&self.shared.store, main_conv, side).await
     }
 }
 
@@ -644,6 +702,20 @@ impl TurnHost for GoTurnHost {
 
     fn echo_refuse(&self, model: &str) {
         self.shared.echo_refusals.refuse(model);
+    }
+
+    async fn engine_slot(&self, ep: &ChatEndpoint) -> Option<u8> {
+        if ep.external {
+            self.side_slot.store(false, Ordering::SeqCst);
+            return None;
+        }
+        // Étape d'un tour de la discussion : le slot 0, après rechargement de
+        // l'état gardé (SLOT_PERSIST). Vérification : le second slot.
+        let main = self.perf_kind == super::perf::KIND_MAIN;
+        let conv = if main { self.conv_id.as_str() } else { "" };
+        let slot = engine_slot_for(&self.shared.store, conv, main).await;
+        self.side_slot.store(slot == Some(1), Ordering::SeqCst);
+        slot
     }
 
     fn cache_hint(&self) -> Option<CacheHintFn> {

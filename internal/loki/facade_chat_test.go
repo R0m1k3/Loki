@@ -298,8 +298,8 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 		t.Fatalf("remis à la façade malgré le réglage : %q %v", rec.Body.String(), f.recu())
 	}
 	for k, want := range map[string]string{
-		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "", "SIDE_SLOT": "SIDE_SLOT",
-		"SLOT_PERSIST": "SLOT_PERSIST", "PREWARM": "PREWARM",
+		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "", "SIDE_SLOT": "",
+		"SLOT_PERSIST": "", "PREWARM": "PREWARM",
 	} {
 		if got := facadeChatBlocker(map[string]string{k: "on"}); got != want {
 			t.Errorf("%s : %q", k, got)

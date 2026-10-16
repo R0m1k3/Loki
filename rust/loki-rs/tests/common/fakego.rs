@@ -127,6 +127,11 @@ pub struct FakeGo {
     pub service_os_fail: Mutex<Option<(String, String)>>,
     /// /internal/v1/turn/perf reçus (corps entiers).
     pub perf_records: Mutex<Vec<serde_json::Value>>,
+    /// /internal/v1/turn/slot : second slot en service (le fil de la
+    /// discussion sur le 0, le reste sur le 1 ; sinon aucun) ; demandes
+    /// reçues (« conv main »).
+    pub turn_side_live: Mutex<bool>,
+    pub turn_slots: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -666,10 +671,11 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
             if let Some(conv) = v["main_conv"].as_str() {
+                let side = if v["side"] == true { " side" } else { "" };
                 st.oai_log
                     .lock()
                     .unwrap()
-                    .push(format!("begin main_conv={conv}"));
+                    .push(format!("begin main_conv={conv}{side}"));
             } else {
                 st.oai_log.lock().unwrap().push(format!(
                     "begin read={} side={} post_v1={}",
@@ -680,6 +686,21 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(200, serde_json::json!({ "refuse": r }).to_string());
             }
             resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/turn/slot" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let main = v["main"] == true;
+            st.turn_slots
+                .lock()
+                .unwrap()
+                .push(format!("{} {main}", v["conv"].as_str().unwrap_or("")));
+            let slot = match (*st.turn_side_live.lock().unwrap(), main) {
+                (false, _) => -1,
+                (true, true) => 0,
+                (true, false) => 1,
+            };
+            resp(200, serde_json::json!({ "slot": slot }).to_string())
         }
         "/internal/v1/oai/served" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

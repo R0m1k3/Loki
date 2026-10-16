@@ -26,7 +26,9 @@
 //! (refusés par `/turn/view`), préchauffage. La télémétrie des complétions
 //! (tours, vérifications, résumés) rejoint l'anneau du Go
 //! (`/internal/v1/turn/perf`) ; les motifs `retry_patterns` personnalisés
-//! sont lus au démarrage ([`retry_patterns`]).
+//! sont lus au démarrage ([`retry_patterns`]). Chaque requête au moteur local
+//! part sur le slot que rend le Go (SIDE_SLOT, rechargement SLOT_PERSIST,
+//! lot 31).
 
 use std::collections::VecDeque;
 use std::future::Future;
@@ -510,7 +512,7 @@ impl ChatService {
             cfg: cfg.clone(),
             patterns: self.shared.patterns.clone(),
             port,
-            perf: Some((store.clone(), self.sessions.conv().id())),
+            go: Some((store.clone(), self.sessions.conv().id())),
         };
         TurnEnv {
             cfg,
@@ -820,6 +822,7 @@ impl ChatService {
             },
             queued: Box::new(move || me.drain_queued(epoch)),
             perf_kind: super::perf::KIND_MAIN,
+            side_slot: Default::default(),
         };
 
         // Chaque événement devient un delta du journal.

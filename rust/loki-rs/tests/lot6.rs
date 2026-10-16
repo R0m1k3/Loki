@@ -680,7 +680,7 @@ async fn tour_complet_par_le_go() {
             cfg: cfg.clone(),
             patterns: shared.patterns.clone(),
             port: 8080,
-            perf: None,
+            go: None,
         },
         compact: TurnCompact {
             cfg: CompactConfig::default(),
@@ -693,6 +693,7 @@ async fn tour_complet_par_le_go() {
         },
         queued: Box::new(Vec::new),
         perf_kind: "main",
+        side_slot: Default::default(),
     };
     let bash = Tool {
         kind: "function".into(),
@@ -1056,7 +1057,7 @@ async fn hote_et_sonde_de_gabarit() {
                 cfg,
                 patterns: shared.patterns.clone(),
                 port: 1,
-                perf: None,
+                go: None,
             },
             compact: TurnCompact {
                 cfg: CompactConfig::default(),
@@ -1069,6 +1070,7 @@ async fn hote_et_sonde_de_gabarit() {
             },
             queued: Box::new(Vec::new),
             perf_kind: "main",
+            side_slot: Default::default(),
         }
     };
     let bash = Tool {
@@ -1179,6 +1181,7 @@ async fn contrat_verifie_par_la_facade() {
     .await;
     let (svc, go, _stop, _t) = service(Some(&url)).await;
     *go.code.lock().unwrap() = true;
+    *go.turn_side_live.lock().unwrap() = true;
     let id = svc.sessions.conv().id();
     go.set(
         "chat",
@@ -1193,6 +1196,39 @@ async fn contrat_verifie_par_la_facade() {
 
     let seen = seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 3);
+    // SIDE_SLOT (lot 31) : le tour sur le slot 0 (rechargement SLOT_PERSIST
+    // demandé pour la discussion), la vérification sur le 1, comptée en vol
+    // sur le second slot ; la passe est un travail annexe pour le Go.
+    let slots: Vec<_> = seen.iter().map(|(_, b)| b["id_slot"].clone()).collect();
+    assert_eq!(
+        slots,
+        [
+            serde_json::json!(0),
+            serde_json::json!(1),
+            serde_json::json!(1)
+        ]
+    );
+    assert_eq!(
+        *go.turn_slots.lock().unwrap(),
+        [format!("{id} true"), " false".into(), " false".into()]
+    );
+    let begins: Vec<String> = go
+        .oai_log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|l| l.starts_with("begin"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        begins,
+        [
+            format!("begin main_conv={id}"),
+            "begin main_conv= side".into(),
+            "begin main_conv= side".into()
+        ]
+    );
+    assert_eq!(*go.side_jobs.lock().unwrap(), ["begin 1", "end 1 false"]);
     let v = &seen[1].1;
     assert_eq!(v["messages"][0]["content"], "VÉRIFICATEUR");
     assert_eq!(
@@ -1855,7 +1891,7 @@ async fn parite_du_tour_complet() {
 async fn telemetrie_des_resumes() {
     use loki_rs::chat::compact::{Summarizer, TranscriptRequest};
     let (st, go, _stop, _t) = store().await;
-    let (url, _seen) = fake_engine(vec![
+    let (url, seen) = fake_engine(vec![
         serde_json::json!({
             "choices": [{"message": {"content": "résumé"}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 3000, "completion_tokens": 200},
@@ -1864,6 +1900,10 @@ async fn telemetrie_des_resumes() {
         .to_string(),
         r#"{"choices":[]}"#.into(),
         "pas du json".into(),
+        serde_json::json!({
+            "choices": [{"message": {"content": "suite"}, "finish_reason": "stop"}]
+        })
+        .to_string(),
     ])
     .await;
     let s = EngineSummarizer {
@@ -1877,8 +1917,9 @@ async fn telemetrie_des_resumes() {
         cfg: Default::default(),
         patterns: RetryPatterns::builtin(),
         port: 8080,
-        perf: Some((st, "c9".into())),
+        go: Some((st, "c9".into())),
     };
+    *go.turn_side_live.lock().unwrap() = true;
     let req = || TranscriptRequest {
         system: "s".into(),
         transcript: "t".into(),
@@ -1890,8 +1931,58 @@ async fn telemetrie_des_resumes() {
     );
     assert!(s.summarize_transcript(req()).await.is_err(), "réponse vide");
     assert!(s.summarize_transcript(req()).await.is_err(), "illisible");
+    // Lot 31 : la transcription, prompt neuf, sur le second slot, comptée en
+    // vol sur lui et rendue à la fin ; jamais de rechargement SLOT_PERSIST.
+    let sent = seen.lock().unwrap().clone();
+    assert!(sent.iter().all(|(_, b)| b["id_slot"] == 1), "{sent:?}");
+    assert_eq!(
+        *go.turn_slots.lock().unwrap(),
+        [" false", " false", " false"]
+    );
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 3
+    })
+    .await;
+    assert_eq!(
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| *l == "begin main_conv= side")
+            .count(),
+        3
+    );
+    // En continuation, il prolonge le prompt de la discussion : le slot 0.
+    use loki_rs::chat::compact::ContinuationRequest;
+    let cont = s
+        .summarize_continuation(ContinuationRequest {
+            messages: vec![],
+            tools: vec![],
+            effort: String::new(),
+            kwargs: Default::default(),
+            max_tokens: 500,
+            conv: "c9".into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(cont.content, "suite");
+    assert_eq!(seen.lock().unwrap()[3].1["id_slot"], 0);
+    assert_eq!(go.turn_slots.lock().unwrap()[3], " true");
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .contains(&"begin main_conv=".to_string())
+    })
+    .await;
     let perfs = go.perf_records.lock().unwrap().clone();
-    assert_eq!(perfs.len(), 2, "la réponse illisible n'est pas rangée");
+    assert_eq!(perfs.len(), 3, "la réponse illisible n'est pas rangée");
     assert_eq!(
         perfs[0],
         serde_json::json!({ "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
