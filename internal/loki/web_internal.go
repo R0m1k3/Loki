@@ -137,6 +137,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalDictateStop(w, r)
 		case "/internal/v1/web/reach/reset":
 			handleInternalReachReset(w, r)
+		case "/internal/v1/web/fetch":
+			handleInternalWebFetch(w, r)
+		case "/internal/v1/web/search":
+			handleInternalWebSearch(w, r)
 		case "/internal/v1/cdp/shutdown":
 			handleInternalCDPShutdown(w, r)
 		case "/internal/v1/service/action":

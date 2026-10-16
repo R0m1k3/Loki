@@ -347,6 +347,9 @@ var (
 
 const pageCacheTTL = 10 * time.Minute
 
+// webNow : l'horloge du cache des pages (fixée par le journal de parité).
+var webNow = time.Now
+
 type fetchOptions struct {
 	force         bool
 	actions       []string
@@ -371,7 +374,7 @@ func findCached(rawURL string) *cacheEntry {
 	var best *cacheEntry
 	for k, v := range pageCache {
 		if k == u || strings.HasPrefix(k, u+"#") {
-			if time.Since(v.fetchedAt) > pageCacheTTL {
+			if webNow().Sub(v.fetchedAt) > pageCacheTTL {
 				continue
 			}
 			if best == nil || v.fetchedAt.After(best.fetchedAt) {
@@ -388,7 +391,7 @@ func getPage(rawURL string, opts fetchOptions) (*cacheEntry, error) {
 	pageCacheMu.Lock()
 	cached := pageCache[key]
 	pageCacheMu.Unlock()
-	if !opts.force && cached != nil && time.Since(cached.fetchedAt) < pageCacheTTL {
+	if !opts.force && cached != nil && webNow().Sub(cached.fetchedAt) < pageCacheTTL {
 		return cached, nil
 	}
 
@@ -418,7 +421,7 @@ func getPage(rawURL string, opts fetchOptions) (*cacheEntry, error) {
 	if strings.TrimSpace(md) == "" {
 		return nil, fmt.Errorf("page vide")
 	}
-	entry := &cacheEntry{url: u, lines: normalizeLines(md), fetchedAt: time.Now()}
+	entry := &cacheEntry{url: u, lines: normalizeLines(md), fetchedAt: webNow()}
 	pageCacheMu.Lock()
 	pageCache[key] = entry
 	pageCacheMu.Unlock()
@@ -492,6 +495,10 @@ func decodeHTMLEntities(s string) string {
 		return m
 	})
 }
+
+// ddgHTMLBase : le point d'entrée HTML de DuckDuckGo lu par le moteur intégré
+// (goSearch ; un faux pour les tests).
+var ddgHTMLBase = "https://html.duckduckgo.com"
 
 // decodeUddg : DDG enrobe les résultats en //duckduckgo.com/l/?uddg=URL_ENCODÉE
 func decodeUddg(raw string) string {

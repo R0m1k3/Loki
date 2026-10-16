@@ -671,6 +671,7 @@ async fn tour_complet_par_le_go() {
         mcp: None,
         tasks: None,
         memory: None,
+        web: Default::default(),
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -2745,4 +2746,45 @@ async fn outil_memoire_par_la_facade() {
         .unwrap()["content"]
         .clone();
     assert_eq!(tool, serde_json::json!("[ok] page 'chat' créée"));
+}
+
+/// Lot 42 : un outil web d'un tour de la façade s'exécute chez elle (cache
+/// des pages compris) ; seule la conversion du moteur intégré est demandée
+/// au Go, jamais /tool/exec.
+#[tokio::test]
+async fn outil_web_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"w1","type":"function","function":{"name":"web_open","arguments":"{\"url\":\"https://exemple.test/doc\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("lu")]).await;
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    go.set("config", "WEB_ENGINE", "go");
+    go.web_fetch.lock().unwrap().insert(
+        "https://exemple.test/doc".into(),
+        serde_json::json!({"markdown": "# Doc\n\n## Partie\ntexte"}),
+    );
+    svc.send(serde_json::json!({"message": "lis la doc", "cid": "w"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    assert_eq!(
+        *go.web_log.lock().unwrap(),
+        vec!["fetch https://exemple.test/doc".to_string()]
+    );
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(
+            "# Ouvert : https://exemple.test/doc\nTotal : 4 lignes, 23 B (23 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Doc\n    3 |   Partie\n```"
+        )
+    );
 }

@@ -347,6 +347,8 @@ pub struct ChatShared {
     /// La mémoire, quand la façade la tient (LOKI_MEM=rust) : les outils
     /// `mem_*` et `tracker` du tour s'exécutent ici (lot 40).
     pub memory: Option<Arc<crate::memory::Memory>>,
+    /// Les outils web (lot 42) : cache des pages, Crawl4AI, DuckDuckGo.
+    pub web: Arc<crate::webtools::Web>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -697,6 +699,13 @@ impl TurnHost for GoTurnHost {
                     ..Default::default()
                 };
             }
+        }
+        // Outils web (lot 42) : le cache des pages est ici.
+        if let Some(result) = self.shared.web.exec(&self.shared.store, name, args).await {
+            return ToolOutcome {
+                result,
+                ..Default::default()
+            };
         }
         // Outils task_*, quand la façade tient les tâches (lot 37).
         if crate::tasks::tools::is_tool(name)

@@ -304,7 +304,7 @@ fn kind_of(v: &Value) -> &'static str {
 }
 
 /// `quoteChar` du scanner Go.
-fn quote_char(c: u8) -> String {
+pub(crate) fn quote_char(c: u8) -> String {
     match c {
         b'\'' => r"'\''".into(),
         b'"' => "'\"'".into(),

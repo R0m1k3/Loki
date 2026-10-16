@@ -968,8 +968,67 @@ pub fn go_regex(p: &str) -> Option<String> {
     let cs: Vec<char> = p.chars().collect();
     let mut out = String::with_capacity(p.len() + 16);
     let (mut i, mut class, mut class_start) = (0, false, false);
+    // Répétition qui précède : 0 aucune, 1 une répétition (un « ? » la
+    // rend paresseuse), 2 déjà paresseuse. Le Go refuse d'en répéter une.
+    let mut rep = 0u8;
     while i < cs.len() {
         let c = cs[i];
+        if !class {
+            match c {
+                '*' | '+' | '?' => {
+                    if rep == 1 && c == '?' {
+                        rep = 2;
+                    } else if rep != 0 {
+                        return None;
+                    } else {
+                        rep = 1;
+                    }
+                    out.push(c);
+                    i += 1;
+                    continue;
+                }
+                '{' => {
+                    // `{n}`, `{n,}`, `{n,m}` (1000 au plus) ; sinon un « { »
+                    // littéral pour le Go.
+                    let rest: String = cs[i + 1..].iter().collect();
+                    let body = rest.split_once('}').map(|(b, _)| b);
+                    let parsed = body.and_then(|b| {
+                        let (lo, hi) = match b.split_once(',') {
+                            Some((lo, hi)) => (lo, Some(hi)),
+                            None => (b, None),
+                        };
+                        let num = |t: &str| {
+                            (!t.is_empty() && t.bytes().all(|d| d.is_ascii_digit()))
+                                .then(|| t.parse::<u64>().unwrap_or(u64::MAX))
+                        };
+                        let lo = num(lo)?;
+                        let hi = match hi {
+                            None => Some(lo),
+                            Some("") => None,
+                            Some(h) => Some(num(h)?),
+                        };
+                        Some((b.chars().count(), lo, hi))
+                    });
+                    match parsed {
+                        Some((len, lo, hi)) => {
+                            if lo > 1000 || hi.is_some_and(|h| h > 1000 || h < lo) || rep != 0 {
+                                return None;
+                            }
+                            rep = 1;
+                            out.extend(&cs[i..i + len + 2]);
+                            i += len + 2;
+                        }
+                        None => {
+                            rep = 0;
+                            out.push_str(r"\{");
+                            i += 1;
+                        }
+                    }
+                    continue;
+                }
+                _ => rep = 0,
+            }
+        }
         if c == '\\' && i + 1 < cs.len() {
             let n = cs[i + 1];
             i += 2;
@@ -987,6 +1046,18 @@ pub fn go_regex(p: &str) -> Option<String> {
                     return None;
                 }
                 out.push_str(&regex::escape(&lit));
+                class_start = false;
+                continue;
+            }
+            // `\p{…}`, `\P{…}`, `\x{…}` : les accolades sont à l'échappement.
+            if matches!(n, 'p' | 'P' | 'x')
+                && cs.get(i) == Some(&'{')
+                && let Some(k) = cs[i..].iter().position(|&c| c == '}')
+            {
+                out.push('\\');
+                out.push(n);
+                out.extend(&cs[i..=i + k]);
+                i += k + 1;
                 class_start = false;
                 continue;
             }
@@ -2872,6 +2943,19 @@ mod tests {
         assert_eq!(m(r"\Q(x", "a(x"), Some("(x".into()));
         // Le Go refuse \Q dans une classe.
         assert_eq!(go_regex(r"[\Q]-\E]+"), None);
+        // Répétition d'une répétition : refusée par le Go ; « ? » paresseux
+        // permis une fois ; « { » hors répétition littéral ; bornes ≤ 1000.
+        for p in ["a**", "a+*", "a*??", "a{2}*", "a*{2}", "a{1001}", "a{3,2}"] {
+            assert_eq!(go_regex(p), None, "{p}");
+        }
+        assert_eq!(go_regex("a*?b+?c??").as_deref(), Some("a*?b+?c??"));
+        assert_eq!(go_regex("a{2,}{").as_deref(), Some(r"a{2,}\{"));
+        assert_eq!(go_regex("x{a}").as_deref(), Some(r"x\{a}"));
+        assert!(compile_go_regex("x{,3}").unwrap().is_match("x{,3}"));
+        assert_eq!(
+            go_regex(r"\p{Greek}+\x{41}{2}").as_deref(),
+            Some(r"\p{Greek}+\x{41}{2}")
+        );
         // Dans une classe, « [ », « && », « -- » et « ~~ » sont littéraux.
         assert_eq!(m(r"[a[]+", "x[a["), Some("[a[".into()));
         assert_eq!(m(r"[a&&b]+", "x&ab"), Some("&ab".into()));

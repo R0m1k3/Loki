@@ -149,6 +149,12 @@ pub struct FakeGo {
     pub projsnaps: Mutex<std::collections::VecDeque<serde_json::Value>>,
     pub projsnap_refresh: Mutex<Option<serde_json::Value>>,
     pub projsnap_refreshes: Mutex<Vec<serde_json::Value>>,
+    /// Moteur web intégré (lot 42) : réponses de /internal/v1/web/fetch par
+    /// URL et de /internal/v1/web/search par « requête|limite » ; appels
+    /// reçus (« fetch URL », « search requête|limite »).
+    pub web_fetch: Mutex<HashMap<String, serde_json::Value>>,
+    pub web_search: Mutex<HashMap<String, serde_json::Value>>,
+    pub web_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -505,6 +511,28 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             200,
             serde_json::json!({ "generating": *st.generating.lock().unwrap() }).to_string(),
         ),
+        "/internal/v1/web/fetch" | "/internal/v1/web/search" => {
+            let fetch = path == "/internal/v1/web/fetch";
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let key = if fetch {
+                v["url"].as_str().unwrap_or("").to_string()
+            } else {
+                format!("{}|{}", v["query"].as_str().unwrap_or(""), v["limit"])
+            };
+            st.web_log
+                .lock()
+                .unwrap()
+                .push(format!("{} {key}", if fetch { "fetch" } else { "search" }));
+            let map = if fetch { &st.web_fetch } else { &st.web_search };
+            let out = map
+                .lock()
+                .unwrap()
+                .get(&key)
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({ "error": format!("inconnu : {key}") }));
+            resp(200, out.to_string())
+        }
         "/internal/v1/web/reach/reset" => {
             *st.reach_resets.lock().unwrap() += 1;
             resp(204, "")

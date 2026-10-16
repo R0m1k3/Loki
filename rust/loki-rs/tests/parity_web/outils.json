@@ -1,0 +1,1541 @@
+{
+  "crawl": {
+    "https://exemple.test/blanc": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"success\":true,\"markdown\":\"  \\n\\t\\n\"}]}"
+      }
+    ],
+    "https://exemple.test/brut-absent": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"success\":true,\"markdown\":{\"fit_markdown\":\"# Fit seul\\n\\nok\"}}]}"
+      }
+    ],
+    "https://exemple.test/doc": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":{\"fit_markdown\":\"\\n# Documentation   \\n\\nIntro ligne 1\\nIntro ligne 1\\n\\n\\n\\n## Installation\\nLancer `loki install`.\\t\\nErreur : moteur absent\\n### Détails\\nligne a\\nligne b\\nErreur : port pris\\nligne c\\nligne d\\nligne e\\nligne f\\nErreur : disque plein\\n####### pas un titre\\n## Fin\\r\\n\",\"raw_markdown\":\"brut\"},\"success\":true}]}"
+      },
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"# Version 2\\n\\nnouveau contenu\",\"success\":true}]}"
+      },
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"# Avec actions\\n\\nbouton cliqué\",\"success\":true}]}"
+      }
+    ],
+    "https://exemple.test/echec": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"error_message\":\"net::ERR_NAME_NOT_RESOLVED xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"success\":false}]}"
+      }
+    ],
+    "https://exemple.test/echec-muet": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"success\":false}]}"
+      }
+    ],
+    "https://exemple.test/illisible": [
+      {
+        "status": 200,
+        "body": "pas du json"
+      }
+    ],
+    "https://exemple.test/longue": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"0 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n1 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n2 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n3 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n4 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n5 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n6 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n7 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n8 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n9 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n10 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n11 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n12 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n13 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n14 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n15 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n16 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n17 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n18 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n19 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n20 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n21 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n22 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n23 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n24 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n25 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n26 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n27 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n28 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n29 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n30 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n31 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n32 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n33 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n34 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n35 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n36 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n37 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n38 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n39 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n40 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n41 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n42 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n43 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n44 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n45 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n46 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n47 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n48 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n49 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n50 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n51 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n52 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n53 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n54 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n55 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n56 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n57 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n58 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \\n59 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. \",\"success\":true}]}"
+      }
+    ],
+    "https://exemple.test/mal-type": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"success\":\"oui\",\"markdown\":\"x\"}]}"
+      }
+    ],
+    "https://exemple.test/objet-faux": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"success\":true,\"markdown\":{\"raw_markdown\":5}}]}"
+      }
+    ],
+    "https://exemple.test/seul": [
+      {
+        "status": 200,
+        "body": "{\"success\":true,\"markdown\":\"# Seul\\n\\nun résultat seul\"}"
+      }
+    ],
+    "https://exemple.test/tableau": [
+      {
+        "status": 200,
+        "body": "[]"
+      }
+    ],
+    "https://exemple.test/vide": [
+      {
+        "status": 200,
+        "body": "{\"results\":[]}"
+      }
+    ],
+    "https://html.duckduckgo.com/html/?q=anti-bot": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"\\u003cdiv class=\\\"anomaly-modal\\\"\\u003e\",\"success\":true}]}"
+      }
+    ],
+    "https://html.duckduckgo.com/html/?q=loki+rust": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":{\"fit_markdown\":\"ignoré\",\"raw_markdown\":\"# DuckDuckGo\\n\\n## [Loki \\u0026amp; **Rust**](//duckduckgo.com/l/?uddg=https%3A%2F%2Floki.example%2Frust%3Fa%3D1%26b%3D2\\u0026rut=abc)\\n\\n[loki.example/rust](//duckduckgo.com/l/?uddg=x) [![](icon.png)](x) [Un port en **Rust** \\u0026#233;tape par \\u0026#233;tape](//duckduckgo.com/l/?uddg=y)\\n## [Publicité](https://duckduckgo.com/y.js?ad=1)\\n## [Deuxième \\u0026quot;résultat\\u0026quot;](https://deux.example/page)\\n\\n\\n\\n\\n\\n[trop loin pour le résumé](x)\\n## [Loki encore](//duckduckgo.com/l/?uddg=https%3A%2F%2Floki.example%2Frust%3Fa%3D1%26b%3D2)\\n## [Troisième](https://trois.example/)   \\n[!bang ignoré](x) [vraie description](y)\\n## [Quatrième](//duckduckgo.com/l/?uddg=%ZZ)\\n## [](https://vide.example/)\"},\"success\":true}]}"
+      }
+    ],
+    "https://html.duckduckgo.com/html/?q=panne": [
+      {
+        "status": 500,
+        "body": "Internal Server Error: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      }
+    ],
+    "https://html.duckduckgo.com/html/?q=rien": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"# Rien\\n\\npas de résultat\",\"success\":true}]}"
+      }
+    ],
+    "https://raw.githubusercontent.com/r0m1k3/loki/HEAD/README.md": [
+      {
+        "status": 200,
+        "body": "{\"results\":[{\"markdown\":\"# Loki\\n\\nLe README.\",\"success\":true}]}"
+      }
+    ]
+  },
+  "images": {
+    "api en panne": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"1\"; </script></html>",
+      "api_status": 500,
+      "api": "oops"
+    },
+    "apostrophe": {
+      "page_status": 200,
+      "page": "vqd='77-88'",
+      "api_status": 200,
+      "api": "{\"results\":[{\"image\":\"https://i/a\",\"title\":\"A\",\"url\":\"https://p/a\",\"width\":1,\"height\":2}]}"
+    },
+    "apres": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"3\"; </script></html>",
+      "api_status": 200,
+      "api": "{\"results\":[]} x"
+    },
+    "chats": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"4-123-456\"; </script></html>",
+      "cookie": "dcm=7; Path=/; HttpOnly",
+      "api_status": 200,
+      "api": "{\"results\":[{\"height\":600,\"image\":\"https://img.example/1.jpg\",\"thumbnail\":\"t\",\"title\":\"Chat roux\",\"url\":\"https://page.example/1\",\"width\":800},{\"height\":1,\"image\":\"https://img.example/1.jpg\",\"thumbnail\":\"t\",\"title\":\"Doublon\",\"url\":\"https://page.example/1b\",\"width\":1},{\"height\":1,\"image\":\"\",\"thumbnail\":\"t\",\"title\":\"Sans image\",\"url\":\"https://page.example/2\",\"width\":1},{\"height\":1,\"image\":\"data:image/png;base64,xx\",\"thumbnail\":\"t\",\"title\":\"Pas http\",\"url\":\"https://page.example/3\",\"width\":1},{\"height\":768,\"image\":\"http://img.example/4.png\",\"thumbnail\":\"t\",\"title\":\"Chat \\u0026 chien \\u003c3\",\"url\":\"https://page.example/4\",\"width\":1024},{\"height\":20,\"image\":\"https://img.example/5.jpg\",\"thumbnail\":\"t\",\"title\":\"Cinquième\",\"url\":\"https://page.example/5\",\"width\":10}]}"
+    },
+    "illisible": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"2\"; </script></html>",
+      "api_status": 200,
+      "api": "pas du json"
+    },
+    "largeur texte": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"4\"; </script></html>",
+      "api_status": 200,
+      "api": "{\"results\":[{\"image\":\"https://i/1\",\"width\":\"800\"}]}"
+    },
+    "null": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"6\"; </script></html>",
+      "api_status": 200,
+      "api": "{\"results\":null,\"next\":\"i.js?x\"}"
+    },
+    "page en panne": {
+      "page_status": 403,
+      "page": "interdit",
+      "api_status": 200,
+      "api": "{}"
+    },
+    "resultats faux": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"7\"; </script></html>",
+      "api_status": 200,
+      "api": "{\"results\":\"non\"}"
+    },
+    "sans jeton": {
+      "page_status": 200,
+      "page": "<html>rien</html>",
+      "api_status": 200,
+      "api": "{}"
+    },
+    "vide": {
+      "page_status": 200,
+      "page": "<html><script>var x = 1; vqd=\"5\"; </script></html>",
+      "api_status": 200,
+      "api": "{\"results\":[]}"
+    }
+  },
+  "go_fetch": {
+    "{{PAGES}}/absente": {
+      "error": "HTTP 404 sur {{PAGES}}/absente"
+    },
+    "{{PAGES}}/article.html": {
+      "markdown": "# Guide de Loki\n\nLoki fait tourner un modèle de langage sur votre machine, sans rien envoyer ailleurs. Ce guide explique l'installation, la configuration et les premiers pas avec l'agent.\n\n## Installation\n\nTéléchargez le binaire depuis la [page des versions](https://loki.example/releases), puis lancez-le. Le moteur llama.cpp est installé au premier démarrage, précompilé pour votre carte graphique.\n\n## Configuration\n\nLes réglages se font dans l'interface : modèle, contexte, outils. Erreur fréquente : un port déjà pris par un autre service. Changez alors le port dans les réglages avancés.\n\nErreur moins fréquente : un disque plein empêche le téléchargement du modèle."
+    },
+    "{{PAGES}}/texte.txt": {
+      "markdown": "Ligne brute 1\nLigne brute 2\n"
+    }
+  },
+  "go_search": {
+    "bot|8": {
+      "error": "DuckDuckGo a renvoyé un défi anti-bot"
+    },
+    "loki|1": {
+      "results": [
+        {
+          "snippet": "Un assistant local et privé.",
+          "title": "Loki local",
+          "url": "https://loki.example/"
+        }
+      ]
+    },
+    "loki|8": {
+      "results": [
+        {
+          "snippet": "Un assistant local et privé.",
+          "title": "Loki local",
+          "url": "https://loki.example/"
+        },
+        {
+          "snippet": "",
+          "title": "Deux",
+          "url": "https://deux.example/"
+        }
+      ]
+    }
+  },
+  "calls": [
+    {
+      "name": "recherche",
+      "setup": {
+        "CRAWL4AI_URL": "{{CRAWL}}",
+        "WEB_ENGINE": "crawl4ai",
+        "crawl_key": "sesame"
+      },
+      "tool": "web_search",
+      "args": {
+        "query": "loki rust"
+      },
+      "result": "# Recherche : loki rust\n3 résultat(s) DuckDuckGo\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   Un port en Rust étape par étape\n\n2. Deuxième \"résultat\"\n   https://deux.example/page\n   \n\n3. Troisième\n   https://trois.example/\n   vraie description",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=loki+rust\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "recherche limitée",
+      "tool": "web_search",
+      "args": {
+        "limit": 1,
+        "query": "loki rust"
+      },
+      "result": "# Recherche : loki rust\n1 résultat(s) DuckDuckGo\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   Un port en Rust étape par étape",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=loki+rust\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "recherche, limite hors bornes",
+      "tool": "web_search",
+      "args": {
+        "limit": 99,
+        "query": "loki rust"
+      },
+      "result": "# Recherche : loki rust\n3 résultat(s) DuckDuckGo\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   Un port en Rust étape par étape\n\n2. Deuxième \"résultat\"\n   https://deux.example/page\n   \n\n3. Troisième\n   https://trois.example/\n   vraie description",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=loki+rust\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "recherche, limite nulle",
+      "tool": "web_search",
+      "args": {
+        "limit": -3,
+        "query": "loki rust"
+      },
+      "result": "# Recherche : loki rust\n1 résultat(s) DuckDuckGo\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   Un port en Rust étape par étape",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=loki+rust\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "recherche, limite texte",
+      "tool": "web_search",
+      "args": {
+        "limit": "2",
+        "query": "loki rust"
+      },
+      "result": "# Recherche : loki rust\n3 résultat(s) DuckDuckGo\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   Un port en Rust étape par étape\n\n2. Deuxième \"résultat\"\n   https://deux.example/page\n   \n\n3. Troisième\n   https://trois.example/\n   vraie description",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=loki+rust\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "défi anti-bot",
+      "tool": "web_search",
+      "args": {
+        "query": "anti-bot"
+      },
+      "result": "❌ Recherche échouée : DuckDuckGo a renvoyé un défi anti-bot",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=anti-bot\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "aucun résultat",
+      "tool": "web_search",
+      "args": {
+        "query": "rien"
+      },
+      "result": "Aucun résultat pour « rien »",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=rien\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "Crawl4AI en panne",
+      "tool": "web_search",
+      "args": {
+        "query": "panne"
+      },
+      "result": "❌ Recherche échouée : Crawl4AI HTTP 500: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"page_timeout\":30000},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://html.duckduckgo.com/html/?q=panne\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "ouverture",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# Ouvert : https://exemple.test/doc\nTotal : 18 lignes, 224 B (224 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Documentation\n    5 |   Installation\n    8 |     Détails\n   18 |   Fin\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/doc\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture",
+      "tool": "web_read",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nLignes 1–18 sur 18 (fin de page)\n\n```\n    1 | # Documentation\n    2 | \n    3 | Intro ligne 1\n    4 | \n    5 | ## Installation\n    6 | Lancer `loki install`.\n    7 | Erreur : moteur absent\n    8 | ### Détails\n    9 | ligne a\n   10 | ligne b\n   11 | Erreur : port pris\n   12 | ligne c\n   13 | ligne d\n   14 | ligne e\n   15 | ligne f\n   16 | Erreur : disque plein\n   17 | ####### pas un titre\n   18 | ## Fin\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture d'une plage",
+      "tool": "web_read",
+      "args": {
+        "limit": 3,
+        "offset": 5,
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nLignes 5–7 sur 18 (11 de plus en dessous)\n\n```\n    5 | ## Installation\n    6 | Lancer `loki install`.\n    7 | Erreur : moteur absent\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture au-delà",
+      "tool": "web_read",
+      "args": {
+        "offset": 400,
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nLignes 400–18 sur 18 (fin de page)\n\n```\n\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture, bornes",
+      "tool": "web_read",
+      "args": {
+        "limit": 0,
+        "offset": -2,
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nLignes 1–1 sur 18 (17 de plus en dessous)\n\n```\n    1 | # Documentation\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "erreur",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\n3 match(es) pour /erreur/i\n\n```\n    5 | ## Installation\n    6 | Lancer `loki install`.\n    7 | Erreur : moteur absent\n    8 | ### Détails\n    9 | ligne a\n   10 | ligne b\n   11 | Erreur : port pris\n   12 | ligne c\n   13 | ligne d\n   14 | ligne e\n   15 | ligne f\n   16 | Erreur : disque plein\n   17 | ####### pas un titre\n   18 | ## Fin\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep sans contexte",
+      "tool": "web_grep",
+      "args": {
+        "context": 0,
+        "pattern": "^ligne [ae]$",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\n2 match(es) pour /^ligne [ae]$/i\n\n```\n    9 | ligne a\n```\n\n---\n\n```\n   14 | ligne e\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep plafonné",
+      "tool": "web_grep",
+      "args": {
+        "context": 1,
+        "max_matches": 2,
+        "pattern": "ligne",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\n2 match(es) pour /ligne/i (plafonné à 2)\n\n```\n    2 | \n    3 | Intro ligne 1\n    4 | \n```\n\n---\n\n```\n    8 | ### Détails\n    9 | ligne a\n   10 | ligne b\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep, contexte large",
+      "tool": "web_grep",
+      "args": {
+        "context": 50,
+        "pattern": "Détails",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\n1 match(es) pour /Détails/i\n\n```\n    1 | # Documentation\n    2 | \n    3 | Intro ligne 1\n    4 | \n    5 | ## Installation\n    6 | Lancer `loki install`.\n    7 | Erreur : moteur absent\n    8 | ### Détails\n    9 | ligne a\n   10 | ligne b\n   11 | Erreur : port pris\n   12 | ligne c\n   13 | ligne d\n   14 | ligne e\n   15 | ligne f\n   16 | Erreur : disque plein\n   17 | ####### pas un titre\n   18 | ## Fin\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep sans résultat",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "introuvable",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nAucun match pour /introuvable/i",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep, ascii",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "\\bD\\w+ils",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nAucun match pour /\\bD\\w+ils/i",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 1",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "(",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: missing closing ): `(?i)(`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 2",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "a)",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: unexpected ): `(?i)a)`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 3",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "[abc",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: missing closing ]: `[abc`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 4",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "*x",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: missing argument to repetition operator: `*`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 5",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "a**",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: invalid nested repetition operator: `**`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 6",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "\\q",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: invalid escape sequence: `\\q`",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "regex invalide 7",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "a\\",
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Regex invalide : error parsing regexp: trailing backslash at end of expression: ``",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "page jamais ouverte",
+      "tool": "web_read",
+      "args": {
+        "url": "https://exemple.test/autre"
+      },
+      "result": "❌ Page absente du cache. Appelle d'abord web_open(\"https://exemple.test/autre\").",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "grep, page jamais ouverte",
+      "tool": "web_grep",
+      "args": {
+        "pattern": "x",
+        "url": "https://exemple.test/autre"
+      },
+      "result": "❌ Page absente du cache. Appelle d'abord web_open(\"https://exemple.test/autre\").",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "réouverture : cache",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# Ouvert : https://exemple.test/doc\nTotal : 18 lignes, 224 B (224 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Documentation\n    5 |   Installation\n    8 |     Détails\n   18 |   Fin\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "réouverture forcée",
+      "tool": "web_open",
+      "args": {
+        "refresh": true,
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# Ouvert : https://exemple.test/doc\nTotal : 3 lignes, 29 B (29 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Version 2\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/doc\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "ouverture avec actions",
+      "advance_s": 5,
+      "tool": "web_open",
+      "args": {
+        "actions": [
+          "document.querySelector('#plus').click();",
+          3,
+          "x && y < z"
+        ],
+        "dismiss_popups": false,
+        "url": "https://exemple.test/doc",
+        "wait_for": "css:#fin"
+      },
+      "result": "# Ouvert : https://exemple.test/doc\nTotal : 3 lignes, 31 B (31 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Avec actions\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"document.querySelector('#plus').click();\",\"x \\u0026\\u0026 y \\u003c z\"],\"page_timeout\":45000,\"wait_for\":\"css:#fin\"},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/doc\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture : la plus récente",
+      "tool": "web_read",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# https://exemple.test/doc\nLignes 1–3 sur 3 (fin de page)\n\n```\n    1 | # Avec actions\n    2 | \n    3 | bouton cliqué\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "attente seule",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/seul",
+        "wait_for": "js:() => true"
+      },
+      "result": "# Ouvert : https://exemple.test/seul\nTotal : 3 lignes, 26 B (26 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Seul\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"],\"page_timeout\":45000,\"wait_for\":\"js:() =\\u003e true\"},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/seul\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "sans fermer les bandeaux",
+      "tool": "web_open",
+      "args": {
+        "dismiss_popups": false,
+        "url": "https://exemple.test/brut-absent"
+      },
+      "result": "# Ouvert : https://exemple.test/brut-absent\nTotal : 3 lignes, 15 B (15 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Fit seul\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/brut-absent\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "cache périmé",
+      "advance_s": 601,
+      "tool": "web_read",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "❌ Page absente du cache. Appelle d'abord web_open(\"https://exemple.test/doc\").",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "ouverture après péremption",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/doc"
+      },
+      "result": "# Ouvert : https://exemple.test/doc\nTotal : 3 lignes, 31 B (31 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Avec actions\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/doc\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "dépôt GitHub",
+      "tool": "web_open",
+      "args": {
+        "url": "https://github.com/r0m1k3/loki/"
+      },
+      "result": "# Ouvert : https://raw.githubusercontent.com/r0m1k3/loki/HEAD/README.md\nTotal : 3 lignes, 19 B (19 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Loki\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://raw.githubusercontent.com/r0m1k3/loki/HEAD/README.md\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture du dépôt",
+      "tool": "web_read",
+      "args": {
+        "url": "https://github.com/r0m1k3/loki"
+      },
+      "result": "# https://raw.githubusercontent.com/r0m1k3/loki/HEAD/README.md\nLignes 1–3 sur 3 (fin de page)\n\n```\n    1 | # Loki\n    2 | \n    3 | Le README.\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "GitHub, pas un dépôt",
+      "tool": "web_open",
+      "args": {
+        "url": "https://github.com/r0m1k3"
+      },
+      "result": "❌ Crawl4AI HTTP 404: inconnu : https://github.com/r0m1k3",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://github.com/r0m1k3\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "crawl en échec",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/echec"
+      },
+      "result": "❌ Crawl4AI : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/echec\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "crawl en échec, sans message",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/echec-muet"
+      },
+      "result": "❌ Crawl4AI : échec du crawl",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/echec-muet\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "réponse vide",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/vide"
+      },
+      "result": "❌ Crawl4AI : échec du crawl",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/vide\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "réponse tableau",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/tableau"
+      },
+      "result": "❌ Crawl4AI : réponse vide",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/tableau\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "réponse illisible",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/illisible"
+      },
+      "result": "❌ Crawl4AI : réponse vide",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/illisible\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "résultat mal typé",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/mal-type"
+      },
+      "result": "❌ Crawl4AI : échec du crawl",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/mal-type\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "page blanche",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/blanc"
+      },
+      "result": "❌ page vide",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/blanc\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "markdown objet faux",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/objet-faux"
+      },
+      "result": "❌ page vide",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/objet-faux\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "page longue",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/longue"
+      },
+      "result": "# Ouvert : https://exemple.test/longue\nTotal : 60 lignes, 13.9 KB (14210 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n(aucun titre markdown trouvé)\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/longue\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture tronquée",
+      "tool": "web_read",
+      "args": {
+        "limit": 500,
+        "url": "https://exemple.test/longue"
+      },
+      "result": "# https://exemple.test/longue\nLignes 1–60 sur 60 (fin de page)\n\n```\n    1 | 0 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    2 | 1 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    3 | 2 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    4 | 3 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    5 | 4 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    6 | 5 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    7 | 6 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    8 | 7 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n    9 | 8 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   10 | 9 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   11 | 10 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   12 | 11 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   13 | 12 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   14 | 13 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   15 | 14 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   16 | 15 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   17 | 16 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   18 | 17 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   19 | 18 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   20 | 19 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   21 | 20 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   22 | 21 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   23 | 22 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   24 | 23 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   25 | 24 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   26 | 25 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   27 | 26 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   28 | 27 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   29 | 28 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   30 | 29 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   31 | 30 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   32 | 31 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore.\n   33 | 32 une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour remplir la fenêtre de lecture, encore et encore. une ligne assez longue pour rempl\n…[tronqué : réponse trop longue. Relis par tranches avec web_read(offset, limit) ou cible avec web_grep.]",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "URL inconnue du faux",
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/inconnue"
+      },
+      "result": "❌ Crawl4AI HTTP 404: inconnu : https://exemple.test/inconnue",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "auth": "Bearer sesame",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/inconnue\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "sans clé",
+      "setup": {
+        "crawl_key": "-"
+      },
+      "tool": "web_open",
+      "args": {
+        "refresh": true,
+        "url": "https://exemple.test/seul"
+      },
+      "result": "# Ouvert : https://exemple.test/seul\nTotal : 3 lignes, 26 B (26 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Seul\n```",
+      "crawls": [
+        {
+          "path": "POST /crawl",
+          "ctype": "application/json",
+          "body": "{\"browser_config\":{\"params\":{\"headless\":true},\"type\":\"BrowserConfig\"},\"crawler_config\":{\"params\":{\"js_code\":[\"(() =\\u003e { try {\\n  const TEXT = /^(accept all|accept|i accept|agree|i agree|got it|i understand|j'accepte|tout accepter|accepter|d'accord|allow all|allow|consent|continue|ok)$/i;\\n  const isOverlayish = (el) =\\u003e {\\n    try {\\n      let cur = el;\\n      for (let i = 0; i \\u003c 6 \\u0026\\u0026 cur; i++) {\\n        const s = getComputedStyle(cur);\\n        if (s.position === 'fixed' || s.position === 'sticky') return true;\\n        const idcls = ((cur.id || '') + ' ' + (cur.className || '')).toLowerCase();\\n        if (/cookie|consent|gdpr|cmp|privacy/.test(idcls)) return true;\\n        cur = cur.parentElement;\\n      }\\n    } catch {}\\n    return false;\\n  };\\n  const candidates = document.querySelectorAll('button, [role=\\\"button\\\"], input[type=\\\"button\\\"], input[type=\\\"submit\\\"]');\\n  let clicked = 0;\\n  for (const b of candidates) {\\n    if (clicked \\u003e= 2) break;\\n    const t = (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();\\n    if (!t || !TEXT.test(t)) continue;\\n    if (b.offsetParent === null) continue;\\n    if (!isOverlayish(b)) continue;\\n    try { b.click(); clicked++; } catch {}\\n  }\\n  document.querySelectorAll('[id*=\\\"cookie\\\" i],[id*=\\\"consent\\\" i],[class*=\\\"cookie\\\" i],[class*=\\\"consent\\\" i],[id*=\\\"gdpr\\\" i],[class*=\\\"gdpr\\\" i],[id*=\\\"cmp\\\" i],[class*=\\\"cmp\\\" i]')\\n    .forEach(el =\\u003e { try {\\n      const s = getComputedStyle(el);\\n      if (s.position === 'fixed' || s.position === 'sticky') el.remove();\\n    } catch {} });\\n  document.documentElement.style.overflow = 'auto';\\n  if (document.body) document.body.style.overflow = 'auto';\\n} catch {} })();\"]},\"type\":\"CrawlerRunConfig\"},\"urls\":[\"https://exemple.test/seul\"]}"
+        }
+      ],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "Crawl4AI injoignable",
+      "setup": {
+        "CRAWL4AI_URL": "{{DEAD}}/"
+      },
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/x"
+      },
+      "result": "❌ Crawl4AI injoignable ({{DEAD}}): Post \"{{DEAD}}/crawl\": dial tcp {{DEADADDR}}: connect: connection refused",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "sans serveur Crawl4AI",
+      "setup": {
+        "CRAWL4AI_URL": "-"
+      },
+      "tool": "web_open",
+      "args": {
+        "url": "https://exemple.test/x"
+      },
+      "result": "❌ aucun serveur Crawl4AI configuré (CRAWL4AI_URL)",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "lecture d'une page vue par Crawl4AI",
+      "tool": "web_read",
+      "args": {
+        "limit": 1,
+        "url": "https://exemple.test/seul"
+      },
+      "result": "# https://exemple.test/seul\nLignes 1–1 sur 3 (2 de plus en dessous)\n\n```\n    1 | # Seul\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "intégré : ouverture",
+      "setup": {
+        "WEB_ENGINE": "go"
+      },
+      "tool": "web_open",
+      "args": {
+        "url": "{{PAGES}}/article.html"
+      },
+      "result": "# Ouvert : {{PAGES}}/article.html\nTotal : 13 lignes, 692 B (692 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Guide de Loki\n    5 |   Installation\n    9 |   Configuration\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [
+        "{{PAGES}}/article.html"
+      ],
+      "go_search": []
+    },
+    {
+      "name": "intégré : grep",
+      "tool": "web_grep",
+      "args": {
+        "context": 0,
+        "pattern": "erreur",
+        "url": "{{PAGES}}/article.html"
+      },
+      "result": "# {{PAGES}}/article.html\n2 match(es) pour /erreur/i\n\n```\n   11 | Les réglages se font dans l'interface : modèle, contexte, outils. Erreur fréquente : un port déjà pris par un autre service. Changez alors le port dans les réglages avancés.\n```\n\n---\n\n```\n   13 | Erreur moins fréquente : un disque plein empêche le téléchargement du modèle.\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "intégré : texte brut",
+      "tool": "web_open",
+      "args": {
+        "actions": [
+          "x()"
+        ],
+        "url": "{{PAGES}}/texte.txt"
+      },
+      "result": "# Ouvert : {{PAGES}}/texte.txt\nTotal : 2 lignes, 28 B (28 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n(aucun titre markdown trouvé)\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [
+        "{{PAGES}}/texte.txt"
+      ],
+      "go_search": []
+    },
+    {
+      "name": "intégré : lecture",
+      "tool": "web_read",
+      "args": {
+        "url": "{{PAGES}}/texte.txt"
+      },
+      "result": "# {{PAGES}}/texte.txt\nLignes 1–2 sur 2 (fin de page)\n\n```\n    1 | Ligne brute 1\n    2 | Ligne brute 2\n```",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "intégré : page absente",
+      "tool": "web_open",
+      "args": {
+        "url": "{{PAGES}}/absente"
+      },
+      "result": "❌ HTTP 404 sur {{PAGES}}/absente",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [
+        "{{PAGES}}/absente"
+      ],
+      "go_search": []
+    },
+    {
+      "name": "intégré : recherche",
+      "tool": "web_search",
+      "args": {
+        "query": "loki"
+      },
+      "result": "# Recherche : loki\n2 résultat(s) DuckDuckGo\n\n1. Loki local\n   https://loki.example/\n   Un assistant local et privé.\n\n2. Deux\n   https://deux.example/\n   ",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": [
+        "loki"
+      ]
+    },
+    {
+      "name": "intégré : recherche limitée",
+      "tool": "web_search",
+      "args": {
+        "limit": 1,
+        "query": "loki"
+      },
+      "result": "# Recherche : loki\n1 résultat(s) DuckDuckGo\n\n1. Loki local\n   https://loki.example/\n   Un assistant local et privé.",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": [
+        "loki"
+      ]
+    },
+    {
+      "name": "intégré : anti-bot",
+      "tool": "web_search",
+      "args": {
+        "query": "bot"
+      },
+      "result": "❌ Recherche échouée : DuckDuckGo a renvoyé un défi anti-bot",
+      "crawls": [],
+      "images": [],
+      "go_fetch": [],
+      "go_search": [
+        "bot"
+      ]
+    },
+    {
+      "name": "images",
+      "tool": "web_images",
+      "args": {
+        "query": "chats"
+      },
+      "result": "# Images : chats\n3 résultat(s) DuckDuckGo\n\n1. Chat roux (800x600)\n   image : https://img.example/1.jpg\n   page : https://page.example/1\n\n2. Chat & chien <3 (1024x768)\n   image : http://img.example/4.png\n   page : https://page.example/4\n\n3. Cinquième (10x20)\n   image : https://img.example/5.jpg\n   page : https://page.example/5\n\nTo show an image to the user, write ![title](image URL) in your answer.",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=chats&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=chats&vqd=4-123-456",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images, cookie gardé",
+      "tool": "web_images",
+      "args": {
+        "limit": 1,
+        "query": "chats"
+      },
+      "result": "# Images : chats\n1 résultat(s) DuckDuckGo\n\n1. Chat roux (800x600)\n   image : https://img.example/1.jpg\n   page : https://page.example/1\n\nTo show an image to the user, write ![title](image URL) in your answer.",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=chats&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=chats&vqd=4-123-456",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : sans jeton",
+      "tool": "web_images",
+      "args": {
+        "query": "sans jeton"
+      },
+      "result": "❌ Recherche d'images échouée : jeton DuckDuckGo introuvable (défi anti-bot ?)",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=sans+jeton&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : api en panne",
+      "tool": "web_images",
+      "args": {
+        "query": "api en panne"
+      },
+      "result": "❌ Recherche d'images échouée : HTTP 500",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=api+en+panne&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=api+en+panne&vqd=1",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : page en panne",
+      "tool": "web_images",
+      "args": {
+        "query": "page en panne"
+      },
+      "result": "❌ Recherche d'images échouée : HTTP 403",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=page+en+panne&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : illisible",
+      "tool": "web_images",
+      "args": {
+        "query": "illisible"
+      },
+      "result": "❌ Recherche d'images échouée : réponse illisible : invalid character 'p' looking for beginning of value",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=illisible&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=illisible&vqd=2",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : apres",
+      "tool": "web_images",
+      "args": {
+        "query": "apres"
+      },
+      "result": "❌ Recherche d'images échouée : réponse illisible : invalid character 'x' after top-level value",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=apres&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=apres&vqd=3",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : largeur texte",
+      "tool": "web_images",
+      "args": {
+        "query": "largeur texte"
+      },
+      "result": "❌ Recherche d'images échouée : réponse illisible : json: cannot unmarshal string into Go struct field imageResult.results.width of type int",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=largeur+texte&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=largeur+texte&vqd=4",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : vide",
+      "tool": "web_images",
+      "args": {
+        "query": "vide"
+      },
+      "result": "Aucune image pour « vide »",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=vide&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=vide&vqd=5",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : null",
+      "tool": "web_images",
+      "args": {
+        "query": "null"
+      },
+      "result": "Aucune image pour « null »",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=null&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=null&vqd=6",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : resultats faux",
+      "tool": "web_images",
+      "args": {
+        "query": "resultats faux"
+      },
+      "result": "❌ Recherche d'images échouée : réponse illisible : json: cannot unmarshal string into Go struct field .results of type []loki.imageResult",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=resultats+faux&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=resultats+faux&vqd=7",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    },
+    {
+      "name": "images : apostrophe",
+      "tool": "web_images",
+      "args": {
+        "query": "apostrophe"
+      },
+      "result": "# Images : apostrophe\n1 résultat(s) DuckDuckGo\n\n1. A (1x2)\n   image : https://i/a\n   page : https://p/a\n\nTo show an image to the user, write ![title](image URL) in your answer.",
+      "crawls": [],
+      "images": [
+        {
+          "path": "/?q=apostrophe&iax=images&ia=images",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        },
+        {
+          "path": "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=apostrophe&vqd=77-88",
+          "referer": "https://duckduckgo.com/",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "lang": "fr-FR,fr;q=0.9,en;q=0.8",
+          "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "cookie": "dcm=7"
+        }
+      ],
+      "go_fetch": [],
+      "go_search": []
+    }
+  ]
+}
