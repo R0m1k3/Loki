@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -954,10 +955,10 @@ func TestFacadeBackends(t *testing.T) {
 			t.Fatalf("%s non relayé : %q", p, w.Body.String())
 		}
 	}
-	// La compilation reste au Go.
+	// La compilation depuis les sources part aussi (lot 41), sauf sous Windows.
 	for _, p := range []string{"/api/llamacpp/install", "/api/llamacpp/update", "/api/llamacpp/install-custom"} {
-		if facadeBackendsRoutes[p] {
-			t.Fatalf("%s ne doit pas partir à la façade", p)
+		if facadeBackendsRoutes[p] != (runtime.GOOS != "windows") {
+			t.Fatalf("%s : tenu par la façade = %v sous %s", p, facadeBackendsRoutes[p], runtime.GOOS)
 		}
 	}
 	mu.Lock()

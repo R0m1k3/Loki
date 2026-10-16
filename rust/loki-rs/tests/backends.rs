@@ -656,3 +656,201 @@ fn extraction_zip() {
         "entrée d'archive suspecte : ../evasion"
     );
 }
+
+/// Lot 41 : la compilation depuis les sources (install, update,
+/// install-custom), rejouée sur le journal du Go
+/// (`internal/loki/parity_build_test.go` → `parity_backends/build.json`) :
+/// mêmes faux outils seuls dans le PATH des sondes, même vue du job (lignes,
+/// phase, erreur, commits), même BIN, mêmes `build.old`.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn compilation_comme_le_go() {
+    let fx: Value =
+        serde_json::from_str(include_str!("parity_backends/build.json")).expect("journal");
+    let bn = bench().await;
+    let tools = fx["tools"].as_object().unwrap();
+    let write_tool = |name: &str| write_file(&bn.tools.join(name), s(&tools[name]), 0o755);
+    for name in tools.keys() {
+        write_tool(name);
+    }
+    let home = bn.home.to_string_lossy().into_owned();
+    let jobs_re = Regex::new(r"jobs=[0-9]+").unwrap();
+    let mask = |v: &str| {
+        jobs_re
+            .replace_all(&v.replace(&home, "{{HOME}}"), "jobs={{N}}")
+            .into_owned()
+    };
+    for st in fx["steps"].as_array().unwrap() {
+        let name = s(&st["name"]);
+        if let Some(r) = st["remote"].as_str() {
+            std::fs::write(bn.tools.join("remote-sha"), format!("{r}\n")).unwrap();
+        }
+        apply_files(&bn.home, &st["files"]);
+        let no_tools: Vec<&str> = st["no_tools"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(s)
+            .collect();
+        for n in &no_tools {
+            let _ = std::fs::remove_file(bn.tools.join(n));
+        }
+        let (path, body) = match s(&st["action"]) {
+            "install" => (
+                "/api/llamacpp/install",
+                json!({ "force": st["force"] == json!(true) }),
+            ),
+            "update" => (
+                "/api/llamacpp/update",
+                json!({ "clean": st["clean"] == json!(true) }),
+            ),
+            _ => (
+                "/api/llamacpp/install-custom",
+                json!({ "repo": st["url"], "name": s(&st["bname"]), "ref": s(&st["ref"]) }),
+            ),
+        };
+        let (code, v) = bn.call("POST", path, &body.to_string()).await;
+        assert_eq!((code, v), (200, json!({ "ok": true })), "{name}");
+        bn.wait_job().await;
+        let (_, raw) = fakego::send(bn.facade, "GET", "/api/llamacpp/job", &[], "").await;
+        let mut job: Value = serde_json::from_str(&mask(&String::from_utf8_lossy(&raw))).unwrap();
+        let o = job.as_object_mut().unwrap();
+        o.remove("started_at");
+        o.remove("ended_at");
+        assert_eq!(job, st["job"], "{name} : job");
+        let bin = bn.go.get("config", "BIN").unwrap_or_default();
+        assert_eq!(mask(&bin), s(&st["bin"]), "{name} : BIN");
+        let mut olds: Vec<String> = std::fs::read_dir(bn.home.join("backends"))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|e| e.path().join("build.old").is_dir())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        olds.sort();
+        assert_eq!(json!(olds), st["build_old"], "{name} : build.old");
+        for n in &no_tools {
+            write_tool(n);
+        }
+    }
+}
+
+/// Les refus des routes de compilation : moteur de l'image, URL absente,
+/// optimisation en cours, job déjà lancé.
+#[cfg(unix)]
+#[tokio::test]
+async fn compilation_refusee() {
+    let bn = bench().await;
+    let moteur = bn.home.join("image/llama-server");
+    std::fs::create_dir_all(moteur.parent().unwrap()).unwrap();
+    write_file(&moteur, "#!/bin/sh\n", 0o755);
+    bn.b.set_engine_bin_env(&moteur.to_string_lossy());
+    let (code, v) = bn.call("POST", "/api/llamacpp/update", "{}").await;
+    assert_eq!(code, 409);
+    assert_eq!(
+        v["error"],
+        "Le moteur est fourni par l'image Docker ({{HOME}}/image/llama-server) : il n'y a rien à compiler ici, \
+         et l'image ne contient ni cmake ni compilateur. Pour le mettre à jour, utilise \
+         « mettre à jour le moteur » dans Réglages → Moteur."
+    );
+    bn.b.set_engine_bin_env("");
+    let (code, v) = bn
+        .call("POST", "/api/llamacpp/install-custom", r#"{"repo":"  "}"#)
+        .await;
+    assert_eq!(
+        (code, v),
+        (400, json!({ "ok": false, "error": "URL du dépôt requise" }))
+    );
+    *bn.go.tune_busy.lock().unwrap() = Some(TUNE_BUSY.into());
+    let (code, v) = bn.call("POST", "/api/llamacpp/install", "{}").await;
+    assert_eq!((code, v), (409, json!({ "ok": false, "error": TUNE_BUSY })));
+    *bn.go.tune_busy.lock().unwrap() = None;
+    let backend = bn.go.backend.lock().unwrap().unwrap();
+    let store = loki_rs::store::Store::new(backend, fakego::JETON.into());
+    bn.b.jobs.start(&store, "prebuilt").await.unwrap();
+    let (code, v) = bn.call("POST", "/api/llamacpp/update", "{}").await;
+    assert_eq!(
+        (code, v),
+        (
+            409,
+            json!({ "ok": false, "error": "un job prebuilt est déjà en cours" })
+        )
+    );
+}
+
+/// La mise à jour arrête le moteur le temps du build et le relance, même
+/// quand le build échoue.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn compilation_arrete_le_service() {
+    let fx: Value =
+        serde_json::from_str(include_str!("parity_backends/build.json")).expect("journal");
+    let bn = bench().await;
+    for (name, script) in fx["tools"].as_object().unwrap() {
+        write_file(&bn.tools.join(name), s(script), 0o755);
+    }
+    let remote =
+        |sha: &str| std::fs::write(bn.tools.join("remote-sha"), format!("{sha}\n")).unwrap();
+    let lines = |job: &Value| -> Vec<String> {
+        job["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect()
+    };
+    remote("aaaaaaa1111111111111111111111111111111");
+    assert_eq!(bn.call("POST", "/api/llamacpp/install", "{}").await.0, 200);
+    bn.wait_job().await;
+    assert!(
+        bn.go.service_actions.lock().unwrap().is_empty(),
+        "l'installation ne touche pas au service"
+    );
+
+    *bn.go.service_active.lock().unwrap() = true;
+    for (sha, fail_build) in [
+        ("bbbbbbb2222222222222222222222222222222", false),
+        ("ccccccc3333333333333333333333333333333", true),
+    ] {
+        remote(sha);
+        let marker = bn.home.join("backends/llama.cpp/FAIL_BUILD");
+        if fail_build {
+            std::fs::write(&marker, "1").unwrap();
+        }
+        bn.go.service_actions.lock().unwrap().clear();
+        assert_eq!(bn.call("POST", "/api/llamacpp/update", "{}").await.0, 200);
+        bn.wait_job().await;
+        let (_, job) = bn.call("GET", "/api/llamacpp/job", "").await;
+        let l = lines(&job);
+        let stop = l
+            .iter()
+            .position(|x| x == "▶ arrêt du service le temps du build…")
+            .expect("arrêt");
+        let cfg = l
+            .iter()
+            .position(|x| x == "▶ configuration CMake…")
+            .unwrap();
+        let start = l
+            .iter()
+            .position(|x| x == "▶ redémarrage du service…")
+            .expect("relance");
+        assert!(stop < cfg && cfg < start, "{l:?}");
+        assert_eq!(
+            *bn.go.service_actions.lock().unwrap(),
+            vec![("stop".to_string(), true), ("start".to_string(), false)]
+        );
+        if fail_build {
+            assert_eq!(job["error"], "compilation échouée: exit status 2");
+            // Comme au Go : l'échec est posé, puis le service relancé.
+            assert_eq!(
+                &l[l.len() - 2..],
+                [
+                    "✗ compilation échouée: exit status 2",
+                    "▶ redémarrage du service…"
+                ]
+            );
+        } else {
+            assert_eq!(l.last().unwrap(), "✓ mis à jour : aaaaaaa → bbbbbbb");
+        }
+    }
+}

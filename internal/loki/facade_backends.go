@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -18,12 +19,13 @@ import (
 // suivi du job, backends custom et GPU vus par un moteur
 // (rust/loki-rs/src/backends).
 //
-// La façade détient alors LE job des moteurs. Ceux que le Go fait encore
-// tourner — compilation depuis les sources (install, update, install-custom,
-// que la façade lui relaie), moteur de l'image, Strata — lui rapportent chaque
-// étape (/internal/facade/v1/build-job/*) : lcAppend, lcPhase, lcFail, lcDone,
-// startLcJob et lcJobSnapshot passent par elle, et le Go ne restaure plus de
-// job au démarrage (la façade s'en charge).
+// La façade détient alors LE job des moteurs, et compile elle-même llama.cpp
+// depuis les sources sous Linux et macOS (install, update, install-custom ;
+// lot 41, backends/build.rs). Ceux que le Go fait encore tourner — compilation
+// sous Windows (chaîne MSVC), moteur de l'image, Strata — lui rapportent
+// chaque étape (/internal/facade/v1/build-job/*) : lcAppend, lcPhase, lcFail,
+// lcDone, startLcJob et lcJobSnapshot passent par elle, et le Go ne restaure
+// plus de job au démarrage (la façade s'en charge).
 
 const facadeBackendsEnv = "LOKI_BACKENDS"
 
@@ -45,6 +47,17 @@ var facadeBackendsRoutes = map[string]bool{
 	"/api/backends":                  true,
 	"/api/backends/custom":           true,
 	"/api/backends/devices":          true,
+}
+
+func init() {
+	// La compilation depuis les sources part aussi à la façade (lot 41), sauf
+	// sous Windows : générateur Visual Studio et intégration CUDA de MSBuild
+	// restent au Go.
+	if runtime.GOOS != "windows" {
+		for _, p := range []string{"/api/llamacpp/install", "/api/llamacpp/update", "/api/llamacpp/install-custom"} {
+			facadeBackendsRoutes[p] = true
+		}
+	}
 }
 
 // facadeJobClient : appels courts (une ligne de journal, une phase).

@@ -4,12 +4,14 @@
 //! `handleBackends`, `handleBackendsCustom`, `handleLlamacppUninstallCustom`
 //! (`web_api.go`) et `handleBackendDevices` (`web_devices.go`).
 //!
-//! La façade détient LE job des moteurs ([`job::Jobs`]) : le sien (binaires
-//! précompilés) et ceux que le Go fait encore tourner — compilation depuis les
-//! sources (install, update, install-custom, relayées au Go), moteur de
+//! La façade détient LE job des moteurs ([`job::Jobs`]) : les siens
+//! (binaires précompilés ; compilation depuis les sources — install, update,
+//! install-custom — sous Linux et macOS depuis le lot 41, [`build`]) et ceux
+//! que le Go fait encore tourner — compilation sous Windows, moteur de
 //! l'image, Strata — qui lui rapportent chaque étape par l'API interne
 //! (`/internal/facade/v1/build-job/*`).
 
+pub mod build;
 pub mod devices;
 pub mod job;
 pub mod prebuilt;
@@ -37,8 +39,9 @@ use probe::{Probe, is_dir, is_file};
 /// Préfixe de l'API interne du job (pour le Go seulement).
 pub const INTERNAL_PREFIX: &str = "/internal/facade/v1/build-job/";
 
-/// `refuseIfProvided` n'est plus utile ici : les routes de compilation
-/// restent au Go, qui répond lui-même.
+const INSTALL_REQ_TYPE: &str = r#"struct { Force bool "json:\"force\"" }"#;
+const UPDATE_REQ_TYPE: &str = r#"struct { Clean bool "json:\"clean\"" }"#;
+const CUSTOM_REQ_TYPE: &str = r#"struct { Repo string "json:\"repo\""; Name string "json:\"name\""; Ref string "json:\"ref\"" }"#;
 const USE_REQ_TYPE: &str = r#"struct { Mode string "json:\"mode\"" }"#;
 const NAME_REQ_TYPE: &str = r#"struct { Name string "json:\"name\"" }"#;
 const BIN_REQ_TYPE: &str = r#"struct { Bin string "json:\"bin\"" }"#;
@@ -361,6 +364,15 @@ pub fn handles(path: &str) -> bool {
             | "/api/backends"
             | "/api/backends/custom"
             | "/api/backends/devices"
+    ) || (cfg!(unix) && is_build_route(path))
+}
+
+/// Les routes de compilation depuis les sources (lot 41 ; Unix seulement,
+/// la chaîne MSVC de Windows reste au Go).
+fn is_build_route(path: &str) -> bool {
+    matches!(
+        path,
+        "/api/llamacpp/install" | "/api/llamacpp/update" | "/api/llamacpp/install-custom"
     )
 }
 
@@ -438,6 +450,7 @@ pub async fn serve(
             send_json(StatusCode::OK, &b.jobs.snapshot(go_atoi(&from), true).await)
         }
         "/api/llamacpp/uninstall-custom" => uninstall_custom(b, store, &raw).await,
+        p if cfg!(unix) && is_build_route(p) => start_build(ctx, b, p, &raw).await,
         "/api/backends" => {
             let list: Vec<Value> = b
                 .list_backend_bins()
@@ -484,6 +497,67 @@ pub async fn serve(
         }
         _ => fail(StatusCode::NOT_FOUND, "route inconnue"),
     }
+}
+
+/// `handleLlamacppInstall`, `handleLlamacppUpdate`,
+/// `handleLlamacppInstallCustom` : le job de compilation lancé.
+async fn start_build(ctx: &Ctx, b: &Arc<Backends>, path: &str, raw: &[u8]) -> Response<Body> {
+    let provided = b.provided_engine_bin();
+    if !provided.is_empty() {
+        return fail(
+            StatusCode::CONFLICT,
+            format!(
+                "Le moteur est fourni par l'image Docker ({provided}) : il n'y a rien à compiler ici, \
+                 et l'image ne contient ni cmake ni compilateur. Pour le mettre à jour, utilise \
+                 « mettre à jour le moteur » dans Réglages → Moteur."
+            ),
+        );
+    }
+    enum Run {
+        Install(bool),
+        Update(bool),
+        Custom(String, String, String),
+    }
+    let (action, run) = match path {
+        "/api/llamacpp/install" => {
+            let d = gojson::decode_struct(raw, INSTALL_REQ_TYPE, &[("force", Kind::Bool)]);
+            ("install", Run::Install(d.bool("force")))
+        }
+        "/api/llamacpp/update" => {
+            let d = gojson::decode_struct(raw, UPDATE_REQ_TYPE, &[("clean", Kind::Bool)]);
+            ("update", Run::Update(d.bool("clean")))
+        }
+        _ => {
+            let d = gojson::decode_struct(
+                raw,
+                CUSTOM_REQ_TYPE,
+                &[("repo", Kind::Str), ("name", Kind::Str), ("ref", Kind::Str)],
+            );
+            if d.str("repo").trim().is_empty() {
+                return fail(StatusCode::BAD_REQUEST, "URL du dépôt requise");
+            }
+            (
+                "custom",
+                Run::Custom(d.str("repo"), d.str("name"), d.str("ref")),
+            )
+        }
+    };
+    if let Some(e) = tune_busy(&ctx.store).await {
+        return fail(StatusCode::CONFLICT, e);
+    }
+    if let Err(e) = b.jobs.start(&ctx.store, action).await {
+        return fail(StatusCode::CONFLICT, e);
+    }
+    let (b2, ctx2) = (b.clone(), ctx.clone());
+    tokio::spawn(async move {
+        match run {
+            Run::Install(force) => build::run_install(&ctx2, &b2, force).await,
+            Run::Update(clean) => build::run_update(&ctx2, &b2, clean).await,
+            Run::Custom(url, name, r) => build::run_custom(&ctx2, &b2, &url, &name, &r).await,
+        }
+        b2.jobs.end(&ctx2.store).await;
+    });
+    send_json(StatusCode::OK, &json!({ "ok": true }))
 }
 
 /// Valeur d'un paramètre de requête (dernière occurrence ignorée : la

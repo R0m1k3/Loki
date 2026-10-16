@@ -1,0 +1,482 @@
+{
+  "tools": {
+    "c++": "#!/bin/sh\n",
+    "cc": "#!/bin/sh\n",
+    "cmake": "#!/bin/sh\nif [ \"$1\" = \"-B\" ]; then\n  mkdir -p build\n  echo \"-- The C compiler identification is GNU 13.2.0\"\n  echo \"-- Configuring done (0.5s)\"\n  printf 'CMAKE_HOME_DIRECTORY:INTERNAL=%s\\n' \"$(pwd)\" \u003e build/CMakeCache.txt\n  echo \"-- Build files have been written to: build\"\n  exit 0\nfi\nif [ -f FAIL_BUILD ]; then\n  echo \"[ 10%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o\"\n  echo \"common/arg.cpp:12:5: error: 'boom' was not declared in this scope\"\n  exit 2\nfi\necho \"[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o\"\necho \"[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o\"\necho \"[100%] Linking CXX executable ../bin/llama-server\"\nmkdir -p build/bin\nprintf '#!/bin/sh\\necho llama-server\\n' \u003e build/bin/llama-server\nchmod +x build/bin/llama-server\n",
+    "git": "#!/bin/sh\nd=$(dirname \"$0\")\ncase \"$1\" in\n  clone)\n    dir=\"$4\"\n    if [ -f \"$(dirname \"$dir\")/CLONE_FAIL\" ]; then echo \"fatal: repository '$3' not found\" \u003e\u00262; exit 128; fi\n    mkdir -p \"$dir/.git\"\n    cat \"$d/remote-sha\" \u003e \"$dir/.git/HEAD_SHA\"\n    echo \"Cloning into '$dir'...\" \u003e\u00262 ;;\n  fetch)\n    exit 0 ;;\n  rev-parse)\n    case \"$2\" in\n      --short)\n        if [ \"$3\" = HEAD ]; then head -c 7 .git/HEAD_SHA; else head -c 7 \"$d/remote-sha\"; fi\n        echo ;;\n      --abbrev-ref) echo master ;;\n      HEAD) cat .git/HEAD_SHA ;;\n      *) cat \"$d/remote-sha\" ;;\n    esac ;;\n  pull)\n    cat \"$d/remote-sha\" \u003e .git/HEAD_SHA\n    echo \"Fast-forward\" ;;\n  checkout)\n    echo \"$2\" \u003e .git/REF\n    echo \"HEAD is now at $2\" \u003e\u00262 ;;\nesac\n",
+    "make": "#!/bin/sh\n"
+  },
+  "steps": [
+    {
+      "name": "mise à jour sans dépôt",
+      "remote": "aaaaaaa1111111111111111111111111111111",
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 0,
+        "error": "aucun dépôt llama.cpp ({{HOME}}/backends/llama.cpp) — lance d'abord l'installation",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "✗ aucun dépôt llama.cpp ({{HOME}}/backends/llama.cpp) — lance d'abord l'installation"
+        ],
+        "new": "",
+        "next": 2,
+        "old": "",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "",
+      "build_old": []
+    },
+    {
+      "name": "installation",
+      "action": "install",
+      "job": {
+        "action": "install",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ clone de llama.cpp…",
+          "Cloning into '{{HOME}}/backends/llama.cpp'...",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp/build/bin/llama-server",
+          "BIN mis à jour",
+          "✓ installation terminée"
+        ],
+        "new": "",
+        "next": 14,
+        "old": "",
+        "phase": "installation terminée",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "mise à jour : déjà à jour",
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 0,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ git fetch origin…",
+          "✓ déjà à jour (aaaaaaa) — rien à faire"
+        ],
+        "new": "",
+        "next": 3,
+        "old": "aaaaaaa",
+        "phase": "déjà à jour (aaaaaaa) — rien à faire",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "mise à jour : nouveau commit",
+      "remote": "bbbbbbb2222222222222222222222222222222",
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ git fetch origin…",
+          "▶ git pull origin/master…",
+          "Fast-forward",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp/build/bin/llama-server",
+          "BIN mis à jour",
+          "✓ mis à jour : aaaaaaa → bbbbbbb"
+        ],
+        "new": "bbbbbbb",
+        "next": 15,
+        "old": "aaaaaaa",
+        "phase": "mis à jour : aaaaaaa → bbbbbbb",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "recompilation propre",
+      "action": "update",
+      "clean": true,
+      "job": {
+        "action": "update",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ git fetch origin…",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp/build/bin/llama-server",
+          "BIN mis à jour",
+          "✓ recompilé (bbbbbbb)"
+        ],
+        "new": "bbbbbbb",
+        "next": 13,
+        "old": "bbbbbbb",
+        "phase": "recompilé (bbbbbbb)",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": [
+        "llama.cpp"
+      ]
+    },
+    {
+      "name": "installation sur un dépôt présent",
+      "remote": "ccccccc3333333333333333333333333333333",
+      "action": "install",
+      "job": {
+        "action": "install",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ dépôt déjà présent — bascule en mise à jour",
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ git fetch origin…",
+          "▶ git pull origin/master…",
+          "Fast-forward",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp/build/bin/llama-server",
+          "BIN mis à jour",
+          "✓ mis à jour : bbbbbbb → ccccccc"
+        ],
+        "new": "ccccccc",
+        "next": 17,
+        "old": "bbbbbbb",
+        "phase": "mis à jour : bbbbbbb → ccccccc",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": [
+        "llama.cpp"
+      ]
+    },
+    {
+      "name": "build en échec",
+      "remote": "ddddddd4444444444444444444444444444444",
+      "files": {
+        "backends/llama.cpp/FAIL_BUILD": "1"
+      },
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 2,
+        "error": "compilation échouée: exit status 2",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ git fetch origin…",
+          "▶ git pull origin/master…",
+          "Fast-forward",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 10%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "common/arg.cpp:12:5: error: 'boom' was not declared in this scope",
+          "--- fin de configure.log ---",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "--- fin de build.log ---",
+          "[ 10%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "common/arg.cpp:12:5: error: 'boom' was not declared in this scope",
+          "✗ compilation échouée: exit status 2"
+        ],
+        "new": "ddddddd",
+        "next": 19,
+        "old": "ccccccc",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": [
+        "llama.cpp"
+      ]
+    },
+    {
+      "name": "installation forcée",
+      "files": {
+        "backends/llama.cpp/FAIL_BUILD": "-"
+      },
+      "action": "install",
+      "force": true,
+      "job": {
+        "action": "install",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ suppression du dépôt existant (--force)…",
+          "▶ clone de llama.cpp…",
+          "Cloning into '{{HOME}}/backends/llama.cpp'...",
+          "plan de build : backend=cpu arch= jobs={{N}}",
+          "▶ configuration CMake…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp/build/bin/llama-server",
+          "BIN mis à jour",
+          "✓ installation terminée"
+        ],
+        "new": "",
+        "next": 15,
+        "old": "",
+        "phase": "installation terminée",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "cmake absent",
+      "no_tools": [
+        "cmake"
+      ],
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 0,
+        "error": "outils toujours manquants après tentative d'install: cmake — installe-les à la main puis réessaie",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "✗ outils toujours manquants après tentative d'install: cmake — installe-les à la main puis réessaie"
+        ],
+        "new": "",
+        "next": 2,
+        "old": "",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "compilateur absent",
+      "no_tools": [
+        "cc",
+        "make"
+      ],
+      "action": "update",
+      "job": {
+        "action": "update",
+        "compiled": 0,
+        "error": "compilateur C/C++ introuvable — installe gcc/g++/make (ou build-essential) manuellement",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "✗ compilateur C/C++ introuvable — installe gcc/g++/make (ou build-essential) manuellement"
+        ],
+        "new": "",
+        "next": 2,
+        "old": "",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "clone en échec",
+      "files": {
+        "backends/CLONE_FAIL": "1",
+        "backends/llama.cpp": "-"
+      },
+      "action": "install",
+      "job": {
+        "action": "install",
+        "compiled": 0,
+        "error": "git clone a échoué : exit status 128",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ clone de llama.cpp…",
+          "fatal: repository 'https://github.com/ggml-org/llama.cpp.git' not found",
+          "✗ git clone a échoué : exit status 128"
+        ],
+        "new": "",
+        "next": 4,
+        "old": "",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "custom : URL invalide",
+      "files": {
+        "backends/CLONE_FAIL": "-"
+      },
+      "action": "custom",
+      "url": "ftp://exemple/x",
+      "job": {
+        "action": "custom",
+        "compiled": 0,
+        "error": "URL de dépôt invalide (attendu https://…, git@… ou ssh://…) : ftp://exemple/x",
+        "exists": true,
+        "lines": [
+          "✗ URL de dépôt invalide (attendu https://…, git@… ou ssh://…) : ftp://exemple/x"
+        ],
+        "new": "",
+        "next": 1,
+        "old": "",
+        "phase": "échec",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "custom : nouveau fork",
+      "action": "custom",
+      "url": "https://github.com/prism/llama.cpp.git",
+      "job": {
+        "action": "custom",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ clone de https://github.com/prism/llama.cpp.git…",
+          "Cloning into '{{HOME}}/backends/llama.cpp-prism'...",
+          "▶ compilation (backend=cpu)…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp-prism/build/bin/llama-server",
+          "→ pour l'utiliser : édite un modèle → section Moteur → « backend détecté » et choisis-le.",
+          "✓ backend custom installé"
+        ],
+        "new": "",
+        "next": 13,
+        "old": "",
+        "phase": "backend custom installé",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "custom : nom assaini, sur un ref",
+      "action": "custom",
+      "url": "https://github.com/prism/llama.cpp.git",
+      "bname": "Mon Fork/../x",
+      "ref": "v2",
+      "job": {
+        "action": "custom",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ clone de https://github.com/prism/llama.cpp.git…",
+          "Cloning into '{{HOME}}/backends/mon-fork-..-x'...",
+          "HEAD is now at v2",
+          "▶ compilation (backend=cpu)…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/mon-fork-..-x/build/bin/llama-server",
+          "→ pour l'utiliser : édite un modèle → section Moteur → « backend détecté » et choisis-le.",
+          "✓ backend custom installé"
+        ],
+        "new": "",
+        "next": 14,
+        "old": "",
+        "phase": "backend custom installé",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    },
+    {
+      "name": "custom : dossier existant sur un ref",
+      "action": "custom",
+      "url": "git@github.com:prism/llama.cpp.git",
+      "ref": "v3",
+      "job": {
+        "action": "custom",
+        "compiled": 2,
+        "error": "",
+        "exists": true,
+        "lines": [
+          "▶ vérification des outils (git, cmake, compilateur)…",
+          "▶ dépôt déjà présent — mise à jour…",
+          "HEAD is now at v3",
+          "▶ compilation (backend=cpu)…",
+          "-- The C compiler identification is GNU 13.2.0",
+          "-- Configuring done (0.5s)",
+          "-- Build files have been written to: build",
+          "[ 50%] Building CXX object common/CMakeFiles/common.dir/arg.cpp.o",
+          "[ 90%] Building CUDA object ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/fattn.cu.o",
+          "[100%] Linking CXX executable ../bin/llama-server",
+          "binaire compilé : {{HOME}}/backends/llama.cpp-prism/build/bin/llama-server",
+          "→ pour l'utiliser : édite un modèle → section Moteur → « backend détecté » et choisis-le.",
+          "✓ backend custom installé"
+        ],
+        "new": "",
+        "next": 13,
+        "old": "",
+        "phase": "backend custom installé",
+        "running": false
+      },
+      "bin": "{{HOME}}/backends/llama.cpp/build/bin/llama-server",
+      "build_old": []
+    }
+  ]
+}
