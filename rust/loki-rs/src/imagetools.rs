@@ -225,6 +225,169 @@ pub async fn see_image(
     )
 }
 
+// --- see_video (chat_video.go, chat_video_tool.go) ------------------------------
+
+/// `maxVideoBytes` : au-delà, des dizaines de milliers de jetons visuels.
+pub const MAX_VIDEO_BYTES: i64 = 200 << 20;
+
+/// `videoFallbackNote` : consigne quand le moteur ne lit pas la vidéo.
+pub const VIDEO_FALLBACK_NOTE: &str = "Le moteur actif ne lit pas la vidéo directement. Pour en voir le contenu, extrais quelques images avec ffmpeg (par exemple `ffmpeg -i <vidéo> -vf fps=1 frame_%03d.jpg`) puis regarde-les avec see_image ; si ffmpeg est absent, dis-le plutôt que de deviner le contenu.\n";
+
+/// `videoMimes` : les vidéos qu'on sait montrer au modèle.
+pub fn video_mime(name: &str) -> &'static str {
+    let ext = Path::new(name)
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
+        .unwrap_or_default();
+    match ext.as_str() {
+        ".mp4" => "video/mp4",
+        ".webm" => "video/webm",
+        ".mov" => "video/quicktime",
+        ".mkv" => "video/x-matroska",
+        ".avi" => "video/x-msvideo",
+        _ => "",
+    }
+}
+
+/// `videoPart` : la partie `input_video` que lit llama-server.
+pub fn video_part(b: &[u8], mime: &str) -> Value {
+    json!({
+        "type": "input_video",
+        "input_video": { "url": format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(b)) },
+    })
+}
+
+/// `videoInputSupported` : preset local avec projecteur (MMPROJ) et moteur
+/// dont l'aide annonce `--video-fps`. Lit le disque et lance le moteur :
+/// à appeler hors du runtime (`spawn_blocking`). `home` : `LOKI_HOME`.
+pub fn video_input_supported(cfg: &crate::serve::Cfg, home: &Path) -> bool {
+    use crate::serve::{get, trim};
+    if crate::serve::is_external(cfg)
+        || crate::serve::is_strata(cfg)
+        || trim(get(cfg, "MMPROJ")).is_empty()
+    {
+        return false;
+    }
+    let mut bin = trim(get(cfg, "BIN")).to_string();
+    if bin.is_empty() {
+        return false;
+    }
+    if !crate::paths::go_is_abs(&bin) {
+        bin = home.join(&bin).to_string_lossy().into_owned();
+    }
+    let ep = crate::serve::run::EnginePaths {
+        home: home.to_path_buf(),
+    };
+    bin_help_has_video(&ep.prebuilt_resolve_bin(&bin))
+}
+
+/// `binHelpHasVideo` : l'aide du binaire, une fois par binaire et par date
+/// de modification, chemin des bibliothèques passé à la seule commande.
+pub fn bin_help_has_video(bin: &str) -> bool {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+    let Ok(st) = std::fs::metadata(bin) else {
+        return false;
+    };
+    if st.is_dir() {
+        return false;
+    }
+    let key = format!("{bin}\0{:?}", st.modified().ok());
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some(v) = cache.lock().ok().and_then(|c| c.get(&key).copied()) {
+        return v;
+    }
+    let mut env = crate::serve::run::Env::default();
+    let dir = Path::new(bin)
+        .parent()
+        .map(|d| d.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let (k, v) = crate::serve::run::library_path_value(&env, &dir);
+    env.set(&k, &v);
+    let help = crate::serve::run::bin_help(&env, bin);
+    let ok = help.contains("--video-fps");
+    if let Ok(mut c) = cache.lock() {
+        c.insert(key, ok);
+    }
+    ok
+}
+
+/// `toolSeeVideo` : (accusé, partie vidéo). Même ordre de refus que
+/// [`see_image`] ; `video_ok` : [`video_input_supported`], `sees` : la sonde
+/// du moteur, appelée en dernier.
+pub async fn see_video(
+    path: &str,
+    cwd: &Path,
+    target: &str,
+    vision: bool,
+    video_ok: bool,
+    sees: impl std::future::Future<Output = bool>,
+) -> (String, Option<Value>) {
+    let err = |m: String| (m, None);
+    if !vision {
+        return err("[erreur] la vision n'est pas active sur ce preset (aucun projecteur MMPROJ configuré) — impossible de voir une vidéo".into());
+    }
+    if !target.is_empty() {
+        return err("[erreur] voir une vidéo n'est pas possible sur un poste distant (le fichier est sur l'autre machine)".into());
+    }
+    if path.is_empty() {
+        return err("[erreur] chemin de fichier manquant".into());
+    }
+    if !video_ok {
+        return err(format!(
+            "[erreur] {}",
+            VIDEO_FALLBACK_NOTE.trim_end_matches('\n')
+        ));
+    }
+    let abs = crate::tools::policy::resolve_agent_path(cwd, path);
+    let mime = video_mime(&abs.to_string_lossy());
+    if mime.is_empty() {
+        return err(format!(
+            "[erreur] format non reconnu comme vidéo (attendu : mp4, webm, mov, mkv, avi) : {path}"
+        ));
+    }
+    let st = match std::fs::metadata(&abs) {
+        Ok(m) => m,
+        Err(_) => return err(format!("[erreur] fichier introuvable : {path}")),
+    };
+    if st.is_dir() {
+        return err(format!("[erreur] c'est un dossier, pas une vidéo : {path}"));
+    }
+    if st.len() as i64 > MAX_VIDEO_BYTES {
+        return err(format!(
+            "[erreur] vidéo trop lourde ({}, max {}) — coupe-la en un clip plus court : {path}",
+            crate::downloads::human_bytes(st.len() as i64),
+            crate::downloads::human_bytes(MAX_VIDEO_BYTES)
+        ));
+    }
+    if !sees.await {
+        return err(format!(
+            "[erreur] le moteur en service ne traite pas les images (projecteur non chargé ?) — impossible de voir {path}"
+        ));
+    }
+    let b = match std::fs::read(&abs) {
+        Ok(b) => b,
+        Err(e) => {
+            return err(format!(
+                "[erreur] lecture impossible : {}",
+                crate::paths::os_err("open", &abs.to_string_lossy(), &e)
+            ));
+        }
+    };
+    if b.is_empty() {
+        return err(format!("[erreur] fichier vide : {path}"));
+    }
+    let base = abs
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    (
+        format!("[ok] vidéo chargée : {base}"),
+        Some(video_part(&b, mime)),
+    )
+}
+
 // --- web_screenshot -------------------------------------------------------------
 
 /// Le résultat de `web_screenshot` : le texte, et la capture rangée

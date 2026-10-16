@@ -49,7 +49,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use tokio::sync::watch;
 
-use super::compact::{IMAGE_LOST_MARKER, is_loki_injected, without_ctx_update};
+use super::compact::{IMAGE_LOST_MARKER, VIDEO_LOST_MARKER, is_loki_injected, without_ctx_update};
 use super::journal::compact_log;
 use super::types::{LogEvent, Message};
 use crate::store::{CryptError, Store};
@@ -269,24 +269,39 @@ fn decode_list<T: DeserializeOwned>(v: Value) -> Vec<T> {
 /// `stripImageParts` : un message multimodal persisté (base64 d'une capture
 /// d'avant les captures éphémères) est aplati en son texte suivi de
 /// [`IMAGE_LOST_MARKER`] — rejoué à chaque tour, il dépassait le contexte.
+/// Une vidéo jointe (`input_video`) a le même sort, marquée par
+/// [`VIDEO_LOST_MARKER`].
 pub fn strip_image_parts(msgs: &mut [Message]) {
     for m in msgs.iter_mut() {
         let Some(Value::Array(parts)) = &m.content else {
             continue;
         };
         let mut texts: Vec<&str> = Vec::new();
-        let mut dropped = false;
+        let (mut dropped, mut dropped_vid) = (false, false);
         for p in parts.iter().filter_map(Value::as_object) {
-            if p.get("type").and_then(Value::as_str) == Some("image_url") {
-                dropped = true;
-                continue;
+            match p.get("type").and_then(Value::as_str) {
+                Some("image_url") => {
+                    dropped = true;
+                    continue;
+                }
+                Some("input_video") => {
+                    dropped_vid = true;
+                    continue;
+                }
+                _ => {}
             }
             if let Some(Value::String(t)) = p.get("text") {
                 texts.push(t);
             }
         }
-        if dropped {
-            let text = texts.join("\n") + IMAGE_LOST_MARKER;
+        if dropped || dropped_vid {
+            let mut text = texts.join("\n");
+            if dropped {
+                text += IMAGE_LOST_MARKER;
+            }
+            if dropped_vid {
+                text += VIDEO_LOST_MARKER;
+            }
             m.content = Some(Value::String(text));
         }
     }

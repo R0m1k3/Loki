@@ -194,6 +194,20 @@ pub fn strip_inline_images(msgs: Vec<Message>) -> Vec<Message> {
                         let e = elide_data_uri(url);
                         iu.insert("url".into(), Value::String(e));
                     }
+                    // Vidéo jointe (input_video, chat_video.go) : même
+                    // élision, sur ses deux champs.
+                    if let Value::Object(part) = p
+                        && let Some(Value::Object(iv)) = part.get_mut("input_video")
+                    {
+                        for key in ["url", "data"] {
+                            if let Some(Value::String(u)) = iv.get(key)
+                                && u.starts_with("data:")
+                            {
+                                let e = elide_data_uri(u);
+                                iv.insert(key.into(), Value::String(e));
+                            }
+                        }
+                    }
                 }
             }
             m
