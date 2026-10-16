@@ -36,10 +36,9 @@ struct Fake {
     unstable: Mutex<bool>,
     /// Complétions signalées à la sonde : (outils, kwargs, effort).
     completions: Mutex<Vec<Completion>>,
-    /// Télémétrie rangée : (relevé, empreintes, externe) ; et ce que le Go
-    /// en tire.
-    perfs: Mutex<Vec<(crate::chat::perf::PerfRec, Vec<u64>, bool)>>,
-    noted: Mutex<crate::chat::perf::PerfNoted>,
+    /// Télémétrie rangée ; et ce que le Go en tire.
+    perfs: Mutex<Vec<PerfRec>>,
+    marks: Mutex<PerfMarks>,
 }
 
 impl Fake {
@@ -147,17 +146,9 @@ impl TurnHost for Fake {
     fn prefix_unstable(&self, _t: &[Tool], _k: Option<&Map<String, Value>>, _e: &str) -> bool {
         *self.unstable.lock().unwrap()
     }
-    async fn perf(
-        &self,
-        rec: &crate::chat::perf::PerfRec,
-        prefix: &[u64],
-        external: bool,
-    ) -> crate::chat::perf::PerfNoted {
-        self.perfs
-            .lock()
-            .unwrap()
-            .push((rec.clone(), prefix.to_vec(), external));
-        self.noted.lock().unwrap().clone()
+    async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
+        self.perfs.lock().unwrap().push(rec);
+        self.marks.lock().unwrap().clone()
     }
 }
 
@@ -206,7 +197,6 @@ fn config(tools: &[&str]) -> TurnConfig {
         echo: EchoPolicy::default(),
         compact: CompactConfig::default(),
         patterns: RetryPatterns::builtin(),
-        perf_kind: "main",
     }
 }
 
@@ -646,32 +636,32 @@ async fn flux_externe_coupe_repris_apres_le_texte_affiche() {
 /// nature et la perte de cache vue par le Go.
 #[tokio::test]
 async fn telemetrie_des_completions() {
-    use crate::chat::perf::PerfNoted;
     let host = Fake::new(vec![
         tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
         answer("Trouvé"),
     ]);
-    *host.noted.lock().unwrap() = PerfNoted {
+    *host.marks.lock().unwrap() = PerfMarks {
+        kind: "verify".into(),
         lost: Some(40),
         lost_after: "foreign".into(),
-        alert: true,
+        lost_alert: true,
     };
-    let mut tc = config(&["glob"]);
-    tc.perf_kind = "verify";
-    let (r, evs) = run(&host, &tc, &Cancel::never()).await;
+    let (r, evs) = run(&host, &config(&["glob"]), &Cancel::never()).await;
     assert_eq!(r.err, None);
     let perfs = host.perfs.lock().unwrap().clone();
     assert_eq!(perfs.len(), 2);
-    for (i, (rec, prefix, external)) in perfs.iter().enumerate() {
-        assert_eq!(rec.kind, "verify");
+    for (i, rec) in perfs.iter().enumerate() {
         assert_eq!(rec.iter, i as i64);
         assert!(rec.complete);
-        assert_eq!((rec.total, rec.generated), (100, 5));
-        assert!(!external);
-        assert!(!prefix.is_empty());
+        assert_eq!(
+            (rec.stats.prompt_tokens_total, rec.stats.gen_tokens),
+            (100, 5)
+        );
+        assert!(!rec.external);
+        assert!(!rec.prefix.is_empty());
     }
     // La seconde requête prolonge la première : mêmes empreintes en tête.
-    let (a, b) = (&perfs[0].1, &perfs[1].1);
+    let (a, b) = (&perfs[0].prefix, &perfs[1].prefix);
     assert_eq!(a.len(), 1);
     assert_eq!(b.len(), 3);
     assert_eq!(b[..1], a[..]);
@@ -699,11 +689,12 @@ async fn telemetrie_des_completions() {
 #[tokio::test]
 async fn telemetrie_incomplete() {
     let host = Fake::new(vec![Script::Cut(vec![content("Bon")])]);
+    host.marks.lock().unwrap().kind = "main".into();
     let (_, evs) = run(&host, &config(&[]), &Cancel::never()).await;
     let perfs = host.perfs.lock().unwrap().clone();
     assert_eq!(perfs.len(), 1);
-    assert!(!perfs[0].0.complete);
-    assert!(perfs[0].1.is_empty());
+    assert!(!perfs[0].complete);
+    assert!(perfs[0].prefix.is_empty());
     assert!(
         !evs.iter()
             .any(|e| matches!(e, StreamEvent::Stats(s) if !s.kind.is_empty())),

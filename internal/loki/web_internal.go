@@ -69,6 +69,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIBegin(w, r)
 		case "/internal/v1/oai/end":
 			handleInternalOAIEnd(w, r)
+		case "/internal/v1/oai/served":
+			handleInternalOAIServed(w, r)
+		case "/internal/v1/turn/perf":
+			handleInternalTurnPerf(w, r)
 		case "/internal/v1/tool/exec":
 			handleInternalToolExec(w, r)
 		case "/internal/v1/tool/context":
@@ -135,8 +139,6 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalBenchPerf(w, r)
 		case "/internal/v1/tune/context":
 			handleInternalTuneContext(w, r)
-		case "/internal/v1/perf/record":
-			handleInternalPerfRecord(w, r)
 		case "/internal/v1/tasks/run":
 			handleInternalTaskRun(w, r)
 		case "/internal/v1/push/send":

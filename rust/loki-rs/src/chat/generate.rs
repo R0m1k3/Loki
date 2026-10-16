@@ -25,7 +25,7 @@
 //! Écarts assumés (restent au Go) : PROJ_SNAPSHOT et KEEP_TURN_IMAGES
 //! (refusés par `/turn/view`), préchauffage. La télémétrie des complétions
 //! (tours, vérifications, résumés) rejoint l'anneau du Go
-//! (`/internal/v1/perf/record`) ; les motifs `retry_patterns` personnalisés
+//! (`/internal/v1/turn/perf`) ; les motifs `retry_patterns` personnalisés
 //! sont lus au démarrage ([`retry_patterns`]).
 
 use std::collections::VecDeque;
@@ -800,7 +800,6 @@ impl ChatService {
             echo: echo.clone(),
             compact: ccfg.clone(),
             patterns: self.shared.patterns.clone(),
-            perf_kind: super::perf::KIND_MAIN,
         };
         let me = self.clone();
         let host = GoTurnHost {
@@ -820,6 +819,7 @@ impl ChatService {
                 kwargs: reasoning.kwargs.clone().unwrap_or_default(),
             },
             queued: Box::new(move || me.drain_queued(epoch)),
+            perf_kind: super::perf::KIND_MAIN,
         };
 
         // Chaque événement devient un delta du journal.

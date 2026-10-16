@@ -23,15 +23,16 @@
 //! `cb` (comme le `ChatCallback` Go) ; le tour rend ses messages à ajouter à
 //! l'historique ([`TurnResult::extra`]).
 //!
-//! Télémétrie : chaque complétion lue est rangée (`perfRecord`, par
-//! [`TurnHost::perf`]) ; la dernière statistique d'une complétion complète
-//! porte la nature et la perte de cache calculée par le Go.
+//! Télémétrie : chaque complétion lue est rangée par le Go (`perfRecord`, par
+//! [`TurnHost::perf_record`]) ; la dernière statistique d'une complétion
+//! complète porte la nature et la perte de cache qu'il a calculées.
 //!
 //! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
 //! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, SIDE_SLOT (slot et rejeux « cache KV
-//! plein »), SLOT_PERSIST, préchauffage, comptage des requêtes en vol du
-//! moteur. Avec l'une de ces clés, le Go garde la conversation
-//! (`facadeChatBlocker`, décidé au démarrage).
+//! plein »), SLOT_PERSIST, préchauffage. Avec l'une de ces clés, le Go garde
+//! la conversation (`facadeChatBlocker`, décidé au démarrage). Le comptage
+//! des requêtes en vol du moteur passe par le Go (l'hôte autour de
+//! [`TurnHost::send`]).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -57,14 +58,13 @@ use super::nudges::{
     MAX_NUDGES, THINK_NUDGE_FIRST, THINK_NUDGE_STUCK, append_nudge, budget_nudge, dedupable_tool,
     log_budget, repeated_call_result, steer_system, tool_result_preview,
 };
-use super::perf::PerfRec;
 use super::stream::{
     CacheHintFn, MAX_PATTERN_RETRIES, PreflightFn, RetryPatterns, StreamConfig, StreamParser,
     call_args, retry_corrective, tool_call_label,
 };
 use super::types::{
-    AskEvent, DiffLine, Message, ReasoningEcho, StreamEvent, Tool, ToolCall, ToolCallFunc,
-    ToolUsedEvent,
+    AskEvent, DiffLine, Message, ReasoningEcho, StatsEvent, StreamEvent, Tool, ToolCall,
+    ToolCallFunc, ToolUsedEvent,
 };
 use super::wire::{
     ChatEndpoint, ChatPayloadOpts, EchoPolicy, TOOLS_OFF_HINT, TurnReasoning, build_chat_payload,
@@ -185,20 +185,56 @@ pub trait TurnHost: Send + Sync {
     fn cache_hint(&self) -> Option<CacheHintFn> {
         None
     }
-    /// Range la télémétrie d'une complétion (`perfRecord`), rattachée à la
-    /// discussion du tour ; rend la perte de cache calculée et l'alerte.
-    fn perf(
-        &self,
-        _rec: &super::perf::PerfRec,
-        _prefix: &[u64],
-        _external: bool,
-    ) -> impl Future<Output = super::perf::PerfNoted> + Send {
-        async { super::perf::PerfNoted::default() }
-    }
     /// Garde d'écriture du mode Code (`codeWriteGuard`).
     fn preflight(&self) -> Option<PreflightFn> {
         None
     }
+    /// Télémétrie d'une complétion (`perfRecord`) : la rend au Go, qui la
+    /// range dans l'anneau de `/api/perf/summary` et dit quoi poser sur la
+    /// copie finale des stats (nature, jetons perdus, alerte).
+    fn perf_record(&self, _rec: PerfRec) -> impl Future<Output = PerfMarks> + Send {
+        async { PerfMarks::default() }
+    }
+}
+
+/// Une complétion telle que la boucle l'a vue, pour la télémétrie.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PerfRec {
+    /// Rang de la complétion dans le tour (`perfIter`).
+    pub iter: i64,
+    pub complete: bool,
+    pub external: bool,
+    pub stats: StatsEvent,
+    /// Empreintes cumulées des messages envoyés ([`perf_prefix`]), si complète.
+    pub prefix: Vec<u64>,
+}
+
+/// Ce que la télémétrie pose sur la copie finale des stats.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PerfMarks {
+    pub kind: String,
+    pub lost: Option<i64>,
+    pub lost_after: String,
+    pub lost_alert: bool,
+}
+
+/// `perfPrefix` : empreinte FNV-1a 64 cumulée de chaque message envoyé (son
+/// JSON suivi d'un octet nul). Comparée seulement aux empreintes des envois
+/// précédents de la même discussion, toutes calculées ici.
+pub fn perf_prefix(msgs: &[Message]) -> Vec<u64> {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let fnv = |h: u64, b: u8| (h ^ u64::from(b)).wrapping_mul(PRIME);
+    let mut h = OFFSET;
+    let mut out = Vec::with_capacity(msgs.len());
+    for m in msgs {
+        for b in serde_json::to_vec(m).unwrap_or_default() {
+            h = fnv(h, b);
+        }
+        h = fnv(h, 0);
+        out.push(h);
+    }
+    out
 }
 
 /// Ce que le tour sait avant de commencer (lu UNE fois).
@@ -216,8 +252,6 @@ pub struct TurnConfig {
     pub echo: EchoPolicy,
     pub compact: CompactConfig,
     pub patterns: Arc<RetryPatterns>,
-    /// Nature des complétions pour la télémétrie (`perfMain`, `perfVerify`).
-    pub perf_kind: &'static str,
 }
 
 /// Fin du tour : messages à ajouter à l'historique, et l'erreur s'il y en a
@@ -364,7 +398,7 @@ struct Loop {
     echo_tpl_retry: bool,
     tool_runs: i64,
     budget_nudges: i64,
-    /// Complétions rangées dans la télémétrie (`perfIter`).
+    /// `perfIter` : complétions de ce tour, complètes ou non.
     perf_iter: i64,
 }
 
@@ -433,9 +467,8 @@ pub async fn run_turn<H: TurnHost>(
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
-        let (body, echo_sent, sent_prefix) = {
+        let (body, echo_sent, prefix) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
-            let sent_prefix = super::perf::prefix(&sent);
             let payload = build_chat_payload(
                 ep,
                 &sent,
@@ -454,7 +487,7 @@ pub async fn run_turn<H: TurnHost>(
             (
                 serde_json::to_vec(&payload).unwrap_or_default(),
                 echo_sent,
-                sent_prefix,
+                perf_prefix(&sent),
             )
         };
         let t_req = Instant::now();
@@ -629,28 +662,38 @@ pub async fn run_turn<H: TurnHost>(
         // de plus ne part vers l'écran. La complétion coupée reste dans la
         // télémétrie, incomplète.
         if stopped {
-            let rec =
-                PerfRec::from_stats(tc.perf_kind, "", s.perf_iter, false, &Default::default());
-            host.perf(&rec, &[], ep.external).await;
+            host.perf_record(PerfRec {
+                iter: s.perf_iter,
+                external: ep.external,
+                ..Default::default()
+            })
+            .await;
             return TurnResult { extra, err: None };
         }
         let out = parser.finish(&mut emit);
-        // Télémétrie : une complétion coupée avant son chunk final n'a ni cache
-        // ni total fiables — rangée incomplète, sans calcul de perte.
         let complete = out.is_complete(read_err.is_some());
-        let rec = PerfRec::from_stats(tc.perf_kind, "", s.perf_iter, complete, &out.stats);
-        let noted = host
-            .perf(&rec, if complete { &sent_prefix } else { &[] }, ep.external)
+        // Télémétrie (perf_log.go) : une complétion coupée avant son chunk
+        // final est rangée comme incomplète, sans calcul de perte.
+        let marks = host
+            .perf_record(PerfRec {
+                iter: s.perf_iter,
+                complete,
+                external: ep.external,
+                stats: out.stats.clone(),
+                prefix: if complete { prefix } else { Vec::new() },
+            })
             .await;
         s.perf_iter += 1;
         if complete {
             // Dernier événement de la complétion : copie complète des stats,
-            // avec la perte de cache vue par la télémétrie.
+            // avec ce que la télémétrie en dit (nature, perte, alerte).
             let mut st = out.stats.clone();
-            st.kind = tc.perf_kind.into();
-            st.lost = noted.lost;
-            st.lost_after = noted.lost_after;
-            st.lost_alert = noted.alert;
+            if !marks.kind.is_empty() {
+                st.kind = marks.kind;
+            }
+            st.lost = marks.lost;
+            st.lost_after = marks.lost_after;
+            st.lost_alert = marks.lost_alert;
             cb(StreamEvent::Stats(st));
             // Sonde de gabarit, en tâche de fond et après coup : rien n'en
             // revient dans la requête suivante.

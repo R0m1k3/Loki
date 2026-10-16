@@ -1,6 +1,6 @@
 # Migration Rust — lot 6 : le cœur chat
 
-Date : 2026-10-14 · Statut : **brouillon de conception** (aucun code) ·
+Date : 2026-10-14 · Statut : **livré** (étapes 1 à 6 ; défaut Rust depuis le 2026-10-15, `LOKI_CHAT=go` pour revenir au Go) ·
 Prérequis : lots 1-5 (façade, auth, store via API interne, `/v1`).
 
 ## Pourquoi c'est un lot à part

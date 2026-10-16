@@ -408,7 +408,6 @@ impl ChatService {
             echo: env.echo.clone(),
             compact: env.ccfg.clone(),
             patterns: self.shared.patterns.clone(),
-            perf_kind: super::perf::KIND_VERIFY,
         };
         let host = GoTurnHost {
             shared: self.shared.clone(),
@@ -429,6 +428,12 @@ impl ChatService {
             // Les messages en file attendent la fin du tour (runChatTools sans
             // injection, comme le Go).
             queued: Box::new(Vec::new),
+            // Passe de vérification : comptée à part, comme perfVerify.
+            perf_kind: if isolated {
+                super::perf::KIND_VERIFY
+            } else {
+                super::perf::KIND_MAIN
+            },
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {

@@ -125,7 +125,7 @@ pub struct FakeGo {
     /// pour une action donnée.
     pub service_os: Mutex<Vec<String>>,
     pub service_os_fail: Mutex<Option<(String, String)>>,
-    /// /internal/v1/perf/record reçus (corps entiers).
+    /// /internal/v1/turn/perf reçus (corps entiers).
     pub perf_records: Mutex<Vec<serde_json::Value>>,
 }
 
@@ -502,14 +502,6 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             }
             resp(200, r#"{"ran":true,"error":""}"#)
         }
-        "/internal/v1/perf/record" => {
-            let body = req.into_body().collect().await.unwrap().to_bytes();
-            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
-            let mut log = st.perf_records.lock().unwrap();
-            log.push(v);
-            let out = serde_json::json!({"seq": log.len(), "lost": 12, "lost_after": "task", "alert": false});
-            resp(200, out.to_string())
-        }
         "/internal/v1/tune/context" => {
             let v = serde_json::json!({
                 "busy": *st.tune_ctx_busy.lock().unwrap(),
@@ -673,14 +665,50 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/oai/begin" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-            st.oai_log.lock().unwrap().push(format!(
-                "begin read={} side={} post_v1={}",
-                v["read"], v["side"], v["post_v1"]
-            ));
+            if let Some(conv) = v["main_conv"].as_str() {
+                st.oai_log
+                    .lock()
+                    .unwrap()
+                    .push(format!("begin main_conv={conv}"));
+            } else {
+                st.oai_log.lock().unwrap().push(format!(
+                    "begin read={} side={} post_v1={}",
+                    v["read"], v["side"], v["post_v1"]
+                ));
+            }
             if let Some(r) = st.refuse.lock().unwrap().clone() {
                 return resp(200, serde_json::json!({ "refuse": r }).to_string());
             }
             resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/oai/served" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log
+                .lock()
+                .unwrap()
+                .push(format!("served {}", v["ticket"]));
+            resp(204, "")
+        }
+        "/internal/v1/turn/perf" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            st.oai_log.lock().unwrap().push(format!(
+                "perf kind={} conv={} iter={} complete={} prefix={}",
+                v["kind"].as_str().unwrap_or(""),
+                v["conv"].as_str().unwrap_or(""),
+                v["iter"],
+                v["complete"],
+                v["prefix"].as_array().map_or(0, Vec::len),
+            ));
+            // Comme le Go : la nature reçue (un tour sans nature).
+            let kind = v["kind"]
+                .as_str()
+                .filter(|k| !k.is_empty())
+                .unwrap_or("main");
+            let out = serde_json::json!({"kind": kind, "lost": 3, "lost_after": "tâche", "lost_alert": true});
+            st.perf_records.lock().unwrap().push(v);
+            resp(200, out.to_string())
         }
         "/internal/v1/oai/end" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();

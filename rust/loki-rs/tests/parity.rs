@@ -195,7 +195,6 @@ async fn replay(fx: Fixture) -> Result<(), String> {
         echo,
         patterns: RetryPatterns::builtin(),
         cfg,
-        perf_kind: "main",
     };
     let host = ParityHost {
         replies: Mutex::new(fx.replies.into()),

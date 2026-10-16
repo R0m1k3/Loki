@@ -692,6 +692,7 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
+        perf_kind: "main",
     };
     let bash = Tool {
         kind: "function".into(),
@@ -711,7 +712,6 @@ async fn tour_complet_par_le_go() {
         echo: Default::default(),
         compact: CompactConfig::default(),
         patterns: shared.patterns.clone(),
-        perf_kind: "main",
     };
     let question = Message {
         role: "user".into(),
@@ -767,15 +767,15 @@ async fn tour_complet_par_le_go() {
     // discussion ; la première, sans usage, reste incomplète.
     let perfs = go.perf_records.lock().unwrap().clone();
     assert_eq!(perfs.len(), 2);
-    assert_eq!(perfs[0]["rec"]["complete"], false);
+    assert_eq!(perfs[0]["complete"], false);
     assert_eq!(perfs[0]["prefix"], serde_json::json!([]));
-    let r1 = &perfs[1]["rec"];
+    let r1 = &perfs[1];
     assert_eq!(
         (
             r1["conv"].clone(),
             r1["kind"].clone(),
             r1["iter"].clone(),
-            r1["total"].clone()
+            r1["stats"]["prompt_tokens_total"].clone()
         ),
         (
             serde_json::json!("c7"),
@@ -794,7 +794,10 @@ async fn tour_complet_par_le_go() {
             _ => None,
         })
         .unwrap();
-    assert_eq!((last.lost, last.lost_after.as_str()), (Some(12), "task"));
+    assert_eq!(
+        (last.kind.as_str(), last.lost, last.lost_after.as_str()),
+        ("main", Some(3), "tâche")
+    );
 }
 
 #[tokio::test]
@@ -942,6 +945,47 @@ async fn tour_de_bout_en_bout() {
     // Bail rendu, fin signalée, discussion enregistrée.
     assert_eq!(*go.lease.lock().unwrap(), None);
     let id = svc.sessions.conv().id();
+    // Chaque requête au moteur local est comptée en vol par le Go (ticket
+    // ouvert, servi, rendu), et sa complétion rangée dans la télémétrie ;
+    // la copie finale des stats porte ce que le Go en dit.
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 2
+    })
+    .await;
+    let log = go.oai_log.lock().unwrap().clone();
+    let want_begin = format!("begin main_conv={id}");
+    assert_eq!(
+        log.iter().filter(|l| **l == want_begin).count(),
+        2,
+        "{log:?}"
+    );
+    assert_eq!(
+        log.iter().filter(|l| *l == "served 7").count(),
+        2,
+        "{log:?}"
+    );
+    // Appel d'outil sans usage ni timings : complétion incomplète (comme le
+    // Go : ni empreintes) ; la réponse finale, avec usage, complète. La
+    // sonde du gabarit reste à la façade (`sonde_de_gabarit_apres_un_tour`).
+    for want in [
+        format!("perf kind=main conv={id} iter=0 complete=false prefix=0"),
+        format!("perf kind=main conv={id} iter=1 complete=true prefix=4"),
+    ] {
+        assert!(log.contains(&want), "{want} absent de {log:?}");
+    }
+    let finals: Vec<_> = deltas(&svc, "stats")
+        .into_iter()
+        .filter(|s| s["lost_alert"] == true)
+        .collect();
+    assert_eq!(finals.len(), 1, "stats finales sans les marques du Go");
+    assert_eq!(finals[0]["lost"], 3);
+    assert_eq!(finals[0]["kind"], "main");
     let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
     assert_eq!(decode_state(&body).messages.len(), 4);
     // Réessai du même envoi : reconnu.
@@ -1024,6 +1068,7 @@ async fn hote_et_sonde_de_gabarit() {
                 kwargs: Default::default(),
             },
             queued: Box::new(Vec::new),
+            perf_kind: "main",
         }
     };
     let bash = Tool {
@@ -1848,10 +1893,11 @@ async fn telemetrie_des_resumes() {
     let perfs = go.perf_records.lock().unwrap().clone();
     assert_eq!(perfs.len(), 2, "la réponse illisible n'est pas rangée");
     assert_eq!(
-        perfs[0]["rec"],
+        perfs[0],
         serde_json::json!({ "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
-            "total": 3000, "new": 3000, "pp_ms": 1500.0, "gen": 200, "tg_tps": 40.0 })
+            "external": false, "prefix": [],
+            "stats": { "prompt_tokens_total": 3000, "prompt_tokens": 3000, "prompt_ms": 1500.0,
+                       "gen_tokens": 200, "gen_per_second": 40.0 } })
     );
-    assert_eq!(perfs[0]["prefix"], serde_json::json!([]));
-    assert_eq!(perfs[1]["rec"]["complete"], false);
+    assert_eq!(perfs[1]["complete"], false);
 }
