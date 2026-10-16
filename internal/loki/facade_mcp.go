@@ -14,10 +14,11 @@ import (
 // de la migration ; expérimental, le Go reste le défaut) : configuration,
 // catalogue, état et pool de sessions (rust/loki-rs/src/mcp).
 //
-// Un seul pool : celui de la façade. Le Go, qui exécute encore les outils de
-// l'agent, lui demande les outils MCP à annoncer au modèle et leurs appels
-// (/internal/facade/v1/mcp/*), quelle que soit la conversation qui tourne ;
-// son propre pool reste vide.
+// Un seul pool : celui de la façade. Le Go lui demande les outils MCP à
+// annoncer au modèle, et leurs appels pour les tours qu'il exécute encore
+// (sous-agents, tâches IA, discussion rendue au Go) via
+// /internal/facade/v1/mcp/* ; son propre pool reste vide. Les tours de la
+// façade appellent son pool sans passer par ici (lot 36).
 
 const facadeMCPEnv = "LOKI_MCP"
 

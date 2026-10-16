@@ -667,6 +667,8 @@ async fn tour_complet_par_le_go() {
         patterns: RetryPatterns::builtin(),
         tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
         prewarm: Default::default(),
+        mcp: None,
+        go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
     let host = GoTurnHost {
@@ -849,6 +851,19 @@ async fn service(
     tokio::sync::oneshot::Sender<()>,
     tempfile::TempDir,
 ) {
+    service_with(engine_url, None).await
+}
+
+/// [`service`], avec le pool MCP de la façade.
+async fn service_with(
+    engine_url: Option<&str>,
+    mcp: Option<Arc<loki_rs::mcp::Mcp>>,
+) -> (
+    Arc<ChatService>,
+    Arc<fakego::FakeGo>,
+    tokio::sync::oneshot::Sender<()>,
+    tempfile::TempDir,
+) {
     let (st, go, stop, t) = store().await;
     go.set(
         "config",
@@ -858,7 +873,8 @@ async fn service(
     go.set("state", "api_key", "cle-du-moteur");
     let sessions = Sessions::new(st.clone(), Conversation::new(), GoSessionHooks(st.clone()));
     sessions.load().await.unwrap();
-    let shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
+    let mut shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
+    shared.mcp = mcp;
     (
         ChatService::new(Arc::new(sessions), Arc::new(shared)),
         go,
@@ -2383,4 +2399,97 @@ async fn bloc_projet_rafraichi_en_plein_tour() {
         stored,
         serde_json::from_value(proj_snap("vivant", 0)).unwrap()
     );
+}
+
+/// Lot 36 : un outil MCP appelé par un tour de la façade passe par son pool,
+/// pas par le Go ; une reconnexion annonce la version du Go.
+#[cfg(unix)]
+#[tokio::test]
+async fn outil_mcp_par_le_pool_de_la_facade() {
+    use std::os::unix::fs::PermissionsExt;
+    let call = |id: &str, name: &str| {
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":id,"type":"function","function":{"name":name,"arguments":"{\"q\":1}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ])
+    };
+    let (url, seen) = fake_engine(vec![
+        call("m1", "mcp__sh__date"),
+        call("m2", "mcp__sh__crash"),
+        answer("il est midi"),
+    ])
+    .await;
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("faux-mcp");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  case "$line" in
+    *'"method":"initialize"'*)
+      printf '%s\n' "$line" >> "$TRACE"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"sh","version":"1"}}}\n' "$id" ;;
+    *'"method":"tools/list"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"date","inputSchema":{"type":"object"}},{"name":"crash","inputSchema":{"type":"object"}}]}}\n' "$id" ;;
+    *'"name":"crash"'*) exit 3 ;;
+    *'"method":"tools/call"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"content":[{"type":"text","text":"midi"}]}}\n' "$id" ;;
+  esac
+done
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let trace = dir.path().join("trace");
+    let pool = Arc::new(loki_rs::mcp::Mcp::new(dir.path().to_path_buf()));
+    let (svc, go, _stop, _t) = service_with(Some(&url), Some(pool.clone())).await;
+    let mut servers = loki_rs::mcp::config::Servers::new();
+    servers.insert(
+        "sh".into(),
+        loki_rs::mcp::config::ServerConfig {
+            command: bin.to_string_lossy().into_owned(),
+            env: [("TRACE".to_string(), trace.to_string_lossy().into_owned())].into(),
+            ..Default::default()
+        },
+    );
+    go.set("state", "mcp", &loki_rs::gojson::marshal(&servers));
+    // Les outils annoncés au modèle (ce que le Go demande à la façade) :
+    // le registre du pool est rempli.
+    let tools = pool.tools(&svc.shared.store, "annonce").await;
+    assert_eq!(tools.len(), 2, "{tools:?}");
+    svc.send(serde_json::json!({"message": "quelle heure ?", "cid": "m"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    // Rien par le Go.
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 3);
+    let tool_msg = |i: usize| -> String {
+        seen[i].1["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .rfind(|m| m["role"] == "tool")
+            .map(|m| m["content"].as_str().unwrap_or("").to_string())
+            .unwrap_or_default()
+    };
+    assert_eq!(tool_msg(1), "midi");
+    let crashed = tool_msg(2);
+    assert!(
+        crashed.starts_with("[erreur MCP] calling \"tools/call\""),
+        "{crashed}"
+    );
+    // Première connexion : la version donnée à l'annonce ; reconnexion
+    // après la chute : celle du Go.
+    let inits: Vec<String> = std::fs::read_to_string(&trace)
+        .unwrap()
+        .lines()
+        .map(String::from)
+        .collect();
+    assert_eq!(inits.len(), 2, "{inits:?}");
+    assert!(inits[0].contains(r#""version":"annonce""#), "{inits:?}");
+    assert!(inits[1].contains(r#""version":"0.15.0""#), "{inits:?}");
+    pool.close_all().await;
 }

@@ -1303,6 +1303,8 @@ impl ChatShared {
             patterns: super::stream::RetryPatterns::builtin(),
             tpl: std::sync::Arc::new(super::tplprobe::TplProbe::new()),
             prewarm: Default::default(),
+            mcp: None,
+            go_version: Default::default(),
         }
     }
 }

@@ -3,7 +3,8 @@
 //! - envoi au moteur par [`EngineHttp`] (clé de CET endpoint), pannes
 //!   classées et formulées comme `friendlyLLMError` ;
 //! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
-//!   tenu par le Go) ; les autres par le Go (`/internal/v1/tool/exec`), avec
+//!   tenu par le Go), outils MCP par le pool de la façade quand elle le tient
+//!   (lot 36) ; les autres par le Go (`/internal/v1/tool/exec`), avec
 //!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
 //!   image relayée) ;
 //! - résultats complets (« voir plus ») confiés à l'écrivain des discussions ;
@@ -330,6 +331,32 @@ pub struct ChatShared {
     pub tpl: Arc<super::tplprobe::TplProbe>,
     /// Préchauffage (PREWARM) : celui en vol, capacités des discussions.
     pub prewarm: super::prewarm::Prewarm,
+    /// Le pool MCP, quand la façade le tient (LOKI_MCP=rust) : les appels
+    /// `mcp__*` du tour y vont directement (lot 36).
+    pub mcp: Option<Arc<crate::mcp::Mcp>>,
+    /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
+    /// une fois.
+    pub go_version: tokio::sync::OnceCell<String>,
+}
+
+impl ChatShared {
+    /// [`Self::go_version`] : `/internal/v1/auth`, retenue une fois lue.
+    pub async fn go_version(&self) -> String {
+        if let Some(v) = self.go_version.get() {
+            return v.clone();
+        }
+        let v = self
+            .store
+            .internal_json(hyper::Method::GET, "/internal/v1/auth", None)
+            .await
+            .ok()
+            .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
+            .unwrap_or_default();
+        if !v.is_empty() {
+            let _ = self.go_version.set(v.clone());
+        }
+        v
+    }
 }
 
 /// Ce que la compaction sait du tour.
@@ -615,6 +642,18 @@ impl TurnHost for GoTurnHost {
     }
 
     async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {
+        // Outils MCP, quand la façade tient le pool : ce que ferait le Go
+        // (`mcpCall` → /internal/facade/v1/mcp/call), sans ses deux
+        // allers-retours. Le Go n'en tire rien d'autre que le texte.
+        if crate::mcp::config::is_mcp_tool(name)
+            && let Some(mcp) = &self.shared.mcp
+        {
+            let version = self.shared.go_version().await;
+            return ToolOutcome {
+                result: mcp.call(&self.shared.store, name, args, &version).await,
+                ..Default::default()
+            };
+        }
         // Outils fichiers et shell : ici (lot 7), l'état partagé restant au Go.
         if crate::tools::is_local(name) {
             let st = crate::tools::GoToolState {

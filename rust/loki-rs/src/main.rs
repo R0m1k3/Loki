@@ -262,8 +262,11 @@ fn serve() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
+        // Un seul pool MCP : celui des routes, et celui des tours de la façade.
+        let mcp = mcp_rust
+            .then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(engine_paths.home.clone())));
         let chat = if chat_rust {
-            match start_chat(backend, &token, &engine_paths.home).await {
+            match start_chat(backend, &token, &engine_paths.home, mcp.clone()).await {
                 Ok(c) => Some(c),
                 Err(e) => {
                     eprintln!("[loki-rs] conversation : {e}");
@@ -386,8 +389,7 @@ fn serve() -> ExitCode {
             settings: settings_rust,
             files,
             push: push_rust.then(|| std::sync::Arc::new(loki_rs::push::Push::new())),
-            mem: mem_rust
-                .then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home.clone()))),
+            mem: mem_rust.then(|| std::sync::Arc::new(loki_rs::memory::Memory::new(mem_home))),
             presets: presets_rust,
             engine_ctl,
             system: system_rust.then(|| std::sync::Arc::new(loki_rs::system::System::new())),
@@ -399,7 +401,7 @@ fn serve() -> ExitCode {
             tasks,
             bench,
             tune,
-            mcp: mcp_rust.then(|| std::sync::Arc::new(loki_rs::mcp::Mcp::new(mem_home))),
+            mcp,
         };
         let res = proxy::serve(listener, cfg, shutdown_signal()).await;
         eprintln!("[loki-rs] arrêt demandé — arrêt du serveur Go");
@@ -510,6 +512,7 @@ async fn start_chat(
     backend: SocketAddr,
     token: &str,
     home: &std::path::Path,
+    mcp: Option<std::sync::Arc<loki_rs::mcp::Mcp>>,
 ) -> Result<std::sync::Arc<loki_rs::chat::generate::ChatService>, String> {
     use loki_rs::chat::{conv::Conversation, generate::ChatService, host::ChatShared, sessions};
     let store = loki_rs::store::Store::new(backend, token.to_string());
@@ -521,6 +524,7 @@ async fn start_chat(
     s.load().await?;
     let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
     shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
+    shared.mcp = mcp;
     eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=go pour la rendre au Go)");
     Ok(ChatService::new(
         std::sync::Arc::new(s),
