@@ -668,6 +668,7 @@ async fn tour_complet_par_le_go() {
         tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
         prewarm: Default::default(),
         mcp: None,
+        tasks: None,
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -851,13 +852,13 @@ async fn service(
     tokio::sync::oneshot::Sender<()>,
     tempfile::TempDir,
 ) {
-    service_with(engine_url, None).await
+    service_with(engine_url, |_| {}).await
 }
 
-/// [`service`], avec le pool MCP de la façade.
+/// [`service`], l'état partagé réglé par `f` (pool MCP, tâches…).
 async fn service_with(
     engine_url: Option<&str>,
-    mcp: Option<Arc<loki_rs::mcp::Mcp>>,
+    f: impl FnOnce(&mut ChatShared),
 ) -> (
     Arc<ChatService>,
     Arc<fakego::FakeGo>,
@@ -874,7 +875,7 @@ async fn service_with(
     let sessions = Sessions::new(st.clone(), Conversation::new(), GoSessionHooks(st.clone()));
     sessions.load().await.unwrap();
     let mut shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
-    shared.mcp = mcp;
+    f(&mut shared);
     (
         ChatService::new(Arc::new(sessions), Arc::new(shared)),
         go,
@@ -2443,7 +2444,7 @@ done
     std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
     let trace = dir.path().join("trace");
     let pool = Arc::new(loki_rs::mcp::Mcp::new(dir.path().to_path_buf()));
-    let (svc, go, _stop, _t) = service_with(Some(&url), Some(pool.clone())).await;
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.mcp = Some(pool.clone())).await;
     let mut servers = loki_rs::mcp::config::Servers::new();
     servers.insert(
         "sh".into(),
@@ -2492,4 +2493,61 @@ done
     assert!(inits[0].contains(r#""version":"annonce""#), "{inits:?}");
     assert!(inits[1].contains(r#""version":"0.15.0""#), "{inits:?}");
     pool.close_all().await;
+}
+
+/// Lot 37 : un outil task_* appelé par un tour de la façade s'exécute ici
+/// quand elle tient les tâches — la tâche rangée dans le projet actif, au
+/// fuseau de l'utilisateur, sans passer par le Go.
+#[tokio::test]
+async fn outil_task_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"t1","type":"function","function":{"name":"task_create","arguments":"{\"name\":\"Rappel\",\"prompt\":\"Bois\",\"schedule\":\"@every 2h\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("c'est noté")]).await;
+    let dir = tempfile::tempdir().unwrap();
+    // 2026-03-28 12:00:00 UTC.
+    fn clock() -> i64 {
+        1_774_699_200 * 1_000_000_000
+    }
+    let tasks = Arc::new(loki_rs::tasks::Tasks::with(
+        dir.path().to_path_buf(),
+        std::time::Duration::from_secs(3600),
+        clock,
+    ));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.tasks = Some(tasks.clone())).await;
+    go.set("state", "user_tz", "Europe/Paris");
+    go.set("state", "active_project", "generale");
+    svc.send(serde_json::json!({"message": "rappelle-moi de boire", "cid": "t"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let list = loki_rs::tasks::list_tasks(&svc.shared.store).await;
+    assert_eq!(list.len(), 1, "{list:?}");
+    let t = &list[0];
+    assert_eq!(
+        (
+            t.name.as_str(),
+            t.schedule.as_str(),
+            t.tz.as_str(),
+            t.project.as_str()
+        ),
+        ("Rappel", "@every 2h", "Europe/Paris", "generale")
+    );
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(format!(
+            "[ok] tâche 'Rappel' créée (id {}), prochaine exécution 2026-03-28 15:00 (Europe/Paris)",
+            t.id
+        ))
+    );
 }

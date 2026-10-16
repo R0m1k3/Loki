@@ -4,7 +4,8 @@
 //!   classées et formulées comme `friendlyLLMError` ;
 //! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
 //!   tenu par le Go), outils MCP par le pool de la façade quand elle le tient
-//!   (lot 36) ; les autres par le Go (`/internal/v1/tool/exec`), avec
+//!   (lot 36), outils task_* quand elle tient les tâches (lot 37) ; les autres
+//!   par le Go (`/internal/v1/tool/exec`), avec
 //!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
 //!   image relayée) ;
 //! - résultats complets (« voir plus ») confiés à l'écrivain des discussions ;
@@ -334,6 +335,9 @@ pub struct ChatShared {
     /// Le pool MCP, quand la façade le tient (LOKI_MCP=rust) : les appels
     /// `mcp__*` du tour y vont directement (lot 36).
     pub mcp: Option<Arc<crate::mcp::Mcp>>,
+    /// Les tâches, quand la façade les tient (LOKI_TASKS=rust) : les outils
+    /// `task_*` du tour s'exécutent ici (lot 37).
+    pub tasks: Option<Arc<crate::tasks::Tasks>>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -645,6 +649,23 @@ impl TurnHost for GoTurnHost {
         // Outils MCP, quand la façade tient le pool : ce que ferait le Go
         // (`mcpCall` → /internal/facade/v1/mcp/call), sans ses deux
         // allers-retours. Le Go n'en tire rien d'autre que le texte.
+        // Outils task_*, quand la façade tient les tâches (lot 37).
+        if crate::tasks::tools::is_tool(name)
+            && let Some(tasks) = &self.shared.tasks
+        {
+            let dir = tasks.scripts_dir();
+            let env = crate::tasks::tools::ToolEnv {
+                store: &self.shared.store,
+                scripts_dir: &dir,
+                now_ns: tasks.now(),
+            };
+            if let Some(result) = crate::tasks::tools::exec(&env, name, args).await {
+                return ToolOutcome {
+                    result,
+                    ..Default::default()
+                };
+            }
+        }
         if crate::mcp::config::is_mcp_tool(name)
             && let Some(mcp) = &self.shared.mcp
         {

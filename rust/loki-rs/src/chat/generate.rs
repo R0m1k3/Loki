@@ -1304,6 +1304,7 @@ impl ChatShared {
             tpl: std::sync::Arc::new(super::tplprobe::TplProbe::new()),
             prewarm: Default::default(),
             mcp: None,
+            tasks: None,
             go_version: Default::default(),
         }
     }

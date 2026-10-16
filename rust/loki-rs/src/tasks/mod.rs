@@ -13,6 +13,7 @@
 //! planificateur.
 
 pub mod cron;
+pub mod tools;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

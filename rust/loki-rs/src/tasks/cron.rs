@@ -86,7 +86,7 @@ pub fn next_after(schedule: &str, tz: &str, from: i64) -> Result<i128, String> {
 
 /// `time.ParseInLocation("2006-01-02 15:04", s, l)` : l'instant (ns), ou
 /// rien si la chaîne ne suit pas la forme.
-fn parse_ymd_hm(s: &str, l: &Location) -> Option<i128> {
+pub fn parse_ymd_hm(s: &str, l: &Location) -> Option<i128> {
     let b = s.as_bytes();
     let digits = |r: &[u8]| r.iter().all(u8::is_ascii_digit);
     // 2006 : 4 chiffres ; -01 et -02 : 2 chiffres ; 15 : 1 ou 2 ; :04 : 2.
@@ -176,7 +176,7 @@ fn next_every(spec: &str, tz: &str, from: i128) -> Result<i128, String> {
 }
 
 /// `parseHHMM`.
-fn parse_hhmm(s: &str) -> Result<(i64, i64), String> {
+pub fn parse_hhmm(s: &str) -> Result<(i64, i64), String> {
     let Some((hs, ms)) = s.trim().split_once(':') else {
         return Err(format!("heure invalide (attendu HH:MM) : {}", quote(s)));
     };

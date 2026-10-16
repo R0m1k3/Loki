@@ -1007,6 +1007,7 @@ pub async fn start_with(
         let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
         shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
         shared.mcp = opts.mcp.clone();
+        shared.tasks = opts.tasks.clone();
         Some(ChatService::new(Arc::new(s), Arc::new(shared)))
     } else {
         None

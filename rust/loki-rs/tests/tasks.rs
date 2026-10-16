@@ -495,3 +495,61 @@ async fn amorce_au_demarrage() {
     assert_eq!(next("eteinte"), 0);
     assert_eq!(next("posee"), 42);
 }
+
+fn zero_clock() -> i64 {
+    0
+}
+
+/// Lot 37 : les outils task_* de l'agent, rejoués contre le journal du Go
+/// (`internal/loki/parity_tasks_tools_test.go` → `parity_tasks/tools.json`) :
+/// chaque appel, son résultat tel que le modèle le reçoit, les tâches en base
+/// après coup.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parite_des_outils() {
+    use loki_rs::tasks::tools::{ToolEnv, exec, is_tool};
+    let fx: Value = serde_json::from_str(include_str!("parity_tasks/tools.json")).expect("journal");
+    let mut bn = bench(zero_clock).await;
+    let scripts = bn.home.join("scripts");
+    let mut now = 0;
+    for st in fx.as_array().unwrap() {
+        let name = s(&st["name"]);
+        if let Some(n) = st["now"].as_str() {
+            now = rfc3339_ns(n);
+        }
+        let files: serde_json::Map<String, Value> = st["files"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(k, v)| (k.clone(), Value::String(bn.unmask(s(v)))))
+            .collect();
+        apply_files(&bn.home, &Value::Object(files));
+        for (k, v) in st["state"].as_object().into_iter().flatten() {
+            bn.go.set("state", k, s(v));
+        }
+        if let Some(t) = st["put_task"].as_str() {
+            let raw = bn.unmask(t);
+            let v: Value = serde_json::from_str(&raw).unwrap();
+            bn.go.set("tasks", s(&v["id"]), &raw);
+            bn.mask(&raw);
+        }
+        let tool = s(&st["tool"]);
+        assert!(is_tool(tool), "{name}");
+        let args: serde_json::Map<String, Value> =
+            serde_json::from_str(&bn.unmask(&st["args"].to_string())).unwrap();
+        let env = ToolEnv {
+            store: &bn.store,
+            scripts_dir: &scripts,
+            now_ns: now,
+        };
+        let out = exec(&env, tool, &args).await.expect("outil task_*");
+        assert_eq!(bn.mask(&out), s(&st["out"]), "{name}");
+        assert_eq!(bn.snapshot().await, st["tasks"], "{name}");
+    }
+    let env = ToolEnv {
+        store: &bn.store,
+        scripts_dir: &scripts,
+        now_ns: now,
+    };
+    assert_eq!(exec(&env, "bash", &serde_json::Map::new()).await, None);
+    assert!(!is_tool("task_run"));
+}
