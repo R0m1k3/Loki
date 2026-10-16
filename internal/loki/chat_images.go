@@ -123,7 +123,11 @@ const chatImgKeep = 24 * time.Hour
 // rechargé : plus rien ne référence alors les fichiers. Le délai couvre un
 // fil resté ouvert longtemps sans bascule.
 func pruneChatImages() {
-	dir := chatImgDir()
+	pruneMediaDir(chatImgDir())
+	pruneMediaDir(chatVidDir()) // vidéos jointes (chat_video.go), même délai
+}
+
+func pruneMediaDir(dir string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return

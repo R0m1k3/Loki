@@ -536,6 +536,7 @@ func (c *Conversation) snapshot() *convSnap {
 	// Images en base64 → références (chat_images.go) avant d'écrire : une photo
 	// jointe pesait des Mo, réécrits en entier à CHAQUE fin de tour.
 	refImagesInMessages(c.Messages)
+	refVideosInMessages(c.Messages) // vidéos jointes, même rangement (chat_video.go)
 	// En plein tour, le journal porte encore un événement par token et chaque
 	// frappe d'outil : on écrit la forme que produira la fin de tour
 	// (compactLog), sans toucher au journal en mémoire que suivent les abonnés.

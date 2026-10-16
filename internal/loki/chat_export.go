@@ -112,7 +112,8 @@ func (c *Conversation) ExportJSON(o exportOpts) ([]byte, error) {
 }
 
 // stripInlineImages remplace les images en base64 (data URI) portées par les
-// messages multimodaux (vision : pièces jointes images + outil see_image) par un
+// messages multimodaux (vision : pièces jointes images et vidéos + outil
+// see_image) par un
 // court marqueur. Sans ça, l'export JSON d'une conversation avec images embarquait
 // plusieurs Mo de base64 par image — un fichier énorme et illisible. Le Markdown,
 // lui, n'était pas concerné : il ne cite que les NOMS de fichiers. Le journal
@@ -144,6 +145,20 @@ func stripInlineImagesValue(v any) any {
 				c2["url"] = elideDataURI(url)
 			}
 			cp["image_url"] = c2
+		}
+		// Partie vidéo (input_video, chat_video.go) : même élision, sur les deux
+		// champs que lit llama-server.
+		if iv, ok := cp["input_video"].(map[string]any); ok {
+			c2 := make(map[string]any, len(iv))
+			for k, val := range iv {
+				c2[k] = val
+			}
+			for _, key := range []string{"url", "data"} {
+				if s, ok := c2[key].(string); ok && strings.HasPrefix(s, "data:") {
+					c2[key] = elideDataURI(s)
+				}
+			}
+			cp["input_video"] = c2
 		}
 		return cp
 	}
