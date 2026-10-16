@@ -19,7 +19,7 @@ import (
 )
 
 //go:generate go run ../../tools/assemble-ui ui
-//go:embed ui/index.html ui/marked.min.js ui/sw.js ui/manifest.webmanifest ui/fonts/*.woff2
+//go:embed ui/index.html ui/marked.min.js ui/sw.js ui/manifest.webmanifest ui/fonts/*.woff2 ui/katex
 var uiFS embed.FS
 
 // cmdWeb starts the HTTP server on the given port (default 8090).
@@ -217,6 +217,9 @@ func newWebMux() *http.ServeMux {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		w.Write(b)
 	})
+	// KaTeX (formules LaTeX des réponses, web_katex.go) : chargé par l'UI
+	// seulement quand une réponse contient des maths. Embarqué, comme les polices.
+	mux.HandleFunc("/katex/", handleKatex)
 	// Endpoint compatible OpenAI, servi par Loki SUR SON PORT et relayé vers
 	// llama-server (voir mountOAI). C'est ce qui le rend joignable par le nom de
 	// domaine ou l'IP de l'interface, sans publier de second port ni ouvrir le

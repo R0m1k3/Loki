@@ -42,6 +42,32 @@ fn main() {
     }
     out.push_str("];\n");
 
+    // KaTeX (formules LaTeX, repris d'AJEAN) : script, feuille et polices
+    // woff2 sous ui/katex/, les polices nommées par leur chemin relatif
+    // (« fonts/x.woff2 »), comme les sert web_katex.go.
+    let katex = ui.join("katex");
+    println!("cargo:rerun-if-changed={}", katex.display());
+    for (ident, name) in [("KATEX_JS", "katex.min.js"), ("KATEX_CSS", "katex.min.css")] {
+        let p = katex.join(name);
+        assert!(p.is_file(), "fichier KaTeX manquant : {}", p.display());
+        println!("cargo:rerun-if-changed={}", p.display());
+        writeln!(out, "pub static {ident}: &[u8] = include_bytes!({p:?});").unwrap();
+    }
+    let katex_fonts = katex.join("fonts");
+    println!("cargo:rerun-if-changed={}", katex_fonts.display());
+    let mut kfonts: Vec<PathBuf> = std::fs::read_dir(&katex_fonts)
+        .unwrap_or_else(|e| panic!("{} : {e}", katex_fonts.display()))
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "woff2"))
+        .collect();
+    kfonts.sort();
+    out.push_str("pub static KATEX_FONTS: &[(&str, &[u8])] = &[\n");
+    for p in &kfonts {
+        let name = format!("fonts/{}", p.file_name().unwrap().to_str().unwrap());
+        writeln!(out, "    ({name:?}, include_bytes!({p:?})),").unwrap();
+    }
+    out.push_str("];\n");
+
     let dst = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("ui_assets.rs");
     std::fs::write(dst, out).unwrap();
 }
