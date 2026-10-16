@@ -249,13 +249,14 @@ func TestPariteStrata(t *testing.T) {
 		return out
 	}
 
+	srcDir := filepath.Base(strataSrcDir())
 	src := []parityArchEntry{
-		{Name: "ajean-moe-1.0/", Type: "dir", Mode: 0o755},
-		{Name: "ajean-moe-1.0/setup.sh", Type: "file", Body: parityStrataSetup, Mode: 0o755},
-		{Name: "ajean-moe-1.0/setup.py", Type: "file", Body: "# installeur\n", Mode: 0o644},
-		{Name: "ajean-moe-1.0/serve/server.py", Type: "file", Body: "# serveur\n", Mode: 0o644},
+		{Name: srcDir + "/", Type: "dir", Mode: 0o755},
+		{Name: srcDir + "/setup.sh", Type: "file", Body: parityStrataSetup, Mode: 0o755},
+		{Name: srcDir + "/setup.py", Type: "file", Body: "# installeur\n", Mode: 0o644},
+		{Name: srcDir + "/serve/server.py", Type: "file", Body: "# serveur\n", Mode: 0o644},
 	}
-	goodRel := parityStrataRel{Src: src, Engine: "moteur strata 1.0"}
+	goodRel := parityStrataRel{Src: src, Engine: "moteur strata " + strataVersion}
 	mem47 := "MemTotal:       49283072 kB\nMemFree:         1000000 kB\nMemAvailable:   41943040 kB\n"
 	mem64 := "MemTotal:       67108864 kB\nMemAvailable:   65011712 kB\n"
 	mem16 := "MemTotal:       16777216 kB\nMemAvailable:   12582912 kB\n"
@@ -393,42 +394,47 @@ func TestPariteStrata(t *testing.T) {
 			Body: `{"family":"qwen","quant":"IQ3_S"}`, Wait: true},
 		{Name: "release introuvable", Meminfo: mem47, Release: &parityStrataRel{Status: 404, Src: src, Engine: "x"},
 			Method: "POST", Path: "/api/strata/install", Body: `{"family":"swift","quant":"IQ3_XXS"}`, Wait: true},
-		{Name: "moteur altéré", Release: &parityStrataRel{Src: src, Engine: "moteur strata 1.0", BadSHA: true},
+		{Name: "moteur altéré", Release: &parityStrataRel{Src: src, Engine: "moteur strata " + strataVersion, BadSHA: true},
 			Method: "POST", Path: "/api/strata/install", Body: `{"family":"swift","quant":"IQ3_XXS"}`, Wait: true},
 		{Name: "installation", Release: &goodRel, Method: "POST", Path: "/api/strata/install",
 			Body: `{"family":"swift","quant":"IQ3_XXS"}`, Wait: true},
 		{Name: "après l'installation", Method: "GET", Path: "/api/strata"},
 		{Name: "mode lancé connu, modèles inactifs", State: map[string]string{"strata_experts_mode": "drop"}, Files: map[string]string{
-			"presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env": "# NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\n" +
+			"presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env": "# NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\n" +
 				"STRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-			"presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env": "ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\n" +
+			"presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env": "ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\n" +
 				"STRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
 		}, Method: "GET", Path: "/api/strata"},
 		{Name: "experts.bin et moteur du paquet", Files: map[string]string{
 			"strata/data/packs/swift-iq3_xxs/experts.bin": "x",
 		}, State: map[string]string{"strata_experts_mode": ""}, Method: "GET", Path: "/api/strata"},
-		{Name: "RAM juste sous le seuil du mode hors RAM", Meminfo: "MemTotal:       49283072 kB\nMemAvailable:   43164063 kB\n",
+		{Name: "RAM juste sous le seuil du mode hors RAM", Meminfo: "MemTotal:       49283072 kB\nMemAvailable:   44140625 kB\n",
 			Method: "GET", Path: "/api/strata"},
-		{Name: "RAM au-dessus du seuil du mode hors RAM", Meminfo: "MemTotal:       49283072 kB\nMemAvailable:   43457032 kB\n",
+		{Name: "RAM au-dessus du seuil du mode hors RAM", Meminfo: "MemTotal:       49283072 kB\nMemAvailable:   44433594 kB\n",
 			Method: "GET", Path: "/api/strata"},
+		{Name: "contexte plafonné en mode hors RAM", Files: map[string]string{
+			"presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\n" +
+				"STRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\n" +
+				"STRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=196608\nREASONING=off\n",
+		}, Method: "GET", Path: "/api/strata"},
 		{Name: "mode hors RAM coupé dans le preset", Files: map[string]string{
 			"presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\n" +
-				"STRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\n" +
+				"STRATA_CONFIG={{HOME}}/strata/" + srcDir + "/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\n" +
 				"STRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
 		}, Method: "GET", Path: "/api/strata"},
 		{Name: "moteur d'un autre paquet", Meminfo: mem47, Files: map[string]string{
-			"strata/ajean-moe-1.0/engine-cuda12/.loki-engine": "ajean-moe-engine-0.9-linux-x64-cuda12.zip\n",
+			"strata/" + srcDir + "/engine-cuda12/.loki-engine": "ajean-moe-engine-0.9-linux-x64-cuda12.zip\n",
 		}, Method: "GET", Path: "/api/strata"},
 		{Name: "réinstallation, moteur téléchargé périmé", Files: map[string]string{
-			"strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip": "ancien moteur",
+			"strata/dl/" + strataEngineAsset: "ancien moteur",
 		}, Method: "POST", Path: "/api/strata/install", Body: `{"family":"swift","quant":"IQ3_XXS"}`, Wait: true},
 		{Name: "installeur en échec", Method: "POST", Path: "/api/strata/install", Body: `{"family":"qwen","quant":"Q2_0"}`, Wait: true},
 		{Name: "installeur sans configuration", Method: "POST", Path: "/api/strata/install", Body: `{"family":"qwen","quant":"IQ2_XS"}`, Wait: true},
 		{Name: "configuration de lancement disparue", Files: map[string]string{
-			"strata/ajean-moe-1.0/strata-swift-iq3_xxs.json": "-",
+			"strata/" + srcDir + "/strata-swift-iq3_xxs.json": "-",
 		}, Method: "GET", Path: "/api/strata"},
 		{Name: "configuration de lancement illisible", Files: map[string]string{
-			"strata/ajean-moe-1.0/strata-swift-iq3_xxs.json": "[1]",
+			"strata/" + srcDir + "/strata-swift-iq3_xxs.json": "[1]",
 		}, Method: "GET", Path: "/api/strata"},
 	} {
 		run(st)

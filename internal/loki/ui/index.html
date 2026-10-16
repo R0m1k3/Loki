@@ -9328,7 +9328,9 @@ function strataRenderDetails(fit){
     ['Prédiction (MTP)', d.spec+' jetons'],
     ['Experts hors GPU', (d.mode_label || (d.mmap ? 'lus depuis le disque (mmap)' : 'chargés en RAM'))
       + (fit.active ? ' — dernier lancement' : ' — selon la RAM libre maintenant')],
-    ['Lecture des prompts', 'blocs de '+k(d.prefill)+', lecture directe sous '+d.short_read+' jetons'],
+    // paquet 1.1 : la carte d'appoint calcule ses experts à la lecture d'un prompt
+    ['Lecture des prompts', 'blocs de '+k(d.prefill)+', lecture directe sous '+d.short_read+' jetons'
+      + (d.helper_gpu && !d.split_layers ? ", experts de la carte d'appoint calculés par elle" : '')],
     ["Démarrage d'une conversation", 'reprise après le prompt système (dès '+d.cache_root+' jetons)'],
     ['Version du moteur', 'paquet AJEAN MoE '+d.version],
   ];

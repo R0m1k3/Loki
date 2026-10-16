@@ -369,6 +369,42 @@ fn modes_des_experts() {
     assert!(out["env"].get("STRATA_REMOTE_DROP").is_none());
 }
 
+// Moteur 1.1 (`TestStrataBuildConfigHelperPrompt`).
+#[test]
+fn lecture_des_prompts_par_la_carte_d_aide() {
+    let base = json!({ "args": ["--pack", "/p"] });
+    let out = build_config(&base, &cfg(&[("STRATA_HELPER_GPU", "0")]), "", "ram").unwrap();
+    assert_eq!(arg_after(&args_of(&out), "--short-read"), "48");
+    assert_eq!(out["env"]["STRATA_PREFILL_HELPER_SOURCE"], "1");
+    for c in [
+        Cfg::new(),
+        cfg(&[("STRATA_HELPER_GPU", "0"), ("STRATA_HELPER", "0")]),
+    ] {
+        let out = build_config(&base, &c, "", "ram").unwrap();
+        assert_eq!(arg_after(&args_of(&out), "--short-read"), "150", "{c:?}");
+        assert!(out["env"].get("STRATA_PREFILL_HELPER_SOURCE").is_none());
+    }
+}
+
+// `TestStrataBuildConfigDropReserveAndCtx`.
+#[test]
+fn hors_ram_reserve_et_contexte() {
+    let base = json!({ "args": ["--pack", "/p"], "env": {} });
+    let c = cfg(&[("STRATA_HELPER_GPU", "0"), ("CTX", "167936")]);
+    let out = build_config(&base, &c, "", "drop").unwrap();
+    assert_eq!(out["env"]["STRATA_REMOTE_DROP_RESERVE_MIB"], "640");
+    assert_eq!(arg_after(&args_of(&out), "--max-context"), "131072");
+    for mode in ["ram", "arena", "disk"] {
+        let out = build_config(&base, &c, "", mode).unwrap();
+        assert_eq!(
+            arg_after(&args_of(&out), "--max-context"),
+            "167936",
+            "{mode}"
+        );
+        assert!(out["env"].get("STRATA_REMOTE_DROP_RESERVE_MIB").is_none());
+    }
+}
+
 #[test]
 fn reglages_des_experts() {
     let input = "ENGINE=strata\nSTRATA_EXPERTS=auto\n";

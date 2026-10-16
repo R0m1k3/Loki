@@ -5,11 +5,13 @@ package loki
 // répartit les experts entre VRAM, RAM et disque pour faire tenir le modèle sur
 // une carte de joueur.
 //
-// Repris d'AJEAN (backend_moe.go, « AJEAN MoE 1.0 ») : le moteur est le paquet
-// FIGÉ publié par AJEAN sur sa release GitHub moe-v1.0 — sources de Strata et
+// Repris d'AJEAN (backend_moe.go, « AJEAN MoE 1.1 ») : le moteur est le paquet
+// FIGÉ publié par AJEAN sur sa release GitHub moe-v1.1 — sources de Strata et
 // binaire Linux CUDA 12 compilé et validé par l'auteur d'AJEAN (avec ses
-// modifications : experts de la carte d'appoint gardés hors RAM). Les deux
-// fichiers sont vérifiés par SHA-256 avant usage.
+// modifications : experts de la carte d'appoint gardés hors RAM et, depuis la
+// 1.1, calculés par elle à la lecture des prompts). Les deux fichiers sont
+// vérifiés par SHA-256 avant usage. Un modèle installé avec la 1.0 passe à la
+// 1.1 à son premier lancement (strataMigrate).
 //
 // Le choix du moteur se fait par PRESET : ENGINE=strata. Sans la clé (ou
 // ENGINE=llamacpp), rien ne change, llama-server reste le moteur.
@@ -47,11 +49,12 @@ import (
 	"os/exec"
 )
 
-// Paquet figé (release moe-v1.0 d'AJEAN). Le moteur est compilé en CUDA 12.8,
+// Paquet figé (release moe-v1.1 d'AJEAN). Le moteur est compilé en CUDA 12.8,
 // mode portable AVX2, sm_75/80/86/89/120 : RTX 20 à 50. Un moteur installé d'un
-// autre paquet est remplacé au lancement (strataEnsureEngine).
+// autre paquet est remplacé au lancement (strataEnsureEngine), une installation
+// d'une version précédente est reprise (strataMigrate).
 const (
-	strataVersion     = "1.0"
+	strataVersion     = "1.1"
 	strataSrcAsset    = "ajean-moe-src-" + strataVersion + ".tar.gz"
 	strataEngineAsset = "ajean-moe-engine-" + strataVersion + "-linux-x64-cuda12.zip"
 	// strataEngineLocal : le nom sous lequel l'installeur attend le moteur (CUDA12_ASSET).
@@ -69,10 +72,11 @@ var (
 	strataDiskFree = diskFree
 )
 
-// strataAssetSHA : empreintes des fichiers de la release, vérifiées avant usage.
+// strataAssetSHA : empreintes des fichiers de la release, vérifiées avant usage
+// (celles qu'AJEAN publie dans son backend_moe.go pour moe-v1.1).
 var strataAssetSHA = map[string]string{
-	strataSrcAsset:    "5747f69426973d957e4f9894a8e3333c6ef0d6ac8565e26ddb8d36f52211cb3b",
-	strataEngineAsset: "b5851bc138ab32ca3ffefc16bf91c8f557e4d503503473a22f2b6c9e9b8fd34c",
+	strataSrcAsset:    "5a72a90f2182ff0ccab2bdbd7cff15598a21ad94501aa19de2b1b18e2dbc8115",
+	strataEngineAsset: "8c717206ee90120f967445169dc39bb11beffdad3d592c75ae08f75bec72f0d3",
 }
 
 // Valeurs de la clé ENGINE d'un preset.
@@ -132,8 +136,14 @@ const strataLowRAMHeadroomGB = 10
 
 // strataDropHeadroomGB : RAM à laisser à côté des experts verrouillés quand la
 // carte d'aide garde les siens hors RAM (mesuré par AJEAN : 46 Go de RAM,
-// 34,7 Gio d'experts verrouillés, ~2,3 Go encore libres).
-const strataDropHeadroomGB = 7
+// 34,7 Gio d'experts verrouillés, ~2,3 Go encore libres ; le moteur 1.1 prend
+// ~1 Go de plus que la 1.0).
+const strataDropHeadroomGB = 8
+
+// strataDropMaxCtx : contexte maximal en mode hors RAM. Le cache KV au-delà de
+// la part en VRAM est verrouillé en RAM : à 167 936 jetons, le serveur de test
+// d'AJEAN tombait à 1,3 Go libres dès la première requête (moteur 1.1).
+const strataDropMaxCtx = 131072
 
 // strataHelperExpertsGB : ce que la carte d'aide garde d'experts (sa VRAM moins
 // le contexte CUDA, l'encodeur d'images et la marge : 5,3 Gio sur une 3070 8 Go).
@@ -870,7 +880,8 @@ func strataFindConfig(quant string) (string, error) {
 //
 //   - --prefill 16384     : +15 % de lecture sur les longs prompts (40K) ;
 //   - --short-read 150    : les petits ajouts (< 150 jetons) sont lus comme en
-//     génération, sans le coût fixe du chemin par blocs : ~40 % plus rapides ;
+//     génération, sans le coût fixe du chemin par blocs : ~40 % plus rapides
+//     (48 avec une carte d'aide, voir strataBuildConfig) ;
 //   - --prompt-cache-root 256 : point de reprise posé à la fin du prompt système
 //     (défaut 2048) : une nouvelle conversation démarre en ~0,3 s au lieu de 4-5 s.
 var strataTuning = map[string]string{
@@ -1002,6 +1013,10 @@ func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey, mode 
 		// de copie : 8 fils et 32 tampons (le moteur en prendrait 32 et 128)
 		env["STRATA_STAGER_THREADS"] = "8"
 		env["STRATA_STAGER_RING"] = "32"
+		// sa VRAM libre réservée : 640 Mio (défaut 1024) = ~230 experts de plus
+		// hors RAM, l'encodeur d'images y tourne encore ; le moteur refuse moins
+		// de 512
+		env["STRATA_REMOTE_DROP_RESERVE_MIB"] = "640"
 	case "arena":
 		// experts.bin mappé tel quel (variante mesurée par AJEAN), sans part PCIe :
 		// le mappage n'en donne pas l'adresse GPU.
@@ -1017,8 +1032,22 @@ func strataBuildConfig(base map[string]any, cfg map[string]string, apiKey, mode 
 		k, v, _ := strings.Cut(kv, "=")
 		env[k] = v
 	}
+	if hasHelper {
+		// Lecture d'un prompt (moteur 1.1) : les experts que la carte d'aide garde
+		// sont calculés par elle au lieu d'être recopiés vers la principale par son
+		// lien PCIe (le chemin passe par la source « helper ») ; le chemin par blocs
+		// coûte alors moins cher, les ajouts courts n'en sont exclus que sous 48
+		// jetons. Mesuré par AJEAN : 100 nouveaux jetons 1,19 -> 0,85 s, 200 :
+		// 1,96 -> 1,12 s.
+		env["STRATA_PREFILL_HELPER_SOURCE"] = "1"
+		args = strataSetArg(args, "--short-read", "48")
+	}
 	out["env"] = env
 	if ctx := strings.TrimSpace(cfg["CTX"]); ctx != "" {
+		// hors RAM, le cache KV verrouillé au-delà de strataDropMaxCtx ne tient plus
+		if n, err := strconv.Atoi(ctx); err == nil && n > strataDropMaxCtx && env["STRATA_REMOTE_DROP"] == "1" {
+			ctx = strconv.Itoa(strataDropMaxCtx)
+		}
 		args = strataSetArg(args, "--max-context", ctx)
 	}
 	// réglages imposés par le preset (sinon : ceux de l'installeur)
@@ -1184,10 +1213,89 @@ func strataPreflight(cfg map[string]string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("configuration de Strata introuvable : %s — réinstalle le modèle", path)
 	}
-	py := filepath.Join(filepath.Dir(path), ".venv", "bin", "python")
+	py := strataVenvPython(filepath.Dir(path))
 	if _, err := os.Stat(py); err != nil {
 		return fmt.Errorf("environnement Python de Strata absent (%s) : réinstalle le modèle", py)
 	}
+	return nil
+}
+
+// strataVenvPython : le Python de l'environnement de Strata, dans ses sources.
+func strataVenvPython(srcDir string) string { return filepath.Join(srcDir, ".venv", "bin", "python") }
+
+// strataMigrate : un preset installé par une version précédente du paquet
+// (STRATA_CONFIG dans strataHome()/ajean-moe-<ancienne>) passe à la version
+// courante au lancement, sans réinstaller : les modèles et packs (data/)
+// servent tels quels. Les sources de la version courante sont posées (~340 Mo
+// avec le moteur), l'environnement Python de l'ancienne est repris par un lien
+// quand les dépendances n'ont pas changé, le moteur compilé est installé par
+// strataEnsureEngine, la config de l'installeur est recopiée avec ses chemins
+// réécrits, et les presets qui la citaient comme la config vivante pointent sur
+// la nouvelle. En cas d'échec rien n'est réécrit : l'ancienne version continue
+// de tourner. Repris d'AJEAN (moeMigrate, AJEAN MoE 1.1).
+func strataMigrate(cfg map[string]string) error {
+	old := strings.TrimSpace(cfg["STRATA_CONFIG"])
+	oldDir := filepath.Dir(old)
+	newDir := strataSrcDir()
+	if old == "" || oldDir == newDir || filepath.Dir(oldDir) != strataHome() || !strings.HasPrefix(filepath.Base(oldDir), "ajean-moe-") {
+		return nil
+	}
+	newPath := filepath.Join(newDir, filepath.Base(old))
+	if !isFile(newPath) {
+		raw, err := os.ReadFile(old)
+		if err != nil {
+			return err
+		}
+		if !isFile(filepath.Join(newDir, "setup.py")) {
+			src, err := strataFetch(strataSrcAsset)
+			if err != nil {
+				return err
+			}
+			if err := extractArchive(src, strataHome()); err != nil {
+				return fmt.Errorf("décompression : %w", err)
+			}
+		}
+		venv := filepath.Join(newDir, ".venv")
+		if _, err := os.Lstat(venv); err != nil {
+			a, _ := os.ReadFile(filepath.Join(oldDir, "requirements.txt"))
+			b, _ := os.ReadFile(filepath.Join(newDir, "requirements.txt"))
+			if len(a) == 0 || string(a) != string(b) || !isFile(strataVenvPython(oldDir)) {
+				return fmt.Errorf("dépendances Python changées : réinstalle le modèle depuis Paramètres → Moteur → Strata")
+			}
+			if err := os.Symlink(filepath.Join(oldDir, ".venv"), venv); err != nil {
+				return err
+			}
+		}
+		if err := os.MkdirAll(filepath.Join(newDir, "engine-cuda12"), 0o755); err != nil {
+			return err
+		}
+		if err := strataEnsureEngine(); err != nil {
+			return err
+		}
+		body := strings.ReplaceAll(string(raw), oldDir+string(os.PathSeparator), newDir+string(os.PathSeparator))
+		if err := os.WriteFile(newPath+".new", []byte(body), 0o644); err != nil {
+			return err
+		}
+		if err := os.Rename(newPath+".new", newPath); err != nil {
+			return err
+		}
+	}
+	// les presets qui citent l'ancienne config, puis la config vivante (les deux
+	// changent ensemble : l'empreinte du preset actif reste celle de la config)
+	if list, _ := filepath.Glob(filepath.Join(presetsDir(), "*.env")); len(list) > 0 {
+		for _, p := range list {
+			b, err := os.ReadFile(p)
+			if err != nil || !strings.Contains(string(b), "STRATA_CONFIG="+old+"\n") {
+				continue
+			}
+			_ = os.WriteFile(p, []byte(strings.ReplaceAll(string(b), "STRATA_CONFIG="+old+"\n", "STRATA_CONFIG="+newPath+"\n")), 0o644)
+		}
+	}
+	if err := SetConfigKey("STRATA_CONFIG", newPath); err != nil {
+		return err
+	}
+	cfg["STRATA_CONFIG"] = newPath
+	fmt.Fprintf(os.Stderr, "[loki serve] paquet AJEAN MoE %s : installation reprise depuis %s\n", strataVersion, filepath.Base(oldDir))
 	return nil
 }
 
@@ -1195,6 +1303,9 @@ func strataPreflight(cfg map[string]string) error {
 // côté de celle de l'installeur puis remplace le process par le serveur de
 // Strata (comme pour llama-server : le superviseur suit directement le moteur).
 func serveStrata(cfg map[string]string) error {
+	if err := strataMigrate(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "[loki serve] passage au paquet AJEAN MoE %s impossible (%v) : la version installée reste utilisée\n", strataVersion, err)
+	}
 	if err := strataPreflight(cfg); err != nil {
 		return err
 	}
@@ -1223,7 +1334,7 @@ func serveStrata(cfg map[string]string) error {
 		return err
 	}
 	srcDir := filepath.Dir(path)
-	py := filepath.Join(srcDir, ".venv", "bin", "python")
+	py := strataVenvPython(srcDir)
 	tag := strataConfigTag(path)
 	final["log"] = filepath.Join(strataHome(), "strata-"+tag+".log")
 	out := filepath.Join(strataHome(), "loki-strata-"+tag+".json")

@@ -56,11 +56,13 @@ expose à la place un export/import de paquet chiffré en fichier local.
 
 Le second moteur de Loki (`internal/loki/backend_strata.go`) est
 **[Strata](https://github.com/Niko1221/Strata)** (MIT), spécialisé dans
-Qwen3.8-Flash-Next. Son intégration est reprise d'AJEAN (« AJEAN MoE 1.0 »,
+Qwen3.8-Flash-Next. Son intégration est reprise d'AJEAN (« AJEAN MoE 1.1 »,
 `backend_moe.go`) : Loki télécharge le paquet figé publié par AJEAN sur sa
-release `moe-v1.0` (sources de Strata et binaire Linux CUDA 12 compilé, avec
-les modifications d'AJEAN), vérifié par SHA-256. Ni Strata ni le modèle ne sont
-inclus dans l'image : ils sont téléchargés à la demande.
+release `moe-v1.1` (sources de Strata et binaire Linux CUDA 12 compilé, avec
+les modifications d'AJEAN), vérifié par SHA-256 avec les empreintes publiées
+par AJEAN. La reprise automatique d'une installation 1.0 (`strataMigrate`) est
+reprise d'AJEAN (`moeMigrate`). Ni Strata ni le modèle ne sont inclus dans
+l'image : ils sont téléchargés à la demande.
 
 ## Services externes
 

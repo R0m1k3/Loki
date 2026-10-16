@@ -19,24 +19,27 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value, json};
 
-/// Paquet figé (release moe-v1.0 d'AJEAN).
-pub const VERSION: &str = "1.0";
-pub const RELEASE_BASE: &str = "https://github.com/nathaninline/ajean/releases/download/moe-v1.0/";
-pub const SRC_ASSET: &str = "ajean-moe-src-1.0.tar.gz";
-pub const ENGINE_ASSET: &str = "ajean-moe-engine-1.0-linux-x64-cuda12.zip";
+/// Paquet figé (release moe-v1.1 d'AJEAN : experts de la carte d'aide
+/// calculés par elle à la lecture des prompts). Un modèle installé avec la
+/// 1.0 passe à la 1.1 à son premier lancement (`strataMigrate`, côté Go :
+/// `loki serve` d'un preset Strata reste au Go).
+pub const VERSION: &str = "1.1";
+pub const RELEASE_BASE: &str = "https://github.com/nathaninline/ajean/releases/download/moe-v1.1/";
+pub const SRC_ASSET: &str = "ajean-moe-src-1.1.tar.gz";
+pub const ENGINE_ASSET: &str = "ajean-moe-engine-1.1-linux-x64-cuda12.zip";
 /// Le nom sous lequel l'installeur attend le moteur (CUDA12_ASSET).
 pub const ENGINE_LOCAL: &str = "strata-linux-x64-cuda12.zip";
 
-/// `strataAssetSHA`.
+/// `strataAssetSHA` (celles qu'AJEAN publie pour moe-v1.1).
 pub fn default_asset_sha() -> HashMap<String, String> {
     HashMap::from([
         (
             SRC_ASSET.to_string(),
-            "5747f69426973d957e4f9894a8e3333c6ef0d6ac8565e26ddb8d36f52211cb3b".to_string(),
+            "5a72a90f2182ff0ccab2bdbd7cff15598a21ad94501aa19de2b1b18e2dbc8115".to_string(),
         ),
         (
             ENGINE_ASSET.to_string(),
-            "b5851bc138ab32ca3ffefc16bf91c8f557e4d503503473a22f2b6c9e9b8fd34c".to_string(),
+            "8c717206ee90120f967445169dc39bb11beffdad3d592c75ae08f75bec72f0d3".to_string(),
         ),
     ])
 }
@@ -137,7 +140,11 @@ pub fn quant(id: &str) -> Option<Quant> {
 }
 
 pub const LOW_RAM_HEADROOM_GB: f64 = 10.0;
-pub const DROP_HEADROOM_GB: f64 = 7.0;
+/// `strataDropHeadroomGB` (le moteur 1.1 prend ~1 Go de plus que la 1.0).
+pub const DROP_HEADROOM_GB: f64 = 8.0;
+/// `strataDropMaxCtx` : contexte maximal en mode hors RAM (le cache KV
+/// au-delà de la part en VRAM est verrouillé en RAM).
+pub const DROP_MAX_CTX: i64 = 131072;
 
 /// `strataHelperExpertsGB`.
 pub fn helper_experts_gb(vram_gb: f64) -> f64 {
@@ -431,6 +438,8 @@ pub fn build_config(base: &Value, cfg: &Cfg, api_key: &str, mode: &str) -> Resul
             env.insert("STRATA_REMOTE_DROP".into(), json!("1"));
             env.insert("STRATA_STAGER_THREADS".into(), json!("8"));
             env.insert("STRATA_STAGER_RING".into(), json!("32"));
+            // VRAM libre réservée de la carte d'aide : 640 Mio (défaut 1024)
+            env.insert("STRATA_REMOTE_DROP_RESERVE_MIB".into(), json!("640"));
         }
         "arena" => {
             args = set_arg(args, "--pcie-frac", "0");
@@ -445,10 +454,23 @@ pub fn build_config(base: &Value, cfg: &Cfg, api_key: &str, mode: &str) -> Resul
     for (k, v) in ENV_TUNING {
         env.insert(k.into(), json!(v));
     }
+    if has_helper {
+        // Lecture d'un prompt (moteur 1.1) : les experts de la carte d'aide
+        // sont calculés par elle (source « helper ») ; le chemin direct ne
+        // garde que les ajouts sous 48 jetons.
+        env.insert("STRATA_PREFILL_HELPER_SOURCE".into(), json!("1"));
+        args = set_arg(args, "--short-read", "48");
+    }
+    let drop_on = env.get("STRATA_REMOTE_DROP").and_then(Value::as_str) == Some("1");
     out.insert("env".into(), Value::Object(env));
     let ctx = cfg_get(cfg, "CTX").trim();
     if !ctx.is_empty() {
-        args = set_arg(args, "--max-context", ctx);
+        // hors RAM, le cache KV verrouillé au-delà de DROP_MAX_CTX ne tient plus
+        let capped = match ctx.parse::<i64>() {
+            Ok(n) if n > DROP_MAX_CTX && drop_on => DROP_MAX_CTX.to_string(),
+            _ => ctx.to_string(),
+        };
+        args = set_arg(args, "--max-context", &capped);
     }
     for (key, flag) in [
         ("STRATA_KV", "--kv"),

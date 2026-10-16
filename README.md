@@ -111,7 +111,7 @@ Loki a deux moteurs, et le choix se fait **par preset** (clé `ENGINE`) :
 - **[Strata](https://github.com/Niko1221/Strata)** — spécialisé dans
   **Qwen3.8 Flash Next** (MoE de 125 B) : les experts sont répartis entre
   VRAM, RAM et disque pour faire tourner ce modèle sur une carte de joueur.
-  Intégration reprise d'AJEAN (paquet figé « AJEAN MoE 1.0 », vérifié par
+  Intégration reprise d'AJEAN (paquet figé « AJEAN MoE 1.1 », vérifié par
   SHA-256).
 
 **Paramètres → Moteur → Strata** : la fenêtre lit la machine (cartes, RAM,
@@ -121,6 +121,17 @@ puis installe et active le modèle en un clic (téléchargement de 66 à 84 Go d
 basculer dessus lance Strata, basculer sur un autre preset revient à llama.cpp.
 Son engrenage ouvre les réglages propres à Strata (contexte jusqu'à 262 144,
 cache KV fp16/8 bits, prédiction MTP, lecture des images, carte d'appoint).
+
+Depuis le paquet 1.1, la carte d'appoint calcule elle-même ses experts à la
+lecture des prompts (au lieu de les recopier vers la principale) : les ajouts
+de 100 à 200 jetons se lisent ~30 à 40 % plus vite (mesures d'AJEAN). Un modèle
+installé avec la 1.0 passe à la 1.1 **à son premier lancement**, sans
+réinstallation : Loki télécharge le nouveau paquet (~340 Mo), reprend
+l'environnement Python et la configuration de la 1.0 (le dossier
+`/data/strata/ajean-moe-1.0` doit donc rester en place) et réécrit le preset.
+En cas d'échec, la 1.0 continue de tourner et la raison est dans le journal du
+moteur. En mode « hors RAM », le contexte est plafonné à 131 072 jetons (au-delà,
+le cache KV verrouillé en RAM ne tient plus).
 
 Pré-requis : Linux + NVIDIA RTX 20 ou plus récente (8 Go de VRAM minimum, une
 deuxième carte est utilisée comme carte d'appoint), environ 46 Go de RAM pour

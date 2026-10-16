@@ -184,7 +184,7 @@ func TestStrataDetailsFor(t *testing.T) {
 	}
 	if d.KV != "fp16" || d.KVResident != "32768" || d.Spec != "3" || d.Ctx != "131072" || !d.Mmap ||
 		d.MainGPU != "RTX 5060 Ti (16 Go)" || d.HelperGPU != "RTX 3070 (8 Go)" || d.VisionGPU != "RTX 3070 (8 Go)" ||
-		d.ShortRead != "150" || d.CacheRoot != "256" || d.Prefill != "16384" {
+		d.ShortRead != "48" || d.CacheRoot != "256" || d.Prefill != "16384" {
 		t.Errorf("%+v", *d)
 	}
 }

@@ -179,7 +179,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -311,7 +311,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -443,7 +443,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -582,7 +582,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -721,7 +721,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -861,7 +861,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1001,7 +1001,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1141,7 +1141,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1282,7 +1282,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1423,7 +1423,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1563,7 +1563,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1709,7 +1709,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1849,7 +1849,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -1990,7 +1990,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -2136,7 +2136,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -2283,7 +2283,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -2426,7 +2426,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -2575,7 +2575,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -2721,7 +2721,7 @@
           }
         ],
         "installed": [],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {},
@@ -3216,24 +3216,24 @@
         "status": 404,
         "src": [
           {
-            "name": "ajean-moe-1.0/",
+            "name": "ajean-moe-1.1/",
             "type": "dir",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.sh",
+            "name": "ajean-moe-1.1/setup.sh",
             "type": "file",
             "body": "#!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.py",
+            "name": "ajean-moe-1.1/setup.py",
             "type": "file",
             "body": "# installeur\n",
             "mode": 420
           },
           {
-            "name": "ajean-moe-1.0/serve/server.py",
+            "name": "ajean-moe-1.1/serve/server.py",
             "type": "file",
             "body": "# serveur\n",
             "mode": 420
@@ -3253,11 +3253,11 @@
         "action": "strata",
         "compiled": 0,
         "ended_at": "{{T}}",
-        "error": "téléchargement de ajean-moe-src-1.0.tar.gz : HTTP 404",
+        "error": "téléchargement de ajean-moe-src-1.1.tar.gz : HTTP 404",
         "exists": true,
         "lines": [
-          "▶ téléchargement de ajean-moe-src-1.0.tar.gz…",
-          "✗ téléchargement de ajean-moe-src-1.0.tar.gz : HTTP 404"
+          "▶ téléchargement de ajean-moe-src-1.1.tar.gz…",
+          "✗ téléchargement de ajean-moe-src-1.1.tar.gz : HTTP 404"
         ],
         "new": "",
         "next": 2,
@@ -3290,30 +3290,30 @@
       "release": {
         "src": [
           {
-            "name": "ajean-moe-1.0/",
+            "name": "ajean-moe-1.1/",
             "type": "dir",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.sh",
+            "name": "ajean-moe-1.1/setup.sh",
             "type": "file",
             "body": "#!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.py",
+            "name": "ajean-moe-1.1/setup.py",
             "type": "file",
             "body": "# installeur\n",
             "mode": 420
           },
           {
-            "name": "ajean-moe-1.0/serve/server.py",
+            "name": "ajean-moe-1.1/serve/server.py",
             "type": "file",
             "body": "# serveur\n",
             "mode": 420
           }
         ],
-        "engine": "moteur strata 1.0",
+        "engine": "moteur strata 1.1",
         "bad_sha": true
       },
       "method": "POST",
@@ -3328,12 +3328,12 @@
         "action": "strata",
         "compiled": 0,
         "ended_at": "{{T}}",
-        "error": "ajean-moe-engine-1.0-linux-x64-cuda12.zip : empreinte SHA-256 inattendue (fichier altéré ou incomplet)",
+        "error": "ajean-moe-engine-1.1-linux-x64-cuda12.zip : empreinte SHA-256 inattendue (fichier altéré ou incomplet)",
         "exists": true,
         "lines": [
-          "▶ téléchargement de ajean-moe-src-1.0.tar.gz…",
-          "▶ téléchargement de ajean-moe-engine-1.0-linux-x64-cuda12.zip…",
-          "✗ ajean-moe-engine-1.0-linux-x64-cuda12.zip : empreinte SHA-256 inattendue (fichier altéré ou incomplet)"
+          "▶ téléchargement de ajean-moe-src-1.1.tar.gz…",
+          "▶ téléchargement de ajean-moe-engine-1.1-linux-x64-cuda12.zip…",
+          "✗ ajean-moe-engine-1.1-linux-x64-cuda12.zip : empreinte SHA-256 inattendue (fichier altéré ou incomplet)"
         ],
         "new": "",
         "next": 3,
@@ -3359,7 +3359,7 @@
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz"
+        "f strata/dl/ajean-moe-src-1.1.tar.gz"
       ]
     },
     {
@@ -3367,30 +3367,30 @@
       "release": {
         "src": [
           {
-            "name": "ajean-moe-1.0/",
+            "name": "ajean-moe-1.1/",
             "type": "dir",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.sh",
+            "name": "ajean-moe-1.1/setup.sh",
             "type": "file",
             "body": "#!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
             "mode": 493
           },
           {
-            "name": "ajean-moe-1.0/setup.py",
+            "name": "ajean-moe-1.1/setup.py",
             "type": "file",
             "body": "# installeur\n",
             "mode": 420
           },
           {
-            "name": "ajean-moe-1.0/serve/server.py",
+            "name": "ajean-moe-1.1/serve/server.py",
             "type": "file",
             "body": "# serveur\n",
             "mode": 420
           }
         ],
-        "engine": "moteur strata 1.0"
+        "engine": "moteur strata 1.1"
       },
       "method": "POST",
       "path": "/api/strata/install",
@@ -3407,8 +3407,8 @@
         "error": "",
         "exists": true,
         "lines": [
-          "ajean-moe-src-1.0.tar.gz déjà téléchargé",
-          "▶ téléchargement de ajean-moe-engine-1.0-linux-x64-cuda12.zip…",
+          "ajean-moe-src-1.1.tar.gz déjà téléchargé",
+          "▶ téléchargement de ajean-moe-engine-1.1-linux-x64-cuda12.zip…",
           "▶ décompression de Strata…",
           "▶ installation de Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (téléchargement de ~76 Go)…",
           "installeur : --setup --yes --no-start --no-browser --family swift --model IQ3_XXS --context 131072 --vision gpu --cuda 12 --prebuilt {{HOME}}/strata/prebuilt/ --data-dir {{HOME}}/strata/data --gpu 1 --low-ram off",
@@ -3432,17 +3432,17 @@
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -3451,16 +3451,16 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
@@ -3527,9 +3527,9 @@
                   "mode": "disk",
                   "mode_label": "lus depuis le disque (mmap)",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -3621,23 +3621,23 @@
           "STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -3646,24 +3646,24 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "mode lancé connu, modèles inactifs",
       "files": {
-        "presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env": "# NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env": "ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n"
+        "presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env": "# NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env": "ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n"
       },
       "state": {
         "strata_experts_mode": "drop"
@@ -3729,9 +3729,9 @@
                   "mode": "drop",
                   "mode_label": "verrouillés en RAM, hors ceux de la carte d'appoint",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -3775,7 +3775,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -3806,7 +3806,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
@@ -3864,23 +3864,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -3889,18 +3889,18 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
@@ -3973,9 +3973,9 @@
                   "mode": "arena",
                   "mode_label": "experts.bin mappé (cache système)",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -4019,7 +4019,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -4050,7 +4050,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
@@ -4108,23 +4108,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -4133,32 +4133,32 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "RAM juste sous le seuil du mode hors RAM",
-      "meminfo": "MemTotal:       49283072 kB\nMemAvailable:   43164063 kB\n",
+      "meminfo": "MemTotal:       49283072 kB\nMemAvailable:   44140625 kB\n",
       "method": "GET",
       "path": "/api/strata",
       "status": 200,
       "out": {
         "active": true,
         "env": {
-          "avail_gb": 44.200000512,
+          "avail_gb": 45.2,
           "disk_free_gb": 400,
           "gpus": [
             {
@@ -4213,9 +4213,9 @@
                   "mode": "arena",
                   "mode_label": "experts.bin mappé (cache système)",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -4259,7 +4259,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -4290,7 +4290,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
@@ -4348,23 +4348,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -4373,32 +4373,32 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "RAM au-dessus du seuil du mode hors RAM",
-      "meminfo": "MemTotal:       49283072 kB\nMemAvailable:   43457032 kB\n",
+      "meminfo": "MemTotal:       49283072 kB\nMemAvailable:   44433594 kB\n",
       "method": "GET",
       "path": "/api/strata",
       "status": 200,
       "out": {
         "active": true,
         "env": {
-          "avail_gb": 44.500000768,
+          "avail_gb": 45.500000256,
           "disk_free_gb": 400,
           "gpus": [
             {
@@ -4427,7 +4427,7 @@
               {
                 "disk_gb": 68,
                 "drop": false,
-                "mmap": true,
+                "mmap": false,
                 "ok": true,
                 "quant": {
                   "about": "un peu plus fidèle, presque aussi rapide",
@@ -4453,9 +4453,9 @@
                   "mode": "drop",
                   "mode_label": "verrouillés en RAM, hors ceux de la carte d'appoint",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -4499,7 +4499,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -4530,13 +4530,13 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
                 "disk_gb": 68,
                 "drop": false,
-                "mmap": true,
+                "mmap": false,
                 "ok": true,
                 "preset": "STRATA FLASH NEXT CLASSIQUE IQ2_XS",
                 "quant": {
@@ -4588,23 +4588,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -4613,26 +4613,26 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
-      "name": "mode hors RAM coupé dans le preset",
+      "name": "contexte plafonné en mode hors RAM",
       "files": {
-        "presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n"
+        "presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=196608\nREASONING=off\n"
       },
       "method": "GET",
       "path": "/api/strata",
@@ -4640,7 +4640,7 @@
       "out": {
         "active": true,
         "env": {
-          "avail_gb": 44.500000768,
+          "avail_gb": 45.500000256,
           "disk_free_gb": 400,
           "gpus": [
             {
@@ -4669,7 +4669,7 @@
               {
                 "disk_gb": 68,
                 "drop": false,
-                "mmap": true,
+                "mmap": false,
                 "ok": true,
                 "quant": {
                   "about": "un peu plus fidèle, presque aussi rapide",
@@ -4682,7 +4682,7 @@
                 "details": {
                   "cache_root": "256",
                   "ctx": "131072",
-                  "drop": false,
+                  "drop": true,
                   "experts": "auto",
                   "has_helper": true,
                   "helper_gpu": "RTX 3070 (8 Go)",
@@ -4690,13 +4690,13 @@
                   "kv": "fp16",
                   "kv_resident": "32768",
                   "main_gpu": "RTX 5060 Ti (16 Go)",
-                  "mmap": true,
-                  "mode": "arena",
-                  "mode_label": "experts.bin mappé (cache système)",
+                  "mmap": false,
+                  "mode": "drop",
+                  "mode_label": "verrouillés en RAM, hors ceux de la carte d'appoint",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -4740,7 +4740,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -4771,13 +4771,13 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
                 "disk_gb": 68,
                 "drop": false,
-                "mmap": true,
+                "mmap": false,
                 "ok": true,
                 "preset": "STRATA FLASH NEXT CLASSIQUE IQ2_XS",
                 "quant": {
@@ -4829,23 +4829,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -4854,19 +4854,260 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=196608\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
+        "f strata/prebuilt/strata-linux-x64-cuda12.zip"
+      ]
+    },
+    {
+      "name": "mode hors RAM coupé dans le preset",
+      "files": {
+        "presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env": "# NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n"
+      },
+      "method": "GET",
+      "path": "/api/strata",
+      "status": 200,
+      "out": {
+        "active": true,
+        "env": {
+          "avail_gb": 45.500000256,
+          "disk_free_gb": 400,
+          "gpus": [
+            {
+              "arch": 86,
+              "index": 0,
+              "name": "NVIDIA GeForce RTX 3070",
+              "vram_gb": 8
+            },
+            {
+              "arch": 120,
+              "index": 1,
+              "name": "NVIDIA GeForce RTX 5060 Ti",
+              "vram_gb": 15.9287109375
+            }
+          ],
+          "helper": 0,
+          "main": 1,
+          "python": "3.12",
+          "ram_gb": 47,
+          "supported": true
+        },
+        "families": [
+          {
+            "about": "réfléchit moins, répond plus vite",
+            "fits": [
+              {
+                "disk_gb": 68,
+                "drop": false,
+                "mmap": false,
+                "ok": true,
+                "quant": {
+                  "about": "un peu plus fidèle, presque aussi rapide",
+                  "arena_gb": 35.5,
+                  "download_gb": 68,
+                  "id": "IQ2_XS"
+                }
+              },
+              {
+                "details": {
+                  "cache_root": "256",
+                  "ctx": "131072",
+                  "drop": false,
+                  "experts": "auto",
+                  "has_helper": true,
+                  "helper_gpu": "RTX 3070 (8 Go)",
+                  "helper_on": true,
+                  "kv": "fp16",
+                  "kv_resident": "32768",
+                  "main_gpu": "RTX 5060 Ti (16 Go)",
+                  "mmap": true,
+                  "mode": "arena",
+                  "mode_label": "experts.bin mappé (cache système)",
+                  "prefill": "16384",
+                  "short_read": "48",
+                  "spec": "3",
+                  "version": "1.1",
+                  "vision": true,
+                  "vision_gpu": "RTX 3070 (8 Go)"
+                },
+                "disk_gb": 75.799997999,
+                "drop": false,
+                "mmap": true,
+                "ok": true,
+                "preset": "STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS",
+                "quant": {
+                  "about": "99 % de la qualité du modèle complet",
+                  "arena_gb": 42.9,
+                  "download_gb": 75.8,
+                  "id": "IQ3_XXS"
+                }
+              }
+            ],
+            "id": "swift",
+            "label": "Swift 1.5",
+            "quants": [
+              "IQ2_XS",
+              "IQ3_XXS"
+            ],
+            "recommend": "IQ3_XXS"
+          },
+          {
+            "about": "le Qwen3.8-Flash-Next original",
+            "fits": [
+              {
+                "details": {
+                  "cache_root": "256",
+                  "ctx": "131072",
+                  "drop": false,
+                  "experts": "ram",
+                  "has_helper": true,
+                  "helper_on": false,
+                  "kv": "int8",
+                  "main_gpu": "RTX 3070 (8 Go)",
+                  "mmap": false,
+                  "mode": "ram",
+                  "mode_label": "chargés et verrouillés en RAM",
+                  "prefill": "16384",
+                  "short_read": "150",
+                  "spec": "4",
+                  "version": "1.1",
+                  "vision": false
+                },
+                "disk_gb": 66.4,
+                "drop": false,
+                "mmap": false,
+                "ok": true,
+                "preset": "STRATA FLASH NEXT CLASSIQUE Q2_0",
+                "quant": {
+                  "about": "le plus rapide",
+                  "arena_gb": 34,
+                  "download_gb": 66.4,
+                  "id": "Q2_0"
+                }
+              },
+              {
+                "details": {
+                  "cache_root": "256",
+                  "ctx": "131072",
+                  "drop": false,
+                  "experts": "disk",
+                  "has_helper": false,
+                  "helper_on": false,
+                  "kv": "int8",
+                  "main_gpu": "RTX 5060 Ti (16 Go)",
+                  "mmap": true,
+                  "mode": "arena",
+                  "mode_label": "experts.bin mappé (cache système)",
+                  "prefill": "16384",
+                  "short_read": "150",
+                  "spec": "4",
+                  "version": "1.1",
+                  "vision": true,
+                  "vision_gpu": "RTX 5060 Ti (16 Go)"
+                },
+                "disk_gb": 68,
+                "drop": false,
+                "mmap": false,
+                "ok": true,
+                "preset": "STRATA FLASH NEXT CLASSIQUE IQ2_XS",
+                "quant": {
+                  "about": "un peu plus fidèle, presque aussi rapide",
+                  "arena_gb": 35.5,
+                  "download_gb": 68,
+                  "id": "IQ2_XS"
+                }
+              },
+              {
+                "disk_gb": 75.8,
+                "drop": false,
+                "mmap": true,
+                "ok": true,
+                "quant": {
+                  "about": "99 % de la qualité du modèle complet",
+                  "arena_gb": 42.9,
+                  "download_gb": 75.8,
+                  "id": "IQ3_XXS"
+                }
+              },
+              {
+                "disk_gb": 83.6,
+                "drop": false,
+                "mmap": true,
+                "ok": true,
+                "quant": {
+                  "about": "la meilleure qualité, le plus lent",
+                  "arena_gb": 50.3,
+                  "download_gb": 83.6,
+                  "id": "IQ3_S"
+                }
+              }
+            ],
+            "id": "qwen",
+            "label": "Classique",
+            "quants": [
+              "Q2_0",
+              "IQ2_XS",
+              "IQ3_XXS",
+              "IQ3_S"
+            ],
+            "recommend": "IQ3_XXS"
+          }
+        ],
+        "installed": [
+          "STRATA FLASH NEXT CLASSIQUE IQ2_XS",
+          "STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS",
+          "STRATA FLASH NEXT CLASSIQUE Q2_0",
+          "S"
+        ],
+        "version": "1.1"
+      },
+      "actions": [],
+      "after": {
+        "config/CTX": "131072",
+        "config/ENGINE": "strata",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
+        "config/STRATA_KV": "fp16"
+      },
+      "tree": [
+        "d presets",
+        "d strata",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
+        "d strata/data",
+        "d strata/data/models",
+        "d strata/data/models/swift-IQ3_XXS",
+        "d strata/data/packs",
+        "d strata/data/packs/swift-iq3_xxs",
+        "d strata/dl",
+        "d strata/prebuilt",
+        "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
@@ -4874,7 +5115,7 @@
       "name": "moteur d'un autre paquet",
       "meminfo": "MemTotal:       49283072 kB\nMemFree:         1000000 kB\nMemAvailable:   41943040 kB\n",
       "files": {
-        "strata/ajean-moe-1.0/engine-cuda12/.loki-engine": "ajean-moe-engine-0.9-linux-x64-cuda12.zip\n"
+        "strata/ajean-moe-1.1/engine-cuda12/.loki-engine": "ajean-moe-engine-0.9-linux-x64-cuda12.zip\n"
       },
       "method": "GET",
       "path": "/api/strata",
@@ -4936,9 +5177,9 @@
                   "mode": "disk",
                   "mode_label": "lus depuis le disque (mmap)",
                   "prefill": "16384",
-                  "short_read": "150",
+                  "short_read": "48",
                   "spec": "3",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 3070 (8 Go)"
                 },
@@ -4982,7 +5223,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": false
                 },
                 "disk_gb": 66.4,
@@ -5013,7 +5254,7 @@
                   "prefill": "16384",
                   "short_read": "150",
                   "spec": "4",
-                  "version": "1.0",
+                  "version": "1.1",
                   "vision": true,
                   "vision_gpu": "RTX 5060 Ti (16 Go)"
                 },
@@ -5071,23 +5312,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5096,26 +5337,26 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=0\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-0.9-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-0.9-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "réinstallation, moteur téléchargé périmé",
       "files": {
-        "strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip": "ancien moteur"
+        "strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip": "ancien moteur"
       },
       "method": "POST",
       "path": "/api/strata/install",
@@ -5132,8 +5373,8 @@
         "error": "",
         "exists": true,
         "lines": [
-          "ajean-moe-src-1.0.tar.gz déjà téléchargé",
-          "▶ téléchargement de ajean-moe-engine-1.0-linux-x64-cuda12.zip…",
+          "ajean-moe-src-1.1.tar.gz déjà téléchargé",
+          "▶ téléchargement de ajean-moe-engine-1.1-linux-x64-cuda12.zip…",
           "▶ installation de Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (téléchargement de ~76 Go)…",
           "installeur : --setup --yes --no-start --no-browser --family swift --model IQ3_XXS --context 131072 --vision gpu --cuda 12 --prebuilt {{HOME}}/strata/prebuilt/ --data-dir {{HOME}}/strata/data --gpu 1 --low-ram off",
           "cache : {{HOME}}/strata/cache",
@@ -5156,17 +5397,17 @@
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5175,19 +5416,19 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
@@ -5208,8 +5449,8 @@
         "error": "l'installation a échoué : exit status 3 (voir le journal)",
         "exists": true,
         "lines": [
-          "ajean-moe-src-1.0.tar.gz déjà téléchargé",
-          "ajean-moe-engine-1.0-linux-x64-cuda12.zip déjà téléchargé",
+          "ajean-moe-src-1.1.tar.gz déjà téléchargé",
+          "ajean-moe-engine-1.1-linux-x64-cuda12.zip déjà téléchargé",
           "▶ installation de Qwen3.8 Flash Next Q2_0 (téléchargement de ~66 Go)…",
           "installeur : --setup --yes --no-start --no-browser --family qwen --model Q2_0 --context 131072 --vision gpu --cuda 12 --prebuilt {{HOME}}/strata/prebuilt/ --data-dir {{HOME}}/strata/data --gpu 1 --low-ram off",
           "cache : {{HOME}}/strata/cache",
@@ -5229,17 +5470,17 @@
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5248,19 +5489,19 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
@@ -5278,18 +5519,18 @@
         "action": "strata",
         "compiled": 0,
         "ended_at": "{{T}}",
-        "error": "l'installeur n'a pas laissé de configuration pour IQ2_XS dans {{HOME}}/strata/ajean-moe-1.0",
+        "error": "l'installeur n'a pas laissé de configuration pour IQ2_XS dans {{HOME}}/strata/ajean-moe-1.1",
         "exists": true,
         "lines": [
-          "ajean-moe-src-1.0.tar.gz déjà téléchargé",
-          "ajean-moe-engine-1.0-linux-x64-cuda12.zip déjà téléchargé",
+          "ajean-moe-src-1.1.tar.gz déjà téléchargé",
+          "ajean-moe-engine-1.1-linux-x64-cuda12.zip déjà téléchargé",
           "▶ installation de Qwen3.8 Flash Next IQ2_XS (téléchargement de ~68 Go)…",
           "installeur : --setup --yes --no-start --no-browser --family qwen --model IQ2_XS --context 131072 --vision gpu --cuda 12 --prebuilt {{HOME}}/strata/prebuilt/ --data-dir {{HOME}}/strata/data --gpu 1 --low-ram off",
           "cache : {{HOME}}/strata/cache",
           "modèle 10%",
           "modèle téléchargé",
           "rien d'écrit",
-          "✗ l'installeur n'a pas laissé de configuration pour IQ2_XS dans {{HOME}}/strata/ajean-moe-1.0"
+          "✗ l'installeur n'a pas laissé de configuration pour IQ2_XS dans {{HOME}}/strata/ajean-moe-1.1"
         ],
         "new": "",
         "next": 9,
@@ -5302,17 +5543,17 @@
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5321,26 +5562,26 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- {\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"{{HOME}}/strata/data/packs/swift-iq3_xxs\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "configuration de lancement disparue",
       "files": {
-        "strata/ajean-moe-1.0/strata-swift-iq3_xxs.json": "-"
+        "strata/ajean-moe-1.1/strata-swift-iq3_xxs.json": "-"
       },
       "method": "GET",
       "path": "/api/strata",
@@ -5480,23 +5721,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5505,25 +5746,25 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     },
     {
       "name": "configuration de lancement illisible",
       "files": {
-        "strata/ajean-moe-1.0/strata-swift-iq3_xxs.json": "[1]"
+        "strata/ajean-moe-1.1/strata-swift-iq3_xxs.json": "[1]"
       },
       "method": "GET",
       "path": "/api/strata",
@@ -5663,23 +5904,23 @@
           "STRATA FLASH NEXT CLASSIQUE Q2_0",
           "S"
         ],
-        "version": "1.0"
+        "version": "1.1"
       },
       "actions": [],
       "after": {
         "config/CTX": "131072",
         "config/ENGINE": "strata",
-        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json",
+        "config/STRATA_CONFIG": "{{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json",
         "config/STRATA_KV": "fp16"
       },
       "tree": [
         "d presets",
         "d strata",
-        "d strata/ajean-moe-1.0",
-        "d strata/ajean-moe-1.0/.venv",
-        "d strata/ajean-moe-1.0/.venv/bin",
-        "d strata/ajean-moe-1.0/engine-cuda12",
-        "d strata/ajean-moe-1.0/serve",
+        "d strata/ajean-moe-1.1",
+        "d strata/ajean-moe-1.1/.venv",
+        "d strata/ajean-moe-1.1/.venv/bin",
+        "d strata/ajean-moe-1.1/engine-cuda12",
+        "d strata/ajean-moe-1.1/serve",
         "d strata/data",
         "d strata/data/models",
         "d strata/data/models/swift-IQ3_XXS",
@@ -5688,19 +5929,19 @@
         "d strata/dl",
         "d strata/prebuilt",
         "f presets/S.env -rw-r--r-- # NAME=Strata S\nENGINE=strata\nSTRATA_HELPER_GPU=0\nSTRATA_EXPERTS=disk\nCTX=98304\nSTRATA_KV=int8\nSTRATA_SPEC=4\nSTRATA_VISION=0\nSTRATA_HELPER=1\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
-        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
-        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.0/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE IQ2_XS.env -rw-r--r-- # NAME=Classique IQ2_XS\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=-1\nSTRATA_EXPERTS=disk\n",
+        "f presets/STRATA FLASH NEXT CLASSIQUE Q2_0.env -rw-r--r-- ENGINE=moe\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=0\nSTRATA_HELPER_GPU=1\nSTRATA_HELPER=0\nSTRATA_VISION=0\nSTRATA_EXPERTS=ram\n",
+        "f presets/STRATA FLASH NEXT SWIFT 1.5 IQ3_XXS.env -rw-r--r-- # NAME=Qwen3.8 Flash Next Swift 1.5 IQ3_XXS (Strata)\nENGINE=strata\nSTRATA_CONFIG={{HOME}}/strata/ajean-moe-1.1/strata-swift-iq3_xxs.json\nSTRATA_MAIN_GPU=1\nSTRATA_HELPER_GPU=0\nSTRATA_VISION=1\nSTRATA_EXPERTS=auto\nSTRATA_DROP=1\nSTRATA_KV=fp16\nSTRATA_KV_RESIDENT=32768\nSTRATA_SPEC=3\nCTX=131072\nREASONING=off\n",
         "f presets/llama.env -rw-r--r-- MODEL=/m.gguf\n",
-        "f strata/ajean-moe-1.0/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.0-linux-x64-cuda12.zip\n",
-        "f strata/ajean-moe-1.0/serve/server.py -rw-r--r-- # serveur\n",
-        "f strata/ajean-moe-1.0/setup.py -rw-r--r-- # installeur\n",
-        "f strata/ajean-moe-1.0/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
-        "f strata/ajean-moe-1.0/strata-swift-iq3_xxs.json -rw-r--r-- [1]",
+        "f strata/ajean-moe-1.1/engine-cuda12/.loki-engine -rw-r--r-- ajean-moe-engine-1.1-linux-x64-cuda12.zip\n",
+        "f strata/ajean-moe-1.1/serve/server.py -rw-r--r-- # serveur\n",
+        "f strata/ajean-moe-1.1/setup.py -rw-r--r-- # installeur\n",
+        "f strata/ajean-moe-1.1/setup.sh -rwxr-xr-x #!/bin/bash\necho \"installeur : $*\"\necho \"cache : $XDG_CACHE_HOME\"\nprintf 'modèle 10%%\\r'\nprintf 'modèle 20%%\\r'\necho \"modèle téléchargé\"\nmkdir -p engine-cuda12 .venv/bin\nfam=\"\"; model=\"\"; data=\"\"\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n  --family) fam=\"$2\"; shift;;\n  --model) model=\"$2\"; shift;;\n  --data-dir) data=\"$2\"; shift;;\n  esac\n  shift\ndone\ncase \"$model\" in\nQ2_0) echo \"erreur : téléchargement interrompu\" >&2; exit 3;;\nIQ2_XS) echo \"rien d'écrit\"; exit 0;;\nesac\nlow=$(echo \"$model\" | tr 'A-Z' 'a-z')\nif [ \"$fam\" = \"swift\" ]; then tag=\"swift-$low\"; else tag=\"$low\"; fi\nmkdir -p \"$data/packs/$tag\"\nprintf '{\"exe\":\"engine-cuda12/strata\",\"args\":[\"--pack\",\"%s\",\"--kv\",\"int8\",\"--spec\",\"4\",\"--max-context\",\"131072\",\"--vision\",\"--vram-reserve-mib\",\"700\"],\"vision\":{\"exe\":\"v\",\"gpu\":true},\"gpu\":0,\"port\":8080}\\n' \"$data/packs/$tag\" > \"strata-$tag.json\"\necho \"prêt : strata-$tag.json\"\n",
+        "f strata/ajean-moe-1.1/strata-swift-iq3_xxs.json -rw-r--r-- [1]",
         "f strata/data/models/swift-IQ3_XXS/a.gguf -rw-r--r-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "f strata/data/packs/swift-iq3_xxs/experts.bin -rw-r--r-- x",
-        "f strata/dl/ajean-moe-engine-1.0-linux-x64-cuda12.zip",
-        "f strata/dl/ajean-moe-src-1.0.tar.gz",
+        "f strata/dl/ajean-moe-engine-1.1-linux-x64-cuda12.zip",
+        "f strata/dl/ajean-moe-src-1.1.tar.gz",
         "f strata/prebuilt/strata-linux-x64-cuda12.zip"
       ]
     }

@@ -304,7 +304,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -615,7 +615,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -1066,7 +1066,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -1314,7 +1314,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -1686,8 +1686,8 @@
           "predicted_ms": 81920,
           "predicted_n": 4096,
           "predicted_per_second": 50,
-          "prompt_ms": 16403,
-          "prompt_n": 32806,
+          "prompt_ms": 16401.5,
+          "prompt_n": 32803,
           "prompt_per_second": 2000,
           "protocol": 2
         },
@@ -1759,7 +1759,7 @@
             "max_tokens": 4096,
             "messages": [
               {
-                "content": "<131209 octets a079a2b6a1db>",
+                "content": "<131199 octets aa7e053a18e5>",
                 "role": "user"
               }
             ],
@@ -1790,8 +1790,8 @@
           "predicted_ms": 81920,
           "predicted_n": 4096,
           "predicted_per_second": 50,
-          "prompt_ms": 16403,
-          "prompt_n": 32806,
+          "prompt_ms": 16401.5,
+          "prompt_n": 32803,
           "prompt_per_second": 2000,
           "protocol": 2
         }
@@ -1813,8 +1813,8 @@
             "predicted_ms": 81920,
             "predicted_n": 4096,
             "predicted_per_second": 50,
-            "prompt_ms": 16403,
-            "prompt_n": 32806,
+            "prompt_ms": 16401.5,
+            "prompt_n": 32803,
             "prompt_per_second": 2000,
             "protocol": 2
           }
@@ -2020,8 +2020,8 @@
           "predicted_ms": 320,
           "predicted_n": 16,
           "predicted_per_second": 50,
-          "prompt_ms": 470,
-          "prompt_n": 940,
+          "prompt_ms": 469.5,
+          "prompt_n": 939,
           "prompt_per_second": 2000,
           "protocol": 2
         },
@@ -2093,7 +2093,7 @@
             "max_tokens": 16,
             "messages": [
               {
-                "content": "<3745 octets 5578a8f2779c>",
+                "content": "<3740 octets 48e62bdc3898>",
                 "role": "user"
               }
             ],
@@ -2124,8 +2124,8 @@
           "predicted_ms": 320,
           "predicted_n": 16,
           "predicted_per_second": 50,
-          "prompt_ms": 470,
-          "prompt_n": 940,
+          "prompt_ms": 469.5,
+          "prompt_n": 939,
           "prompt_per_second": 2000,
           "protocol": 2
         }
@@ -2147,8 +2147,8 @@
             "predicted_ms": 320,
             "predicted_n": 16,
             "predicted_per_second": 50,
-            "prompt_ms": 470,
-            "prompt_n": 940,
+            "prompt_ms": 469.5,
+            "prompt_n": 939,
             "prompt_per_second": 2000,
             "protocol": 2
           }
@@ -2260,7 +2260,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -2541,7 +2541,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -2693,7 +2693,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -2868,7 +2868,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -3287,7 +3287,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -3457,7 +3457,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -3652,7 +3652,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
@@ -3867,7 +3867,7 @@
             "max_tokens": 300,
             "messages": [
               {
-                "content": "<8129 octets ae9cc838495d>",
+                "content": "<8129 octets a3e9aa90e552>",
                 "role": "user"
               }
             ],
