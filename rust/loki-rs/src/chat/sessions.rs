@@ -65,6 +65,8 @@ pub struct GoSessionHooks(pub Store);
 
 impl SessionHooks for GoSessionHooks {
     async fn dropped(&self, id: &str) {
+        // Ses jobs d'arrière-plan s'arrêtent avec elle (`stopConvJobs`).
+        crate::tools::jobs::global().stop_conv(id);
         let body = serde_json::json!({ "id": id });
         if let Err(e) = self
             .0

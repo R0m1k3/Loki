@@ -85,7 +85,7 @@ func totalRAMGB() float64 {
 		}
 		return 0
 	}
-	b, err := os.ReadFile("/proc/meminfo")
+	b, err := os.ReadFile(meminfoPath)
 	if err != nil {
 		return 0
 	}

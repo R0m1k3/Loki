@@ -63,6 +63,64 @@ pub struct Config {
     /// Conversation tenue par la façade (`LOKI_CHAT=rust`) : ses routes sont
     /// servies ici ; `None` : relayées au Go.
     pub chat: Option<Arc<crate::chat::generate::ChatService>>,
+    /// Routes des modèles tenues par la façade (`LOKI_MODELS=rust`) : servies
+    /// ici ; `None` : relayées au Go.
+    pub models: Option<Arc<crate::models::Models>>,
+    /// Dictée vocale tenue par la façade (`LOKI_DICTATE=rust`) : servie ici ;
+    /// `None` : relayée au Go.
+    pub dictate: Option<Arc<crate::dictate::Dictation>>,
+    /// Réglages partagés tenus par la façade (`LOKI_SETTINGS=rust`).
+    pub settings: bool,
+    /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
+    pub files: Option<Arc<crate::convfiles::ConvFiles>>,
+    /// Notifications Web Push tenues par la façade (`LOKI_PUSH=rust`).
+    pub push: Option<Arc<crate::push::Push>>,
+    /// Mémoire (pages, trackers, mode) tenue par la façade (`LOKI_MEM=rust`).
+    pub mem: Option<Arc<crate::memory::Memory>>,
+    /// Presets tenus par la façade (`LOKI_PRESETS=rust`).
+    pub presets: bool,
+    /// Pilotage du moteur tenu par la façade (`LOKI_ENGINE=rust`) :
+    /// démarrage, arrêt, déchargement de la VRAM ; `None` : au Go.
+    pub engine_ctl: Option<Arc<crate::enginectl::EngineCtl>>,
+    /// Interrupteurs système (internet, navigateur, clé de complétion,
+    /// réseau) tenus par la façade (`LOKI_SYSTEM=rust`) ; `None` : au Go.
+    pub system: Option<Arc<crate::system::System>>,
+    /// Hub des projets tenu par la façade (`LOKI_PROJECTS=rust`).
+    pub projects: bool,
+    /// Serveurs MCP (pool de sessions, configuration, catalogue) tenus par la
+    /// façade (`LOKI_MCP=rust`) ; `None` : au Go.
+    pub mcp: Option<Arc<crate::mcp::Mcp>>,
+    /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`, en
+    /// conteneur).
+    pub update: bool,
+    /// Backends llama.cpp (statut, précompilé, bascule, GPU) et job des
+    /// moteurs tenus par la façade (`LOKI_BACKENDS=rust`) ; `None` : au Go.
+    pub backends: Option<Arc<crate::backends::Backends>>,
+    /// Panneau « moteur de l'image » (version, mise à jour depuis le
+    /// registre, bascules, rendu du gabarit) tenu par la façade
+    /// (`LOKI_ENGINE_IMAGE=rust`) ; `None` : au Go.
+    pub engineimg: Option<Arc<crate::engineimg::EngineImg>>,
+    /// Strata (machine, réglages, installation) tenu par la façade
+    /// (`LOKI_STRATA=rust`) ; `None` : au Go.
+    pub strata: Option<Arc<crate::strata::api::Strata>>,
+    /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
+    /// façade (`LOKI_TASKS=rust`) ; `None` : au Go.
+    pub tasks: Option<Arc<crate::tasks::Tasks>>,
+    /// Banc d'essai (routes, job, protocole de mesure) tenu par la façade
+    /// (`LOKI_BENCH=rust`) ; `None` : au Go.
+    pub bench: Option<Arc<crate::bench::job::Bench>>,
+    pub tune: Option<Arc<crate::tune::job::Tune>>,
+}
+
+/// Arrête la tâche de fond tenue à sa sortie de portée.
+struct AbortOnDrop(Option<tokio::task::JoinHandle<()>>);
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        if let Some(h) = &self.0 {
+            h.abort();
+        }
+    }
 }
 
 struct Proxy {
@@ -90,9 +148,35 @@ pub async fn serve(
             host_env: cfg.host_env,
             engine: cfg.engine,
             chat: cfg.chat,
+            models: cfg.models,
+            dictate: cfg.dictate,
+            settings: cfg.settings,
+            files: cfg.files,
+            push: cfg.push,
+            mem: cfg.mem,
+            presets: cfg.presets,
+            engine_ctl: cfg.engine_ctl,
+            system: cfg.system,
+            projects: cfg.projects,
+            mcp: cfg.mcp,
+            update: cfg.update,
+            backends: cfg.backends,
+            engineimg: cfg.engineimg,
+            strata: cfg.strata,
+            tasks: cfg.tasks,
+            bench: cfg.bench,
+            tune: cfg.tune,
             internal_token: cfg.internal_token.clone(),
         },
     });
+    // Le planificateur des tâches tenues ici, arrêté avec la façade.
+    let _sched = AbortOnDrop(
+        proxy
+            .ctx
+            .tasks
+            .clone()
+            .map(|t| tokio::spawn(crate::tasks::sched_loop(proxy.ctx.clone(), t))),
+    );
     tokio::pin!(shutdown);
     loop {
         tokio::select! {
@@ -129,8 +213,9 @@ pub async fn serve(
 impl Proxy {
     async fn handle(&self, mut req: Request<Incoming>) -> Response<Body> {
         // Le Go (et lui seul : jeton tiré à chaque démarrage) remet à la
-        // façade le trafic de chat qui lui arrive sans passer par elle.
-        let from_go = self.ctx.chat.is_some() && self.ctx.from_go(req.headers());
+        // façade le trafic des lots qu'elle tient et qui lui arrive sans passer
+        // par elle.
+        let from_go = self.ctx.holds_any() && self.ctx.from_go(req.headers());
         // Jamais de confiance accordée sur la foi d'un en-tête du client :
         // ni « je viens du tunnel », ni « je suis la façade ».
         req.headers_mut().remove(VIA_TUNNEL);
@@ -144,6 +229,31 @@ impl Proxy {
         {
             return chatapi::serve_internal(chat, req).await;
         }
+        if from_go
+            && let Some(p) = &self.ctx.push
+            && path == crate::push::INTERNAL_SEND
+        {
+            return crate::push::serve_internal(self.ctx.store.clone(), p.clone(), req).await;
+        }
+        if from_go
+            && let Some(d) = &self.ctx.dictate
+            && path == crate::dictate::INTERNAL_STOP
+        {
+            d.shutdown_fast().await;
+            return plain(StatusCode::NO_CONTENT, "");
+        }
+        if from_go
+            && let Some(m) = &self.ctx.mcp
+            && crate::mcp::is_internal(path)
+        {
+            return crate::mcp::serve_internal(&self.ctx, m, req).await;
+        }
+        if from_go
+            && let Some(b) = &self.ctx.backends
+            && crate::backends::is_internal(path)
+        {
+            return crate::backends::serve_internal(&self.ctx, b, req).await;
+        }
         // L'API interne du Go n'est jamais joignable de l'extérieur.
         if path.starts_with("/internal/") {
             return plain(StatusCode::NOT_FOUND, "404 page not found");
@@ -156,12 +266,99 @@ impl Proxy {
             return oai::serve(&self.ctx, &self.engine, req).await;
         }
         if api::handles(req.method(), path) {
-            return api::serve(&self.ctx, req).await;
+            return api::serve(&self.ctx, req, from_go).await;
+        }
+        if let Some(chat) = &self.ctx.chat
+            && crate::chatx::handles(path)
+        {
+            return crate::chatx::serve(&self.ctx, chat, req, from_go).await;
         }
         if let Some(chat) = &self.ctx.chat
             && chatapi::handles(path)
         {
             return chatapi::serve(&self.ctx, chat, req, from_go).await;
+        }
+        if let Some(e) = &self.ctx.engineimg
+            && crate::engineimg::handles(path)
+        {
+            return crate::engineimg::serve(&self.ctx, e, req, from_go).await;
+        }
+        if let Some(s) = &self.ctx.strata
+            && crate::strata::api::handles(path)
+        {
+            return crate::strata::api::serve(&self.ctx, s, req, from_go).await;
+        }
+        if let Some(t) = &self.ctx.tasks
+            && crate::tasks::handles(path)
+        {
+            return crate::tasks::serve(&self.ctx, t, req, from_go).await;
+        }
+        if let Some(b) = &self.ctx.bench
+            && crate::bench::job::handles(path)
+        {
+            return crate::bench::job::serve(&self.ctx, b, req, from_go).await;
+        }
+        if let Some(t) = &self.ctx.tune
+            && crate::tune::job::handles(path)
+        {
+            return crate::tune::job::serve(&self.ctx, t, req, from_go).await;
+        }
+        if let Some(b) = &self.ctx.backends
+            && crate::backends::handles(path)
+        {
+            return crate::backends::serve(&self.ctx, b, req, from_go).await;
+        }
+        if self.ctx.update && crate::sysupdate::handles(path) {
+            return crate::sysupdate::serve(&self.ctx, req, from_go).await;
+        }
+        if let Some(m) = &self.ctx.mcp
+            && crate::mcp::handles(path)
+        {
+            return crate::mcp::serve(&self.ctx, m, req, from_go).await;
+        }
+        if self.ctx.projects && crate::projects_api::handles(path) {
+            return crate::projects_api::serve(&self.ctx, req, from_go).await;
+        }
+        if let Some(s) = &self.ctx.system
+            && crate::system::handles(path)
+        {
+            return crate::system::serve(&self.ctx, s, req, from_go).await;
+        }
+        if let Some(e) = &self.ctx.engine_ctl
+            && crate::enginectl::handles(path)
+        {
+            return crate::enginectl::serve(&self.ctx, e, req, from_go).await;
+        }
+        if self.ctx.presets && crate::presets_api::handles(path) {
+            return crate::presets_api::serve(&self.ctx, req, from_go).await;
+        }
+        if let Some(m) = &self.ctx.mem
+            && crate::memory::handles(path)
+        {
+            return crate::memory::serve(&self.ctx, m, req, from_go).await;
+        }
+        if let Some(p) = &self.ctx.push
+            && crate::push::handles(path)
+        {
+            return crate::push::serve(&self.ctx, p, req, from_go).await;
+        }
+        if let Some(f) = &self.ctx.files
+            && crate::convfiles::handles(path)
+        {
+            return crate::convfiles::serve(&self.ctx, f, req, from_go).await;
+        }
+        if self.ctx.settings && crate::settings::handles(path) {
+            return crate::settings::serve(&self.ctx, req, from_go).await;
+        }
+        if let Some(d) = &self.ctx.dictate
+            && crate::dictate::handles(path)
+        {
+            return crate::dictate::serve(&self.ctx, d, req, from_go).await;
+        }
+        if let Some(m) = &self.ctx.models
+            && crate::models::handles(path)
+        {
+            return crate::models::serve(&self.ctx, m, req, from_go).await;
         }
         self.forward(req).await
     }

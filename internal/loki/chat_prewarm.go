@@ -245,6 +245,8 @@ func prewarmNearMidnight(now time.Time) bool {
 
 // Points d'accroche remplaçables par les tests.
 var (
+	// prewarmNow : l'heure du garde-fou de minuit.
+	prewarmNow = time.Now
 	// prewarmAsync : false = le préchauffage tourne dans l'appelant (tests).
 	prewarmAsync = true
 	// prewarmSlots : nombre de slots du moteur local (/props total_slots).
@@ -265,8 +267,14 @@ var (
 )
 
 // prewarmKick : un déclencheur. Sans la clé, rien — ni goroutine, ni requête.
+// Quand la façade tient la conversation, le déclencheur lui part
+// (facade_prewarm.go) : c'est elle qui a l'historique.
 func (c *Conversation) prewarmKick(why string) {
 	if prewarmMode(ReadConfig()) == "" {
+		return
+	}
+	if facadeChat() {
+		go func() { _ = facadePost("/internal/facade/v1/chat/prewarm", map[string]any{"why": why}) }()
 		return
 	}
 	if prewarmAsync {
@@ -375,7 +383,7 @@ func (c *Conversation) prewarm(why string) {
 			return
 		}
 	}
-	if sideJobs.Load() > 0 || benchRunning() || tuneGuard() != nil || prewarmNearMidnight(time.Now()) {
+	if sideJobs.Load() > 0 || benchRunning() || tuneGuard() != nil || prewarmNearMidnight(prewarmNow()) {
 		return
 	}
 	if !healthCheck() {

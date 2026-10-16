@@ -169,6 +169,9 @@ func cuPromptLine() string {
 // ─── exécution (appelée par le dispatch de llm_client.go) ────────────────────
 
 func toolCUOpen(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_open", args); ok {
+		return r
+	}
 	url, _ := args["url"].(string)
 	if strings.TrimSpace(url) == "" {
 		return "[erreur] url manquante"
@@ -188,6 +191,9 @@ func toolCUOpen(args map[string]any) string {
 }
 
 func toolCUSnapshot() string {
+	if r, _, ok := facadeBrowserTool("browser_snapshot", map[string]any{}); ok {
+		return r
+	}
 	s, err := cdpGet()
 	if err != nil {
 		return "[erreur] " + err.Error()
@@ -200,6 +206,9 @@ func toolCUSnapshot() string {
 }
 
 func toolCUFind(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_find", args); ok {
+		return r
+	}
 	text, _ := args["text"].(string)
 	if strings.TrimSpace(text) == "" {
 		return "[erreur] texte de recherche manquant"
@@ -216,6 +225,9 @@ func toolCUFind(args map[string]any) string {
 }
 
 func toolCUClick(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_click", args); ok {
+		return r
+	}
 	ref, ok := intArg(args, "ref")
 	if !ok {
 		return "[erreur] ref manquant (numéro de l'élément)"
@@ -232,6 +244,9 @@ func toolCUClick(args map[string]any) string {
 }
 
 func toolCUType(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_type", args); ok {
+		return r
+	}
 	text, _ := args["text"].(string)
 	s, err := cdpGet()
 	if err != nil {
@@ -249,6 +264,9 @@ func toolCUType(args map[string]any) string {
 }
 
 func toolCUKey(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_key", args); ok {
+		return r
+	}
 	key, _ := args["key"].(string)
 	s, err := cdpGet()
 	if err != nil {
@@ -262,6 +280,9 @@ func toolCUKey(args map[string]any) string {
 }
 
 func toolCUClickXY(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_click_xy", args); ok {
+		return r
+	}
 	x, okx := floatArg(args, "x")
 	y, oky := floatArg(args, "y")
 	if !okx || !oky {
@@ -279,6 +300,9 @@ func toolCUClickXY(args map[string]any) string {
 }
 
 func toolCUScroll(args map[string]any) string {
+	if r, _, ok := facadeBrowserTool("browser_scroll", args); ok {
+		return r
+	}
 	dir, _ := args["direction"].(string)
 	s, err := cdpGet()
 	if err != nil {
@@ -299,6 +323,12 @@ func toolCUScroll(args map[string]any) string {
 // PNG inexistant sur tout le disque (vécu sur le test IONOS, ~12 bash find pour
 // rien). Avec le chemin en retour, il n'a plus qu'à le donner en lien Markdown.
 func toolCUScreenshot() (string, map[string]any) {
+	if r, img, ok := facadeBrowserTool("browser_screenshot", map[string]any{}); ok {
+		if len(img) == 0 {
+			img = nil
+		}
+		return r, img
+	}
 	if !visionEnabled() {
 		return "[erreur] la vision n'est pas active sur ce modèle — impossible de capturer l'écran", nil
 	}

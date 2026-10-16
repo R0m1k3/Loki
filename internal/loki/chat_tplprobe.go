@@ -238,6 +238,9 @@ func tplCapsCurrent() (tplProbeResult, bool) {
 	if externalActive() {
 		return tplProbeResult{}, false
 	}
+	if facadeChat() { // la façade sonde après SES complétions (facade_chat.go)
+		return facadeTplCaps()
+	}
 	tplProbeMu.Lock()
 	defer tplProbeMu.Unlock()
 	if tplProbeLast == nil {

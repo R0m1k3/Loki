@@ -208,8 +208,9 @@ impl EngineHttp {
     }
 }
 
-/// Fournisseur cryptographique de rustls (ring), posé une fois.
-fn install_crypto() {
+/// Fournisseur cryptographique de rustls (ring), posé une fois (tout client
+/// reqwest de la façade le demande avant d'être construit).
+pub fn install_crypto() {
     #[cfg(feature = "tls")]
     let _ = rustls::crypto::ring::default_provider().install_default();
 }

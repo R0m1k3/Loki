@@ -1,0 +1,681 @@
+{
+  "steps": [
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 4000,
+        "cached": 3000,
+        "new": 1000,
+        "pp_ms": 2000.4,
+        "pp_tps": 499.9,
+        "gen": 50,
+        "tg_tps": 40.25,
+        "draft_n": 40,
+        "draft_accepted": 30,
+        "ttft_ms": 2100
+      },
+      "msgs": [
+        "a"
+      ],
+      "prefix": [
+        "18380994072798496976"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:00Z",
+        "seq": 1,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 4000,
+        "cached": 3000,
+        "new": 1000,
+        "pp_ms": 2000.4,
+        "pp_tps": 499.9,
+        "gen": 50,
+        "tg_tps": 40.25,
+        "draft_n": 40,
+        "draft_accepted": 30,
+        "ttft_ms": 2100
+      },
+      "line": "[perf] kind=main conv=c1 iter=0 total=4000 cached=3000 new=1000 pp_ms=2000 pp_tps=499.9 gen=50 tg_tps=40.2 draft=30/40 ttft_ms=2100 lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 1,
+        "complete": true,
+        "total": 4600,
+        "cached": 4000
+      },
+      "msgs": [
+        "a",
+        "b",
+        "c"
+      ],
+      "prefix": [
+        "18380994072798496976",
+        "7707499087160536902",
+        "9701112914521480905"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:01Z",
+        "seq": 2,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 1,
+        "complete": true,
+        "total": 4600,
+        "cached": 4000,
+        "lost": 0
+      },
+      "line": "[perf] kind=main conv=c1 iter=1 total=4600 cached=4000 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=0 complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "subagent",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 300,
+        "cached": 0,
+        "new": 300,
+        "pp_ms": 600,
+        "pp_tps": 500
+      },
+      "msgs": [
+        "z"
+      ],
+      "prefix": [
+        "2089108250578558367"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:02Z",
+        "seq": 3,
+        "kind": "subagent",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 300,
+        "cached": 0,
+        "new": 300,
+        "pp_ms": 600,
+        "pp_tps": 500
+      },
+      "line": "[perf] kind=subagent conv=c1 iter=0 total=300 cached=0 new=300 pp_ms=600 pp_tps=500.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "foreign",
+        "iter": 0,
+        "complete": false
+      },
+      "out": {
+        "at": "2026-10-16T08:00:03Z",
+        "seq": 4,
+        "kind": "foreign",
+        "iter": 0,
+        "complete": false
+      },
+      "line": "[perf] kind=foreign conv=- iter=0 total=0 cached=? new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=false",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 2,
+        "complete": true,
+        "total": 5200,
+        "cached": 200
+      },
+      "msgs": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "prefix": [
+        "18380994072798496976",
+        "7707499087160536902",
+        "9701112914521480905",
+        "8266243799656022901"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:04Z",
+        "seq": 5,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 2,
+        "complete": true,
+        "total": 5200,
+        "cached": 200,
+        "lost": 4400,
+        "lost_after": "foreign,subagent"
+      },
+      "line": "[perf] kind=main conv=c1 iter=2 total=5200 cached=200 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=4400(foreign,subagent) complete=true",
+      "alert_1000": 1
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 3,
+        "complete": true,
+        "total": 5200
+      },
+      "msgs": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "prefix": [
+        "18380994072798496976",
+        "7707499087160536902",
+        "9701112914521480905",
+        "8266243799656022901",
+        "5788732863052660068"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:05Z",
+        "seq": 6,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 3,
+        "complete": true,
+        "total": 5200
+      },
+      "line": "[perf] kind=main conv=c1 iter=3 total=5200 cached=? new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 4,
+        "complete": true,
+        "total": 5300,
+        "cached": 10
+      },
+      "msgs": [
+        "x",
+        "b"
+      ],
+      "prefix": [
+        "4430711847302402693",
+        "10853208800609132871"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:06Z",
+        "seq": 7,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 4,
+        "complete": true,
+        "total": 5300,
+        "cached": 10
+      },
+      "line": "[perf] kind=main conv=c1 iter=4 total=5300 cached=10 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 0,
+        "complete": true,
+        "total": 20000,
+        "cached": 0
+      },
+      "msgs": [
+        "q"
+      ],
+      "prefix": [
+        "18326388500208184512"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:07Z",
+        "seq": 8,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 0,
+        "complete": true,
+        "total": 20000,
+        "cached": 0
+      },
+      "line": "[perf] kind=main conv=c2 iter=0 total=20000 cached=0 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 1
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 1,
+        "complete": false,
+        "cached": 0
+      },
+      "msgs": [
+        "q",
+        "r"
+      ],
+      "prefix": [
+        "18326388500208184512",
+        "745432260197996294"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:08Z",
+        "seq": 9,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 1,
+        "complete": false,
+        "cached": 0
+      },
+      "line": "[perf] kind=main conv=c2 iter=1 total=0 cached=0 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=false",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 1,
+        "complete": true,
+        "total": 21000,
+        "cached": 19000
+      },
+      "msgs": [
+        "q",
+        "r"
+      ],
+      "prefix": [
+        "18326388500208184512",
+        "745432260197996294"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:09Z",
+        "seq": 10,
+        "kind": "main",
+        "conv": "c2",
+        "iter": 1,
+        "complete": true,
+        "total": 21000,
+        "cached": 19000,
+        "lost": 1000
+      },
+      "line": "[perf] kind=main conv=c2 iter=1 total=21000 cached=19000 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=1000 complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "compact",
+        "conv": "c2",
+        "iter": 0,
+        "complete": true,
+        "total": 9000,
+        "cached": 8800,
+        "new": 200,
+        "pp_ms": 100,
+        "pp_tps": 2000,
+        "gen": 300,
+        "tg_tps": 30,
+        "ttft_ms": 900
+      },
+      "out": {
+        "at": "2026-10-16T08:00:10Z",
+        "seq": 11,
+        "kind": "compact",
+        "conv": "c2",
+        "iter": 0,
+        "complete": true,
+        "total": 9000,
+        "cached": 8800,
+        "new": 200,
+        "pp_ms": 100,
+        "pp_tps": 2000,
+        "gen": 300,
+        "tg_tps": 30,
+        "ttft_ms": 900
+      },
+      "line": "[perf] kind=compact conv=c2 iter=0 total=9000 cached=8800 new=200 pp_ms=100 pp_tps=2000.0 gen=300 tg_tps=30.0 draft=? ttft_ms=900 lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "bench",
+        "iter": 0,
+        "complete": true,
+        "total": 33000,
+        "new": 33000,
+        "pp_ms": 30000,
+        "pp_tps": 1100,
+        "gen": 64,
+        "tg_tps": 20.5
+      },
+      "out": {
+        "at": "2026-10-16T08:00:11Z",
+        "seq": 12,
+        "kind": "bench",
+        "iter": 0,
+        "complete": true,
+        "total": 33000,
+        "new": 33000,
+        "pp_ms": 30000,
+        "pp_tps": 1100,
+        "gen": 64,
+        "tg_tps": 20.5
+      },
+      "line": "[perf] kind=bench conv=- iter=0 total=33000 cached=? new=33000 pp_ms=30000 pp_tps=1100.0 gen=64 tg_tps=20.5 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 0
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "verify",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 12000,
+        "cached": 0,
+        "new": 12000,
+        "pp_ms": 9000.5,
+        "pp_tps": 1333.3,
+        "gen": 2,
+        "tg_tps": 9.75,
+        "draft_n": 0
+      },
+      "out": {
+        "at": "2026-10-16T08:00:12Z",
+        "seq": 13,
+        "kind": "verify",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 12000,
+        "cached": 0,
+        "new": 12000,
+        "pp_ms": 9000.5,
+        "pp_tps": 1333.3,
+        "gen": 2,
+        "tg_tps": 9.75,
+        "draft_n": 0
+      },
+      "line": "[perf] kind=verify conv=c1 iter=0 total=12000 cached=0 new=12000 pp_ms=9000 pp_tps=1333.3 gen=2 tg_tps=9.8 draft=?/0 ttft_ms=? lost=? complete=true",
+      "alert_1000": 1
+    },
+    {
+      "rec": {
+        "at": "0001-01-01T00:00:00Z",
+        "seq": 0,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 6000,
+        "cached": 5900
+      },
+      "msgs": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+      ],
+      "prefix": [
+        "18380994072798496976",
+        "7707499087160536902",
+        "9701112914521480905",
+        "8266243799656022901",
+        "5788732863052660068",
+        "7575424036688383126"
+      ],
+      "out": {
+        "at": "2026-10-16T08:00:13Z",
+        "seq": 14,
+        "kind": "main",
+        "conv": "c1",
+        "iter": 0,
+        "complete": true,
+        "total": 6000,
+        "cached": 5900
+      },
+      "line": "[perf] kind=main conv=c1 iter=0 total=6000 cached=5900 new=0 pp_ms=0 pp_tps=0.0 gen=0 tg_tps=0.0 draft=? ttft_ms=? lost=? complete=true",
+      "alert_1000": 0
+    }
+  ],
+  "summary": {
+    "entries": 14,
+    "since": "2026-10-16T08:00:00Z",
+    "cache_hit_ratio": 0.4680778032036613,
+    "kinds": {
+      "bench": {
+        "completions": 1,
+        "incomplete": 0,
+        "turns": 1,
+        "new_tokens": 33000,
+        "prefill_sec": 30,
+        "new_tokens_per_turn": 33000,
+        "prefill_sec_per_turn": 30,
+        "lost_events": 0,
+        "lost_tokens": 0
+      },
+      "compact": {
+        "completions": 1,
+        "incomplete": 0,
+        "turns": 1,
+        "new_tokens": 200,
+        "prefill_sec": 0.1,
+        "new_tokens_per_turn": 200,
+        "prefill_sec_per_turn": 0.1,
+        "lost_events": 0,
+        "lost_tokens": 0,
+        "ttft_median_ms": 900
+      },
+      "foreign": {
+        "completions": 0,
+        "incomplete": 1,
+        "turns": 0,
+        "new_tokens": 0,
+        "prefill_sec": 0,
+        "lost_events": 0,
+        "lost_tokens": 0
+      },
+      "main": {
+        "completions": 8,
+        "incomplete": 1,
+        "turns": 3,
+        "new_tokens": 1000,
+        "prefill_sec": 2.0004,
+        "new_tokens_per_turn": 333.3333333333333,
+        "prefill_sec_per_turn": 0.6668,
+        "lost_events": 2,
+        "lost_tokens": 5400,
+        "ttft_median_ms": 2100,
+        "draft_n": 40,
+        "draft_accepted": 30,
+        "draft_rate": 0.75
+      },
+      "subagent": {
+        "completions": 1,
+        "incomplete": 0,
+        "turns": 1,
+        "new_tokens": 300,
+        "prefill_sec": 0.6,
+        "new_tokens_per_turn": 300,
+        "prefill_sec_per_turn": 0.6,
+        "lost_events": 0,
+        "lost_tokens": 0
+      },
+      "verify": {
+        "completions": 1,
+        "incomplete": 0,
+        "turns": 1,
+        "new_tokens": 12000,
+        "prefill_sec": 9.0005,
+        "new_tokens_per_turn": 12000,
+        "prefill_sec_per_turn": 9.0005,
+        "lost_events": 0,
+        "lost_tokens": 0
+      }
+    },
+    "depth": [
+      {
+        "bucket": "0-8k",
+        "n": 2,
+        "pp_median_tps": 499.95,
+        "tg_median_tps": 40.25
+      },
+      {
+        "bucket": "8-16k",
+        "n": 2,
+        "pp_median_tps": 1666.65,
+        "tg_median_tps": 19.875
+      },
+      {
+        "bucket": "16-32k",
+        "n": 0
+      },
+      {
+        "bucket": "32k+",
+        "n": 1,
+        "pp_median_tps": 1100,
+        "tg_median_tps": 20.5
+      }
+    ],
+    "draft_n": 40,
+    "draft_accepted": 30,
+    "draft_rate": 0.75
+  },
+  "empty": {
+    "entries": 0,
+    "kinds": {},
+    "depth": [
+      {
+        "bucket": "0-8k",
+        "n": 0
+      },
+      {
+        "bucket": "8-16k",
+        "n": 0
+      },
+      {
+        "bucket": "16-32k",
+        "n": 0
+      },
+      {
+        "bucket": "32k+",
+        "n": 0
+      }
+    ],
+    "draft_n": 0,
+    "draft_accepted": 0
+  },
+  "alerts": [
+    {
+      "cfg": {},
+      "want": 1000
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "2048"
+      },
+      "want": 2560
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "4096",
+        "UBATCH": "1024"
+      },
+      "want": 5120
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "beaucoup"
+      },
+      "want": 1000
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": " 300 ",
+        "UBATCH": "100"
+      },
+      "want": 1000
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "2048",
+        "EXTRA_ARGS": "--checkpoint-min-step 8192 -ub 256"
+      },
+      "want": 8448
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "2048",
+        "EXTRA_ARGS": "-ub=2048",
+        "UBATCH": "1024"
+      },
+      "want": 4096
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "-5",
+        "UBATCH": "0"
+      },
+      "want": 1000
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "2048"
+      },
+      "env": "3000",
+      "want": 3512
+    },
+    {
+      "cfg": {
+        "CKPT_MIN_STEP": "2048"
+      },
+      "env": "rien",
+      "want": 2560
+    },
+    {
+      "cfg": {
+        "MODEL": "absent.gguf"
+      },
+      "want": 1000
+    }
+  ]
+}

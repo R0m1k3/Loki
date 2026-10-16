@@ -51,6 +51,8 @@ pub fn handles(path: &str) -> bool {
             | "/api/conversations/switch"
             | "/api/conversations/rename"
             | "/api/conversations/delete"
+            | "/api/perf/summary"
+            | "/api/chat/cushot"
     )
 }
 
@@ -65,6 +67,13 @@ pub fn is_internal(path: &str) -> bool {
             | "/internal/facade/v1/reload"
             | "/internal/facade/v1/project/switch"
             | "/internal/facade/v1/project/drop"
+            | "/internal/facade/v1/chat/tpl"
+            | "/internal/facade/v1/chat/prewarm"
+            | "/internal/facade/v1/chat/prewarm/cancel"
+            | "/internal/facade/v1/perf/record"
+            | "/internal/facade/v1/perf/snapshot"
+            | "/internal/facade/v1/bgjobs"
+            | "/internal/facade/v1/browser"
     )
 }
 
@@ -90,6 +99,120 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
                 &json!({ "error": "événement illisible" }),
             ),
         },
+        // Dernier verdict de la sonde de gabarit (`tplCapsCurrent`), pour le
+        // résumé des performances que sert encore le Go.
+        "/internal/facade/v1/chat/tpl" => {
+            let cfg = chat.shared.store.config().await;
+            match chat
+                .shared
+                .tpl
+                .caps_current(crate::engstatus::is_external(&cfg))
+            {
+                Some(r) => send_json(
+                    StatusCode::OK,
+                    &json!({ "ok": true, "result": r.to_json() }),
+                ),
+                None => send_json(StatusCode::OK, &json!({ "ok": false })),
+            }
+        }
+        // Télémétrie (lot 39) : une complétion faite par le Go (sous-agent,
+        // tâche IA, bench, compaction de ses tours, client externe de /v1),
+        // rangée dans l'anneau tenu ici ; rendue telle que rangée (numéro,
+        // perte de cache, ce qui s'est intercalé).
+        "/internal/facade/v1/perf/record" => match read_json(req.into_body()).await {
+            Ok(v) => {
+                let rec: crate::perfring::PerfRec =
+                    serde_json::from_value(v.get("rec").cloned().unwrap_or_default())
+                        .unwrap_or_default();
+                let prefix: Vec<u64> = v
+                    .get("prefix")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(Value::as_u64).collect())
+                    .unwrap_or_default();
+                let got = chat.shared.perf.record(rec, &prefix);
+                send_json(StatusCode::OK, &json!({ "rec": got }))
+            }
+            Err(_) => send_json(
+                StatusCode::BAD_REQUEST,
+                &json!({ "error": "télémétrie illisible" }),
+            ),
+        },
+        // L'anneau, de la plus ancienne à la plus récente (poids de
+        // l'optimiseur).
+        // Navigateur piloté (lot 44) : les appels du Go (sous-agents, tâches
+        // IA) passent par la session tenue ici — un seul navigateur.
+        "/internal/facade/v1/browser" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let b = &chat.shared.browser;
+            match str_of(&v, "op") {
+                "tool" => {
+                    let cfg = chat.shared.store.config().await;
+                    let vision = crate::system::vision_enabled(&cfg);
+                    let home = chat.shared.images.home();
+                    let ws = tokio::task::spawn_blocking(move || {
+                        let env = std::env::var(crate::paths::WORKSPACE_ENV).ok();
+                        crate::paths::agent_workspace(&home, env.as_deref())
+                    })
+                    .await
+                    .unwrap_or_default();
+                    let args = v
+                        .get("args")
+                        .and_then(Value::as_object)
+                        .cloned()
+                        .unwrap_or_default();
+                    match b.exec(str_of(&v, "name"), &args, vision, &ws).await {
+                        Some(o) => send_json(
+                            StatusCode::OK,
+                            &json!({ "result": o.result, "image": o.image }),
+                        ),
+                        None => send_json(
+                            StatusCode::BAD_REQUEST,
+                            &json!({ "error": "outil du navigateur inconnu" }),
+                        ),
+                    }
+                }
+                "shot" => send_json(StatusCode::OK, &json!({ "id": b.auto_shot().await })),
+                "shutdown" => {
+                    b.shutdown().await;
+                    send_json(StatusCode::OK, &json!({}))
+                }
+                _ => send_json(
+                    StatusCode::BAD_REQUEST,
+                    &json!({ "error": "opération inconnue" }),
+                ),
+            }
+        }
+        // Jobs d'arrière-plan encore en vie (lot 43) : l'optimiseur du Go
+        // refuse de mesurer à côté.
+        "/internal/facade/v1/bgjobs" => send_json(
+            StatusCode::OK,
+            &json!({ "running": chat.shared.jobs.running() }),
+        ),
+        "/internal/facade/v1/perf/snapshot" => send_json(
+            StatusCode::OK,
+            &json!({ "recs": chat.shared.perf.snapshot() }),
+        ),
+        // PREWARM (lot 33) : déclencheur venu du Go (fin d'une tâche
+        // planifiée), annulation relayée (une autre requête est partie).
+        "/internal/facade/v1/chat/prewarm" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let why = match str_of(&v, "why") {
+                crate::chat::prewarm::AFTER_TASK => crate::chat::prewarm::AFTER_TASK,
+                crate::chat::prewarm::SWITCH => crate::chat::prewarm::SWITCH,
+                _ => crate::chat::prewarm::TURN_END,
+            };
+            chat.prewarm_kick(why).await;
+            send_json(StatusCode::OK, &json!({ "ok": true }))
+        }
+        "/internal/facade/v1/chat/prewarm/cancel" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let id = v.get("id").and_then(Value::as_u64).unwrap_or(0);
+            let cancelled = chat.shared.prewarm.cancel_id(id);
+            send_json(
+                StatusCode::OK,
+                &json!({ "ok": true, "cancelled": cancelled }),
+            )
+        }
         "/internal/facade/v1/project/switch" | "/internal/facade/v1/project/drop" => {
             let v = read_json(req.into_body()).await.unwrap_or_default();
             let slug = str_of(&v, "slug");
@@ -162,6 +285,23 @@ pub async fn serve(
     }
     let path = parts.uri.path().to_string();
     match path.as_str() {
+        // `handlePerfSummary` : des agrégats seulement, aucun texte.
+        "/api/perf/summary" => {
+            if parts.method != Method::GET {
+                return send_json(
+                    StatusCode::METHOD_NOT_ALLOWED,
+                    &json!({ "error": "GET seulement" }),
+                );
+            }
+            let mut s = crate::perfring::summarize(&chat.shared.perf.snapshot());
+            let cfg = chat.shared.store.config().await;
+            s.template = chat
+                .shared
+                .tpl
+                .caps_current(crate::engstatus::is_external(&cfg))
+                .map(|r| r.to_json());
+            send_json(StatusCode::OK, &json!(s))
+        }
         "/api/chat" => match read_json(body).await {
             Ok(v) => subscribe(chat, &v),
             Err(e) => plain(StatusCode::BAD_REQUEST, &e),
@@ -180,6 +320,22 @@ pub async fn serve(
         "/api/chat/stop" => {
             chat.stop().await;
             ok()
+        }
+        // `handleCUShot` (lot 44) : un aperçu du navigateur piloté, en base64
+        // (JSON, pour traverser aussi le tunnel du relais).
+        "/api/chat/cushot" => {
+            let id = query_param(&parts.uri, "id").unwrap_or_default();
+            match chat.shared.browser.shot(&id) {
+                Some(b) => send_json(
+                    StatusCode::OK,
+                    &json!({ "ok": true, "mime": "image/jpeg",
+                        "data": base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b) }),
+                ),
+                None => send_json(
+                    StatusCode::NOT_FOUND,
+                    &json!({ "ok": false, "error": "capture expirée" }),
+                ),
+            }
         }
         "/api/chat/reset" => {
             chat.reset().await;
@@ -221,8 +377,16 @@ pub async fn serve(
         // Corps illisible : champs vides, comme le `_ = Decode` du Go.
         "/api/conversations/switch" => {
             let v = read_json(body).await.unwrap_or_default();
+            let before = chat.sessions.conv().id();
             match chat.sessions.switch(str_of(&v, "id")).await {
-                Ok(()) => ok(),
+                Ok(()) => {
+                    // PREWARM : le préchauffage de l'ancienne est annulé ; avec
+                    // « full », la nouvelle est préparée si on y reste.
+                    if chat.sessions.conv().id() != before {
+                        chat.prewarm_after_switch().await;
+                    }
+                    ok()
+                }
                 Err(e) => session_error(e),
             }
         }

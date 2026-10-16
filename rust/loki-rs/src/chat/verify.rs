@@ -12,22 +12,24 @@
 //! en base (`chat/crit:<id>`, chiffrés comme le reste) ; le contexte isolé du
 //! vérificateur vient de `/internal/v1/turn/verifier`.
 //!
-//! Écart assumé : l'isolation du slot du moteur après la passe de
-//! vérification (`engineSideJob`, effacement du cache) reste au Go, qui ne
-//! voit pas passer les requêtes de la façade.
+//! La passe de vérification est un travail annexe (`engineSideJob`, lot 31) :
+//! le Go voit passer ses requêtes (tickets « en vol », moteur qui les accepte)
+//! et, à la fin, efface le slot local s'il a servi — la discussion se
+//! recharge alors depuis le cache RAM du moteur au lieu de se recalculer.
 
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::watch;
 
-use super::compact::{CompactCaps, is_loki_injected, strip_context_updates, without_ctx_update};
-use super::generate::{ChatService, TurnEnv, obj};
-use super::history::{drop_stray_nudges, history_from_view, inject_prefix, tool_used_delta};
-use super::host::{GoTurnHost, TurnCompact};
+use super::compact::{CompactCaps, is_loki_injected, without_ctx_update};
+use super::generate::{Assembled, ChatService, TurnEnv, obj};
+use super::history::{drop_stray_nudges, history_from_view, tool_used_delta};
+use super::host::{GoTurnHost, SnapTurn, TurnCompact};
 use super::lease::{EngineLease, LeaseSignal};
 use super::persist::BK_CHAT;
+use super::persist::ProjSnapshot;
 use super::turn::{Cancel, TurnConfig, run_turn};
 use super::types::{Message, ReasoningEcho, StreamEvent, Tool};
 use super::wire::{TurnReasoning, with_echo};
@@ -41,7 +43,7 @@ pub const CODE_MAX_FIX_TURNS: usize = 2;
 pub const CODE_MAX_CONTINUE: usize = 2;
 
 /// Un critère d'acceptation (`Criterion`).
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct Criterion {
     #[serde(default)]
     pub id: i64,
@@ -50,8 +52,31 @@ pub struct Criterion {
     /// pending | completed (le builder dit « fait ») | passed | failed.
     #[serde(default)]
     pub status: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub note: String,
+}
+
+/// `engineSideJob` : début d'un travail annexe auprès du Go ; `None` s'il ne
+/// répond pas.
+pub(super) async fn side_job_begin(store: &Store) -> Option<i64> {
+    store
+        .internal_post("/internal/v1/engine/sidejob", &json!({}))
+        .await
+        .ok()
+        .and_then(|(_, v)| v.get("id").and_then(Value::as_i64))
+}
+
+/// Fin du travail annexe. Les requêtes servies ont déjà été comptées une à
+/// une (`/internal/v1/oai/served`) : rien à ajouter.
+pub(super) async fn side_job_end(store: &Store, id: Option<i64>) {
+    if let Some(id) = id {
+        let _ = store
+            .internal_post(
+                "/internal/v1/engine/sidejob",
+                &json!({ "end": id, "served": false }),
+            )
+            .await;
+    }
 }
 
 /// `critList` : les critères de la discussion (vide si absents ou illisibles,
@@ -142,6 +167,8 @@ struct PassOut {
     echo: Option<ReasoningEcho>,
     saw_usage: bool,
     asked: bool,
+    /// Bloc projet rafraîchi en cours de passe (PROJ_SNAPSHOT).
+    snap: Option<ProjSnapshot>,
 }
 
 fn cap_bool(caps: &Value, k: &str) -> bool {
@@ -277,8 +304,22 @@ impl ChatService {
                         ..Default::default()
                     },
                 ];
-                self.run_pass(pe, epoch, msgs, tools, v["caps"].clone(), true, &[], run)
-                    .await;
+                // Travail annexe : le Go efface le slot à la fin s'il a servi
+                // (les requêtes de la passe le lui disent en passant).
+                let side = side_job_begin(&self.shared.store).await;
+                self.run_pass(
+                    pe,
+                    epoch,
+                    msgs,
+                    tools,
+                    v["caps"].clone(),
+                    true,
+                    &[],
+                    None,
+                    run,
+                )
+                .await;
+                side_job_end(&self.shared.store, side).await;
             }
             other => {
                 let e = match other {
@@ -331,18 +372,19 @@ impl ChatService {
             return false;
         };
         // Même contexte que le tour de build : sinon le début du prompt change
-        // et tout le cache est à refaire.
-        let (head, prefix, tools) = match self.turn_view(pe.turn_caps).await {
-            Ok(v) => v,
+        // et tout le cache est à refaire (PROJ_SNAPSHOT compris).
+        let Assembled {
+            sent,
+            tools,
+            hist,
+            snap_turn,
+        } = match self.assemble_turn(epoch, pe.turn_caps, msgs).await {
+            Ok(a) => a,
             Err(e) => {
                 conv.append_delta(epoch, obj("error", e));
                 return false;
             }
         };
-        let hist = strip_context_updates(msgs);
-        let mut sent = head;
-        sent.extend(hist.iter().cloned());
-        let sent = inject_prefix(sent, &prefix);
         let out = self
             .run_pass(
                 pe,
@@ -352,12 +394,17 @@ impl ChatService {
                 pe.turn_caps.clone(),
                 false,
                 &hist,
+                snap_turn,
                 run,
             )
             .await;
         conv.with_state_if(epoch, |st| {
             if let Some(base) = out.new_base {
                 st.messages = base;
+            }
+            // Même règle que le tour : le bloc rafraîchi en cours de passe.
+            if let Some(s) = out.snap {
+                st.proj_snap = Some(s);
             }
             st.messages.extend(out.extra);
             if !out.content.trim().is_empty() {
@@ -393,6 +440,7 @@ impl ChatService {
         caps: Value,
         isolated: bool,
         base: &[Message],
+        snap_turn: Option<SnapTurn>,
         run: &mut PassRun<'_>,
     ) -> PassOut {
         let conv = self.sessions.conv().clone();
@@ -428,8 +476,30 @@ impl ChatService {
             // Les messages en file attendent la fin du tour (runChatTools sans
             // injection, comme le Go).
             queued: Box::new(Vec::new),
+            deltas: {
+                let conv = conv.clone();
+                Arc::new(move |d| {
+                    conv.append_delta(conv.epoch(), d);
+                })
+            },
             // Passe de vérification : comptée à part, comme perfVerify.
-            perf_kind: if isolated { "verify" } else { "main" },
+            perf_kind: if isolated {
+                super::perf::KIND_VERIFY
+            } else {
+                super::perf::KIND_MAIN
+            },
+            side_slot: Default::default(),
+            projsnap: snap_turn,
+            snap_refreshed: Default::default(),
+            // Le builder relancé délègue comme dans son tour ; la
+            // vérification, elle, ne délègue pas (garde-fou du rôle).
+            sub: Some(super::subagent::SubTurn {
+                ep: env.ep.clone(),
+                reasoning: pe.reasoning.clone(),
+                echo: env.echo.clone(),
+                patterns: self.shared.patterns.clone(),
+                cancel: run.cancel.clone(),
+            }),
         };
         let mut out = PassOut::default();
         let mut cb = |ev: StreamEvent| -> bool {
@@ -513,6 +583,7 @@ impl ChatService {
             }
         };
         out.extra = res.extra;
+        out.snap = host.take_refreshed_snap();
         out
     }
 }

@@ -1,0 +1,42 @@
+{
+  "steps": [
+    {
+      "method": "GET",
+      "out": {
+        "available": false,
+        "current": "{{VERSION}}",
+        "note": "Mise à jour par l'image Docker : docker compose pull && docker compose up -d"
+      },
+      "path": "/api/update",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "out": {
+        "available": false,
+        "current": "{{VERSION}}",
+        "note": "Mise à jour par l'image Docker : docker compose pull && docker compose up -d"
+      },
+      "path": "/api/update",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "out": {
+        "error": "Mise à jour par l'image Docker : docker compose pull && docker compose up -d",
+        "ok": false
+      },
+      "path": "/api/update/apply",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "out": {
+        "error": "Mise à jour par l'image Docker : docker compose pull && docker compose up -d",
+        "ok": false
+      },
+      "path": "/api/update/apply",
+      "status": 409
+    }
+  ]
+}

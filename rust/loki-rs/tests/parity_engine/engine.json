@@ -1,0 +1,551 @@
+{
+  "settle": [
+    {
+      "before": 14000,
+      "out": 500,
+      "seq": [
+        20000,
+        20000,
+        12000,
+        3000,
+        500,
+        500
+      ]
+    },
+    {
+      "before": 14000,
+      "out": 400,
+      "seq": [
+        15000,
+        8000,
+        400,
+        400
+      ]
+    },
+    {
+      "before": 14000,
+      "out": 600,
+      "seq": [
+        14000,
+        -1,
+        600,
+        600
+      ]
+    },
+    {
+      "before": 14000,
+      "out": 14000,
+      "seq": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    },
+    {
+      "before": 14000,
+      "out": 14000,
+      "seq": [
+        14000,
+        14000,
+        14000,
+        14000,
+        14000,
+        14000,
+        14000,
+        14000
+      ]
+    },
+    {
+      "before": 0,
+      "out": 0,
+      "seq": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "before": 9000,
+      "out": 8999,
+      "seq": [
+        9000,
+        8999,
+        8999
+      ]
+    },
+    {
+      "before": 9000,
+      "out": 100,
+      "seq": [
+        -1,
+        9000,
+        -1,
+        9000,
+        100,
+        -1,
+        100
+      ]
+    },
+    {
+      "before": 5000,
+      "out": 7000,
+      "seq": [
+        6000,
+        7000,
+        7000,
+        7000,
+        7000,
+        7000,
+        7000,
+        7000
+      ]
+    },
+    {
+      "before": 5000,
+      "out": 600,
+      "seq": [
+        4000,
+        3000,
+        2000,
+        1000,
+        900,
+        800,
+        700,
+        600
+      ]
+    }
+  ],
+  "last_error": {
+    "": "",
+    "[loki-rs engine] service loki-engine non démarré\n": "service loki-engine non démarré",
+    "[ok] démarré\n[attention] 2 processus du moteur toujours là\n": "[attention] 2 processus du moteur toujours là",
+    "ligne 1\n[loki-rs engine]   moteur absent  \n\n": "moteur absent",
+    "pas de préfixe": "pas de préfixe"
+  },
+  "plain": {
+    "\u001b[1;36mcouleur\u001b[0m et \u001b[32mvert\u001b[0m": "couleur et vert",
+    "\u001b[mvide\u001b[0;1;2m": "vide",
+    "BIN non défini — installe un moteur : \u001b[1mloki llamacpp install\u001b[0m": "BIN non défini — installe un moteur : loki llamacpp install",
+    "rien à retirer": "rien à retirer"
+  },
+  "preflight": [
+    {
+      "name": "externe",
+      "config": {
+        "EXTERNAL": "1"
+      },
+      "out": ""
+    },
+    {
+      "name": "externe sans BIN ni MODEL",
+      "config": {
+        "BIN": "",
+        "EXTERNAL": " 1 "
+      },
+      "out": ""
+    },
+    {
+      "name": "strata sans config",
+      "config": {
+        "ENGINE": "strata"
+      },
+      "out": "STRATA_CONFIG non défini : réinstalle le modèle depuis Paramètres → Moteur → Strata"
+    },
+    {
+      "name": "strata config absente",
+      "config": {
+        "ENGINE": "Strata",
+        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
+      },
+      "out": "configuration de Strata introuvable : {{HOME}}/strata/m/config.json — réinstalle le modèle"
+    },
+    {
+      "name": "strata sans venv",
+      "config": {
+        "ENGINE": "strata",
+        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
+      },
+      "files": [
+        "strata/m/config.json"
+      ],
+      "out": "environnement Python de Strata absent ({{HOME}}/strata/m/.venv/bin/python) : réinstalle le modèle"
+    },
+    {
+      "name": "strata prêt",
+      "config": {
+        "ENGINE": "moe",
+        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
+      },
+      "files": [
+        "strata/m/config.json",
+        "strata/m/.venv/bin/python"
+      ],
+      "out": ""
+    },
+    {
+      "name": "BIN vide",
+      "config": {
+        "MODEL": "m.gguf"
+      },
+      "out": "BIN non défini — installe un moteur : loki llamacpp install (ou renseigne BIN avec loki edit)"
+    },
+    {
+      "name": "BIN espaces",
+      "config": {
+        "BIN": "   ",
+        "MODEL": "m.gguf"
+      },
+      "out": "BIN non défini — installe un moteur : loki llamacpp install (ou renseigne BIN avec loki edit)"
+    },
+    {
+      "name": "BIN relatif absent",
+      "config": {
+        "BIN": "bin/absent",
+        "MODEL": "m.gguf"
+      },
+      "out": "moteur introuvable : {{HOME}}/bin/absent — relance loki llamacpp install"
+    },
+    {
+      "name": "BIN absolu absent",
+      "config": {
+        "BIN": "{{HOME}}/ailleurs/llama-server",
+        "MODEL": "m.gguf"
+      },
+      "out": "moteur introuvable : {{HOME}}/ailleurs/llama-server — relance loki llamacpp install"
+    },
+    {
+      "name": "BIN dossier",
+      "config": {
+        "BIN": "bin/",
+        "MODEL": "m.gguf"
+      },
+      "files": [
+        "bin/"
+      ],
+      "out": "modèle introuvable : {{HOME}}/models/m.gguf — corrige MODEL avec loki edit"
+    },
+    {
+      "name": "MODEL vide",
+      "config": {
+        "BIN": "bin/llama-server"
+      },
+      "files": [
+        "bin/llama-server"
+      ],
+      "out": "MODEL non défini — indique un .gguf avec loki edit (dossier des modèles : {{HOME}}/models)"
+    },
+    {
+      "name": "MODEL absent",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "absent.gguf"
+      },
+      "files": [
+        "bin/llama-server"
+      ],
+      "out": "modèle introuvable : {{HOME}}/models/absent.gguf — corrige MODEL avec loki edit"
+    },
+    {
+      "name": "MODEL relatif",
+      "config": {
+        "BIN": "{{HOME}}/bin/llama-server",
+        "MODEL": "m.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/m.gguf"
+      ],
+      "out": ""
+    },
+    {
+      "name": "MODEL remonte",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "../m.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/m.gguf"
+      ],
+      "out": ""
+    },
+    {
+      "name": "MODEL sous-dossier",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "sub/m.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/m.gguf"
+      ],
+      "out": ""
+    },
+    {
+      "name": "MODEL absolu hors dossiers",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "{{HOME}}/ailleurs/x.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "ailleurs/x.gguf"
+      ],
+      "out": ""
+    },
+    {
+      "name": "MODEL absolu pas gguf",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "{{HOME}}/ailleurs/x.bin"
+      },
+      "files": [
+        "bin/llama-server",
+        "ailleurs/x.bin"
+      ],
+      "out": "MODEL={{HOME}}/ailleurs/x.bin : le modèle doit être un fichier .gguf"
+    },
+    {
+      "name": "MODEL absolu absent",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "{{HOME}}/ailleurs/y.gguf"
+      },
+      "files": [
+        "bin/llama-server"
+      ],
+      "out": "MODEL={{HOME}}/ailleurs/y.gguf : dossier non autorisé : {{HOME}}/ailleurs — ajoute-le dans « Dossiers de modèles »"
+    },
+    {
+      "name": "MODEL dossier déclaré",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "d.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "disque/d.gguf"
+      ],
+      "dirs": [
+        "disque"
+      ],
+      "out": ""
+    },
+    {
+      "name": "MODEL chemin dans dossier déclaré",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "{{HOME}}/disque/d.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "disque/d.gguf"
+      ],
+      "dirs": [
+        "disque"
+      ],
+      "out": ""
+    },
+    {
+      "name": "tranches manquantes",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "big-00001-of-00003.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/big-00001-of-00003.gguf",
+        "models/big-00003-of-00003.gguf"
+      ],
+      "out": "modèle incomplet : il manque big-00002-of-00003.gguf dans {{HOME}}/models — ce modèle tient en 3 fichiers, télécharge-les tous"
+    },
+    {
+      "name": "tranches dossier",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "big-00001-of-00002.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/big-00001-of-00002.gguf",
+        "models/big-00002-of-00002.gguf/"
+      ],
+      "out": "modèle incomplet : il manque big-00002-of-00002.gguf dans {{HOME}}/models — ce modèle tient en 2 fichiers, télécharge-les tous"
+    },
+    {
+      "name": "tranches complètes",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "big-00001-of-00002.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/big-00001-of-00002.gguf",
+        "models/big-00002-of-00002.gguf"
+      ],
+      "out": ""
+    },
+    {
+      "name": "tranche 2 désignée",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "big-00002-of-00002.gguf"
+      },
+      "files": [
+        "bin/llama-server",
+        "models/big-00002-of-00002.gguf"
+      ],
+      "out": "modèle incomplet : il manque big-00001-of-00002.gguf dans {{HOME}}/models — ce modèle tient en 2 fichiers, télécharge-les tous"
+    },
+    {
+      "name": "MODEL guillemets",
+      "config": {
+        "BIN": "bin/llama-server",
+        "MODEL": "  m.gguf  "
+      },
+      "files": [
+        "bin/llama-server",
+        "models/m.gguf"
+      ],
+      "out": ""
+    }
+  ],
+  "steps": [
+    {
+      "name": "déchargement en GET",
+      "method": "GET",
+      "path": "/api/vram/unload",
+      "status": 405,
+      "allow": "POST",
+      "out": {
+        "error": "méthode GET refusée : POST attendu",
+        "ok": false
+      }
+    },
+    {
+      "name": "rechargement en GET",
+      "method": "GET",
+      "path": "/api/vram/reload",
+      "status": 405,
+      "allow": "POST",
+      "out": {
+        "error": "méthode GET refusée : POST attendu",
+        "ok": false
+      }
+    },
+    {
+      "name": "rechargement en PUT",
+      "method": "PUT",
+      "path": "/api/vram/reload",
+      "status": 405,
+      "allow": "POST",
+      "out": {
+        "error": "méthode PUT refusée : POST attendu",
+        "ok": false
+      }
+    },
+    {
+      "name": "génération en cours",
+      "method": "POST",
+      "path": "/api/vram/unload",
+      "body": "{}",
+      "generating": true,
+      "status": 409,
+      "out": {
+        "error": "une réponse est en cours d'écriture — décharger maintenant l'interromprait",
+        "generating": true,
+        "ok": false
+      }
+    },
+    {
+      "name": "génération en cours, corps illisible",
+      "method": "POST",
+      "path": "/api/vram/unload",
+      "body": "nimp",
+      "generating": true,
+      "status": 409,
+      "out": {
+        "error": "une réponse est en cours d'écriture — décharger maintenant l'interromprait",
+        "generating": true,
+        "ok": false
+      }
+    },
+    {
+      "name": "moteur déjà arrêté",
+      "method": "POST",
+      "path": "/api/vram/unload",
+      "body": "{\"force\":true}",
+      "generating": true,
+      "status": 200,
+      "out": {
+        "active": false,
+        "before_mb": 0,
+        "error": "",
+        "freed_mb": 0,
+        "gpu": false,
+        "ok": true,
+        "used_mb": 0,
+        "was_active": false
+      }
+    },
+    {
+      "name": "moteur arrêté, sans corps",
+      "method": "POST",
+      "path": "/api/vram/unload",
+      "status": 200,
+      "out": {
+        "active": false,
+        "before_mb": 0,
+        "error": "",
+        "freed_mb": 0,
+        "gpu": false,
+        "ok": true,
+        "used_mb": 0,
+        "was_active": false
+      }
+    },
+    {
+      "name": "optimisation en cours",
+      "method": "POST",
+      "path": "/api/vram/reload",
+      "tune": true,
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false,
+        "tuning": true
+      }
+    },
+    {
+      "name": "préflight sans BIN",
+      "method": "POST",
+      "path": "/api/vram/reload",
+      "config": {
+        "MODEL": "m.gguf"
+      },
+      "status": 200,
+      "out": {
+        "error": "BIN non défini — installe un moteur : loki llamacpp install (ou renseigne BIN avec loki edit)",
+        "ok": false
+      }
+    },
+    {
+      "name": "préflight sans MODEL",
+      "method": "POST",
+      "path": "/api/vram/reload",
+      "config": {
+        "BIN": "/bin/sh"
+      },
+      "status": 200,
+      "out": {
+        "error": "MODEL non défini — indique un .gguf avec loki edit (dossier des modèles : {{HOME}}/models)",
+        "ok": false
+      }
+    }
+  ]
+}

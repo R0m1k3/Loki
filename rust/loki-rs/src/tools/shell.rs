@@ -140,7 +140,7 @@ fn drain<R: tokio::io::AsyncRead + Unpin + Send + 'static>(
 
 /// La commande du shell de la plateforme. Le jeton de l'API interne n'a rien
 /// à faire dans le shell de l'agent.
-fn shell_cmd(command: &str) -> tokio::process::Command {
+pub(crate) fn shell_cmd(command: &str) -> tokio::process::Command {
     #[cfg(windows)]
     let mut c = {
         let mut c = tokio::process::Command::new("cmd");

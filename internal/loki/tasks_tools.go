@@ -7,6 +7,11 @@ package loki
 // saveTask), donc une tâche créée par l'IA apparaît et se pilote comme les
 // autres dans le panneau Tâches.
 //
+// Port Rust (lot 37) : rust/loki-rs/src/tasks/tools.rs, employé par les tours
+// de la façade quand elle tient les tâches (LOKI_TASKS=rust) ; journal de
+// parité dans parity_tasks_tools_test.go. L'heure est celle des tâches
+// (tasksNow), fixée par ce journal.
+//
 // Gate : réservés au mode agent (EnabledTools). Une tâche n'a de sens que si
 // l'IA peut agir en arrière-plan ; sans agent elle n'aurait aucun outil pour
 // livrer son résultat.
@@ -215,7 +220,7 @@ func toolTaskCreate(args map[string]any) string {
 	// fuseau de l'utilisateur (AJEAN 0.17.5). Le modèle n'a plus à jongler avec
 	// les fuseaux ni le cron pour un simple rappel.
 	if schedule == "" {
-		now := time.Now().In(loc(tz))
+		now := tasksNow().In(loc(tz))
 		if v, ok := args["in_minutes"].(float64); ok && v >= 1 {
 			schedule = "@once " + now.Add(time.Duration(v)*time.Minute).Format("2006-01-02 15:04")
 		} else if at := strings.TrimSpace(taskStrArg(args["at"])); at != "" {
@@ -259,7 +264,7 @@ func toolTaskCreate(args map[string]any) string {
 		// comme elle n'y voit et n'y pilote que ses propres tâches.
 		Project: activeProjectSlug(),
 	}
-	t.NextRun = computeNextRun(schedule, tz, time.Now())
+	t.NextRun = computeNextRun(schedule, tz, tasksNow())
 	if err := saveTask(t); err != nil {
 		return "[erreur] " + err.Error()
 	}
@@ -292,12 +297,12 @@ func toolTaskUpdate(args map[string]any) string {
 			return "[erreur] fréquence invalide : " + err.Error()
 		}
 		t.Schedule = sched
-		t.NextRun = computeNextRun(sched, t.TZ, time.Now())
+		t.NextRun = computeNextRun(sched, t.TZ, tasksNow())
 	}
 	if v, ok := args["enabled"].(bool); ok {
 		t.Enabled = v
 		if v && t.NextRun == 0 {
-			t.NextRun = computeNextRun(t.Schedule, t.TZ, time.Now())
+			t.NextRun = computeNextRun(t.Schedule, t.TZ, tasksNow())
 		}
 	}
 	if err := saveTask(t); err != nil {

@@ -80,20 +80,24 @@ func handleInternalTurnStart(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleInternalTurnView : les pièces de turnView (assembleTurn sans
-// PROJ_SNAPSHOT) que la façade assemble autour de l'historique : head part
-// devant les messages, puis prefix (InjectSkills) fusionné dans le premier
-// système qui n'est pas un message projet, ou posé en tête.
+// handleInternalTurnView : les pièces de turnView (assembleTurn) que la
+// façade assemble autour de l'historique : head part devant les messages, puis
+// prefix (InjectSkills) fusionné dans le premier système qui n'est pas un
+// message projet, ou posé en tête. Avec PROJ_SNAPSHOT et l'agent, la tête
+// porte le bloc figé de la discussion (snap) et projsnap dit quoi en faire
+// (facade_projsnap.go) ; dry : pour le préchauffage, rien à ranger.
 func handleInternalTurnView(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Caps Caps `json:"caps"`
+		Caps Caps          `json:"caps"`
+		Snap *projSnapshot `json:"snap"`
+		Dry  bool          `json:"dry"`
 	}
 	if !readInternalJSON(w, r, &in) {
 		return
 	}
 	caps := in.Caps
 	if caps.Agent && projSnapEnabled(ReadConfig()) {
-		sendJSON(w, http.StatusConflict, map[string]any{"error": "PROJ_SNAPSHOT actif : le bloc projet figé reste tenu par le Go"})
+		sendJSON(w, http.StatusOK, projSnapView(caps, in.Snap, in.Dry))
 		return
 	}
 	head := []Message{}
@@ -130,6 +134,28 @@ func handleInternalTurnVerifier(w http.ResponseWriter, r *http.Request) {
 		"system": rolePrompt("verifier") + "\n\n" + machineSystemPrompt(vcaps),
 		"tools":  EnabledTools(vcaps),
 		"caps":   vcaps,
+	})
+}
+
+// handleInternalTurnSubagent : le contexte isolé d'un rôle délégué par
+// l'outil subagent de la façade (lot 47) — prompt système, outils et
+// capacités du rôle ; la tâche et son cadrage restent chez elle.
+func handleInternalTurnSubagent(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Role string `json:"role"`
+	}
+	if !readInternalJSON(w, r, &in) {
+		return
+	}
+	if !isSubagentRole(in.Role) {
+		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "rôle inconnu : " + in.Role})
+		return
+	}
+	caps, system := subagentView(in.Role)
+	sendJSON(w, http.StatusOK, map[string]any{
+		"system": system,
+		"tools":  EnabledTools(caps),
+		"caps":   caps,
 	})
 }
 

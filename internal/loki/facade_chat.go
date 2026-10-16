@@ -39,67 +39,14 @@ const (
 )
 
 // facadeChat : la façade tient-elle la conversation ? Il faut aussi son
-// adresse et le jeton interne, sans lesquels rien ne peut lui être remis — et
-// aucun réglage qu'elle ne sait pas honorer (facadeChatBlocker).
+// adresse et le jeton interne, sans lesquels rien ne peut lui être remis.
+// Plus aucun réglage ne garde la conversation ici : la façade honore
+// NUDGE_IN_TOOL (lot 23), les motifs de relance personnalisés (lot 30),
+// SIDE_SLOT et SLOT_PERSIST (lot 31), KEEP_TURN_IMAGES (lot 32), PREWARM
+// (lot 33) et PROJ_SNAPSHOT (lot 34, facade_projsnap.go).
 func facadeChat() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") &&
-		facadeAddr() != "" && internalToken() != "" && facadeChatDecision() == ""
-}
-
-// facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
-// en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
-// figé, images gardées, slots du moteur, préchauffage, motifs de relance
-// personnalisés).
-func facadeChatBlocker(cfg map[string]string) string {
-	switch {
-	case projSnapEnabled(cfg):
-		return "PROJ_SNAPSHOT"
-	case keepTurnImagesOn(cfg):
-		return "KEEP_TURN_IMAGES"
-	case cfgOn(cfg, "NUDGE_IN_TOOL"):
-		return "NUDGE_IN_TOOL"
-	case sideSlotOn(cfg):
-		return "SIDE_SLOT"
-	case slotPersistOn(cfg):
-		return "SLOT_PERSIST"
-	case prewarmMode(cfg) != "":
-		return "PREWARM"
-	case strings.TrimSpace(getStr(bkState, "retry_patterns")) != "":
-		return "retry_patterns"
-	}
-	return ""
-}
-
-// cfgOn : une clé booléenne posée (mêmes valeurs que les autres clés opt-in).
-func cfgOn(cfg map[string]string, k string) bool {
-	switch strings.ToLower(strings.TrimSpace(cfg[k])) {
-	case "on", "1", "true", "yes", "oui":
-		return true
-	}
-	return false
-}
-
-// Décision prise UNE fois par process : passer la conversation d'un détenteur
-// à l'autre en cours de route laisserait chacun avec sa copie — un réglage
-// changé vaut au redémarrage suivant. La façade la lit au démarrage
-// (/internal/v1/chat/holder) et s'y range.
-var (
-	facadeDecisionMu   sync.Mutex
-	facadeDecisionDone bool
-	facadeDecisionWhy  string
-)
-
-func facadeChatDecision() string {
-	facadeDecisionMu.Lock()
-	defer facadeDecisionMu.Unlock()
-	if !facadeDecisionDone {
-		facadeDecisionWhy = facadeChatBlocker(ReadConfig())
-		facadeDecisionDone = true
-		if facadeDecisionWhy != "" {
-			fmt.Fprintf(os.Stderr, "[chat] %s posé : la conversation reste tenue par le Go (LOKI_CHAT=rust ignoré)\n", facadeDecisionWhy)
-		}
-	}
-	return facadeDecisionWhy
+		facadeAddr() != "" && internalToken() != ""
 }
 
 // handleInternalChatHolder : qui tient la conversation ({"holder":"rust"} ou
@@ -113,7 +60,7 @@ func handleInternalChatHolder(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string]any{"holder": "rust"})
 		return
 	}
-	why := facadeChatDecision()
+	why := "adresse de la façade ou jeton interne manquant"
 	if !strings.EqualFold(strings.TrimSpace(os.Getenv(facadeChatEnv)), "rust") {
 		why = facadeChatEnv + " absent"
 	}
@@ -123,8 +70,8 @@ func handleInternalChatHolder(w http.ResponseWriter, r *http.Request) {
 func facadeAddr() string { return strings.TrimSpace(os.Getenv(facadeAddrEnv)) }
 
 // facadeChatRoutes : les routes que la façade sert quand elle tient la
-// conversation (chatapi.rs). Le reste (mode Code, critères, pièces jointes,
-// fichiers, export) reste ici.
+// conversation (chatapi.rs, chatx.rs). Le reste du mode Code (indice, travaux
+// de fond, outil criteria) reste ici et lit les mêmes clés.
 var facadeChatRoutes = map[string]bool{
 	"/api/chat":                 true,
 	"/api/chat/send":            true,
@@ -138,34 +85,98 @@ var facadeChatRoutes = map[string]bool{
 	"/api/conversations/switch": true,
 	"/api/conversations/rename": true,
 	"/api/conversations/delete": true,
+	// Lot 19 : export, mode Code et critères de la discussion ouverte.
+	"/api/chat/export":   true,
+	"/api/chat/mode":     true,
+	"/api/chat/criteria": true,
+	// Lot 39 : l'anneau de télémétrie est celui de la façade.
+	"/api/perf/summary": true,
+	// Lot 44 : les aperçus du navigateur piloté, tenu par la façade.
+	"/api/chat/cushot": true,
 }
 
 // withFacadeChat remet la requête à la façade quand elle tient la
-// conversation. Posé APRÈS requireWebAuth : seule une requête authentifiée
-// ici part, avec le jeton interne qui en tient lieu là-bas.
+// conversation — ou les routes des modèles (facade_models.go), la dictée
+// (facade_dictate.go), les réglages partagés (facade_settings.go), les fichiers
+// de la discussion (facade_files.go), les notifications (facade_push.go), la
+// mémoire (facade_mem.go), les presets (facade_presets.go), le pilotage du
+// moteur (facade_engine.go), les interrupteurs système (facade_system.go), les
+// projets (facade_projects.go), les serveurs MCP (facade_mcp.go), la mise à
+// jour (facade_update.go), les backends llama.cpp (facade_backends.go), le
+// moteur de l'image (facade_engineimg.go), Strata (facade_strata.go).
+// Posé APRÈS requireWebAuth : seule une requête authentifiée ici part, avec le
+// jeton interne qui en tient lieu là-bas.
 func withFacadeChat(path string, h http.HandlerFunc) http.HandlerFunc {
-	if !facadeChatRoutes[path] {
+	held, unavailable := facadeChat, "conversation indisponible : "
+	switch {
+	case facadeChatRoutes[path]:
+	case facadeModelRoutes[path]:
+		held, unavailable = facadeModels, "modèles indisponibles : "
+	case facadeDictateRoutes[path]:
+		held, unavailable = facadeDictate, "dictée indisponible : "
+	case facadeSettingsRoutes[path]:
+		held, unavailable = facadeSettings, "réglages indisponibles : "
+	case facadeFilesRoutes[path]:
+		held, unavailable = facadeFiles, "fichiers indisponibles : "
+	case facadePushRoutes[path]:
+		held, unavailable = facadePush, "notifications indisponibles : "
+	case facadeMemRoutes[path]:
+		held, unavailable = facadeMem, "mémoire indisponible : "
+	case facadePresetsRoutes[path]:
+		held, unavailable = facadePresets, "presets indisponibles : "
+	case facadeEngineRoutes[path]:
+		held, unavailable = facadeEngine, "pilotage du moteur indisponible : "
+	case facadeSystemRoutes[path]:
+		held, unavailable = facadeSystem, "réglages système indisponibles : "
+	case facadeProjectsRoutes[path]:
+		held, unavailable = facadeProjects, "projets indisponibles : "
+	case facadeMCPRoutes[path]:
+		held, unavailable = facadeMCP, "serveurs MCP indisponibles : "
+	case facadeUpdateRoutes[path]:
+		held, unavailable = facadeUpdate, "mise à jour indisponible : "
+	case facadeBackendsRoutes[path]:
+		held, unavailable = facadeBackends, "moteurs indisponibles : "
+	case facadeEngineImageRoutes[path]:
+		held, unavailable = facadeEngineImage, "moteur de l'image indisponible : "
+	case facadeStrataRoutes[path]:
+		held, unavailable = facadeStrata, "Strata indisponible : "
+	case facadeTasksRoutes[path]:
+		held, unavailable = facadeTasks, "tâches indisponibles : "
+	case facadeBenchRoutes[path]:
+		held, unavailable = facadeBench, "banc d'essai indisponible : "
+	case facadeTuneRoutes[path]:
+		held, unavailable = facadeTune, "optimiseur indisponible : "
+	case facadeCoreRoutes[path]:
+		held, unavailable = facadeCore, "façade indisponible : "
+	default:
 		return h
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !facadeChat() {
+		if !held() {
 			h(w, r)
 			return
 		}
-		facadeRelay(w, r)
+		facadeRelayAs(w, r, unavailable)
 	}
 }
 
-// facadeRelay : relais transparent (flux compris) vers la façade.
-func facadeRelay(w http.ResponseWriter, r *http.Request) {
+// facadeRelayAs : relais transparent (flux compris) vers la façade ;
+// unavailable préfixe l'erreur si elle ne répond pas.
+func facadeRelayAs(w http.ResponseWriter, r *http.Request, unavailable string) {
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(&url.URL{Scheme: "http", Host: facadeAddr()})
+			// L'hôte et le schéma du client, pas ceux du relais : la clé de
+			// complétion affiche l'adresse à coller dans un client tiers.
+			pr.Out.Host = pr.In.Host
+			if p := pr.In.Header.Get("X-Forwarded-Proto"); p != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", p)
+			}
 			pr.Out.Header.Set(internalTokenHeader, internalToken())
 		},
 		FlushInterval: -1, // SSE : chaque trame part aussitôt
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-			sendJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": "conversation indisponible : " + err.Error()})
+			sendJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": unavailable + err.Error()})
 		},
 	}
 	rp.ServeHTTP(w, r)
@@ -195,6 +206,31 @@ func facadePost(path string, body any) error {
 		return fmt.Errorf("façade : %s", resp.Status)
 	}
 	return nil
+}
+
+// facadeTplCaps : le dernier verdict de la sonde de gabarit de la façade,
+// quand elle tient la conversation (c'est elle qui sonde après ses
+// complétions).
+func facadeTplCaps() (tplProbeResult, bool) {
+	req, err := http.NewRequest(http.MethodPost, "http://"+facadeAddr()+"/internal/facade/v1/chat/tpl", strings.NewReader("{}"))
+	if err != nil {
+		return tplProbeResult{}, false
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(internalTokenHeader, internalToken())
+	resp, err := facadeClient.Do(req)
+	if err != nil {
+		return tplProbeResult{}, false
+	}
+	defer resp.Body.Close()
+	var out struct {
+		OK     bool           `json:"ok"`
+		Result tplProbeResult `json:"result"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&out) != nil || !out.OK {
+		return tplProbeResult{}, false
+	}
+	return out.Result, true
 }
 
 // facadeError : refus de la façade, avec son statut (409 : un tour tourne).

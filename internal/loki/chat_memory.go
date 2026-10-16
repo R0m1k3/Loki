@@ -15,6 +15,10 @@ import (
 // L'IA y range ce qu'elle veut retenir entre les sessions (préférences,
 // décisions, procédures, infos projet). Quatre outils : mem_search, mem_read,
 // mem_add, mem_edit.
+//
+// Port Rust des outils (lot 40) : rust/loki-rs/src/memory/tools.rs, employé
+// par les tours de la façade quand elle tient la mémoire (LOKI_MEM=rust) ;
+// journal de parité dans parity_mem_tools_test.go.
 
 type MemPage struct {
 	Name  string // nom de fichier sans le dossier (ex: "docker-notes.md")

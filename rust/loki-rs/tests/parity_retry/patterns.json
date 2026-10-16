@@ -1,0 +1,3163 @@
+{
+  "inputs": [
+    "été do_it(1) éfoo foo bar_9",
+    "x٣42 a  \tb\n",
+    "axb a.b a(x a]-]b",
+    "x[a[ x&ab a!#-b x~a x]a [ab",
+    "1abc ab12 Ωμέγα",
+    "Bonjour\nOUPS !\nla fin",
+    "oups au début, puis la FIN",
+    "aaaa xxx a\nb aéb",
+    "<function=bash> {\"name\": \"read\"}",
+    "AB ABC éé ÉTÉ été",
+    "x.*+y"
+  ],
+  "patterns": [
+    {
+      "pattern": "\\w+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "t",
+          "at": 2
+        },
+        {
+          "in": 1,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1abc",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "function",
+          "at": 1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "\\W+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "é",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "٣",
+          "at": 1
+        },
+        {
+          "in": 2,
+          "match": " ",
+          "at": 3
+        },
+        {
+          "in": 3,
+          "match": "[",
+          "at": 1
+        },
+        {
+          "in": 4,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 5,
+          "match": "\n",
+          "at": 7
+        },
+        {
+          "in": 6,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 7,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": "<",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": " ",
+          "at": 2
+        },
+        {
+          "in": 10,
+          "match": ".*+",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "pattern": "\\d+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "1",
+          "at": 12
+        },
+        {
+          "in": 1,
+          "match": "42",
+          "at": 3
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": "1",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\D+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été do_it(",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb a.b a(x a]-]b",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x[a[ x&ab a!#-b x~a x]a [ab",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "abc ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "Bonjour\nOUPS !\nla fin",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups au début, puis la FIN",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa xxx a\nb aéb",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "<function=bash> {\"name\": \"read\"}",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "AB ABC éé ÉTÉ été",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "\\s+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": " ",
+          "at": 5
+        },
+        {
+          "in": 1,
+          "match": " ",
+          "at": 5
+        },
+        {
+          "in": 2,
+          "match": " ",
+          "at": 3
+        },
+        {
+          "in": 3,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 4,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 5,
+          "match": "\n",
+          "at": 7
+        },
+        {
+          "in": 6,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 7,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": " ",
+          "at": 15
+        },
+        {
+          "in": 9,
+          "match": " ",
+          "at": 2
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\S+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣42",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x[a[",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1abc",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "<function=bash>",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "\\bdo_\\w+\\(",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "do_it(",
+          "at": 6
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\Bfoo",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\bfoo\\b",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "foo",
+          "at": 17
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\w-]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "t",
+          "at": 2
+        },
+        {
+          "in": 1,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1abc",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "function",
+          "at": 1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[^\\s]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣42",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x[a[",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1abc",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "<function=bash>",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[\\W]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "é",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "٣",
+          "at": 1
+        },
+        {
+          "in": 2,
+          "match": " ",
+          "at": 3
+        },
+        {
+          "in": 3,
+          "match": "[",
+          "at": 1
+        },
+        {
+          "in": 4,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 5,
+          "match": "\n",
+          "at": 7
+        },
+        {
+          "in": 6,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 7,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": "<",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": " ",
+          "at": 2
+        },
+        {
+          "in": 10,
+          "match": ".*+",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\d\\s]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": " ",
+          "at": 5
+        },
+        {
+          "in": 1,
+          "match": "42 ",
+          "at": 3
+        },
+        {
+          "in": 2,
+          "match": " ",
+          "at": 3
+        },
+        {
+          "in": 3,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 4,
+          "match": "1",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "\n",
+          "at": 7
+        },
+        {
+          "in": 6,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 7,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": " ",
+          "at": 15
+        },
+        {
+          "in": 9,
+          "match": " ",
+          "at": 2
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\D]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été do_it(",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb a.b a(x a]-]b",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x[a[ x&ab a!#-b x~a x]a [ab",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "abc ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "Bonjour\nOUPS !\nla fin",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups au début, puis la FIN",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa xxx a\nb aéb",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "<function=bash> {\"name\": \"read\"}",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "AB ABC éé ÉTÉ été",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[^\\w\\s]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "é",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "٣",
+          "at": 1
+        },
+        {
+          "in": 2,
+          "match": ".",
+          "at": 5
+        },
+        {
+          "in": 3,
+          "match": "[",
+          "at": 1
+        },
+        {
+          "in": 4,
+          "match": "Ωμέγα",
+          "at": 10
+        },
+        {
+          "in": 5,
+          "match": "!",
+          "at": 13
+        },
+        {
+          "in": 6,
+          "match": "é",
+          "at": 9
+        },
+        {
+          "in": 7,
+          "match": "é",
+          "at": 14
+        },
+        {
+          "in": 8,
+          "match": "<",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "éé",
+          "at": 7
+        },
+        {
+          "in": 10,
+          "match": ".*+",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "pattern": "\\Qa.b\\E",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": "a.b",
+          "at": 4
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\Q(x",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": "(x",
+          "at": 9
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\Q]-\\E]+",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "a\\Q\\E+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[a[]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "[a[",
+          "at": 1
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[a&&b]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "ba",
+          "at": 25
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "B",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "ba",
+          "at": 10
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[!--]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "(",
+          "at": 11
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": "(",
+          "at": 9
+        },
+        {
+          "in": 3,
+          "match": "&",
+          "at": 6
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": "!",
+          "at": 13
+        },
+        {
+          "in": 6,
+          "match": ",",
+          "at": 14
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": "\"",
+          "at": 17
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": "*+",
+          "at": 2
+        }
+      ]
+    },
+    {
+      "pattern": "[a--]",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "[~~a]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[]a]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[^]a]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été do_it(1) éfoo foo b",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣42 ",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "xb ",
+          "at": 1
+        },
+        {
+          "in": 3,
+          "match": "x[",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour\nOUPS !\nl",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups ",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": " xxx ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": "<function=b",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "B ",
+          "at": 1
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[[:alpha:]]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "t",
+          "at": 2
+        },
+        {
+          "in": 1,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "abc",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "function",
+          "at": 1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[^[:alpha:]]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "é",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "٣42 ",
+          "at": 1
+        },
+        {
+          "in": 2,
+          "match": " ",
+          "at": 3
+        },
+        {
+          "in": 3,
+          "match": "[",
+          "at": 1
+        },
+        {
+          "in": 4,
+          "match": "1",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "\n",
+          "at": 7
+        },
+        {
+          "in": 6,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 7,
+          "match": " ",
+          "at": 4
+        },
+        {
+          "in": 8,
+          "match": "<",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": " ",
+          "at": 2
+        },
+        {
+          "in": 10,
+          "match": ".*+",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "pattern": "[[:word:]]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "t",
+          "at": 2
+        },
+        {
+          "in": 1,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "1abc",
+          "at": 0
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "function",
+          "at": 1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "[[:^digit:]]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été do_it(",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x٣",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb a.b a(x a]-]b",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x[a[ x&ab a!#-b x~a x]a [ab",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "abc ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "Bonjour\nOUPS !\nla fin",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups au début, puis la FIN",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa xxx a\nb aéb",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "<function=bash> {\"name\": \"read\"}",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": "AB ABC éé ÉTÉ été",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x.*+y",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "^oups",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": "OUPS",
+          "at": 8
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\Aoups",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "fin$",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": "fin",
+          "at": 18
+        },
+        {
+          "in": 6,
+          "match": "FIN",
+          "at": 24
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\pL+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "x",
+          "at": 0
+        },
+        {
+          "in": 4,
+          "match": "abc",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "Bonjour",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "oups",
+          "at": 0
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "function",
+          "at": 1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": "x",
+          "at": 0
+        }
+      ]
+    },
+    {
+      "pattern": "\\p{Greek}+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": "Ωμέγα",
+          "at": 10
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "x{2,3}",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": "xxx",
+          "at": 5
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "(?s:a.b)",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": "a\nb",
+          "at": 9
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "a.b",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": "axb",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": "aéb",
+          "at": 13
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "(?U)a+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "<function=\\w+>",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": "<function=bash>",
+          "at": 0
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\{\"name\":\\s*\"(bash|read)\"",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": "{\"name\": \"read\"",
+          "at": 16
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "(",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "\\C",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "\\z",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "",
+          "at": 30
+        },
+        {
+          "in": 1,
+          "match": "",
+          "at": 13
+        },
+        {
+          "in": 2,
+          "match": "",
+          "at": 17
+        },
+        {
+          "in": 3,
+          "match": "",
+          "at": 27
+        },
+        {
+          "in": 4,
+          "match": "",
+          "at": 20
+        },
+        {
+          "in": 5,
+          "match": "",
+          "at": 21
+        },
+        {
+          "in": 6,
+          "match": "",
+          "at": 27
+        },
+        {
+          "in": 7,
+          "match": "",
+          "at": 17
+        },
+        {
+          "in": 8,
+          "match": "",
+          "at": 32
+        },
+        {
+          "in": 9,
+          "match": "",
+          "at": 23
+        },
+        {
+          "in": 10,
+          "match": "",
+          "at": 5
+        }
+      ]
+    },
+    {
+      "pattern": "a\\z",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "(?P<n>ab)",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": "ab",
+          "at": 7
+        },
+        {
+          "in": 4,
+          "match": "ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\x41\\x{42}",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": "ab",
+          "at": 7
+        },
+        {
+          "in": 4,
+          "match": "ab",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\101",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "a",
+          "at": 26
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "a",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "a",
+          "at": 16
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "a",
+          "at": 11
+        },
+        {
+          "in": 9,
+          "match": "A",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\1",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "(a)\\1",
+      "compiles": false,
+      "matches": []
+    },
+    {
+      "pattern": "\\0",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\08",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\101-\\103]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "ba",
+          "at": 25
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "abc",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "B",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "c",
+          "at": 4
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "[\\x41-\\x43]+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "ba",
+          "at": 25
+        },
+        {
+          "in": 1,
+          "match": "a",
+          "at": 6
+        },
+        {
+          "in": 2,
+          "match": "a",
+          "at": 0
+        },
+        {
+          "in": 3,
+          "match": "a",
+          "at": 2
+        },
+        {
+          "in": 4,
+          "match": "abc",
+          "at": 1
+        },
+        {
+          "in": 5,
+          "match": "B",
+          "at": 0
+        },
+        {
+          "in": 6,
+          "match": "a",
+          "at": 5
+        },
+        {
+          "in": 7,
+          "match": "aaaa",
+          "at": 0
+        },
+        {
+          "in": 8,
+          "match": "c",
+          "at": 4
+        },
+        {
+          "in": 9,
+          "match": "AB",
+          "at": 0
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "\\.\\*\\+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 10,
+          "match": ".*+",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "pattern": "é+",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "é",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": "é",
+          "at": 9
+        },
+        {
+          "in": 7,
+          "match": "é",
+          "at": 14
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": "éé",
+          "at": 7
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    },
+    {
+      "pattern": "ÉTÉ",
+      "compiles": true,
+      "matches": [
+        {
+          "in": 0,
+          "match": "été",
+          "at": 0
+        },
+        {
+          "in": 1,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 2,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 3,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 4,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 5,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 6,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 7,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 8,
+          "match": null,
+          "at": -1
+        },
+        {
+          "in": 9,
+          "match": "ÉTÉ",
+          "at": 12
+        },
+        {
+          "in": 10,
+          "match": null,
+          "at": -1
+        }
+      ]
+    }
+  ]
+}

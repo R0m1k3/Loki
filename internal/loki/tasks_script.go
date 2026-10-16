@@ -77,7 +77,7 @@ func scriptRunStop(id string) bool {
 // runScriptTask exécute le script d'une tâche et enregistre son état (comme runTask
 // pour une tâche IA), mais sans aucune inférence.
 func runScriptTask(t Task) {
-	start := time.Now()
+	start := tasksNow()
 
 	name := strings.TrimSpace(t.Script)
 	if name == "" {

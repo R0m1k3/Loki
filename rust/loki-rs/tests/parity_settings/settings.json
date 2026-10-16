@@ -1,0 +1,731 @@
+{
+  "public_url": [
+    {
+      "in": ""
+    },
+    {
+      "in": "  "
+    },
+    {
+      "in": "exemple.fr",
+      "out": "https://exemple.fr"
+    },
+    {
+      "in": "https://ia.exemple.fr/",
+      "out": "https://ia.exemple.fr"
+    },
+    {
+      "in": "http://10.0.0.5:8090/v1/",
+      "out": "http://10.0.0.5:8090"
+    },
+    {
+      "in": "HTTPS://Exemple.FR:443",
+      "out": "https://Exemple.FR:443"
+    },
+    {
+      "in": "ftp://x.fr",
+      "err": "adresse en ftp:// — seuls http:// et https:// sont acceptés"
+    },
+    {
+      "in": "https://",
+      "err": "adresse sans nom de machine"
+    },
+    {
+      "in": "https://moi:secret@x.fr",
+      "err": "l'adresse ne doit pas porter d'identifiants (moi@…)"
+    },
+    {
+      "in": "https://x.fr/?a=1",
+      "err": "l'adresse ne doit porter ni paramètre ni ancre"
+    },
+    {
+      "in": "https://x.fr/#ancre",
+      "err": "l'adresse ne doit porter ni paramètre ni ancre"
+    },
+    {
+      "in": "https://x.fr/api",
+      "err": "l'adresse ne doit pas contenir de chemin (/api) : Loki sert /v1 à la racine de son port"
+    },
+    {
+      "in": "https://x.fr:0",
+      "err": "port invalide : 0"
+    },
+    {
+      "in": "https://x.fr:99999",
+      "err": "port invalide : 99999"
+    },
+    {
+      "in": "https://x.fr:abc",
+      "err": "adresse illisible : https://x.fr:abc"
+    },
+    {
+      "in": "https://[::1]:8090",
+      "out": "https://[::1]:8090"
+    },
+    {
+      "in": "https://::1",
+      "err": "adresse IPv6 à écrire entre crochets : [::1]"
+    },
+    {
+      "in": "https://:8080",
+      "err": "adresse sans nom de machine"
+    },
+    {
+      "in": "exemple.fr:8090/v1",
+      "out": "https://exemple.fr:8090"
+    }
+  ],
+  "effort_value": {
+    "": "",
+    " High ": "high",
+    "0": "none",
+    "Default": "",
+    "NONE": "none",
+    "auto": "",
+    "bizarre": "bizarre",
+    "low": "low",
+    "medium": "medium",
+    "off": "none",
+    "xhigh": "xhigh"
+  },
+  "steps": [
+    {
+      "method": "GET",
+      "path": "/api/prefs",
+      "status": 200,
+      "out": {
+        "avatars": [
+          "🙂",
+          "😎",
+          "🧑",
+          "👤",
+          "🦊",
+          "🐱",
+          "🐼",
+          "🦉",
+          "🚀",
+          "⚡",
+          "🌙",
+          "🔥",
+          "🌿",
+          "🎯",
+          "🧠",
+          "🤖"
+        ],
+        "ok": true,
+        "prefs": {}
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/prefs",
+      "body": "{\"theme\":\" DARK \",\"hide_tools\":\"1\",\"hide_stats\":\"2\",\"inconnue\":\"x\",\"user_name\":\"  Ma\\u0007rie  \",\"avatar_user\":\"🦊\",\"avatar_ai\":\"💩\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "prefs": {
+          "avatar_user": "🦊",
+          "hide_tools": "1",
+          "theme": "dark",
+          "user_name": "Marie"
+        }
+      },
+      "prefs": {
+        "avatar_user": "🦊",
+        "hide_tools": "1",
+        "theme": "dark",
+        "user_name": "Marie"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/prefs",
+      "body": "{\"user_name\":\"Une très très longue signature éèà\",\"fold_tools\":1,\"hide_side\":\"0\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "prefs": {
+          "avatar_user": "🦊",
+          "hide_side": "0",
+          "hide_tools": "1",
+          "theme": "dark",
+          "user_name": "Une très très longue sig"
+        }
+      },
+      "prefs": {
+        "avatar_user": "🦊",
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark",
+        "user_name": "Une très très longue sig"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/prefs",
+      "body": "pas du json",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "prefs": {
+          "avatar_user": "🦊",
+          "hide_side": "0",
+          "hide_tools": "1",
+          "theme": "dark",
+          "user_name": "Une très très longue sig"
+        }
+      },
+      "prefs": {
+        "avatar_user": "🦊",
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark",
+        "user_name": "Une très très longue sig"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/prefs",
+      "body": "{\"user_name\":\"   \",\"avatar_user\":\"\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "prefs": {
+          "avatar_user": "",
+          "hide_side": "0",
+          "hide_tools": "1",
+          "theme": "dark",
+          "user_name": ""
+        }
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/prefs",
+      "status": 200,
+      "out": {
+        "avatars": [
+          "🙂",
+          "😎",
+          "🧑",
+          "👤",
+          "🦊",
+          "🐱",
+          "🐼",
+          "🦉",
+          "🚀",
+          "⚡",
+          "🌙",
+          "🔥",
+          "🌿",
+          "🎯",
+          "🧠",
+          "🤖"
+        ],
+        "ok": true,
+        "prefs": {
+          "hide_side": "0",
+          "hide_tools": "1",
+          "theme": "dark"
+        }
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sysprompt",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": ""
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sysprompt",
+      "body": "{\"text\":\"  Réponds en français.  \"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sysprompt",
+      "body": "{\"text\":5}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field .text of type string",
+        "ok": false
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sysprompt",
+      "status": 405,
+      "out": {
+        "error": "méthode non autorisée",
+        "ok": false
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "config": {
+        "CTX": "8192",
+        "MODEL": "a.gguf"
+      },
+      "preset": {
+        "alpha": "# Alpha\nMODEL=a.gguf\nCTX=8192\n",
+        "beta": "# Beta\nMODEL=b.gguf\n"
+      },
+      "method": "GET",
+      "path": "/api/sysprompt",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sysprompt",
+      "body": "{\"text\":\"Prompt d'Alpha\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Prompt d'Alpha"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français.",
+        "sysprompt:alpha": "Prompt d'Alpha"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sysprompt",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Prompt d'Alpha"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français.",
+        "sysprompt:alpha": "Prompt d'Alpha"
+      }
+    },
+    {
+      "config": {
+        "MODEL": "b.gguf"
+      },
+      "method": "GET",
+      "path": "/api/sysprompt",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français.",
+        "sysprompt:alpha": "Prompt d'Alpha"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sysprompt",
+      "body": "{\"text\":\"\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français.",
+        "sysprompt:alpha": "Prompt d'Alpha"
+      }
+    },
+    {
+      "config": {
+        "CTX": "8192",
+        "MODEL": "a.gguf"
+      },
+      "method": "POST",
+      "path": "/api/sysprompt",
+      "body": "{\"text\":\"   \"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sysprompt",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "text": "Réponds en français."
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "config": {
+        "MODEL": "a.gguf"
+      },
+      "method": "GET",
+      "path": "/api/reasoning-effort",
+      "status": 200,
+      "out": {
+        "choices": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "ok": true,
+        "on": false,
+        "value": ""
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/reasoning-effort",
+      "body": "{\"value\":\" HIGH \"}",
+      "status": 200,
+      "out": {
+        "choices": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "ok": true,
+        "on": false,
+        "value": "high"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "high",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/reasoning-effort",
+      "body": "{\"value\":\"auto\"}",
+      "status": 400,
+      "out": {
+        "error": "valeur inconnue : auto",
+        "ok": false
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "high",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "config": {
+        "MODEL": "a.gguf",
+        "REASONING": "on",
+        "REASONING_EFFORT": "off"
+      },
+      "method": "GET",
+      "path": "/api/reasoning-effort",
+      "status": 200,
+      "out": {
+        "choices": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "ok": true,
+        "on": true,
+        "value": "none"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "off",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/reasoning-effort",
+      "body": "{\"value\":\"\"}",
+      "status": 200,
+      "out": {
+        "choices": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "ok": true,
+        "on": true,
+        "value": ""
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "config": {
+        "REASONING": "off",
+        "REASONING_EFFORT": "bizarre"
+      },
+      "method": "GET",
+      "path": "/api/reasoning-effort",
+      "status": 200,
+      "out": {
+        "choices": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "ok": true,
+        "on": false,
+        "value": "bizarre"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/oai/public",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "set": false,
+        "url": ""
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/oai/public",
+      "body": "{\"url\":\"ftp://x\"}",
+      "status": 400,
+      "out": {
+        "error": "adresse en ftp:// — seuls http:// et https:// sont acceptés",
+        "ok": false
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/oai/public",
+      "body": "pas du json",
+      "status": 400,
+      "out": {
+        "error": "requête illisible",
+        "ok": false
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/oai/public",
+      "body": "{\"url\":\" ia.exemple.fr/v1 \"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "set": true,
+        "url": "https://ia.exemple.fr"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "public_url": "https://ia.exemple.fr",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/oai/public",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "set": true,
+        "url": "https://ia.exemple.fr"
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "public_url": "https://ia.exemple.fr",
+        "sysprompt": "Réponds en français."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/oai/public",
+      "body": "{\"url\":\"\"}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "set": false,
+        "url": ""
+      },
+      "prefs": {
+        "hide_side": "0",
+        "hide_tools": "1",
+        "theme": "dark"
+      },
+      "state": {
+        "config:REASONING_EFFORT": "bizarre",
+        "sysprompt": "Réponds en français."
+      }
+    }
+  ]
+}

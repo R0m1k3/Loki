@@ -497,9 +497,10 @@ use loki_rs::chat::compact::{CompactCaps, CompactConfig, CompactMemory};
 use loki_rs::chat::engine::EngineHttp;
 use loki_rs::chat::host::{ChatShared, EngineSummarizer, GoTurnHost, ImageCache, TurnCompact};
 use loki_rs::chat::stream::RetryPatterns;
+use loki_rs::chat::tplprobe::{ProbeResult, Shape};
 use loki_rs::chat::turn::{Cancel, TurnConfig, run_turn};
 use loki_rs::chat::types::{Message, StreamEvent, Tool, ToolFunction};
-use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TurnReasoning};
+use loki_rs::chat::wire::{ChatEndpoint, EchoRefusals, EffortFallbacks, TplTri, TurnReasoning};
 
 /// Faux moteur : rend les réponses SSE dans l'ordre, garde les requêtes.
 async fn fake_engine(
@@ -541,6 +542,22 @@ async fn fake_engine_gated(
                             if req.uri().path() == "/health" {
                                 return ok("ok".into());
                             }
+                            // Sonde de gabarit (lancée après chaque complétion
+                            // du fil principal) : un gabarit qui rend toujours
+                            // la même chose. Ses rendus ne comptent pas parmi
+                            // les requêtes vues.
+                            if req.uri().path() == "/props" {
+                                return ok(r#"{"build_info":"b1-x","model_path":"/m/m1.gguf","chat_template":"t"}"#.into());
+                            }
+                            if req.uri().path() == "/apply-template" {
+                                let body = req.into_body().collect().await.unwrap().to_bytes();
+                                let b: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                                PROBE_RENDERS.lock().unwrap().push(b.clone());
+                                return ok(
+                                    serde_json::json!({ "prompt": render_without_reasoning(&b) })
+                                        .to_string(),
+                                );
+                            }
                             let auth = req
                                 .headers()
                                 .get("authorization")
@@ -577,6 +594,34 @@ async fn fake_engine_gated(
     });
     (format!("http://{addr}/v1/chat/completions"), seen)
 }
+
+/// Un gabarit qui ne rend jamais `reasoning_content` : rôle, texte, appels
+/// d'outils, et l'amorce de réponse si elle est demandée.
+fn render_without_reasoning(b: &serde_json::Value) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for m in b["messages"].as_array().into_iter().flatten() {
+        let calls: Vec<&str> = m["tool_calls"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|c| c["function"]["name"].as_str())
+            .collect();
+        out.push(format!(
+            "{}:{}{}",
+            m["role"].as_str().unwrap_or(""),
+            m["content"].as_str().unwrap_or(""),
+            calls.join(",")
+        ));
+    }
+    let mut p = out.join("\n");
+    if b["add_generation_prompt"] == true {
+        p.push_str("\nassistant:");
+    }
+    p
+}
+
+/// Rendus demandés par la sonde de gabarit, tous moteurs confondus.
+static PROBE_RENDERS: StdMutex<Vec<serde_json::Value>> = StdMutex::new(Vec::new());
 
 fn sse(chunks: &[serde_json::Value]) -> String {
     chunks
@@ -620,6 +665,17 @@ async fn tour_complet_par_le_go() {
         compact_memory: CompactMemory::new(),
         images: ImageCache::new(imgdir),
         patterns: RetryPatterns::builtin(),
+        tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
+        prewarm: Default::default(),
+        perf: Arc::new(loki_rs::perfring::PerfRing::new(Default::default())),
+        mcp: None,
+        tasks: None,
+        memory: None,
+        web: Default::default(),
+        jobs: Default::default(),
+        browser: Default::default(),
+        vision: Default::default(),
+        go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
     let host = GoTurnHost {
@@ -634,6 +690,7 @@ async fn tour_complet_par_le_go() {
             cfg: cfg.clone(),
             patterns: shared.patterns.clone(),
             port: 8080,
+            go: None,
         },
         compact: TurnCompact {
             cfg: CompactConfig::default(),
@@ -645,7 +702,12 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
+        deltas: Arc::new(|_| {}),
         perf_kind: "main",
+        side_slot: Default::default(),
+        projsnap: None,
+        snap_refreshed: Default::default(),
+        sub: None,
     };
     let bash = Tool {
         kind: "function".into(),
@@ -716,6 +778,39 @@ async fn tour_complet_par_le_go() {
         })
         .collect();
     assert_eq!(answer, "Voilà.");
+    // Télémétrie (lot 39) : chaque complétion rangée dans l'anneau de la
+    // façade, rattachée à la discussion ; la première, sans usage, reste
+    // incomplète.
+    let recs = shared.perf.snapshot();
+    let got: Vec<_> = recs
+        .iter()
+        .map(|r| {
+            (
+                r.kind.as_str(),
+                r.conv.as_str(),
+                r.iter,
+                r.complete,
+                r.total,
+            )
+        })
+        .collect();
+    assert_eq!(
+        got,
+        [("main", "c7", 0, false, 0), ("main", "c7", 1, true, 50)]
+    );
+    let last = evs
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            StreamEvent::Stats(s) if !s.kind.is_empty() => Some(s.clone()),
+            _ => None,
+        })
+        .unwrap();
+    // Rien de comparable avant : la perte reste inconnue.
+    assert_eq!(
+        (last.kind.as_str(), last.lost, last.lost_after.as_str()),
+        ("main", None, "")
+    );
 }
 
 #[tokio::test]
@@ -763,6 +858,19 @@ async fn service(
     tokio::sync::oneshot::Sender<()>,
     tempfile::TempDir,
 ) {
+    service_with(engine_url, |_| {}).await
+}
+
+/// [`service`], l'état partagé réglé par `f` (pool MCP, tâches…).
+async fn service_with(
+    engine_url: Option<&str>,
+    f: impl FnOnce(&mut ChatShared),
+) -> (
+    Arc<ChatService>,
+    Arc<fakego::FakeGo>,
+    tokio::sync::oneshot::Sender<()>,
+    tempfile::TempDir,
+) {
     let (st, go, stop, t) = store().await;
     go.set(
         "config",
@@ -772,7 +880,8 @@ async fn service(
     go.set("state", "api_key", "cle-du-moteur");
     let sessions = Sessions::new(st.clone(), Conversation::new(), GoSessionHooks(st.clone()));
     sessions.load().await.unwrap();
-    let shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
+    let mut shared = ChatShared::for_sessions(&sessions, st, t.path().join("chatimg"));
+    f(&mut shared);
     (
         ChatService::new(Arc::new(sessions), Arc::new(shared)),
         go,
@@ -888,21 +997,30 @@ async fn tour_de_bout_en_bout() {
         2,
         "{log:?}"
     );
-    // Appel d'outil sans usage ni timings : complétion incomplète (comme le
-    // Go : ni empreintes, ni sonde) ; la réponse finale, avec usage, complète.
-    for want in [
-        format!("perf kind=main conv={id} iter=0 complete=false prefix=0 probe=false"),
-        format!("perf kind=main conv={id} iter=1 complete=true prefix=4 probe=true"),
-    ] {
-        assert!(log.contains(&want), "{want} absent de {log:?}");
-    }
+    // Appel d'outil sans usage ni timings : complétion incomplète ; la
+    // réponse finale, avec usage, complète — dans l'anneau de la façade
+    // (lot 39), rien par le Go.
+    assert!(!log.iter().any(|l| l.starts_with("perf ")), "{log:?}");
+    let recs: Vec<_> = svc
+        .shared
+        .perf
+        .snapshot()
+        .into_iter()
+        .map(|r| (r.kind, r.conv, r.iter, r.complete))
+        .collect();
+    assert_eq!(
+        recs,
+        [
+            ("main".to_string(), id.clone(), 0, false),
+            ("main".to_string(), id.clone(), 1, true)
+        ]
+    );
     let finals: Vec<_> = deltas(&svc, "stats")
         .into_iter()
-        .filter(|s| s["lost_alert"] == true)
+        .filter(|s| s["kind"] == "main")
         .collect();
-    assert_eq!(finals.len(), 1, "stats finales sans les marques du Go");
-    assert_eq!(finals[0]["lost"], 3);
-    assert_eq!(finals[0]["kind"], "main");
+    assert_eq!(finals.len(), 1, "stats finales sans leur nature");
+    assert_eq!(finals[0].get("lost_alert"), None);
     let body = opened(&go, BK_CHAT, &format!("conv:{id}")).unwrap();
     assert_eq!(decode_state(&body).messages.len(), 4);
     // Réessai du même envoi : reconnu.
@@ -911,6 +1029,161 @@ async fn tour_de_bout_en_bout() {
         .await
         .unwrap();
     assert!(again.dup);
+}
+
+/// Lot 23 : après un tour, la façade sonde le gabarit du moteur avec la
+/// forme de la requête (mêmes outils), et range le verdict que le Go relit
+/// pour son résumé des performances.
+#[tokio::test]
+async fn sonde_de_gabarit_apres_un_tour() {
+    let (url, _seen) = fake_engine(tool_then_answer("fini")).await;
+    let (svc, _go, _stop, _t) = service(Some(&url)).await;
+    svc.send(serde_json::json!({"message": "liste", "cid": "s1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| svc.shared.tpl.caps_current(false).is_some()).await;
+    let r = svc.shared.tpl.caps_current(false).unwrap();
+    assert_eq!(r.tools, 1);
+    assert_eq!(r.build, "b1-x");
+    assert_eq!(r.model, "m1.gguf");
+    assert_eq!(r.note, "reasoning_content jamais rendu");
+    assert_eq!(
+        (r.preserves_history, r.prefix_stable, r.renders_reasoning),
+        (TplTri::No, TplTri::Yes, TplTri::No)
+    );
+    let renders = PROBE_RENDERS.lock().unwrap().clone();
+    assert!(
+        renders
+            .iter()
+            .any(|b| b["tools"][0]["function"]["name"] == "bash"
+                && b["parallel_tool_calls"] == false),
+        "{renders:?}"
+    );
+    // Un preset externe : rien d'affiché.
+    assert!(svc.shared.tpl.caps_current(true).is_none());
+}
+
+/// Le verdict de la sonde décide pour l'hôte : rappel dans le résultat
+/// d'outil seulement si le préfixe est instable pour CE modèle ; sonde
+/// lancée pour le fil principal, jamais pour une tâche.
+#[tokio::test]
+async fn hote_et_sonde_de_gabarit() {
+    let (svc, _go, _stop, _t) = service(None).await;
+    let shared = svc.shared.clone();
+    let host = |main: &str, model: &str| {
+        let cfg = std::collections::HashMap::from([("MODEL".to_string(), model.to_string())]);
+        let ep = ChatEndpoint {
+            url: "http://127.0.0.1:1/v1/chat/completions".into(),
+            model: "loki".into(),
+            key: String::new(),
+            external: false,
+        };
+        GoTurnHost {
+            shared: shared.clone(),
+            conv_id: "c1".into(),
+            caps: serde_json::json!({}),
+            cfg: cfg.clone(),
+            port: 1,
+            summarizer: EngineSummarizer {
+                http: shared.http.clone(),
+                ep,
+                cfg,
+                patterns: shared.patterns.clone(),
+                port: 1,
+                go: None,
+            },
+            compact: TurnCompact {
+                cfg: CompactConfig::default(),
+                caps: CompactCaps::default(),
+                criteria: String::new(),
+                main_conv: main.into(),
+                tools: vec![],
+                effort: String::new(),
+                kwargs: Default::default(),
+            },
+            queued: Box::new(Vec::new),
+            deltas: Arc::new(|_| {}),
+            perf_kind: "main",
+            side_slot: Default::default(),
+            projsnap: None,
+            snap_refreshed: Default::default(),
+            sub: None,
+        }
+    };
+    let bash = Tool {
+        kind: "function".into(),
+        function: ToolFunction {
+            name: "bash".into(),
+            description: String::new(),
+            parameters: serde_json::json!({"type":"object"}),
+        },
+    };
+    let tools = vec![bash];
+    let shape = Shape::new(&tools, None, "");
+    let mut r = ProbeResult::unknown("");
+    r.model = "m1.gguf".into();
+    r.prefix_stable = TplTri::No;
+    shared.tpl.remember(&shape, r.clone());
+    use loki_rs::chat::turn::TurnHost;
+    assert!(host("c1", "/m/m1.gguf").prefix_unstable(&tools, None, ""));
+    assert!(!host("c1", "/m/autre.gguf").prefix_unstable(&tools, None, ""));
+    assert!(!host("c1", "/m/m1.gguf").prefix_unstable(&[], None, ""));
+    r.prefix_stable = TplTri::Yes;
+    shared.tpl.remember(&shape, r.clone());
+    assert!(!host("c1", "/m/m1.gguf").prefix_unstable(&tools, None, ""));
+    r.prefix_stable = TplTri::No;
+    r.model = String::new();
+    shared.tpl.remember(&shape, r);
+    assert!(!host("c1", "").prefix_unstable(&tools, None, ""));
+
+    // Une tâche (pas de discussion principale) ne lance pas la sonde.
+    host("", "").completed(&tools, None, "");
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert_eq!(shared.tpl.last_shape(), Shape::default());
+    host("c1", "").completed(&tools, None, "");
+    until(|| shared.tpl.last_shape() == shape).await;
+}
+
+/// REASONING_ECHO : un gabarit qui ne rend jamais le raisonnement (verdict de
+/// la sonde, après le premier tour) coupe l'écho au tour suivant.
+#[tokio::test]
+async fn echo_coupe_par_le_verdict_de_la_sonde() {
+    let reasoned = sse(&[
+        serde_json::json!({"choices":[{"delta":{"reasoning_content": "je réfléchis"}}]}),
+        serde_json::json!({"choices":[{"delta":{"content": "un"}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":40,"completion_tokens":2}}),
+    ]);
+    let (url, seen) = fake_engine(vec![reasoned.clone(), reasoned]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "REASONING_ECHO", "on");
+    go.set("config", "MODEL", "/m/m1.gguf");
+    svc.send(serde_json::json!({"message": "q1", "cid": "e1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| svc.shared.tpl.caps_current(false).is_some()).await;
+    assert_eq!(
+        svc.shared
+            .tpl
+            .caps_current(false)
+            .unwrap()
+            .renders_reasoning,
+        TplTri::No
+    );
+    svc.send(serde_json::json!({"message": "q2", "cid": "e2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let seen = seen.lock().unwrap().clone();
+    let second = &seen.last().unwrap().1;
+    let past = second["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["role"] == "assistant")
+        .unwrap();
+    assert!(past.get("reasoning_content").is_none(), "{past}");
 }
 
 /// Contenu seul, fin normale, avec l'usage (une mesure par complétion).
@@ -946,6 +1219,7 @@ async fn contrat_verifie_par_la_facade() {
     .await;
     let (svc, go, _stop, _t) = service(Some(&url)).await;
     *go.code.lock().unwrap() = true;
+    *go.turn_side_live.lock().unwrap() = true;
     let id = svc.sessions.conv().id();
     go.set(
         "chat",
@@ -960,6 +1234,39 @@ async fn contrat_verifie_par_la_facade() {
 
     let seen = seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 3);
+    // SIDE_SLOT (lot 31) : le tour sur le slot 0 (rechargement SLOT_PERSIST
+    // demandé pour la discussion), la vérification sur le 1, comptée en vol
+    // sur le second slot ; la passe est un travail annexe pour le Go.
+    let slots: Vec<_> = seen.iter().map(|(_, b)| b["id_slot"].clone()).collect();
+    assert_eq!(
+        slots,
+        [
+            serde_json::json!(0),
+            serde_json::json!(1),
+            serde_json::json!(1)
+        ]
+    );
+    assert_eq!(
+        *go.turn_slots.lock().unwrap(),
+        [format!("{id} true"), " false".into(), " false".into()]
+    );
+    let begins: Vec<String> = go
+        .oai_log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|l| l.starts_with("begin"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        begins,
+        [
+            format!("begin main_conv={id}"),
+            "begin main_conv= side".into(),
+            "begin main_conv= side".into()
+        ]
+    );
+    assert_eq!(*go.side_jobs.lock().unwrap(), ["begin 1", "end 1 false"]);
     let v = &seen[1].1;
     assert_eq!(v["messages"][0]["content"], "VÉRIFICATEUR");
     assert_eq!(
@@ -968,7 +1275,20 @@ async fn contrat_verifie_par_la_facade() {
          Verify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool."
     );
     assert_eq!(v["tools"][0]["function"]["name"], "criteria");
-    assert_eq!(*go.tool_log.lock().unwrap(), ["criteria verifier"]);
+    // L'outil criteria s'exécute dans la façade (lot 38) : rien par le Go ;
+    // le critère rangé (scellé) passe à « passed », et l'écran reçoit la
+    // liste.
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let stored = go.get("chat", &format!("crit:{id}")).unwrap();
+    assert_eq!(
+        stored,
+        r#"SCELLE:[{"id":1,"text":"les tests passent","status":"passed"}]"#
+    );
+    let crit = deltas(&svc, "criteria");
+    assert_eq!(
+        crit,
+        [serde_json::json!([{"id":1,"text":"les tests passent","status":"passed"}])]
+    );
     assert_eq!(
         deltas(&svc, "role"),
         [serde_json::json!("verifier"), serde_json::json!("")]
@@ -1393,8 +1713,8 @@ async fn routes_du_chat_par_la_facade() {
     let (_, list) = call(facade, "GET", "/api/conversations", "").await;
     assert_eq!(list["conversations"][0]["title"], "Mon fil");
 
-    // Mode Code : servi par le Go, qui pousse son événement au journal d'ici
-    // par l'API interne de la façade (jeton interne exigé).
+    // Mode Code : servi par la façade (lot 19), son événement au journal
+    // d'ici, sans passer par le Go.
     assert_eq!(
         call(facade, "POST", "/api/chat/mode", r#"{"mode":"code"}"#)
             .await
@@ -1402,11 +1722,14 @@ async fn routes_du_chat_par_la_facade() {
         200
     );
     assert!(
-        go.relayed
+        !go.relayed
             .lock()
             .unwrap()
             .contains(&"/api/chat/mode".to_string())
     );
+    assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    // Le Go pousse encore ses propres événements (indice de code, outil
+    // criteria) par l'API interne de la façade (jeton interne exigé).
     let (code, _) = call(
         facade,
         "POST",
@@ -1417,7 +1740,10 @@ async fn routes_du_chat_par_la_facade() {
     assert_eq!(code, 404, "sans le jeton, l'API interne n'existe pas");
     let code = call_internal(facade, "/internal/facade/v1/delta", r#"{"mode":"code"}"#).await;
     assert_eq!(code, 204);
-    assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    assert_eq!(
+        deltas(&chat, "mode"),
+        [serde_json::json!("code"), serde_json::json!("code")]
+    );
     // Fil déjà rempli : le déverrouillage ne le recharge pas.
     assert_eq!(
         call_internal(facade, "/internal/facade/v1/reload", "").await,
@@ -1608,4 +1934,1209 @@ async fn parite_du_tour_complet() {
         paths.len(),
         failures.join("\n\n")
     );
+}
+
+/// Lot 29 : le résumé d'une compaction rejoint la télémétrie du Go
+/// (kind=compact, rattaché à la discussion), dès que la réponse se lit.
+#[tokio::test]
+async fn telemetrie_des_resumes() {
+    use loki_rs::chat::compact::{Summarizer, TranscriptRequest};
+    let (st, go, _stop, _t) = store().await;
+    let (url, seen) = fake_engine(vec![
+        serde_json::json!({
+            "choices": [{"message": {"content": "résumé"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3000, "completion_tokens": 200},
+            "timings": {"prompt_n": 3000, "prompt_ms": 1500, "predicted_n": 200, "predicted_per_second": 40}
+        })
+        .to_string(),
+        r#"{"choices":[]}"#.into(),
+        "pas du json".into(),
+        serde_json::json!({
+            "choices": [{"message": {"content": "suite"}, "finish_reason": "stop"}]
+        })
+        .to_string(),
+    ])
+    .await;
+    let ring = Arc::new(loki_rs::perfring::PerfRing::new(Default::default()));
+    let s = EngineSummarizer {
+        http: EngineHttp::new(),
+        ep: ChatEndpoint {
+            url,
+            model: "loki".into(),
+            key: String::new(),
+            external: false,
+        },
+        cfg: Default::default(),
+        patterns: RetryPatterns::builtin(),
+        port: 8080,
+        go: Some((st, "c9".into(), ring.clone())),
+    };
+    *go.turn_side_live.lock().unwrap() = true;
+    let req = || TranscriptRequest {
+        system: "s".into(),
+        transcript: "t".into(),
+        max_tokens: 500,
+    };
+    assert_eq!(
+        s.summarize_transcript(req()).await.unwrap().content,
+        "résumé"
+    );
+    assert!(s.summarize_transcript(req()).await.is_err(), "réponse vide");
+    assert!(s.summarize_transcript(req()).await.is_err(), "illisible");
+    // Lot 31 : la transcription, prompt neuf, sur le second slot, comptée en
+    // vol sur lui et rendue à la fin ; jamais de rechargement SLOT_PERSIST.
+    let sent = seen.lock().unwrap().clone();
+    assert!(sent.iter().all(|(_, b)| b["id_slot"] == 1), "{sent:?}");
+    assert_eq!(
+        *go.turn_slots.lock().unwrap(),
+        [" false", " false", " false"]
+    );
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 3
+    })
+    .await;
+    assert_eq!(
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| *l == "begin main_conv= side")
+            .count(),
+        3
+    );
+    // En continuation, il prolonge le prompt de la discussion : le slot 0.
+    use loki_rs::chat::compact::ContinuationRequest;
+    let cont = s
+        .summarize_continuation(ContinuationRequest {
+            messages: vec![],
+            tools: vec![],
+            effort: String::new(),
+            kwargs: Default::default(),
+            max_tokens: 500,
+            conv: "c9".into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(cont.content, "suite");
+    assert_eq!(seen.lock().unwrap()[3].1["id_slot"], 0);
+    assert_eq!(go.turn_slots.lock().unwrap()[3], " true");
+    until(|| {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .contains(&"begin main_conv=".to_string())
+    })
+    .await;
+    let perfs = ring.snapshot();
+    assert_eq!(perfs.len(), 3, "la réponse illisible n'est pas rangée");
+    let mut first = serde_json::to_value(&perfs[0]).unwrap();
+    first.as_object_mut().unwrap().remove("at");
+    assert_eq!(
+        first,
+        serde_json::json!({ "seq": 1, "kind": "compact", "conv": "c9", "iter": 0, "complete": true,
+            "total": 3000, "new": 3000, "pp_ms": 1500, "gen": 200, "tg_tps": 40 })
+    );
+    assert!(!perfs[1].complete);
+}
+
+/// Lot 32 : KEEP_TURN_IMAGES tenu par la façade. L'image relayée par un
+/// outil est rangée par le Go, gardée au coût mesuré par le moteur ; au tour
+/// suivant, clé retirée, elle part d'abord (légende et marque gardées).
+#[tokio::test]
+async fn images_gardees_par_la_facade() {
+    use loki_rs::chat::compact::{IMAGE_LOST_MARKER, msg_tokens};
+    use loki_rs::chat::types::Message;
+    let tool = Message {
+        role: "tool".into(),
+        tool_call_id: "c1".into(),
+        content: Some(serde_json::json!("exec:bash")),
+        ..Default::default()
+    };
+    let prompt2 = 1020 + msg_tokens(&tool) + 300;
+    let (url, seen) = fake_engine(vec![
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1000,"completion_tokens":20}}),
+        ]),
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content": "vu"}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":prompt2,"completion_tokens":5}}),
+        ]),
+        answer("ensuite"),
+    ])
+    .await;
+    let (svc, go, _stop, t) = service(Some(&url)).await;
+    // Le fichier que le Go range (ici, le faux ne l'écrit pas).
+    std::fs::create_dir_all(t.path().join("chatimg")).unwrap();
+    std::fs::write(t.path().join("chatimg/k1.png"), b"\x89PNG\r\n").unwrap();
+    go.set("config", "KEEP_TURN_IMAGES", "on");
+    *go.keep_vision.lock().unwrap() = true;
+    *go.tool_relay.lock().unwrap() = Some(serde_json::json!({
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Voici la capture demandée."},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0K"}}
+        ]
+    }));
+    svc.send(serde_json::json!({"message": "capture", "cid": "k1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| go.turn_log.lock().unwrap().contains(&"done".to_string())).await;
+    // Rangée par le Go, vue en data-URL par le moteur.
+    assert_eq!(go.keep_stores.lock().unwrap().len(), 1);
+    let sent = seen.lock().unwrap()[1].1.clone();
+    let relay = &sent["messages"].as_array().unwrap()[4];
+    assert_eq!(
+        relay["content"][1]["image_url"]["url"],
+        "data:image/png;base64,iVBORw0K"
+    );
+    assert!(relay.get("img_relay").is_none(), "marque envoyée au moteur");
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let kept = msgs.iter().find(|m| m.img_relay).expect("relais gardé");
+    assert_eq!(kept.img_tokens, 300);
+    assert_eq!(
+        kept.content.as_ref().unwrap()[1]["image_url"]["url"],
+        "loki-img:k1.png"
+    );
+
+    // Clé retirée : l'image gardée part au début du tour suivant.
+    go.set("config", "KEEP_TURN_IMAGES", "off");
+    svc.send(serde_json::json!({"message": "et ensuite ?", "cid": "k2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let msgs = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let stub = msgs
+        .iter()
+        .find(|m| m.img_relay)
+        .expect("relais gardé en légende");
+    assert_eq!(stub.img_tokens, 0);
+    assert_eq!(
+        stub.content,
+        Some(serde_json::json!(format!(
+            "Voici la capture demandée.{IMAGE_LOST_MARKER}"
+        )))
+    );
+    let sent = seen.lock().unwrap()[2].1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| !m["content"].to_string().contains("image_url")),
+        "image encore envoyée : {sent}"
+    );
+}
+
+/// Réponse non streamée d'un préchauffage (un seul jeton, jeté).
+fn prewarm_reply() -> String {
+    serde_json::json!({
+        "choices": [{"message": {"content": "x"}, "finish_reason": "length"}],
+        "usage": {"prompt_tokens": 60, "completion_tokens": 1},
+        "timings": {"prompt_n": 18, "cache_n": 42}
+    })
+    .to_string()
+}
+
+/// Lot 33 : PREWARM tenu par la façade. Fin de tour → la requête du prochain
+/// tour, sentinelle « . » et un seul jeton, inscrite au Go et rendue avec ce
+/// que le moteur a repris. Le tour suivant, qui la prolonge, ne l'annule pas.
+#[tokio::test]
+async fn prechauffage_par_la_facade() {
+    let gate = Arc::new(tokio::sync::Semaphore::new(1));
+    let (url, seen) = fake_engine_gated(
+        vec![answer("vu"), prewarm_reply(), answer("ok"), prewarm_reply()],
+        Some(gate.clone()),
+    )
+    .await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "PREWARM", "on");
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "p1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    let id = svc.sessions.conv().id();
+    // Le préchauffage attend le moteur : il est en vol.
+    until(|| seen.lock().unwrap().len() == 2).await;
+    assert_eq!(go.prewarm_log.lock().unwrap()[..1], ["check".to_string()]);
+    let pre = seen.lock().unwrap()[1].1.clone();
+    assert_eq!(pre["stream"], false);
+    assert_eq!(pre["max_tokens"], 1);
+    let msgs = pre["messages"].as_array().unwrap().clone();
+    assert_eq!(msgs.last().unwrap()["content"], ".");
+    assert_eq!(msgs.last().unwrap()["role"], "user");
+    let first = seen.lock().unwrap()[0].1.clone();
+    assert_eq!(msgs[..2], first["messages"].as_array().unwrap()[..2]);
+    assert_eq!(msgs[2]["content"], "vu");
+    assert_eq!(pre["tools"], first["tools"]);
+    let begin = go.prewarm_log.lock().unwrap()[1].clone();
+    assert!(
+        begin.starts_with("begin ")
+            && begin.contains(&format!("\"conv\":\"{id}\""))
+            && begin.contains("\"n\":3"),
+        "{begin}"
+    );
+    // Pas de ticket « en vol » de la façade : le Go l'a inscrit lui-même.
+    let begins = || {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("begin"))
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(begins().len(), 1);
+
+    // Le tour suivant prolonge le préfixe préchauffé : gardé.
+    svc.send(serde_json::json!({"message": "suite", "cid": "p2"}))
+        .await
+        .unwrap();
+    until(|| begins().len() == 2).await;
+    assert_eq!(begins()[1], format!("begin main_conv={id} prewarm_keep"));
+    gate.add_permits(10);
+    until_done(&svc, 2).await;
+    until(|| {
+        go.prewarm_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 2
+    })
+    .await;
+    let log = go.prewarm_log.lock().unwrap().clone();
+    let first_end = log.iter().find(|l| l.starts_with("end")).unwrap();
+    let v: serde_json::Value = serde_json::from_str(first_end.trim_start_matches("end ")).unwrap();
+    assert_eq!(v, serde_json::json!({"id": 5, "total": 60, "cached": 42}));
+    assert!(
+        svc.shared
+            .perf
+            .snapshot()
+            .iter()
+            .any(|p| p.kind == "prewarm" && p.total == 60)
+    );
+    // La vue du préchauffage est demandée sans rien à ranger (PROJ_SNAPSHOT).
+    assert!(
+        go.turn_view_bodies
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|b| b["dry"] == true)
+    );
+}
+
+/// Le Go refuse (moteur occupé) : rien ne part ; annulé par une autre
+/// requête : la connexion est coupée et la place rendue.
+#[tokio::test]
+async fn prechauffage_refuse_ou_annule() {
+    let (url, seen) = fake_engine(vec![answer("vu")]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "PREWARM", "on");
+    *go.prewarm_refuse.lock().unwrap() = Some("moteur occupé".into());
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "r1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| !go.prewarm_log.lock().unwrap().is_empty()).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(*go.prewarm_log.lock().unwrap(), ["check"]);
+    assert_eq!(seen.lock().unwrap().len(), 1);
+
+    // Annulation relayée par le Go pendant que le moteur calcule.
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let (url, seen) = fake_engine_gated(vec![prewarm_reply()], Some(gate.clone())).await;
+    go.set("config", "PORT", &port_of(&url));
+    *go.prewarm_refuse.lock().unwrap() = None;
+    go.prewarm_log.lock().unwrap().clear();
+    svc.prewarm_kick(loki_rs::chat::prewarm::AFTER_TASK).await;
+    until(|| seen.lock().unwrap().len() == 1).await;
+    assert!(svc.shared.prewarm.live());
+    assert!(svc.shared.prewarm.cancel_id(5));
+    until(|| !svc.shared.prewarm.live()).await;
+    let log = go.prewarm_log.lock().unwrap().clone();
+    assert_eq!(
+        log.last().unwrap(),
+        r#"end {"cached":null,"id":5,"total":0}"#
+    );
+    assert!(
+        svc.shared
+            .perf
+            .snapshot()
+            .iter()
+            .all(|p| p.kind != "prewarm")
+    );
+}
+
+fn proj_snap(desc: &str, delta_tok: i64) -> serde_json::Value {
+    serde_json::json!({
+        "at": 1,
+        "msgs": [{"role": "system", "content": format!("Project context — {desc}")}],
+        "state": {"desc": desc},
+        "key": "k1",
+        "sys_hash": "h1",
+        "delta_tok": delta_tok
+    })
+}
+
+/// Lot 34 : PROJ_SNAPSHOT tenu par la façade. Le Go décide (instantané pris,
+/// mise à jour, rafraîchissement) ; la façade range l'instantané avec la
+/// discussion et pose la mise à jour en tête du message, dans la requête et
+/// dans l'historique.
+#[tokio::test]
+async fn bloc_projet_fige_par_la_facade() {
+    use loki_rs::chat::persist::ProjSnapshot;
+    let (url, seen) = fake_engine(vec![answer("un"), answer("deux"), answer("trois")]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    let delta = "<context_update from=\"loki\" at=\"x\">\n+ neuf\n</context_update>\n\n";
+    go.projsnaps.lock().unwrap().extend([
+        serde_json::json!({"refresh": true, "snap": proj_snap("figé", 0), "key": "k1", "sys_hash": "h1"}),
+        serde_json::json!({"refresh": false, "delta": delta, "snap": proj_snap("neuf", 5), "key": "k1", "sys_hash": "h1"}),
+        serde_json::json!({"refresh": true, "snap": proj_snap("frais", 0), "key": "k1", "sys_hash": "h1"}),
+    ]);
+    let stored = |svc: &ChatService| -> ProjSnapshot {
+        svc.sessions
+            .conv()
+            .with_state(|st| st.proj_snap.clone())
+            .expect("instantané rangé")
+    };
+    let as_snap = |v: serde_json::Value| -> ProjSnapshot { serde_json::from_value(v).unwrap() };
+
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "s1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert_eq!(stored(&svc), as_snap(proj_snap("figé", 0)));
+    let views = go.turn_view_bodies.lock().unwrap().clone();
+    assert_eq!(views[0]["snap"], serde_json::Value::Null);
+    assert_eq!(views[0]["dry"], false);
+
+    // Un changement : mise à jour en tête du nouveau message, rangée telle
+    // quelle (le tour suivant renvoie les mêmes octets).
+    svc.send(serde_json::json!({"message": "suite", "cid": "s2"}))
+        .await
+        .unwrap();
+    until_done(&svc, 2).await;
+    let views = go.turn_view_bodies.lock().unwrap().clone();
+    assert_eq!(
+        as_snap(views[1]["snap"].clone()),
+        as_snap(proj_snap("figé", 0))
+    );
+    let sent = seen.lock().unwrap()[1].1.clone();
+    let msgs = sent["messages"].as_array().unwrap();
+    assert_eq!(msgs.last().unwrap()["content"], format!("{delta}suite"));
+    assert!(
+        msgs.last().unwrap().get("ctx_upd").is_none(),
+        "marque envoyée au moteur"
+    );
+    let hist = svc.sessions.conv().with_state(|st| st.messages.clone());
+    let upd = hist.iter().find(|m| m.ctx_upd).expect("mise à jour rangée");
+    assert_eq!(
+        upd.content,
+        Some(serde_json::json!(format!("{delta}suite")))
+    );
+    assert_eq!(stored(&svc), as_snap(proj_snap("neuf", 5)));
+
+    // Rafraîchi : instantané neuf, mise à jour retirée de l'historique.
+    svc.send(serde_json::json!({"message": "fin", "cid": "s3"}))
+        .await
+        .unwrap();
+    until_done(&svc, 3).await;
+    let sent = seen.lock().unwrap()[2].1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["content"] == "suite"),
+        "{sent}"
+    );
+    let hist = svc.sessions.conv().with_state(|st| st.messages.clone());
+    assert!(hist.iter().all(|m| !m.ctx_upd));
+    assert_eq!(stored(&svc), as_snap(proj_snap("frais", 0)));
+}
+
+/// Réduction forcée en plein tour : le bloc vivant remplace le figé, et
+/// devient l'instantané du tour suivant.
+#[tokio::test]
+async fn bloc_projet_rafraichi_en_plein_tour() {
+    use loki_rs::chat::persist::ProjSnapshot;
+    let (url, seen) = fake_engine(vec![
+        "STATUS 400\nrequest (400000 tokens) exceeds the available context size (32768 tokens)".into(),
+        serde_json::json!({"choices": [{"message": {"content": "résumé des échanges"}, "finish_reason": "stop"}]})
+            .to_string(),
+        answer("ok"),
+    ])
+    .await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    // Un historique assez long pour qu'il y ait de quoi résumer.
+    svc.sessions.conv().with_state(|st| {
+        for i in 0..8 {
+            st.messages.push(loki_rs::chat::types::Message {
+                role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
+                content: Some(serde_json::json!(format!(
+                    "échange {i} {}",
+                    "x".repeat(800)
+                ))),
+                ..Default::default()
+            });
+        }
+    });
+    go.projsnaps.lock().unwrap().push_back(serde_json::json!(
+        {"refresh": true, "snap": proj_snap("figé", 0), "key": "k1", "sys_hash": "h1"}
+    ));
+    *go.projsnap_refresh.lock().unwrap() = Some(serde_json::json!({
+        "block": [{"role": "system", "content": "Project context — vivant"}],
+        "snap": proj_snap("vivant", 0)
+    }));
+    *go.turn_view.lock().unwrap() = None;
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "m1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    let refreshes = go.projsnap_refreshes.lock().unwrap().clone();
+    assert_eq!(refreshes.len(), 1, "{refreshes:?}");
+    assert_eq!(
+        (
+            refreshes[0]["key"].clone(),
+            refreshes[0]["sys_hash"].clone()
+        ),
+        (serde_json::json!("k1"), serde_json::json!("h1"))
+    );
+    let sent = seen.lock().unwrap().last().unwrap().1.clone();
+    assert!(
+        sent["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["content"]
+                .as_str()
+                .is_some_and(|c| c.contains("Project context — vivant"))),
+        "{sent}"
+    );
+    let stored: ProjSnapshot = svc
+        .sessions
+        .conv()
+        .with_state(|st| st.proj_snap.clone())
+        .unwrap();
+    assert_eq!(
+        stored,
+        serde_json::from_value(proj_snap("vivant", 0)).unwrap()
+    );
+}
+
+/// Lot 36 : un outil MCP appelé par un tour de la façade passe par son pool,
+/// pas par le Go ; une reconnexion annonce la version du Go.
+#[cfg(unix)]
+#[tokio::test]
+async fn outil_mcp_par_le_pool_de_la_facade() {
+    use std::os::unix::fs::PermissionsExt;
+    let call = |id: &str, name: &str| {
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":id,"type":"function","function":{"name":name,"arguments":"{\"q\":1}"}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ])
+    };
+    let (url, seen) = fake_engine(vec![
+        call("m1", "mcp__sh__date"),
+        call("m2", "mcp__sh__crash"),
+        answer("il est midi"),
+    ])
+    .await;
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("faux-mcp");
+    std::fs::write(
+        &bin,
+        r#"#!/bin/sh
+while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  case "$line" in
+    *'"method":"initialize"'*)
+      printf '%s\n' "$line" >> "$TRACE"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"sh","version":"1"}}}\n' "$id" ;;
+    *'"method":"tools/list"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"date","inputSchema":{"type":"object"}},{"name":"crash","inputSchema":{"type":"object"}}]}}\n' "$id" ;;
+    *'"name":"crash"'*) exit 3 ;;
+    *'"method":"tools/call"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"content":[{"type":"text","text":"midi"}]}}\n' "$id" ;;
+  esac
+done
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let trace = dir.path().join("trace");
+    let pool = Arc::new(loki_rs::mcp::Mcp::new(dir.path().to_path_buf()));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.mcp = Some(pool.clone())).await;
+    let mut servers = loki_rs::mcp::config::Servers::new();
+    servers.insert(
+        "sh".into(),
+        loki_rs::mcp::config::ServerConfig {
+            command: bin.to_string_lossy().into_owned(),
+            env: [("TRACE".to_string(), trace.to_string_lossy().into_owned())].into(),
+            ..Default::default()
+        },
+    );
+    go.set("state", "mcp", &loki_rs::gojson::marshal(&servers));
+    // Les outils annoncés au modèle (ce que le Go demande à la façade) :
+    // le registre du pool est rempli.
+    let tools = pool.tools(&svc.shared.store, "annonce").await;
+    assert_eq!(tools.len(), 2, "{tools:?}");
+    svc.send(serde_json::json!({"message": "quelle heure ?", "cid": "m"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    // Rien par le Go.
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 3);
+    let tool_msg = |i: usize| -> String {
+        seen[i].1["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .rfind(|m| m["role"] == "tool")
+            .map(|m| m["content"].as_str().unwrap_or("").to_string())
+            .unwrap_or_default()
+    };
+    assert_eq!(tool_msg(1), "midi");
+    let crashed = tool_msg(2);
+    assert!(
+        crashed.starts_with("[erreur MCP] calling \"tools/call\""),
+        "{crashed}"
+    );
+    // Première connexion : la version donnée à l'annonce ; reconnexion
+    // après la chute : celle du Go.
+    let inits: Vec<String> = std::fs::read_to_string(&trace)
+        .unwrap()
+        .lines()
+        .map(String::from)
+        .collect();
+    assert_eq!(inits.len(), 2, "{inits:?}");
+    assert!(inits[0].contains(r#""version":"annonce""#), "{inits:?}");
+    assert!(inits[1].contains(r#""version":"0.15.0""#), "{inits:?}");
+    pool.close_all().await;
+}
+
+/// Lot 37 : un outil task_* appelé par un tour de la façade s'exécute ici
+/// quand elle tient les tâches — la tâche rangée dans le projet actif, au
+/// fuseau de l'utilisateur, sans passer par le Go.
+#[tokio::test]
+async fn outil_task_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"t1","type":"function","function":{"name":"task_create","arguments":"{\"name\":\"Rappel\",\"prompt\":\"Bois\",\"schedule\":\"@every 2h\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("c'est noté")]).await;
+    let dir = tempfile::tempdir().unwrap();
+    // 2026-03-28 12:00:00 UTC.
+    fn clock() -> i64 {
+        1_774_699_200 * 1_000_000_000
+    }
+    let tasks = Arc::new(loki_rs::tasks::Tasks::with(
+        dir.path().to_path_buf(),
+        std::time::Duration::from_secs(3600),
+        clock,
+    ));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.tasks = Some(tasks.clone())).await;
+    go.set("state", "user_tz", "Europe/Paris");
+    go.set("state", "active_project", "generale");
+    svc.send(serde_json::json!({"message": "rappelle-moi de boire", "cid": "t"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let list = loki_rs::tasks::list_tasks(&svc.shared.store).await;
+    assert_eq!(list.len(), 1, "{list:?}");
+    let t = &list[0];
+    assert_eq!(
+        (
+            t.name.as_str(),
+            t.schedule.as_str(),
+            t.tz.as_str(),
+            t.project.as_str()
+        ),
+        ("Rappel", "@every 2h", "Europe/Paris", "generale")
+    );
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(format!(
+            "[ok] tâche 'Rappel' créée (id {}), prochaine exécution 2026-03-28 15:00 (Europe/Paris)",
+            t.id
+        ))
+    );
+}
+
+/// Lot 39 : l'anneau de télémétrie tenu par la façade. D'un tour à l'autre
+/// de la même discussion, le cache perdu est mesuré ici et signalé dans les
+/// stats finales (au-delà du seuil du preset).
+#[tokio::test]
+async fn cache_perdu_mesure_par_la_facade() {
+    let reply = |total: i64, cached: i64| {
+        sse(&[
+            serde_json::json!({"choices":[{"delta":{"content":"vu"}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"stop"}],
+                "usage":{"prompt_tokens":total,"completion_tokens":2},
+                "timings":{"cache_n":cached,"prompt_n":total - cached,"prompt_ms":10.0,"prompt_per_second":100.0}}),
+        ])
+    };
+    let (url, _seen) = fake_engine(vec![reply(5000, 0), reply(6000, 200)]).await;
+    let (svc, _go, _stop, _t) = service(Some(&url)).await;
+    for (i, m) in ["un", "deux"].iter().enumerate() {
+        svc.send(serde_json::json!({"message": m, "cid": format!("p{i}")}))
+            .await
+            .unwrap();
+        until_done(&svc, i + 1).await;
+    }
+    let id = svc.sessions.conv().id();
+    let recs = svc.shared.perf.snapshot();
+    let got: Vec<_> = recs
+        .iter()
+        .map(|r| (r.conv.as_str(), r.total, r.cached, r.lost))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (id.as_str(), 5000, Some(0), None),
+            (id.as_str(), 6000, Some(200), Some(4800))
+        ]
+    );
+    let finals: Vec<_> = deltas(&svc, "stats")
+        .into_iter()
+        .filter(|s| s["kind"] == "main")
+        .collect();
+    assert_eq!(finals.len(), 2);
+    assert_eq!(finals[0].get("lost_alert"), None);
+    assert_eq!(
+        (finals[1]["lost"].clone(), finals[1]["lost_alert"].clone()),
+        (serde_json::json!(4800), serde_json::json!(true))
+    );
+}
+
+/// Lot 39 : ce que le Go confie à l'anneau de la façade, ce qu'il en relit,
+/// et /api/perf/summary servi par elle.
+#[tokio::test]
+async fn anneau_de_la_facade_pour_le_go() {
+    let t = tempfile::tempdir().unwrap();
+    let (facade, go, _stop, chat) = fakego::start_with(
+        t.path().into(),
+        fakego::Opts {
+            chat: true,
+            ..Default::default()
+        },
+    )
+    .await;
+    let chat = chat.unwrap();
+    let tok = [(loki_rs::auth::INTERNAL_HEADER, fakego::JETON)];
+    let rec = |total: i64, cached: Option<i64>, kind: &str| {
+        serde_json::json!({ "at": "0001-01-01T00:00:00Z", "seq": 0, "kind": kind, "conv": "c1",
+            "iter": 0, "complete": true, "total": total, "cached": cached })
+    };
+    let post = |body: serde_json::Value, path: &'static str| {
+        let b = body.to_string();
+        async move {
+            let (code, out) = fakego::send(facade, "POST", path, &tok, &b).await;
+            assert_eq!(code, 200, "{}", String::from_utf8_lossy(&out));
+            serde_json::from_slice::<serde_json::Value>(&out).unwrap()
+        }
+    };
+    let r = post(
+        serde_json::json!({ "rec": rec(3000, Some(0), "subagent"), "prefix": [11, 12] }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    assert_eq!(
+        (r["rec"]["seq"].clone(), r["rec"]["lost"].clone()),
+        (serde_json::json!(1), serde_json::Value::Null)
+    );
+    assert_ne!(r["rec"]["at"], "0001-01-01T00:00:00Z", "heure posée");
+    // Un client externe passe, puis la suite du sous-agent : perte, et ce qui
+    // s'est intercalé.
+    post(
+        serde_json::json!({ "rec": { "kind": "foreign" } }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    let r = post(
+        serde_json::json!({ "rec": rec(3500, Some(1000), "subagent"), "prefix": [11, 12, 13] }),
+        "/internal/facade/v1/perf/record",
+    )
+    .await;
+    assert_eq!(
+        (r["rec"]["lost"].clone(), r["rec"]["lost_after"].clone()),
+        (serde_json::json!(2000), serde_json::json!("foreign"))
+    );
+    let snap = post(serde_json::json!({}), "/internal/facade/v1/perf/snapshot").await;
+    let kinds: Vec<_> = snap["recs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["kind"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(kinds, ["subagent", "foreign", "subagent"]);
+    assert_eq!(chat.shared.perf.snapshot().len(), 3);
+    // Lot 43 : les jobs d'arrière-plan encore en vie, pour l'optimiseur du Go.
+    let jobs = post(serde_json::json!({}), "/internal/facade/v1/bgjobs").await;
+    assert_eq!(jobs["running"], chat.shared.jobs.running() as u64);
+    // Sans jeton : refusé.
+    let (code, _) = fakego::send(
+        facade,
+        "POST",
+        "/internal/facade/v1/perf/snapshot",
+        &[],
+        "{}",
+    )
+    .await;
+    assert_ne!(code, 200);
+    // Le résumé, servi par la façade.
+    let (code, out) = fakego::send(facade, "GET", "/api/perf/summary", &[], "").await;
+    assert_eq!(code, 200);
+    let s: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(s["entries"], 3);
+    assert_eq!(s["kinds"]["subagent"]["completions"], 2);
+    assert_eq!(s["kinds"]["subagent"]["lost_tokens"], 2000);
+    assert_eq!(s["kinds"]["foreign"]["incomplete"], 1);
+    assert_eq!(s["depth"].as_array().unwrap().len(), 4);
+    assert_eq!(s.get("template"), None);
+    let (code, _) = fakego::send(facade, "POST", "/api/perf/summary", &[], "").await;
+    assert_eq!(code, 405);
+    drop(go);
+}
+
+/// Lot 40 : un outil mémoire appelé par un tour de la façade s'exécute ici
+/// quand elle tient la mémoire — la page rangée dans le projet actif, l'index
+/// tenu, le diff montré, rien par le Go.
+#[tokio::test]
+async fn outil_memoire_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"m1","type":"function","function":{"name":"mem_add","arguments":"{\"file\":\"chat\",\"content\":\"# Chat\\nIl s'appelle Pixel.\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("noté")]).await;
+    let dir = tempfile::tempdir().unwrap();
+    let mem = Arc::new(loki_rs::memory::Memory::new(dir.path().to_path_buf()));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.memory = Some(mem.clone())).await;
+    *go.crypt_mode.lock().unwrap() = fakego::CryptMode::Plain;
+    svc.send(serde_json::json!({"message": "retiens le nom du chat", "cid": "m"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let page = dir.path().join("memory/generale/chat.md");
+    assert_eq!(
+        std::fs::read_to_string(&page).unwrap(),
+        "# Chat\nIl s'appelle Pixel.\n"
+    );
+    let index = std::fs::read_to_string(dir.path().join("memory/generale/MEMORY.md")).unwrap();
+    assert!(index.ends_with("- [Chat](chat.md)\n"), "{index}");
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(tool, serde_json::json!("[ok] page 'chat' créée"));
+}
+
+/// Lot 42 : un outil web d'un tour de la façade s'exécute chez elle (cache
+/// des pages compris) ; seule la conversion du moteur intégré est demandée
+/// au Go, jamais /tool/exec.
+#[tokio::test]
+async fn outil_web_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"w1","type":"function","function":{"name":"web_open","arguments":"{\"url\":\"https://exemple.test/doc\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("lu")]).await;
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    go.set("config", "WEB_ENGINE", "go");
+    go.web_fetch.lock().unwrap().insert(
+        "https://exemple.test/doc".into(),
+        serde_json::json!({"markdown": "# Doc\n\n## Partie\ntexte"}),
+    );
+    svc.send(serde_json::json!({"message": "lis la doc", "cid": "w"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    assert_eq!(
+        *go.web_log.lock().unwrap(),
+        vec!["fetch https://exemple.test/doc".to_string()]
+    );
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(
+            "# Ouvert : https://exemple.test/doc\nTotal : 4 lignes, 23 B (23 caractères)\nEn cache 10 min. Utilise web_read ou web_grep pour lire.\n\n## Plan (n° de ligne des titres)\n```\n    1 | Doc\n    3 |   Partie\n```"
+        )
+    );
+}
+
+/// Lot 43 : `bash_bg` d'un tour de la façade lance le job chez elle, dans le
+/// dossier de la discussion ; le Go n'exécute rien et l'API interne compte
+/// le job pour son optimiseur.
+#[cfg(unix)]
+#[tokio::test]
+async fn job_arriere_plan_par_la_facade() {
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"b1","type":"function","function":{"name":"bash_bg","arguments":"{\"command\":\"sleep 30\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("lancé")]).await;
+    let ws = tempfile::tempdir().unwrap();
+    let jobs = Arc::new(loki_rs::tools::jobs::BgJobs::default());
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.jobs = jobs.clone()).await;
+    *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+        "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+    }));
+    svc.send(serde_json::json!({"message": "lance le serveur", "cid": "j"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    assert!(ws.path().join(".loki/jobs/job1.log").is_file());
+    assert_eq!(jobs.running(), 1);
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(tool.starts_with("[ok] job job1 lancé (pid "), "{tool}");
+    // Une autre discussion n'y touche pas ; la sienne l'arrête.
+    jobs.stop_conv("autre");
+    assert_eq!(jobs.running(), 1);
+    jobs.stop_conv(&svc.sessions.conv().id());
+    for _ in 0..500 {
+        if jobs.running() == 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(jobs.running(), 0);
+}
+
+/// Lot 47 : l'outil `subagent` exécuté par la façade, rejoué sur le journal
+/// du Go (`internal/loki/parity_subagent_test.go` →
+/// `tests/parity_subagent/subagent.json`) : refus avant tout appel au moteur,
+/// puis un tour de la façade qui délègue — le rôle reçoit la vue du Go et sa
+/// tâche cadrée, le moteur ses réponses scriptées, et le builder le même
+/// rapport que le Go lui aurait rendu.
+#[tokio::test]
+async fn subagent_comme_le_go() {
+    let fx: serde_json::Value =
+        serde_json::from_str(include_str!("parity_subagent/subagent.json")).expect("journal");
+    let views = fx["views"].as_object().unwrap();
+    let sub_sse = |r: &serde_json::Value| -> String {
+        if let Some(code) = r["status"].as_u64() {
+            return format!("STATUS {code}\n{}", r["content"].as_str().unwrap_or(""));
+        }
+        let content = r["content"].as_str().unwrap_or("");
+        if let Some(tool) = r["tool"].as_str() {
+            let call = serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"s1","type":"function","function":{"name":tool,"arguments":r["args"].as_str().unwrap_or("")}}]}}]});
+            let mut chunks = Vec::new();
+            if !content.is_empty() {
+                chunks.push(serde_json::json!({"choices":[{"delta":{"content":content}}]}));
+            }
+            chunks.push(call);
+            chunks.push(serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}));
+            return sse(&chunks);
+        }
+        answer(content)
+    };
+    for st in fx["steps"].as_array().unwrap() {
+        let name = st["name"].as_str().unwrap();
+        let args: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_value(st["args"].clone()).unwrap();
+        let want = st["result"].as_str().unwrap();
+        let reqs = st["requests"].as_array().unwrap();
+        if reqs.is_empty() {
+            let got =
+                loki_rs::chat::subagent::precheck(&args, st["parent_role"].as_str().unwrap_or(""));
+            assert_eq!(got.err().as_deref(), Some(want), "{name}");
+            continue;
+        }
+        let call = sse(&[
+            serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"d1","type":"function","function":{"name":"subagent","arguments":serde_json::Value::Object(args.clone()).to_string()}}]}}]}),
+            serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ]);
+        let mut replies = vec![call];
+        let scripted = st["replies"].as_array().cloned().unwrap_or_default();
+        for i in 0..reqs.len() {
+            replies.push(scripted.get(i).map(sub_sse).unwrap_or_else(|| answer("")));
+        }
+        replies.push(answer("fini"));
+        let (url, seen) = fake_engine(replies).await;
+        let ws = tempfile::tempdir().unwrap();
+        std::fs::write(ws.path().join("cache.go"), "package x\n// cache LRU\n").unwrap();
+        let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+        *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+            "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+        }));
+        for (role, v) in views {
+            go.subagent_views
+                .lock()
+                .unwrap()
+                .insert(role.clone(), v.clone());
+        }
+        svc.send(serde_json::json!({"message": "délègue", "cid": "s"}))
+            .await
+            .unwrap();
+        until_done(&svc, 1).await;
+        let seen = seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), reqs.len() + 2, "{name} : requêtes au moteur");
+        let role = args["role"].as_str().unwrap().trim();
+        for (i, want_req) in reqs.iter().enumerate() {
+            let b = &seen[1 + i].1;
+            let msgs = b["messages"].as_array().unwrap();
+            let tools: Vec<&str> = b["tools"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|t| t["function"]["name"].as_str())
+                .collect();
+            let got = serde_json::json!({
+                "system_is_view": msgs[0]["content"] == views[role]["system"],
+                "user": msgs[1]["content"],
+                "temperature": b["temperature"],
+                "tools": tools,
+                "messages": msgs.len(),
+            });
+            assert_eq!(&got, want_req, "{name} : requête {i} du rôle");
+        }
+        let last = seen.last().unwrap().1["messages"]
+            .as_array()
+            .unwrap()
+            .clone();
+        let tool = last.iter().rfind(|m| m["role"] == "tool").unwrap();
+        assert_eq!(tool["content"], want, "{name} : rapport rendu au builder");
+        // Travail annexe : ouvert et fermé autour du tour du rôle.
+        let side = go.side_jobs.lock().unwrap().clone();
+        assert_eq!(side.len(), 2, "{name} : {side:?}");
+    }
+}
+
+/// Lot 46 : `recall` et `recall_search` sont exécutés par la façade sur
+/// l'archive du Go (rien par /tool/exec).
+#[tokio::test]
+async fn recall_par_la_facade() {
+    let calls = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[
+            {"index":0,"id":"c1","type":"function","function":{"name":"recall","arguments":"{\"id\":\"R2 \"}"}},
+            {"index":1,"id":"c2","type":"function","function":{"name":"recall_search","arguments":"{\"query\":\"Gratin\"}"}}
+        ]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![calls, answer("rappelé")]).await;
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    *go.recall_blocks.lock().unwrap() = vec![
+        serde_json::json!({"id":"r1","seq":1,"label":"web_read: gratin","role":"tool","content":"recette du gratin"}),
+        serde_json::json!({"id":"r2","seq":2,"label":"bash: ls","role":"tool","content":"a.go\nb.go"}),
+    ];
+    svc.send(serde_json::json!({"message": "rappelle", "cid": "r"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tools: Vec<String> = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .map(|m| m["content"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        tools,
+        [
+            "[r2 — bash: ls, rappelé verbatim]\na.go\nb.go",
+            "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r1 — web_read: gratin\n  recette du gratin",
+        ]
+    );
+}
+
+/// Lot 45 : `see_image` et `web_screenshot` sont exécutés par la façade
+/// (rien par le Go) : sans projecteur, l'image n'est pas lue ; une capture
+/// sans url est refusée avant Playwright.
+#[tokio::test]
+async fn outils_image_par_la_facade() {
+    let calls = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[
+            {"index":0,"id":"v1","type":"function","function":{"name":"see_image","arguments":"{\"path\":\"photo.png\"}"}},
+            {"index":1,"id":"v2","type":"function","function":{"name":"web_screenshot","arguments":"{}"}}
+        ]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![calls, answer("vu")]).await;
+    let ws = tempfile::tempdir().unwrap();
+    std::fs::write(ws.path().join("photo.png"), b"x").unwrap();
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+        "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+    }));
+    svc.send(serde_json::json!({"message": "regarde", "cid": "v"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tools: Vec<String> = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .map(|m| m["content"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(tools.len(), 2, "{tools:?}");
+    assert!(tools[0].contains("la vision n'est pas active"), "{tools:?}");
+    assert!(
+        tools[1] == "[erreur] url manquante" || tools[1].contains("Playwright n'est pas installé"),
+        "{tools:?}"
+    );
+}
+
+/// Lot 44 : le navigateur piloté est celui de la façade. Un tour qui ouvre
+/// une page l'exécute chez elle (rien par le Go), l'aperçu est servi par
+/// /api/chat/cushot, et le Go passe par /internal/facade/v1/browser.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn navigateur_par_la_facade() {
+    use common::fakecdp;
+    let t = tempfile::tempdir().unwrap();
+    let scene: fakecdp::Scene = Arc::new(std::sync::Mutex::new(serde_json::json!({
+        "snap": { "title": "Exemple", "url": "https://exemple.test/", "refs": ["[1] link \"Accueil\""] },
+        "href": "https://exemple.test/",
+    })));
+    let calls: fakecdp::Calls = Default::default();
+    let port = fakecdp::start(scene, calls.clone()).await;
+    let chrome = fakecdp::chrome_script(t.path(), port, &t.path().join("args"));
+    std::fs::create_dir_all(t.path().join("profils")).unwrap();
+
+    // Le tour.
+    let call = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"n1","type":"function","function":{"name":"browser_open","arguments":"{\"url\":\"exemple.test\"}"}}]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![call, answer("ouvert")]).await;
+    let browser = Arc::new(loki_rs::browser::Browser::with(
+        &chrome.to_string_lossy(),
+        t.path().join("profils"),
+    ));
+    let (svc, go, _stop, _t) = service_with(Some(&url), |s| s.browser = browser.clone()).await;
+    svc.send(serde_json::json!({"message": "ouvre exemple", "cid": "n"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tool = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|m| m["role"] == "tool")
+        .unwrap()["content"]
+        .clone();
+    assert_eq!(
+        tool,
+        serde_json::json!(
+            "# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\""
+        )
+    );
+    assert!(browser.last_shot().is_some(), "aperçu après l'ouverture");
+    assert!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|c| c == "Page.navigate {\"url\":\"https://exemple.test\"}")
+    );
+    browser.shutdown().await;
+
+    // L'API du Go et l'aperçu servi, par une façade complète.
+    let t2 = tempfile::tempdir().unwrap();
+    let (facade, _go, _stop2, chat) = fakego::start_with(
+        t2.path().into(),
+        fakego::Opts {
+            chat: true,
+            ..Default::default()
+        },
+    )
+    .await;
+    let chat = chat.unwrap();
+    chat.shared
+        .browser
+        .impose(&chrome.to_string_lossy(), t.path().join("profils"));
+    let tok = [(loki_rs::auth::INTERNAL_HEADER, fakego::JETON)];
+    let post = |body: serde_json::Value| {
+        let b = body.to_string();
+        async move {
+            let (code, out) =
+                fakego::send(facade, "POST", "/internal/facade/v1/browser", &tok, &b).await;
+            (
+                code,
+                serde_json::from_slice::<serde_json::Value>(&out).unwrap_or_default(),
+            )
+        }
+    };
+    let (code, out) =
+        post(serde_json::json!({ "op": "tool", "name": "browser_snapshot", "args": {} })).await;
+    assert_eq!(code, 200, "{out}");
+    assert!(
+        out["result"].as_str().unwrap().starts_with("# Exemple\n"),
+        "{out}"
+    );
+    assert_eq!(out["image"], serde_json::Value::Null);
+    let (_, out) = post(serde_json::json!({ "op": "shot" })).await;
+    let id = out["id"].as_str().unwrap().to_string();
+    assert!(!id.is_empty());
+    let (code, out) =
+        fakego::send(facade, "GET", &format!("/api/chat/cushot?id={id}"), &[], "").await;
+    assert_eq!(code, 200);
+    let v: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(
+        (v["ok"].clone(), v["mime"].clone()),
+        (serde_json::json!(true), serde_json::json!("image/jpeg"))
+    );
+    let (code, out) = fakego::send(facade, "GET", "/api/chat/cushot?id=perdu", &[], "").await;
+    assert_eq!(code, 404);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&out).unwrap(),
+        serde_json::json!({ "ok": false, "error": "capture expirée" })
+    );
+    let (code, _) = post(serde_json::json!({ "op": "outil", "name": "x" })).await;
+    assert_eq!(code, 400);
+    let (code, _) = post(serde_json::json!({ "op": "tool", "name": "browser_voler" })).await;
+    assert_eq!(code, 400);
+    let (code, _) = post(serde_json::json!({ "op": "shutdown" })).await;
+    assert_eq!(code, 200);
+    assert!(!chat.shared.browser.running().await);
 }

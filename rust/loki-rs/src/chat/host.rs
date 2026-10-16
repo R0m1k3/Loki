@@ -3,7 +3,11 @@
 //! - envoi au moteur par [`EngineHttp`] (clé de CET endpoint), pannes
 //!   classées et formulées comme `friendlyLLMError` ;
 //! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
-//!   tenu par le Go) ; les autres par le Go (`/internal/v1/tool/exec`), avec
+//!   tenu par le Go), outils MCP par le pool de la façade quand elle le tient
+//!   (lot 36), outils task_* quand elle tient les tâches (lot 37), critères
+//!   du mode Code (lot 38), outils mémoire quand elle tient la mémoire
+//!   (lot 40) ; les autres
+//!   par le Go (`/internal/v1/tool/exec`), avec
 //!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
 //!   image relayée) ;
 //! - résultats complets (« voir plus ») confiés à l'écrivain des discussions ;
@@ -11,7 +15,11 @@
 //!   ([`EngineSummarizer`]), blocs archivés pour recall par le Go
 //!   ([`StoreRecall`]) ;
 //! - images jointes (`loki-img:…`) lues sur disque et ouvertes par le Go
-//!   (déchiffrées), gardées en cache comme `chatImageDataURL`.
+//!   (déchiffrées), gardées en cache comme `chatImageDataURL` ;
+//! - slots du moteur (lot 31) : avant chaque requête au moteur local, le Go
+//!   rend le slot où l'envoyer (SIDE_SLOT) et recharge au besoin l'état
+//!   gardé de la discussion (SLOT_PERSIST) ; la requête est comptée en vol,
+//!   sur ce slot, jusqu'à la fin de sa lecture.
 //!
 //! Écarts assumés : le résumé en continuation (COMPACT_CONTINUATION) demande
 //! l'état du slot du moteur, tenu par le Go — `slot_holds` rend faux et la
@@ -19,8 +27,10 @@
 //! d'écriture du mode Code (état du Go) : `cache_hint` et `preflight` absents.
 
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde_json::{Map, Value, json};
@@ -31,7 +41,7 @@ use super::compact::{
     parse_summary_response,
 };
 use super::engine::{EngineHttp, classify, friendly_error};
-use super::persist::{Persister, StoreSink, ToolResJob};
+use super::persist::{Persister, ProjSnapshot, StoreSink, ToolResJob};
 use super::stream::{CacheHintFn, PreflightFn, RetryPatterns};
 use super::turn::{CompactPhase, PerfMarks, PerfRec, Reply, SendError, ToolOutcome, TurnHost};
 use super::types::{AskEvent, DiffLine, Message, Tool};
@@ -39,7 +49,7 @@ use super::wire::{
     ChatEndpoint, ChatPayloadOpts, EchoRefusals, EffortFallbacks, IMG_REF_SCHEME,
     build_chat_payload, content_parts, part_image_url, wire_messages,
 };
-use crate::store::Store;
+use crate::store::{BK_STATE, Store};
 
 /// Taille au-delà de laquelle le cache d'images oublie les plus anciennes
 /// (`imgCacheMax`).
@@ -106,6 +116,11 @@ pub struct ImageCache {
 }
 
 impl ImageCache {
+    /// `LOKI_HOME` (le parent du dossier des images).
+    pub fn home(&self) -> PathBuf {
+        self.dir.parent().map(Path::to_path_buf).unwrap_or_default()
+    }
+
     /// `dir` : `LOKI_HOME/chatimg`.
     pub fn new(dir: PathBuf) -> Self {
         ImageCache {
@@ -170,10 +185,29 @@ pub struct EngineSummarizer {
     pub cfg: HashMap<String, String>,
     pub patterns: Arc<RetryPatterns>,
     pub port: u16,
+    /// Le Go et la discussion des résumés (requêtes en vol, slot du
+    /// moteur), et l'anneau de télémétrie (kind=compact). `None` sans base
+    /// (tests).
+    pub go: Option<(Store, String, Arc<crate::perfring::PerfRing>)>,
 }
 
 impl EngineSummarizer {
-    async fn post(&self, payload: Value) -> Result<SummaryChoice, SummaryError> {
+    /// `postSummary`. `main` : le résumé prolonge le prompt du slot de la
+    /// discussion (continuation) ; sinon c'est un prompt neuf, sur le second
+    /// slot quand il est en service (SIDE_SLOT).
+    async fn post(&self, mut payload: Value, main: bool) -> Result<SummaryChoice, SummaryError> {
+        let mut _gate = None;
+        if !self.ep.external
+            && let Some((store, _, _)) = &self.go
+        {
+            let slot = engine_slot_for(store, "", main).await;
+            if let Some(n) = slot
+                && let Some(o) = payload.as_object_mut()
+            {
+                o.insert("id_slot".into(), Value::from(n));
+            }
+            _gate = engine_begin(store, "", slot == Some(1), false).await;
+        }
         let body = serde_json::to_vec(&payload).unwrap_or_default();
         let resp = self
             .http
@@ -200,7 +234,25 @@ impl EngineSummarizer {
                 body: String::from_utf8_lossy(b).trim().to_string(),
             });
         }
-        parse_summary_response(&raw)
+        let out = parse_summary_response(&raw);
+        // Télémétrie de la compaction : réponse non streamée, timings et usage
+        // à la racine, lus sans échec possible — dès que la réponse se lit.
+        let decoded = match &out {
+            Ok(_) => true,
+            Err(SummaryError::Other(e)) => e == super::compact::ERR_EMPTY_SUMMARY,
+            Err(_) => false,
+        };
+        if decoded && let Some((store, conv, ring)) = &self.go {
+            let (complete, stats) = super::perf::wire_stats(&raw);
+            let rec = PerfRec {
+                complete,
+                external: self.ep.external,
+                stats,
+                ..Default::default()
+            };
+            super::perf::record(store, ring, super::perf::KIND_COMPACT, conv, &rec).await;
+        }
+        out
     }
 }
 
@@ -226,7 +278,7 @@ impl Summarizer for EngineSummarizer {
         {
             o.remove("chat_template_kwargs");
         }
-        self.post(p).await
+        self.post(p, false).await
     }
 
     async fn summarize_continuation(
@@ -253,7 +305,7 @@ impl Summarizer for EngineSummarizer {
             o.remove("stream_options");
             o.insert("max_tokens".into(), json!(req.max_tokens));
         }
-        self.post(p).await
+        self.post(p, true).await
     }
 
     fn slot_holds(&self, _conv: &str) -> bool {
@@ -284,6 +336,53 @@ pub struct ChatShared {
     pub compact_memory: CompactMemory,
     pub images: ImageCache,
     pub patterns: Arc<RetryPatterns>,
+    /// Sonde de gabarit (`chat_tplprobe.go`) : derniers verdicts et cache.
+    pub tpl: Arc<super::tplprobe::TplProbe>,
+    /// Préchauffage (PREWARM) : celui en vol, capacités des discussions.
+    pub prewarm: super::prewarm::Prewarm,
+    /// L'anneau de télémétrie des complétions (lot 39) : celles de la
+    /// façade, et celles que le Go lui confie.
+    pub perf: Arc<crate::perfring::PerfRing>,
+    /// Le pool MCP, quand la façade le tient (LOKI_MCP=rust) : les appels
+    /// `mcp__*` du tour y vont directement (lot 36).
+    pub mcp: Option<Arc<crate::mcp::Mcp>>,
+    /// Les tâches, quand la façade les tient (LOKI_TASKS=rust) : les outils
+    /// `task_*` du tour s'exécutent ici (lot 37).
+    pub tasks: Option<Arc<crate::tasks::Tasks>>,
+    /// La mémoire, quand la façade la tient (LOKI_MEM=rust) : les outils
+    /// `mem_*` et `tracker` du tour s'exécutent ici (lot 40).
+    pub memory: Option<Arc<crate::memory::Memory>>,
+    /// Les outils web (lot 42) : cache des pages, Crawl4AI, DuckDuckGo.
+    pub web: Arc<crate::webtools::Web>,
+    /// Les jobs d'arrière-plan du mode Code (lot 43).
+    pub jobs: Arc<crate::tools::jobs::BgJobs>,
+    /// Le navigateur piloté (lot 44).
+    pub browser: Arc<crate::browser::Browser>,
+    /// La sonde « le moteur voit-il les images » (lot 45).
+    pub vision: Arc<crate::imagetools::VisionProbe>,
+    /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
+    /// une fois.
+    pub go_version: tokio::sync::OnceCell<String>,
+}
+
+impl ChatShared {
+    /// [`Self::go_version`] : `/internal/v1/auth`, retenue une fois lue.
+    pub async fn go_version(&self) -> String {
+        if let Some(v) = self.go_version.get() {
+            return v.clone();
+        }
+        let v = self
+            .store
+            .internal_json(hyper::Method::GET, "/internal/v1/auth", None)
+            .await
+            .ok()
+            .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
+            .unwrap_or_default();
+        if !v.is_empty() {
+            let _ = self.go_version.set(v.clone());
+        }
+        v
+    }
 }
 
 /// Ce que la compaction sait du tour.
@@ -314,14 +413,123 @@ pub struct GoTurnHost {
     pub compact: TurnCompact,
     /// Messages mis en file par l'utilisateur pendant le tour.
     pub queued: Box<dyn Fn() -> Vec<Message> + Send + Sync>,
+    /// Un événement pour l'écran, hors du flux du tour (la liste des
+    /// critères après l'outil `criteria`).
+    pub deltas: Arc<dyn Fn(super::journal::Delta) + Send + Sync>,
     /// Nature des complétions pour la télémétrie : `main` (tour de la
     /// discussion), `verify` (passe de vérification du mode Code).
     pub perf_kind: &'static str,
+    /// La requête qui part va sur le second slot (posé par `engine_slot`,
+    /// lu par `send` pour le ticket « en vol »).
+    pub side_slot: AtomicBool,
+    /// PROJ_SNAPSHOT : la clé et le système du tour (`None` sans la clé), et
+    /// l'instantané posé par un rafraîchissement en cours de tour.
+    pub projsnap: Option<SnapTurn>,
+    pub snap_refreshed: Mutex<Option<ProjSnapshot>>,
+    /// Ce que le tour prête à l'outil `subagent` (lot 47) ; `None` : l'outil
+    /// passe par le Go.
+    pub sub: Option<super::subagent::SubTurn>,
+}
+
+/// PROJ_SNAPSHOT (lot 34) : ce qu'un tour avec la clé garde pour rafraîchir
+/// le bloc projet quand une compaction réécrit l'historique en plein tour
+/// (`projSnapTurn`).
+#[derive(Debug, Clone)]
+pub struct SnapTurn {
+    pub caps: Value,
+    pub key: String,
+    pub sys_hash: String,
+}
+
+impl GoTurnHost {
+    /// L'instantané posé en cours de tour (`takeRefreshed`), s'il y en a un.
+    pub fn take_refreshed_snap(&self) -> Option<ProjSnapshot> {
+        self.snap_refreshed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
+}
+
+/// Délai d'une demande de slot : le rechargement SLOT_PERSIST relit jusqu'à
+/// 8 Gio (`slotPersistRestoreTimeout`, deux minutes).
+const SLOT_ASK_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// `engineSlotFor` demandé au Go (`/internal/v1/turn/slot`). `main` : fil de
+/// la discussion ; `conv` (étape d'un tour seulement) : le Go recharge
+/// d'abord l'état SLOT_PERSIST de cette discussion. Go injoignable : aucun
+/// `id_slot`, la requête d'avant la clé.
+pub async fn engine_slot_for(store: &Store, conv: &str, main: bool) -> Option<u8> {
+    match store
+        .internal_post_within(
+            "/internal/v1/turn/slot",
+            &json!({ "conv": conv, "main": main }),
+            SLOT_ASK_TIMEOUT,
+        )
+        .await
+    {
+        Ok((code, v)) if code.is_success() => v["slot"].as_i64().and_then(|n| u8::try_from(n).ok()),
+        Ok((code, v)) => {
+            eprintln!("[loki-rs] moteur : slot non demandé ({code} {v})");
+            None
+        }
+        Err(e) => {
+            eprintln!("[loki-rs] moteur : slot non demandé ({e})");
+            None
+        }
+    }
+}
+
+/// Ouvre un ticket « en vol » auprès du Go (`engineRequestBeginSide`) : le
+/// slot de la discussion n'est pas effacé pendant la requête, et un
+/// préchauffage est annulé — sauf `keep_prewarm`, une étape de tour qui le
+/// prolonge. `main_conv` : étape d'un tour de cette discussion ; `side` :
+/// requête sur le second slot. `None` si le Go ne répond pas — la requête
+/// part quand même.
+pub async fn engine_begin(
+    store: &Store,
+    main_conv: &str,
+    side: bool,
+    keep_prewarm: bool,
+) -> Option<GateTicket> {
+    match store
+        .internal_json(
+            hyper::Method::POST,
+            "/internal/v1/oai/begin",
+            Some(&json!({ "main_conv": main_conv, "side": side, "prewarm_keep": keep_prewarm })),
+        )
+        .await
+    {
+        Ok(v) => v["ticket"].as_u64().map(|ticket| GateTicket {
+            store: store.clone(),
+            ticket,
+        }),
+        Err(e) => {
+            eprintln!("[loki-rs] moteur : requête non comptée en vol ({e})");
+            None
+        }
+    }
+}
+
+/// KEEP_TURN_IMAGES (lot 32) : la vision est-elle réellement active
+/// (projecteur déclaré et vu par le moteur) et le budget des images gardées.
+/// Go injoignable : `None` (images éphémères).
+pub async fn keep_images_state(store: &Store) -> Option<(bool, i64)> {
+    match store
+        .internal_post("/internal/v1/turn/keepimg", &json!({}))
+        .await
+    {
+        Ok((code, v)) if code.is_success() => Some((
+            v["vision"].as_bool().unwrap_or(false),
+            v["budget"].as_i64().unwrap_or(0),
+        )),
+        _ => None,
+    }
 }
 
 /// Rend le ticket « en vol » au Go quand la réponse du moteur est lue ou
 /// abandonnée (`engineRequestBeginSide` … `end`).
-struct GateTicket {
+pub struct GateTicket {
     store: Store,
     ticket: u64,
 }
@@ -344,34 +552,14 @@ impl Drop for GateTicket {
 }
 
 impl GoTurnHost {
-    /// Ouvre un ticket « en vol » auprès du Go : le slot de la discussion
-    /// n'est pas effacé pendant la requête, et un préchauffage est annulé.
-    /// `None` si le Go ne répond pas — la requête part quand même.
-    async fn gate_begin(&self) -> Option<GateTicket> {
-        let main_conv = if self.perf_kind == "main" {
+    async fn gate_begin(&self, keep_prewarm: bool) -> Option<GateTicket> {
+        let main_conv = if self.perf_kind == super::perf::KIND_MAIN {
             self.conv_id.as_str()
         } else {
             ""
         };
-        match self
-            .shared
-            .store
-            .internal_json(
-                hyper::Method::POST,
-                "/internal/v1/oai/begin",
-                Some(&json!({ "main_conv": main_conv })),
-            )
-            .await
-        {
-            Ok(v) => v["ticket"].as_u64().map(|ticket| GateTicket {
-                store: self.shared.store.clone(),
-                ticket,
-            }),
-            Err(e) => {
-                eprintln!("[loki-rs] moteur : requête non comptée en vol ({e})");
-                None
-            }
-        }
+        let side = self.side_slot.load(Ordering::SeqCst);
+        engine_begin(&self.shared.store, main_conv, side, keep_prewarm).await
     }
 }
 
@@ -429,14 +617,271 @@ pub fn see_image_message(label: &str, img: Value) -> Message {
     }
 }
 
+impl GoTurnHost {
+    /// Les outils exécutés par la façade, sauf `subagent` ; le reste par le
+    /// Go (`/tool/exec`). Aussi celui des tours d'un sous-agent.
+    pub(crate) async fn exec_tool_base(
+        &self,
+        name: &str,
+        args: &Map<String, Value>,
+        label: &str,
+    ) -> ToolOutcome {
+        // Outils MCP, quand la façade tient le pool : ce que ferait le Go
+        // (`mcpCall` → /internal/facade/v1/mcp/call), sans ses deux
+        // allers-retours. Le Go n'en tire rien d'autre que le texte.
+        // Critères d'acceptation du mode Code (lot 38) : ceux de la
+        // discussion du tour ; seule la vérification marque `passed`.
+        if name == "criteria" {
+            let verifier = self.caps.get("Role").and_then(Value::as_str) == Some("verifier");
+            let out =
+                super::crittool::exec(&self.shared.store, &self.compact.main_conv, args, verifier)
+                    .await;
+            if let Some(list) = &out.notify {
+                (self.deltas)(super::crittool::notify_delta(
+                    list,
+                    super::crittool::now_ms(),
+                ));
+            }
+            return ToolOutcome {
+                result: out.result,
+                ..Default::default()
+            };
+        }
+        // Outils mémoire, quand la façade tient la mémoire (lot 40).
+        if crate::memory::tools::is_tool(name)
+            && let Some(mem) = &self.shared.memory
+        {
+            let env = crate::memory::tools::MemEnv {
+                store: &self.shared.store,
+                mem,
+                now_ms: crate::memory::now_ms(),
+            };
+            if let Some(o) = crate::memory::tools::exec(&env, name, args, label).await {
+                return ToolOutcome {
+                    result: o.result,
+                    diff: o.diff,
+                    added: o.added,
+                    removed: o.removed,
+                    ..Default::default()
+                };
+            }
+        }
+        // Outils web (lot 42) : le cache des pages est ici.
+        if let Some(result) = self.shared.web.exec(&self.shared.store, name, args).await {
+            return ToolOutcome {
+                result,
+                ..Default::default()
+            };
+        }
+        // Mémoire longue de la conversation (lot 46) : l'archive est au Go,
+        // l'id, le score et la mise en forme ici ; Go injoignable : par lui.
+        if crate::recall::is_tool(name)
+            && let Some(result) = crate::recall::exec(&self.shared.store, name, args).await
+        {
+            return ToolOutcome {
+                result,
+                ..Default::default()
+            };
+        }
+        // Outils d'image (lot 45) : see_image dans le dossier de la
+        // discussion, web_screenshot par Playwright ; l'image relayée au
+        // modèle s'il la voit.
+        if name == "see_image" || name == "web_screenshot" {
+            let cfg = self.shared.store.config().await;
+            let vision = crate::system::vision_enabled(&cfg);
+            if name == "see_image" {
+                let st = crate::tools::GoToolState {
+                    store: self.shared.store.clone(),
+                    caps: self.caps.clone(),
+                };
+                match crate::tools::ToolState::context(&st).await {
+                    Ok(ctx) => {
+                        let sees = self.shared.vision.sees(&self.shared.store, &cfg);
+                        let (result, img) = crate::imagetools::see_image(
+                            label,
+                            &ctx.cwd,
+                            &ctx.target,
+                            vision,
+                            sees,
+                        )
+                        .await;
+                        return ToolOutcome {
+                            result,
+                            relay: img.map(|i| see_image_message(label, i)),
+                            ..Default::default()
+                        };
+                    }
+                    Err(e) => {
+                        eprintln!("[outils] contexte indisponible, see_image par le Go : {e}")
+                    }
+                }
+            } else {
+                let home = self.shared.images.home();
+                let ws = tokio::task::spawn_blocking(move || {
+                    let env = std::env::var(crate::paths::WORKSPACE_ENV).ok();
+                    crate::paths::agent_workspace(&home, env.as_deref())
+                })
+                .await
+                .unwrap_or_default();
+                let conv_dir = crate::convfiles::conv_dir(&ws, &self.compact.main_conv);
+                let internet = self.caps.get("Internet").and_then(Value::as_bool) == Some(true);
+                let pw = crate::paths::look_path("playwright").unwrap_or_default();
+                let shot = crate::imagetools::web_screenshot(
+                    args,
+                    &pw,
+                    Path::new(&conv_dir),
+                    internet,
+                    &crate::imagetools::local_stamp(),
+                )
+                .await;
+                let relay = if !shot.rel.is_empty()
+                    && vision
+                    && self.shared.vision.sees(&self.shared.store, &cfg).await
+                {
+                    crate::imagetools::screenshot_message(&shot.abs)
+                        .and_then(|m| serde_json::from_value::<Message>(m).ok())
+                } else {
+                    None
+                };
+                return ToolOutcome {
+                    result: shot.result,
+                    image: shot.rel,
+                    relay,
+                    ..Default::default()
+                };
+            }
+        }
+        // Navigateur piloté (lot 44) : la session est ici ; aperçu de la page
+        // après une action qui la change (jamais après une erreur), capture
+        // relayée au modèle.
+        if crate::browser::is_tool(name) {
+            let cfg = self.shared.store.config().await;
+            let vision = crate::system::vision_enabled(&cfg);
+            let home = self.shared.images.home();
+            let ws = tokio::task::spawn_blocking(move || {
+                let env = std::env::var(crate::paths::WORKSPACE_ENV).ok();
+                crate::paths::agent_workspace(&home, env.as_deref())
+            })
+            .await
+            .unwrap_or_default();
+            if let Some(o) = self.shared.browser.exec(name, args, vision, &ws).await {
+                let live_shot =
+                    if !o.result.starts_with("[erreur]") && crate::browser::auto_shot_tool(name) {
+                        self.shared.browser.auto_shot().await
+                    } else {
+                        String::new()
+                    };
+                return ToolOutcome {
+                    relay: o.image.map(|img| see_image_message(label, img)),
+                    result: o.result,
+                    live_shot,
+                    ..Default::default()
+                };
+            }
+        }
+        // Jobs d'arrière-plan du mode Code (lot 43), dans le dossier de la
+        // discussion ; contexte indisponible : le Go s'en charge.
+        if name == "bash_tail" {
+            return ToolOutcome {
+                result: self.shared.jobs.bash_tail(args).await,
+                ..Default::default()
+            };
+        }
+        if name == "bash_bg" {
+            let st = crate::tools::GoToolState {
+                store: self.shared.store.clone(),
+                caps: self.caps.clone(),
+            };
+            match crate::tools::ToolState::context(&st).await {
+                Ok(ctx) => {
+                    let busy = crate::backends::tune_busy(&self.shared.store).await;
+                    let result = self
+                        .shared
+                        .jobs
+                        .bash_bg(&ctx.cwd, &self.compact.main_conv, args, busy)
+                        .await;
+                    return ToolOutcome {
+                        result,
+                        ..Default::default()
+                    };
+                }
+                Err(e) => eprintln!("[outils] contexte indisponible, bash_bg par le Go : {e}"),
+            }
+        }
+        // Outils task_*, quand la façade tient les tâches (lot 37).
+        if crate::tasks::tools::is_tool(name)
+            && let Some(tasks) = &self.shared.tasks
+        {
+            let dir = tasks.scripts_dir();
+            let env = crate::tasks::tools::ToolEnv {
+                store: &self.shared.store,
+                scripts_dir: &dir,
+                now_ns: tasks.now(),
+            };
+            if let Some(result) = crate::tasks::tools::exec(&env, name, args).await {
+                return ToolOutcome {
+                    result,
+                    ..Default::default()
+                };
+            }
+        }
+        if crate::mcp::config::is_mcp_tool(name)
+            && let Some(mcp) = &self.shared.mcp
+        {
+            let version = self.shared.go_version().await;
+            return ToolOutcome {
+                result: mcp.call(&self.shared.store, name, args, &version).await,
+                ..Default::default()
+            };
+        }
+        // Outils fichiers et shell : ici (lot 7), l'état partagé restant au Go.
+        if crate::tools::is_local(name) {
+            let st = crate::tools::GoToolState {
+                store: self.shared.store.clone(),
+                caps: self.caps.clone(),
+            };
+            let code = self
+                .caps
+                .get("Code")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if let Some(out) = crate::tools::exec_local(&st, code, name, args, label).await {
+                return out;
+            }
+        }
+        match self
+            .shared
+            .store
+            .tool_exec(name, &Value::Object(args.clone()), &self.caps)
+            .await
+        {
+            Ok(v) => tool_outcome(&v, label),
+            Err(e) => ToolOutcome {
+                result: format!("[erreur] exécution de l'outil impossible : {e}"),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 impl TurnHost for GoTurnHost {
-    async fn send(&self, ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+    async fn send(
+        &self,
+        ep: &ChatEndpoint,
+        body: Vec<u8>,
+        keep_prewarm: bool,
+    ) -> Result<Reply, SendError> {
         // Moteur local : requête comptée en vol jusqu'à la fin de lecture du
         // flux (le ticket voyage avec le corps). Rien pour une API externe.
+        // Un préchauffage qu'elle ne prolonge pas est coupé tout de suite (le
+        // Go l'annulerait aussi, un aller-retour plus tard).
         let gate = if ep.external {
             None
         } else {
-            self.gate_begin().await
+            if !keep_prewarm {
+                self.shared.prewarm.stop();
+            }
+            self.gate_begin(keep_prewarm).await
         };
         match self.shared.http.post(&ep.url, &ep.key, body).await {
             Ok(resp) => {
@@ -476,33 +921,17 @@ impl TurnHost for GoTurnHost {
     }
 
     async fn exec_tool(&self, name: &str, args: &Map<String, Value>, label: &str) -> ToolOutcome {
-        // Outils fichiers et shell : ici (lot 7), l'état partagé restant au Go.
-        if crate::tools::is_local(name) {
-            let st = crate::tools::GoToolState {
-                store: self.shared.store.clone(),
-                caps: self.caps.clone(),
-            };
-            let code = self
-                .caps
-                .get("Code")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            if let Some(out) = crate::tools::exec_local(&st, code, name, args, label).await {
-                return out;
-            }
-        }
-        match self
-            .shared
-            .store
-            .tool_exec(name, &Value::Object(args.clone()), &self.caps)
-            .await
+        // Sous-agent du mode Code (lot 47) : un tour imbriqué, sur un
+        // contexte isolé, dont seul le rapport revient.
+        if name == "subagent"
+            && let Some(sub) = &self.sub
         {
-            Ok(v) => tool_outcome(&v, label),
-            Err(e) => ToolOutcome {
-                result: format!("[erreur] exécution de l'outil impossible : {e}"),
+            return ToolOutcome {
+                result: super::subagent::run(self, sub, args).await,
                 ..Default::default()
-            },
+            };
         }
+        self.exec_tool_base(name, args, label).await
     }
 
     fn save_tool_result(&self, result: &str) -> String {
@@ -574,6 +1003,39 @@ impl TurnHost for GoTurnHost {
         (self.queued)()
     }
 
+    fn prefix_unstable(
+        &self,
+        tools: &[Tool],
+        kwargs: Option<&Map<String, Value>>,
+        effort: &str,
+    ) -> bool {
+        let shape = super::tplprobe::Shape::new(tools, kwargs, effort);
+        self.shared.tpl.caps_for(false, &shape).is_some_and(|r| {
+            r.prefix_stable == super::wire::TplTri::No
+                && !r.model.is_empty()
+                && r.model == super::wire::reasoning_echo_model(&self.cfg)
+        })
+    }
+
+    /// Fil principal seulement (`perfMain`) : une tâche ou un sous-agent ne
+    /// déclenche pas la sonde.
+    fn completed(&self, tools: &[Tool], kwargs: Option<&Map<String, Value>>, effort: &str) {
+        if self.compact.main_conv.is_empty() {
+            return;
+        }
+        let shape = super::tplprobe::Shape::new(tools, kwargs, effort);
+        let (shared, port) = (self.shared.clone(), self.port);
+        tokio::spawn(async move {
+            let key = shared.store.get_str(BK_STATE, "api_key").await;
+            let env = super::tplprobe::Env {
+                external: false,
+                port: port.into(),
+                key,
+            };
+            shared.tpl.kick(env, shape);
+        });
+    }
+
     async fn prepare_images(&self, msgs: &[Message]) {
         self.shared.images.prefetch(&self.shared.store, msgs).await;
     }
@@ -590,42 +1052,105 @@ impl TurnHost for GoTurnHost {
         self.shared.echo_refusals.refuse(model);
     }
 
+    async fn project_refresh(&self, msgs: Vec<Message>) -> Vec<Message> {
+        let Some(t) = &self.projsnap else {
+            return msgs;
+        };
+        let got = self
+            .shared
+            .store
+            .internal_post(
+                "/internal/v1/turn/projsnap/refresh",
+                &json!({ "caps": t.caps, "key": t.key, "sys_hash": t.sys_hash }),
+            )
+            .await;
+        let (block, snap) = match got {
+            Ok((code, v)) if code.is_success() => (
+                serde_json::from_value::<Vec<Message>>(v["block"].clone()).ok(),
+                serde_json::from_value::<ProjSnapshot>(v["snap"].clone()).ok(),
+            ),
+            _ => (None, None),
+        };
+        // Go injoignable : le bloc figé reste, sans les mises à jour (le début
+        // du prompt change de toute façon) ; l'instantané n'est pas remplacé.
+        let msgs = super::compact::strip_context_updates(msgs);
+        match (block, snap) {
+            (Some(block), Some(snap)) => {
+                *self
+                    .snap_refreshed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(snap);
+                super::compact::replace_project_head(msgs, &block)
+            }
+            _ => msgs,
+        }
+    }
+
+    fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {
+        self.perf_kind == super::perf::KIND_MAIN
+            && self.shared.prewarm.live()
+            && self
+                .shared
+                .prewarm
+                .keeps(prefix, super::prewarm::opts_hash(payload))
+    }
+
+    async fn keep_images(&self) -> Option<i64> {
+        // Fil principal d'une discussion seulement : la vérification ne
+        // persiste pas son historique.
+        if !super::keepimg::keep_turn_images_on(&self.cfg)
+            || self.perf_kind != super::perf::KIND_MAIN
+            || self.conv_id.is_empty()
+        {
+            return None;
+        }
+        match keep_images_state(&self.shared.store).await {
+            Some((true, budget)) => Some(budget),
+            _ => None,
+        }
+    }
+
+    async fn keep_image(&self, m: &Message) -> Option<(Message, i64)> {
+        let (code, v) = self
+            .shared
+            .store
+            .internal_post("/internal/v1/turn/keepimg/store", &json!({ "msg": m }))
+            .await
+            .ok()?;
+        if !code.is_success() || v["ok"] != true {
+            return None;
+        }
+        let msg: Message = serde_json::from_value(v["msg"].clone()).ok()?;
+        Some((msg, v["weight"].as_i64().unwrap_or(0)))
+    }
+
+    async fn engine_slot(&self, ep: &ChatEndpoint) -> Option<u8> {
+        if ep.external {
+            self.side_slot.store(false, Ordering::SeqCst);
+            return None;
+        }
+        // Étape d'un tour de la discussion : le slot 0, après rechargement de
+        // l'état gardé (SLOT_PERSIST). Vérification : le second slot.
+        let main = self.perf_kind == super::perf::KIND_MAIN;
+        let conv = if main { self.conv_id.as_str() } else { "" };
+        let slot = engine_slot_for(&self.shared.store, conv, main).await;
+        self.side_slot.store(slot == Some(1), Ordering::SeqCst);
+        slot
+    }
+
     fn cache_hint(&self) -> Option<CacheHintFn> {
         None
     }
 
     async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
-        let probe = rec
-            .probe
-            .as_ref()
-            .map(|p| json!({ "tools": p.tools, "kwargs": p.kwargs, "effort": p.effort }));
-        let body = json!({
-            "kind": self.perf_kind,
-            "conv": self.conv_id,
-            "iter": rec.iter,
-            "complete": rec.complete,
-            "external": rec.external,
-            "stats": rec.stats,
-            "prefix": rec.prefix,
-            "probe": probe,
-        });
-        match self
-            .shared
-            .store
-            .internal_json(hyper::Method::POST, "/internal/v1/turn/perf", Some(&body))
-            .await
-        {
-            Ok(v) => PerfMarks {
-                kind: v["kind"].as_str().unwrap_or("").to_string(),
-                lost: v["lost"].as_i64(),
-                lost_after: v["lost_after"].as_str().unwrap_or("").to_string(),
-                lost_alert: v["lost_alert"].as_bool().unwrap_or(false),
-            },
-            Err(e) => {
-                eprintln!("[loki-rs] télémétrie : {e}");
-                PerfMarks::default()
-            }
-        }
+        super::perf::record(
+            &self.shared.store,
+            &self.shared.perf,
+            self.perf_kind,
+            &self.conv_id,
+            &rec,
+        )
+        .await
     }
 
     fn preflight(&self) -> Option<PreflightFn> {

@@ -309,7 +309,7 @@ func goSearch(query string, limit int) ([]searchResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), goFetchTimeout)
 	defer cancel()
 
-	target := "https://html.duckduckgo.com/html/?q=" + url.QueryEscape(query)
+	target := ddgHTMLBase + "/html/?q=" + url.QueryEscape(query)
 	body, contentType, _, err := goFetch(ctx, target)
 	if err != nil {
 		return nil, err

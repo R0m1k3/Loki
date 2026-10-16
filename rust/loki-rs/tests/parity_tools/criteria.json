@@ -1,0 +1,648 @@
+[
+  {
+    "name": "liste vide",
+    "args": {
+      "action": "list"
+    },
+    "out": "[aucun critère]",
+    "stored": null
+  },
+  {
+    "name": "action absente : liste",
+    "args": {},
+    "out": "[aucun critère]",
+    "stored": null
+  },
+  {
+    "name": "action d'un autre type",
+    "args": {
+      "action": 3
+    },
+    "out": "[aucun critère]",
+    "stored": null
+  },
+  {
+    "name": "ajout sans textes",
+    "args": {
+      "action": "add"
+    },
+    "out": "[erreur] aucun critère fourni (texts)",
+    "stored": null
+  },
+  {
+    "name": "ajout de textes vides ou d'un autre type",
+    "args": {
+      "action": "add",
+      "texts": [
+        "  ",
+        4,
+        null
+      ]
+    },
+    "out": "[erreur] aucun critère fourni (texts)",
+    "stored": null
+  },
+  {
+    "name": "ajout",
+    "args": {
+      "action": "add",
+      "texts": [
+        "  les tests passent ",
+        "la doc \u003cà jour\u003e \u0026 relue",
+        ""
+      ]
+    },
+    "out": "[ok] 2 critère(s) ajouté(s)\n[ ] #1 les tests passent\n[ ] #2 la doc \u003cà jour\u003e \u0026 relue",
+    "stored": [
+      {
+        "id": 1,
+        "status": "pending",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "status": "pending",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      }
+    ]
+  },
+  {
+    "name": "ajout à la suite",
+    "args": {
+      "action": "add",
+      "texts": [
+        "pas de régression"
+      ]
+    },
+    "out": "[ok] 1 critère(s) ajouté(s)\n[ ] #1 les tests passent\n[ ] #2 la doc \u003cà jour\u003e \u0026 relue\n[ ] #3 pas de régression",
+    "stored": [
+      {
+        "id": 1,
+        "status": "pending",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "status": "pending",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "le builder dit fait",
+    "args": {
+      "action": "set",
+      "id": 1,
+      "status": "completed",
+      "note": "  vérifié à la main  "
+    },
+    "out": "[ok] critère #1 → completed",
+    "stored": [
+      {
+        "id": 1,
+        "note": "vérifié à la main",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "status": "pending",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "le builder ne valide pas",
+    "args": {
+      "action": "set",
+      "id": 1,
+      "status": "passed"
+    },
+    "out": "[refusé] Seule la passe de vérification peut marquer un critère passed. Termine ton implémentation ; la vérification suivra.",
+    "stored": [
+      {
+        "id": 1,
+        "note": "vérifié à la main",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "status": "pending",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "id en chaîne avec #",
+    "verifier": true,
+    "args": {
+      "action": "set",
+      "id": " #2 ",
+      "status": "failed",
+      "note": "lien mort"
+    },
+    "out": "[ok] critère #2 → failed",
+    "stored": [
+      {
+        "id": 1,
+        "note": "vérifié à la main",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "failed",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "id en chaîne illisible",
+    "verifier": true,
+    "args": {
+      "action": "set",
+      "id": "deux",
+      "status": "passed"
+    },
+    "out": "[erreur] critère #0 inconnu",
+    "stored": [
+      {
+        "id": 1,
+        "note": "vérifié à la main",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "failed",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "id décimal tronqué",
+    "verifier": true,
+    "args": {
+      "action": "set",
+      "id": 3.9,
+      "status": "passed"
+    },
+    "out": "[ok] critère #3 → passed",
+    "stored": [
+      {
+        "id": 1,
+        "note": "vérifié à la main",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "failed",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "note seule",
+    "args": {
+      "action": "set",
+      "id": "+1",
+      "note": "revu"
+    },
+    "out": "[ok] critère #1 → completed",
+    "stored": [
+      {
+        "id": 1,
+        "note": "revu",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "failed",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "statut libre",
+    "args": {
+      "action": "set",
+      "id": 2,
+      "status": "bloqué"
+    },
+    "out": "[ok] critère #2 → bloqué",
+    "stored": [
+      {
+        "id": 1,
+        "note": "revu",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "bloqué",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "id inconnu",
+    "verifier": true,
+    "args": {
+      "action": "set",
+      "id": 9,
+      "status": "passed"
+    },
+    "out": "[erreur] critère #9 inconnu",
+    "stored": [
+      {
+        "id": 1,
+        "note": "revu",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "bloqué",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "liste",
+    "args": {
+      "action": "list"
+    },
+    "out": "[~] #1 les tests passent — revu\n[ ] #2 la doc \u003cà jour\u003e \u0026 relue — lien mort\n[✓] #3 pas de régression",
+    "stored": [
+      {
+        "id": 1,
+        "note": "revu",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "bloqué",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "action inconnue",
+    "args": {
+      "action": "reset"
+    },
+    "out": "[erreur] action inconnue : reset",
+    "stored": [
+      {
+        "id": 1,
+        "note": "revu",
+        "status": "completed",
+        "text": "les tests passent"
+      },
+      {
+        "id": 2,
+        "note": "lien mort",
+        "status": "bloqué",
+        "text": "la doc \u003cà jour\u003e \u0026 relue"
+      },
+      {
+        "id": 3,
+        "status": "passed",
+        "text": "pas de régression"
+      }
+    ]
+  },
+  {
+    "name": "effacer",
+    "args": {
+      "action": "clear"
+    },
+    "out": "[ok] critères effacés",
+    "stored": null
+  },
+  {
+    "name": "effacer à vide",
+    "args": {
+      "action": "clear"
+    },
+    "out": "[ok] critères effacés",
+    "stored": null
+  },
+  {
+    "name": "liste pleine",
+    "put": "[{\"id\":7,\"text\":\"a\",\"status\":\"passed\"},{\"id\":3,\"text\":\"b\",\"status\":\"pending\"}]",
+    "args": {
+      "action": "add",
+      "texts": [
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w"
+      ]
+    },
+    "out": "[ok] 18 critère(s) ajouté(s)\n[✓] #7 a\n[ ] #3 b\n[ ] #8 c\n[ ] #9 d\n[ ] #10 e\n[ ] #11 f\n[ ] #12 g\n[ ] #13 h\n[ ] #14 i\n[ ] #15 j\n[ ] #16 k\n[ ] #17 l\n[ ] #18 m\n[ ] #19 n\n[ ] #20 o\n[ ] #21 p\n[ ] #22 q\n[ ] #23 r\n[ ] #24 s\n[ ] #25 t",
+    "stored": [
+      {
+        "id": 7,
+        "status": "passed",
+        "text": "a"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "b"
+      },
+      {
+        "id": 8,
+        "status": "pending",
+        "text": "c"
+      },
+      {
+        "id": 9,
+        "status": "pending",
+        "text": "d"
+      },
+      {
+        "id": 10,
+        "status": "pending",
+        "text": "e"
+      },
+      {
+        "id": 11,
+        "status": "pending",
+        "text": "f"
+      },
+      {
+        "id": 12,
+        "status": "pending",
+        "text": "g"
+      },
+      {
+        "id": 13,
+        "status": "pending",
+        "text": "h"
+      },
+      {
+        "id": 14,
+        "status": "pending",
+        "text": "i"
+      },
+      {
+        "id": 15,
+        "status": "pending",
+        "text": "j"
+      },
+      {
+        "id": 16,
+        "status": "pending",
+        "text": "k"
+      },
+      {
+        "id": 17,
+        "status": "pending",
+        "text": "l"
+      },
+      {
+        "id": 18,
+        "status": "pending",
+        "text": "m"
+      },
+      {
+        "id": 19,
+        "status": "pending",
+        "text": "n"
+      },
+      {
+        "id": 20,
+        "status": "pending",
+        "text": "o"
+      },
+      {
+        "id": 21,
+        "status": "pending",
+        "text": "p"
+      },
+      {
+        "id": 22,
+        "status": "pending",
+        "text": "q"
+      },
+      {
+        "id": 23,
+        "status": "pending",
+        "text": "r"
+      },
+      {
+        "id": 24,
+        "status": "pending",
+        "text": "s"
+      },
+      {
+        "id": 25,
+        "status": "pending",
+        "text": "t"
+      }
+    ]
+  },
+  {
+    "name": "liste déjà pleine",
+    "args": {
+      "action": "add",
+      "texts": [
+        "x"
+      ]
+    },
+    "out": "[erreur] aucun critère fourni (texts)",
+    "stored": [
+      {
+        "id": 7,
+        "status": "passed",
+        "text": "a"
+      },
+      {
+        "id": 3,
+        "status": "pending",
+        "text": "b"
+      },
+      {
+        "id": 8,
+        "status": "pending",
+        "text": "c"
+      },
+      {
+        "id": 9,
+        "status": "pending",
+        "text": "d"
+      },
+      {
+        "id": 10,
+        "status": "pending",
+        "text": "e"
+      },
+      {
+        "id": 11,
+        "status": "pending",
+        "text": "f"
+      },
+      {
+        "id": 12,
+        "status": "pending",
+        "text": "g"
+      },
+      {
+        "id": 13,
+        "status": "pending",
+        "text": "h"
+      },
+      {
+        "id": 14,
+        "status": "pending",
+        "text": "i"
+      },
+      {
+        "id": 15,
+        "status": "pending",
+        "text": "j"
+      },
+      {
+        "id": 16,
+        "status": "pending",
+        "text": "k"
+      },
+      {
+        "id": 17,
+        "status": "pending",
+        "text": "l"
+      },
+      {
+        "id": 18,
+        "status": "pending",
+        "text": "m"
+      },
+      {
+        "id": 19,
+        "status": "pending",
+        "text": "n"
+      },
+      {
+        "id": 20,
+        "status": "pending",
+        "text": "o"
+      },
+      {
+        "id": 21,
+        "status": "pending",
+        "text": "p"
+      },
+      {
+        "id": 22,
+        "status": "pending",
+        "text": "q"
+      },
+      {
+        "id": 23,
+        "status": "pending",
+        "text": "r"
+      },
+      {
+        "id": 24,
+        "status": "pending",
+        "text": "s"
+      },
+      {
+        "id": 25,
+        "status": "pending",
+        "text": "t"
+      }
+    ]
+  },
+  {
+    "name": "liste rangée illisible",
+    "put": "{\"pas\":\"une liste\"}",
+    "args": {
+      "action": "list"
+    },
+    "out": "[aucun critère]",
+    "stored": {
+      "pas": "une liste"
+    }
+  }
+]

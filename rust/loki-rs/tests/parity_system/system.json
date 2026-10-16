@@ -1,0 +1,1407 @@
+{
+  "chromium": [
+    {
+      "files": [
+        "chromium-1000/chrome-linux/chrome",
+        "chromium-1200/chrome-linux/chrome"
+      ],
+      "out": "chromium-1200/chrome-linux/chrome"
+    },
+    {
+      "files": [
+        "chromium-1000/chrome-linux/chrome",
+        "chromium-1200/chrome-linux/headless_shell"
+      ],
+      "out": "chromium-1200/chrome-linux/headless_shell"
+    },
+    {
+      "files": [
+        "chromium-1200/chrome-linux/headless_shell",
+        "chromium-1200/chrome-linux/chrome"
+      ],
+      "out": "chromium-1200/chrome-linux/chrome"
+    },
+    {
+      "files": [
+        "chromium-1000/chrome-linux/chrome",
+        "chromium_headless_shell-1100/chrome-linux/headless_shell"
+      ],
+      "out": "chromium_headless_shell-1100/chrome-linux/headless_shell"
+    },
+    {
+      "files": [
+        "chromium-1000/chrome-linux/chrome",
+        "chromium-1300/chrome-linux/chrome/"
+      ],
+      "out": "chromium-1000/chrome-linux/chrome"
+    },
+    {
+      "files": [
+        "chromiumX/chrome-linux/chrome",
+        "chromium-1/chrome-linux/chrome"
+      ],
+      "out": "chromium-1/chrome-linux/chrome"
+    },
+    {
+      "files": [
+        "firefox-1/chrome-linux/chrome",
+        "chromium-/chrome-linux/chrome"
+      ],
+      "out": "chromium-/chrome-linux/chrome"
+    },
+    {
+      "files": [
+        "chromium-9/chrome-linux/chrome",
+        "chromium-10/chrome-linux/chrome"
+      ],
+      "out": "chromium-9/chrome-linux/chrome"
+    }
+  ],
+  "steps": [
+    {
+      "name": "internet par défaut",
+      "method": "GET",
+      "path": "/api/internet",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "go",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": ""
+      },
+      "after": {},
+      "probes": []
+    },
+    {
+      "name": "allumé, moteur intégré",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"enabled\":true}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "go",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": ""
+      },
+      "after": {
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "moteur crawl4ai sans URL",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"engine\":\" CRAWL4AI \"}",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": false,
+        "url": ""
+      },
+      "after": {
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "moteur inconnu",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"engine\":\"bing\"}",
+      "status": 400,
+      "out": {
+        "error": "moteur web inconnu : \"bing\"",
+        "ok": false
+      },
+      "after": {
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "moteur inconnu vide",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"engine\":\"  \"}",
+      "status": 400,
+      "out": {
+        "error": "moteur web inconnu : \"\"",
+        "ok": false
+      },
+      "after": {
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "URL joignable",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"  {{OK}}/// \"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health"
+      ]
+    },
+    {
+      "name": "relu dans le cache",
+      "method": "GET",
+      "path": "/api/internet",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé posée",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"key\":\" secret-clé-crawl \"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…rawl",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "secret-clé-crawl",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer secret-clé-crawl"
+      ]
+    },
+    {
+      "name": "clé courte",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"key\":\"abcd\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "abcd",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer abcd"
+      ]
+    },
+    {
+      "name": "clé d'un caractère",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"key\":\"é\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "é",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer é"
+      ]
+    },
+    {
+      "name": "clé résiduelle en config",
+      "config": {
+        "CRAWL4AI_KEY": "vieille"
+      },
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"key\":\"neuve12345\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer neuve12345"
+      ]
+    },
+    {
+      "name": "URL en panne",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"{{DOWN}}\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": false,
+        "url": "{{DOWN}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{DOWN}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer neuve12345",
+        "/ Bearer neuve12345"
+      ]
+    },
+    {
+      "name": "URL 404",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"{{NOTFOUND}}\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{NOTFOUND}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{NOTFOUND}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health Bearer neuve12345"
+      ]
+    },
+    {
+      "name": "URL injoignable",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"http://127.0.0.1:1\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": false,
+        "url": "http://127.0.0.1:1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "http://127.0.0.1:1",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "URL sans schéma",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"exemple\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": false,
+        "url": "exemple"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "exemple",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "type faux, le reste passe",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"enabled\":\"oui\",\"url\":\"{{OK}}\"}",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345"
+      },
+      "probes": [
+        "/health Bearer neuve12345"
+      ]
+    },
+    {
+      "name": "corps illisible",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"enabled\":false",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "…2345",
+        "key_set": true,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/crawl_key": "neuve12345"
+      },
+      "probes": []
+    },
+    {
+      "name": "éteint, clé effacée",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"enabled\":false,\"key\":\"\"}",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai"
+      },
+      "probes": [
+        "/health"
+      ]
+    },
+    {
+      "name": "null ne touche à rien",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"enabled\":null,\"url\":null,\"engine\":null}",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "config/WEB_ENGINE": "crawl4ai"
+      },
+      "probes": []
+    },
+    {
+      "name": "URL vidée, moteur choisi gardé",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"url\":\"\",\"enabled\":true}",
+      "status": 200,
+      "out": {
+        "enabled": false,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": false,
+        "url": ""
+      },
+      "after": {
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "moteur go",
+      "method": "POST",
+      "path": "/api/internet",
+      "body": "{\"engine\":\"Go\"}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "go",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": ""
+      },
+      "after": {
+        "config/WEB_ENGINE": "go",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "moteur non choisi, URL héritée",
+      "config": {
+        "CRAWL4AI_URL": "{{OK}}",
+        "WEB_ENGINE": ""
+      },
+      "method": "GET",
+      "path": "/api/internet",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": "{{OK}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": "{{OK}}",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health"
+      ]
+    },
+    {
+      "name": "moteur illisible en config",
+      "config": {
+        "CRAWL4AI_URL": "",
+        "WEB_ENGINE": "autre"
+      },
+      "method": "GET",
+      "path": "/api/internet",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "go",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": true,
+        "url": ""
+      },
+      "after": {
+        "config/WEB_ENGINE": "autre",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "URL en config avec slashs",
+      "config": {
+        "CRAWL4AI_URL": " {{DOWN}}// ",
+        "WEB_ENGINE": "crawl4ai"
+      },
+      "method": "GET",
+      "path": "/api/internet",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": false,
+        "url": "{{DOWN}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": [
+        "/health",
+        "/"
+      ]
+    },
+    {
+      "name": "internet en PUT",
+      "method": "PUT",
+      "path": "/api/internet",
+      "body": "{\"enabled\":true}",
+      "status": 200,
+      "out": {
+        "enabled": true,
+        "engine": "crawl4ai",
+        "key_hint": "",
+        "key_set": false,
+        "ok": true,
+        "reachable": false,
+        "url": "{{DOWN}}"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "navigateur par défaut",
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "navigateur allumé",
+      "method": "POST",
+      "path": "/api/computer",
+      "body": "{\"on\":true}",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": true,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/computer": "1",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "navigateur, corps illisible",
+      "method": "POST",
+      "path": "/api/computer",
+      "body": "oui",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "vision par projecteur",
+      "config": {
+        "MMPROJ": " mmproj.gguf "
+      },
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": true
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "vision externe",
+      "config": {
+        "EXTERNAL": "1",
+        "EXTERNAL_VISION": "1",
+        "MMPROJ": ""
+      },
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": true
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "externe sans vision",
+      "config": {
+        "EXTERNAL_VISION": "0",
+        "MMPROJ": "m.gguf"
+      },
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "vision strata",
+      "config": {
+        "ENGINE": "strata",
+        "EXTERNAL": ""
+      },
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": true
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "strata sans vision",
+      "config": {
+        "MMPROJ": "",
+        "STRATA_VISION": "0"
+      },
+      "method": "GET",
+      "path": "/api/computer",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "navigateur éteint",
+      "config": {
+        "ENGINE": "",
+        "STRATA_VISION": ""
+      },
+      "method": "POST",
+      "path": "/api/computer",
+      "body": "{\"on\":false}",
+      "status": 200,
+      "out": {
+        "browser": "/opt/faux/chrome",
+        "browser_ok": true,
+        "enabled": false,
+        "ok": true,
+        "vision": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé par défaut",
+      "method": "GET",
+      "path": "/api/apikey",
+      "status": 200,
+      "out": {
+        "key": "",
+        "masked": "",
+        "ok": true,
+        "public_url": "",
+        "set": false,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé générée",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"generate\"}",
+      "status": 200,
+      "out": {
+        "key": "{{KEY}}",
+        "masked": "{{MASKED}}",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "{{KEY}}",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé relue",
+      "method": "GET",
+      "path": "/api/apikey",
+      "headers": {
+        "X-Forwarded-Proto": "HTTPS, http"
+      },
+      "status": 200,
+      "out": {
+        "key": "{{KEY}}",
+        "masked": "{{MASKED}}",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "https://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "{{KEY}}",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé saisie",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"set\",\"key\":\"  ma-clé-perso-é  \"}",
+      "status": 200,
+      "out": {
+        "key": "ma-clé-perso-é",
+        "masked": "ma-clé-p…o-é",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "ma-clé-perso-é",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé saisie courte",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"set\",\"key\":\"abc\"}",
+      "status": 200,
+      "out": {
+        "key": "abc",
+        "masked": "…bc",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "abc",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé de 13 octets",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"set\",\"key\":\"abcdefghijklm\"}",
+      "status": 200,
+      "out": {
+        "key": "abcdefghijklm",
+        "masked": "…lm",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "abcdefghijklm",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "clé effacée",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"clear\"}",
+      "status": 200,
+      "out": {
+        "key": "",
+        "masked": "",
+        "ok": true,
+        "public_url": "",
+        "set": false,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "repli sur config.env",
+      "config": {
+        "API_KEY": "  résiduelle-config  "
+      },
+      "method": "GET",
+      "path": "/api/apikey",
+      "headers": {
+        "X-Forwarded-Proto": "ftp"
+      },
+      "status": 200,
+      "out": {
+        "key": "résiduelle-config",
+        "masked": "résiduel…nfig",
+        "ok": true,
+        "public_url": "",
+        "set": true,
+        "url": "http://loki.local:8090/v1"
+      },
+      "after": {
+        "config/API_KEY": "  résiduelle-config  ",
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/internet": "1"
+      },
+      "probes": []
+    },
+    {
+      "name": "adresse publique",
+      "state": {
+        "public_url": "https://loki.exemple.fr"
+      },
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"set\",\"key\":\"k\"}",
+      "status": 200,
+      "out": {
+        "key": "k",
+        "masked": "…",
+        "ok": true,
+        "public_url": "https://loki.exemple.fr",
+        "set": true,
+        "url": "https://loki.exemple.fr/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "action inconnue",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"rotate\"}",
+      "status": 400,
+      "out": {
+        "error": "action inconnue",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "action vide",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{}",
+      "status": 400,
+      "out": {
+        "error": "action inconnue",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "corps vide",
+      "method": "POST",
+      "path": "/api/apikey",
+      "status": 400,
+      "out": {
+        "error": "EOF",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "corps illisible",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":",
+      "status": 400,
+      "out": {
+        "error": "unexpected EOF",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "type faux",
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":1}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field .action of type string",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "optimisation en cours",
+      "tune": true,
+      "method": "POST",
+      "path": "/api/apikey",
+      "body": "{\"action\":\"clear\"}",
+      "status": 409,
+      "out": {
+        "error": "optimisation en cours (loki tune) : le moteur est réservé aux essais — attends la fin ou annule-la",
+        "ok": false,
+        "tuning": true
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "lecture pendant une optimisation",
+      "tune": true,
+      "method": "GET",
+      "path": "/api/apikey",
+      "status": 200,
+      "out": {
+        "key": "k",
+        "masked": "…",
+        "ok": true,
+        "public_url": "https://loki.exemple.fr",
+        "set": true,
+        "url": "https://loki.exemple.fr/v1"
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau par défaut",
+      "method": "GET",
+      "path": "/api/network",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": true,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "0.0.0.0",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau fermé",
+      "method": "POST",
+      "path": "/api/network",
+      "body": "{\"exposed\":false}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": false,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "127.0.0.1",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "127.0.0.1",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau ouvert",
+      "method": "POST",
+      "path": "/api/network",
+      "body": "{\"exposed\":true}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": true,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "0.0.0.0",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "0.0.0.0",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau sans champ",
+      "method": "POST",
+      "path": "/api/network",
+      "body": "{}",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": true,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "0.0.0.0",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "0.0.0.0",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau illisible",
+      "method": "POST",
+      "path": "/api/network",
+      "body": "{\"exposed\":1}",
+      "status": 400,
+      "out": {
+        "error": "json: cannot unmarshal number into Go struct field .exposed of type bool",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "0.0.0.0",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "réseau corps vide",
+      "method": "POST",
+      "path": "/api/network",
+      "status": 400,
+      "out": {
+        "error": "EOF",
+        "ok": false
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "0.0.0.0",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "HOST localhost",
+      "config": {
+        "HOST": " LocalHost ",
+        "PORT": "9090"
+      },
+      "method": "GET",
+      "path": "/api/network",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": false,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "LocalHost",
+          "port": 9090,
+          "url": "http://{{IP}}:9090/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": " LocalHost ",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "HOST ::1",
+      "config": {
+        "HOST": "::1",
+        "PORT": "abc"
+      },
+      "method": "GET",
+      "path": "/api/network",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": false,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "::1",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "::1",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    },
+    {
+      "name": "HOST d'une carte",
+      "config": {
+        "HOST": "192.168.1.5",
+        "PORT": ""
+      },
+      "method": "GET",
+      "path": "/api/network",
+      "status": 200,
+      "out": {
+        "ok": true,
+        "status": {
+          "exposed": true,
+          "firewall": "inconnu",
+          "hint": "",
+          "host": "192.168.1.5",
+          "port": 8080,
+          "url": "http://{{IP}}:8080/v1"
+        }
+      },
+      "after": {
+        "config/CRAWL4AI_URL": " {{DOWN}}// ",
+        "config/HOST": "192.168.1.5",
+        "config/WEB_ENGINE": "crawl4ai",
+        "state/api_key": "k",
+        "state/internet": "1",
+        "state/public_url": "https://loki.exemple.fr"
+      },
+      "probes": []
+    }
+  ]
+}

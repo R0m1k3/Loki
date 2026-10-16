@@ -23,13 +23,28 @@
 //! `cb` (comme le `ChatCallback` Go) ; le tour rend ses messages à ajouter à
 //! l'historique ([`TurnResult::extra`]).
 //!
-//! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
-//! KEEP_TURN_IMAGES, PROJ_SNAPSHOT, NUDGE_IN_TOOL, SIDE_SLOT (slot et
-//! rejeux « cache KV plein »), SLOT_PERSIST, préchauffage. Avec l'une de
-//! ces clés, le Go garde la conversation (`facadeChatBlocker`, décidé au
-//! démarrage). La télémétrie (`perfRecord`, sonde du gabarit) et le comptage
-//! des requêtes en vol du moteur passent par le Go ([`TurnHost::perf_record`],
-//! et l'hôte autour de [`TurnHost::send`]).
+//! Télémétrie : chaque complétion lue est rangée par le Go (`perfRecord`, par
+//! [`TurnHost::perf_record`]) ; la dernière statistique d'une complétion
+//! complète porte la nature et la perte de cache qu'il a calculées.
+//!
+//! Slots du moteur (lot 31) : chaque requête part sur le slot que rend
+//! [`TurnHost::engine_slot`] (SIDE_SLOT : 0 pour le fil de la discussion, 1
+//! pour une vérification ; aucun sans second slot en service), et un cache KV
+//! à court de place en plein calcul est rejoué tel quel. Le rechargement
+//! SLOT_PERSIST et le comptage des requêtes en vol passent par le Go (l'hôte,
+//! autour de [`TurnHost::engine_slot`] et de [`TurnHost::send`]).
+//!
+//! Images gardées (KEEP_TURN_IMAGES, lot 32) : une image relayée par un outil
+//! est gardée à l'essai jusqu'à la mesure de son coût par le moteur
+//! ([`super::keepimg`]) ; les images gardées partent avant tout résumé.
+//!
+//! Préchauffage (PREWARM, lot 33) : une requête qui prolonge exactement le
+//! préchauffage en vol le garde ([`TurnHost::prewarm_keeps`]) ; toute autre
+//! l'annule ([`super::prewarm`]).
+//!
+//! Bloc projet figé (PROJ_SNAPSHOT, lot 34) : une compaction ou une réduction
+//! en plein tour fait remplacer le bloc figé par le vivant
+//! ([`TurnHost::project_refresh`]).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -44,13 +59,15 @@ use tokio::sync::watch;
 
 use super::compact::cap_tool_result;
 use super::compact::{
-    CompactConfig, compact_needed, compact_would_trigger, context_overflow, estimate_tokens,
-    log_compact, log_ctx, log_ctx_estimate, overflow_tokens, shrink_to_fit,
+    CompactConfig, compact_needed, compact_would_trigger, context_overflow, drop_kept_images,
+    estimate_tokens, log_compact, log_ctx, log_ctx_estimate, log_kept_images_dropped,
+    overflow_tokens, shrink_to_fit,
 };
 use super::engine::{
     LineError, Lines, NET_RETRIES, NetKind, net_delay, retryable, retryable_status,
     stream_cut_error,
 };
+use super::keepimg::{KeepImages, has_kept_images, publishable};
 use super::nudges::{
     MAX_NUDGES, THINK_NUDGE_FIRST, THINK_NUDGE_STUCK, append_nudge, budget_nudge, dedupable_tool,
     log_budget, repeated_call_result, steer_system, tool_result_preview,
@@ -125,12 +142,27 @@ pub enum CompactPhase {
 
 /// Les effets d'un tour, fournis par l'appelant.
 pub trait TurnHost: Send + Sync {
-    /// POST du corps vers l'endpoint (sa clé à lui).
+    /// POST du corps vers l'endpoint (sa clé à lui). `keep_prewarm` : la
+    /// requête prolonge exactement le préchauffage en vol, qui n'est pas
+    /// annulé ([`Self::prewarm_keeps`]).
     fn send(
         &self,
         ep: &ChatEndpoint,
         body: Vec<u8>,
+        keep_prewarm: bool,
     ) -> impl Future<Output = Result<Reply, SendError>> + Send;
+    /// PROJ_SNAPSHOT : une compaction ou une réduction vient de réécrire
+    /// l'historique en plein tour — le début du prompt change de toute façon,
+    /// le bloc projet figé est remplacé par le vivant et les mises à jour
+    /// retirées (`projSnapTurn.refresh`). Sans la clé : tel quel.
+    fn project_refresh(&self, msgs: Vec<Message>) -> impl Future<Output = Vec<Message>> + Send {
+        async { msgs }
+    }
+    /// PREWARM : la requête qui part (empreintes cumulées de ses messages,
+    /// corps) prolonge-t-elle exactement le préchauffage en vol ?
+    fn prewarm_keeps(&self, _prefix: &[u64], _payload: &Value) -> bool {
+        false
+    }
     /// Exécute un appel d'outil (`execTool`).
     fn exec_tool(
         &self,
@@ -153,6 +185,20 @@ pub trait TurnHost: Send + Sync {
     }
     /// Messages mis en file par l'utilisateur, à injecter maintenant.
     fn drain_queued(&self) -> Vec<Message>;
+    /// Complétion lue en entier sur le moteur local, outils ni coupés ni
+    /// neutralisés : la sonde de gabarit peut rejouer sa forme
+    /// (`tplProbeKick`).
+    fn completed(&self, _tools: &[Tool], _kwargs: Option<&Map<String, Value>>, _effort: &str) {}
+    /// La sonde a-t-elle conclu « préfixe instable » pour CE modèle et pour
+    /// cette forme de requête (`nudgeInToolOn`, hors clé et preset externe) ?
+    fn prefix_unstable(
+        &self,
+        _tools: &[Tool],
+        _kwargs: Option<&Map<String, Value>>,
+        _effort: &str,
+    ) -> bool {
+        false
+    }
     /// Prépare ce que [`Self::image_data_url`] devra rendre pour ces messages
     /// (lecture et déchiffrement des images rangées), avant chaque requête.
     fn prepare_images(&self, _msgs: &[Message]) -> impl Future<Output = ()> + Send {
@@ -172,6 +218,23 @@ pub trait TurnHost: Send + Sync {
     fn preflight(&self) -> Option<PreflightFn> {
         None
     }
+    /// KEEP_TURN_IMAGES : le budget des images gardées si la clé vaut pour
+    /// ce tour (fil principal, vision active) ; `None` : images éphémères.
+    fn keep_images(&self) -> impl Future<Output = Option<i64>> + Send {
+        async { None }
+    }
+    /// Range par référence l'image d'un relais (`refRelayImage`) : le
+    /// message qui la porte ainsi et son poids en octets ; `None` : elle
+    /// reste éphémère.
+    fn keep_image(&self, _m: &Message) -> impl Future<Output = Option<(Message, i64)>> + Send {
+        async { None }
+    }
+    /// Slot du moteur où envoyer la requête qui part (`engineSlotFor`) ;
+    /// `None` : aucun `id_slot`. Appelé avant chaque requête, moteur local ou
+    /// non : l'hôte y recharge aussi l'état SLOT_PERSIST de la discussion.
+    fn engine_slot(&self, _ep: &ChatEndpoint) -> impl Future<Output = Option<u8>> + Send {
+        async { None }
+    }
     /// Télémétrie d'une complétion (`perfRecord`) : la rend au Go, qui la
     /// range dans l'anneau de `/api/perf/summary` et dit quoi poser sur la
     /// copie finale des stats (nature, jetons perdus, alerte).
@@ -190,16 +253,6 @@ pub struct PerfRec {
     pub stats: StatsEvent,
     /// Empreintes cumulées des messages envoyés ([`perf_prefix`]), si complète.
     pub prefix: Vec<u64>,
-    /// Requête de forme normale du moteur local : de quoi lancer la sonde du
-    /// gabarit (`tplProbeKick`).
-    pub probe: Option<PerfProbe>,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct PerfProbe {
-    pub tools: Vec<Tool>,
-    pub kwargs: Option<Map<String, Value>>,
-    pub effort: String,
 }
 
 /// Ce que la télémétrie pose sur la copie finale des stats.
@@ -317,6 +370,20 @@ fn log_stream_retry(attempt: u32, cause: &str) {
     );
 }
 
+/// `sideSlotPoolError` : « Context size has been exceeded. » sans le nombre
+/// de jetons de la requête n'est pas un prompt trop long, c'est le cache KV
+/// qui a manqué de place pendant le calcul — avec deux slots, la faute du
+/// voisin, pas de la conversation.
+pub fn side_slot_pool_error(msg: &str) -> bool {
+    static REQ_EXCEEDS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?i)exceeds the available context size|request \([0-9]+ tokens\)")
+            .expect("motif fixe")
+    });
+    msg.to_lowercase()
+        .contains("context size has been exceeded")
+        && !REQ_EXCEEDS.is_match(msg)
+}
+
 fn text_msg(role: &str, text: impl Into<String>) -> Message {
     Message {
         role: role.into(),
@@ -393,15 +460,50 @@ struct Loop {
     budget_nudges: i64,
     /// `perfIter` : complétions de ce tour, complètes ou non.
     perf_iter: i64,
+    /// Rejeux « cache KV plein » (SIDE_SLOT).
+    pool_retries: u32,
 }
 
-/// `runChatLoop` : le tour, de la première requête à la réponse finale.
+/// `runChatTools` : le tour, de la première requête à la réponse finale.
+/// KEEP_TURN_IMAGES : en fin de tour, une image gardée à l'essai mais jamais
+/// mesurée redevient éphémère, quelle que soit la sortie de la boucle.
 pub async fn run_turn<H: TurnHost>(
+    host: &H,
+    tc: &TurnConfig,
+    messages: Vec<Message>,
+    cancel: &Cancel,
+    cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+) -> TurnResult {
+    let mut kt = host.keep_images().await.map(KeepImages::new);
+    let mut r = run_turn_loop(host, tc, messages, cancel, cb, &mut kt).await;
+    if let Some(k) = kt.as_mut() {
+        k.finish(&mut r.extra);
+    }
+    r
+}
+
+/// `publishHistory` : publie l'historique réécrit en cours de tour
+/// (compaction, réduction, retrait des images gardées). KEEP_TURN_IMAGES :
+/// une image non gardée n'y entre pas ; sans la clé, tel quel.
+fn publish_history(
+    cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+    kt: &mut Option<KeepImages>,
+    m: &[Message],
+) {
+    if let Some(k) = kt.as_mut() {
+        k.rewritten();
+    }
+    cb(StreamEvent::NewHistory(publishable(kt.as_ref(), m)));
+}
+
+/// `runChatLoop` : la boucle de [`run_turn`].
+async fn run_turn_loop<H: TurnHost>(
     host: &H,
     tc: &TurnConfig,
     mut messages: Vec<Message>,
     cancel: &Cancel,
     cb: &mut (dyn FnMut(StreamEvent) -> bool + Send),
+    kt: &mut Option<KeepImages>,
 ) -> TurnResult {
     let mut extra: Vec<Message> = Vec::new();
     let mut s = Loop::default();
@@ -418,9 +520,6 @@ pub async fn run_turn<H: TurnHost>(
     if tc.code {
         budget *= super::nudges::CODE_BUDGET_FACTOR;
     }
-    let new_history = |cb: &mut (dyn FnMut(StreamEvent) -> bool + Send), m: &[Message]| {
-        cb(StreamEvent::NewHistory(m.to_vec()));
-    };
     let fail =
         |cb: &mut (dyn FnMut(StreamEvent) -> bool + Send), extra: Vec<Message>, err: String| {
             cb(StreamEvent::Err(err.clone()));
@@ -443,14 +542,27 @@ pub async fn run_turn<H: TurnHost>(
         if !nudge.is_empty() {
             s.budget_nudges += 1;
             log_budget(s.tool_runs, budget, s.budget_nudges);
-            append_nudge(&mut messages, &mut extra, &nudge);
+            // NUDGE_IN_TOOL (opt-in, gabarits dont le rendu bouge quand un
+            // message user s'ajoute) : au bout du dernier résultat d'outil.
+            // La sonde ne connaît que la forme normale : une relance d'une
+            // autre forme se replie sur le message à part.
+            let placed = !s.disable_tools
+                && !s.tool_choice_none
+                && super::nudges::nudge_in_tool_key(&tc.cfg)
+                && !ep.external
+                && host.prefix_unstable(&tc.tools, kwargs.as_ref(), &effort)
+                && super::nudges::nudge_into_tool(&mut messages, &mut extra, &nudge);
+            if !placed {
+                append_nudge(&mut messages, &mut extra, &nudge);
+            }
         }
         let calls_on = !tc.tools.is_empty() && !s.disable_tools && !s.tool_choice_none;
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
-        let (body, echo_sent, prefix) = {
+        let slot = host.engine_slot(ep).await;
+        let (body, echo_sent, prefix, keep_prewarm) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
-            let payload = build_chat_payload(
+            let mut payload = build_chat_payload(
                 ep,
                 &sent,
                 tc.temperature,
@@ -465,14 +577,27 @@ pub async fn run_turn<H: TurnHost>(
                 &tc.cfg,
                 &|r| host.image_data_url(r),
             );
+            // SIDE_SLOT : le slot rendu par l'hôte ; aucun, la requête d'avant.
+            if let Some(n) = slot
+                && let Some(o) = payload.as_object_mut()
+            {
+                o.insert("id_slot".into(), Value::from(n));
+            }
+            let prefix = perf_prefix(&sent);
+            let keep = !ep.external && host.prewarm_keeps(&prefix, &payload);
             (
                 serde_json::to_vec(&payload).unwrap_or_default(),
                 echo_sent,
-                perf_prefix(&sent),
+                prefix,
+                keep,
             )
         };
         let t_req = Instant::now();
-        let reply = match cancel.or_stop(host.send(ep, body)).await {
+        // KEEP_TURN_IMAGES : rien sans la clé.
+        if let Some(k) = kt.as_mut() {
+            k.sending(messages.len());
+        }
+        let reply = match cancel.or_stop(host.send(ep, body, keep_prewarm)).await {
             None => return TurnResult { extra, err: None },
             Some(Ok(r)) => r,
             Some(Err(e)) => {
@@ -513,6 +638,26 @@ pub async fn run_turn<H: TurnHost>(
                 effort = fixed;
                 continue;
             }
+            // SIDE_SLOT : un cache KV à court de place en plein calcul n'est
+            // pas un prompt trop long. Rejouée telle quelle, sans compaction ni
+            // réduction — deux fois au plus, le temps que l'autre slot finisse,
+            // puis l'erreur telle quelle. Sans second slot en service, rien.
+            if !ep.external && slot.is_some() && side_slot_pool_error(&msg) {
+                if s.pool_retries < 2 {
+                    s.pool_retries += 1;
+                    log_ctx(
+                        "cache KV plein pendant le calcul (deux slots) : requête rejouée telle quelle, sans compaction",
+                    );
+                    if cancel.backoff(s.pool_retries - 1).await {
+                        continue;
+                    }
+                }
+                return fail(
+                    cb,
+                    extra,
+                    format!("llama-server a renvoyé {status} : {msg}"),
+                );
+            }
             if echo_sent > 0 && echo_template_error(status, &msg) {
                 s.echo_off_turn = true;
                 s.echo_tpl_retry = true;
@@ -531,6 +676,18 @@ pub async fn run_turn<H: TurnHost>(
             if s.echo_off_turn {
                 messages = strip_reasoning(&messages).into_owned();
             }
+            // KEEP_TURN_IMAGES : les images gardées partent d'abord, et la
+            // requête est rejouée sans elles ; le résumé (avec perte) ne vient
+            // qu'ensuite, s'il le faut encore.
+            if context_overflow(ccfg, &msg, &messages)
+                && let Some((c, freed)) = drop_kept_images(&messages)
+            {
+                log_kept_images_dropped("réactif", freed);
+                messages = c;
+                extra.clear();
+                publish_history(cb, kt, &messages);
+                continue;
+            }
             let overflow = context_overflow(ccfg, &msg, &messages);
             if ccfg.enabled && !s.compacted_retry && overflow {
                 let Some(c) = cancel
@@ -542,9 +699,9 @@ pub async fn run_turn<H: TurnHost>(
                 if let Some(c) = c {
                     s.compacted_retry = true;
                     log_compact(ccfg, "réactif", 0, &messages, &c, true);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }
@@ -554,9 +711,9 @@ pub async fn run_turn<H: TurnHost>(
                 if changed {
                     s.shrink_retries += 1;
                     log_compact(ccfg, "réduction", actual, &messages, &c, true);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }
@@ -640,15 +797,21 @@ pub async fn run_turn<H: TurnHost>(
             }
         }
         // Arrêt pendant la lecture : le tour s'arrête là, sans erreur, et rien
-        // de plus ne part vers l'écran.
+        // de plus ne part vers l'écran. La complétion coupée reste dans la
+        // télémétrie, incomplète.
         if stopped {
+            host.perf_record(PerfRec {
+                iter: s.perf_iter,
+                external: ep.external,
+                ..Default::default()
+            })
+            .await;
             return TurnResult { extra, err: None };
         }
         let out = parser.finish(&mut emit);
         let complete = out.is_complete(read_err.is_some());
         // Télémétrie (perf_log.go) : une complétion coupée avant son chunk
-        // final est rangée comme incomplète, sans calcul de perte. Sonde du
-        // gabarit : fil d'une requête de forme normale, moteur local.
+        // final est rangée comme incomplète, sans calcul de perte.
         let marks = host
             .perf_record(PerfRec {
                 iter: s.perf_iter,
@@ -656,13 +819,6 @@ pub async fn run_turn<H: TurnHost>(
                 external: ep.external,
                 stats: out.stats.clone(),
                 prefix: if complete { prefix } else { Vec::new() },
-                probe: (complete && !ep.external && !s.disable_tools && !s.tool_choice_none).then(
-                    || PerfProbe {
-                        tools: tc.tools.clone(),
-                        kwargs: kwargs.clone(),
-                        effort: effort.clone(),
-                    },
-                ),
             })
             .await;
         s.perf_iter += 1;
@@ -677,6 +833,11 @@ pub async fn run_turn<H: TurnHost>(
             st.lost_after = marks.lost_after;
             st.lost_alert = marks.lost_alert;
             cb(StreamEvent::Stats(st));
+            // Sonde de gabarit, en tâche de fond et après coup : rien n'en
+            // revient dans la requête suivante.
+            if !ep.external && !s.disable_tools && !s.tool_choice_none {
+                host.completed(&tc.tools, kwargs.as_ref(), &effort);
+            }
             if !ep.external {
                 s.peak_gen = s.peak_gen.max(out.stats.gen_tokens);
                 if s.last_est > 0 && out.stats.prompt_tokens_total > 0 {
@@ -684,6 +845,11 @@ pub async fn run_turn<H: TurnHost>(
                 }
             }
             s.last_est = 0;
+        }
+        // KEEP_TURN_IMAGES : coût des images de l'étape précédente, mesuré sur
+        // cette complétion ; gardées ou rendues éphémères.
+        if let Some(k) = kt.as_mut() {
+            k.observe(complete, &out.stats, &mut messages, &mut extra);
         }
         if out.finish_reason == "length" {
             log_ctx(&format!(
@@ -904,7 +1070,20 @@ pub async fn run_turn<H: TurnHost>(
                 // Plafond pour le MODÈLE seulement : l'UI a reçu le résultat.
                 push_result(&mut messages, &mut extra, cap_tool_result(&ex.result));
                 if let Some(img) = ex.relay {
-                    messages.push(img); // éphémère : jamais dans l'historique
+                    match kt.as_mut() {
+                        // Éphémère : jamais dans l'historique.
+                        None => messages.push(img),
+                        // KEEP_TURN_IMAGES : gardée par référence, à l'essai
+                        // jusqu'à la mesure de son coût.
+                        Some(k) => {
+                            let stored = if k.wants(&messages) {
+                                host.keep_image(&img).await
+                            } else {
+                                None
+                            };
+                            k.relay(&mut messages, &mut extra, img, step_start, stored);
+                        }
+                    }
                 }
             }
             // Compaction EN COURS DE TOUR, sur le contexte réel du dernier appel
@@ -914,6 +1093,21 @@ pub async fn run_turn<H: TurnHost>(
             if base > 0 {
                 used = base + estimate_tokens(&messages[step_start..], &ccfg.echo);
                 s.last_est = used;
+            }
+            // KEEP_TURN_IMAGES : les images gardées partent AVANT tout résumé ;
+            // la compaction ne suit que si elle reste nécessaire.
+            if has_kept_images(&messages)
+                && compact_needed(ccfg, &messages, used, s.peak_gen)
+                && let Some((c, freed)) = drop_kept_images(&messages)
+            {
+                log_kept_images_dropped("en-tour", freed);
+                messages = c;
+                if used > 0 {
+                    used = (used - freed).max(1);
+                    s.last_est = used;
+                }
+                extra.clear();
+                publish_history(cb, kt, &messages);
             }
             if compact_needed(ccfg, &messages, used, s.peak_gen)
                 && !host.compact_refused(used, &messages)
@@ -938,9 +1132,9 @@ pub async fn run_turn<H: TurnHost>(
                 );
                 if let Some(c) = c {
                     s.last_est = 0;
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                 }
             }
             continue;
@@ -967,6 +1161,18 @@ pub async fn run_turn<H: TurnHost>(
                 && compact_would_trigger(ccfg, &messages, known)
             {
                 s.length_replays += 1;
+                // KEEP_TURN_IMAGES : les images gardées d'abord ; le résumé ne
+                // suit que s'il reste nécessaire.
+                if let Some((c, freed)) = drop_kept_images(&messages) {
+                    log_kept_images_dropped("fenêtre-pleine", freed);
+                    messages = c;
+                    extra.clear();
+                    publish_history(cb, kt, &messages);
+                    if !compact_would_trigger(ccfg, &messages, (known - freed).max(1)) {
+                        cb(StreamEvent::DropReasoning);
+                        continue;
+                    }
+                }
                 cb(StreamEvent::Compacting(true));
                 let c = cancel
                     .or_stop(host.compact(CompactPhase::FullWindow, &messages))
@@ -985,9 +1191,9 @@ pub async fn run_turn<H: TurnHost>(
                 );
                 if let Some(c) = c {
                     cb(StreamEvent::DropReasoning);
-                    messages = c;
+                    messages = host.project_refresh(c).await;
                     extra.clear();
-                    new_history(cb, &messages);
+                    publish_history(cb, kt, &messages);
                     continue;
                 }
             }

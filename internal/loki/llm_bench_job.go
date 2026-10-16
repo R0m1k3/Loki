@@ -81,11 +81,13 @@ var benchJob struct {
 	canceled bool
 }
 
-// benchRunning : un benchmark de ce processus est-il en cours ?
+// benchRunning : un benchmark est-il en cours, de ce processus ou de la
+// façade (LOKI_BENCH=rust, qui tient alors le bail du moteur) ?
 func benchRunning() bool {
 	benchJob.mu.Lock()
-	defer benchJob.mu.Unlock()
-	return benchJob.running
+	running := benchJob.running
+	benchJob.mu.Unlock()
+	return running || benchLeased()
 }
 
 // benchRunner est runBench, remplaçable dans les tests.

@@ -155,7 +155,7 @@ const reportMax = 4000
 // runTask exécute une tâche et met à jour son état persisté (dernier passage,
 // prochain passage, succès/échec, compte-rendu).
 func runTask(t Task) {
-	start := time.Now()
+	start := tasksNow()
 
 	// Tâche « script seul » : aucun modèle à charger, aucun token consommé — on
 	// lance le script du dossier protégé et sa sortie devient le compte-rendu.
@@ -273,7 +273,7 @@ func ensureTaskPreset(id string) error {
 // tâche juste avant d'écrire pour ne pas écraser une modification concurrente
 // (bascule ou édition depuis l'interface pendant l'exécution).
 func recordTaskEnd(id string, start time.Time, report string, err error) {
-	now := time.Now()
+	now := tasksNow()
 	cur, ok := getTask(id)
 	if !ok {
 		return // supprimée entre-temps : rien à écrire

@@ -130,25 +130,32 @@ func newWebMux() *http.ServeMux {
 	// secondes pour un serveur lancé via npx) est payé par le premier message.
 	MCPPrewarm()
 	// Un téléchargement de modèle coupé net (crash, restart du service) laisse un
-	// .part orphelin non reprenable : on nettoie au démarrage.
-	cleanStalePartFiles()
+	// .part orphelin non reprenable : on nettoie au démarrage (sauf quand la
+	// façade tient les modèles, facade_models.go).
+	cleanStartupPartFiles()
 	// Les fichiers des versions précédentes vivaient dans un pot commun : on les
 	// range dans le dossier de leur discussion (une fois par process).
 	migrateConvFiles()
 	// Idem pour un envoi de fichier coupé en plein transfert : les sessions vivent
-	// en mémoire, aucun .part ne survit utilement à l'arrêt du process.
-	cleanStaleUploadParts()
+	// en mémoire, aucun .part ne survit utilement à l'arrêt du process (sauf
+	// quand la façade tient les fichiers, facade_files.go).
+	cleanStartupUploadParts()
 	// Idem pour une installation de moteur : elle meurt avec le process. On
 	// recharge son état pour l'annoncer « interrompue » au lieu de n'afficher
 	// plus rien du tout.
-	lcRestoreOnce.Do(lcRestore)
+	if !facadeBackends() { // sinon la façade a repris le job (facade_backends.go)
+		lcRestoreOnce.Do(lcRestore)
+	}
 	// Chiffrement de la mémoire : une migration interrompue (coupure de courant
 	// en plein chiffrement) reprend ici, si la clé est disponible. Sans clé, elle
 	// attend le déverrouillage (voir handleMemUnlock). Idempotent.
 	resumeMemMigration()
 	// Planificateur des tâches : une goroutine, un tic par minute, dans le process
-	// qui détient la conversation et le modèle (idempotent, cf. sync.Once).
-	StartTaskScheduler()
+	// qui détient la conversation et le modèle (idempotent, cf. sync.Once) — sauf
+	// quand la façade tient les tâches (facade_tasks.go) : c'est elle qui planifie.
+	if !facadeTasks() {
+		StartTaskScheduler()
+	}
 	// Jeton de tentative du décodage spéculatif automatique : effacé dès que le
 	// moteur répond, sans dépendre d'une page ouverte (voir backend_serve_spec.go).
 	startSpecAttemptWatch()
@@ -218,7 +225,12 @@ func newWebMux() *http.ServeMux {
 	mountOAI(mux)
 	// api enregistre une route /api/* protégée par la clé de pilotage (web_auth.go).
 	// withFacadeChat : routes du chat remises à la façade quand elle tient la
-	// conversation (LOKI_CHAT=rust, facade_chat.go) ; sans effet sinon.
+	// conversation (LOKI_CHAT=rust, facade_chat.go), celles des modèles quand
+	// elle les tient (LOKI_MODELS=rust, facade_models.go), celles de la dictée
+	// (LOKI_DICTATE=rust, facade_dictate.go), des réglages partagés
+	// (LOKI_SETTINGS=rust, facade_settings.go), des fichiers de la discussion
+	// (LOKI_FILES=rust, facade_files.go) et des notifications (LOKI_PUSH=rust,
+	// facade_push.go) ; sans effet sinon.
 	api := func(path string, h http.HandlerFunc) { mux.HandleFunc(path, requireWebAuth(withFacadeChat(path, h))) }
 	api("/api/ping", handlePing)
 	api("/api/status", handleStatus)

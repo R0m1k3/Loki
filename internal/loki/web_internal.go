@@ -71,8 +71,20 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalOAIEnd(w, r)
 		case "/internal/v1/oai/served":
 			handleInternalOAIServed(w, r)
-		case "/internal/v1/turn/perf":
-			handleInternalTurnPerf(w, r)
+		case "/internal/v1/turn/projsnap/refresh":
+			handleInternalTurnProjSnapRefresh(w, r)
+		case "/internal/v1/turn/slot":
+			handleInternalTurnSlot(w, r)
+		case "/internal/v1/prewarm/check":
+			handleInternalPrewarmCheck(w, r)
+		case "/internal/v1/prewarm/begin":
+			handleInternalPrewarmBegin(w, r)
+		case "/internal/v1/prewarm/end":
+			handleInternalPrewarmEnd(w, r)
+		case "/internal/v1/turn/keepimg":
+			handleInternalTurnKeepImg(w, r)
+		case "/internal/v1/turn/keepimg/store":
+			handleInternalTurnKeepImgStore(w, r)
 		case "/internal/v1/tool/exec":
 			handleInternalToolExec(w, r)
 		case "/internal/v1/tool/context":
@@ -95,6 +107,10 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalEngineStop(w, r)
 		case "/internal/v1/recall/archive":
 			handleInternalRecallArchive(w, r)
+		case "/internal/v1/recall/block":
+			handleInternalRecallBlock(w, r)
+		case "/internal/v1/recall/blocks":
+			handleInternalRecallBlocks(w, r)
 		case "/internal/v1/turn/start":
 			handleInternalTurnStart(w, r)
 		case "/internal/v1/turn/view":
@@ -103,6 +119,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalTurnDone(w, r)
 		case "/internal/v1/turn/verifier":
 			handleInternalTurnVerifier(w, r)
+		case "/internal/v1/turn/subagent":
+			handleInternalTurnSubagent(w, r)
 		case "/internal/v1/project/activate":
 			handleInternalProjectActivate(w, r)
 		case "/internal/v1/chat/holder":
@@ -111,6 +129,42 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalConvActive(w, r)
 		case "/internal/v1/conv/dropped":
 			handleInternalConvDropped(w, r)
+		case "/internal/v1/conv/workspace":
+			handleInternalConvWorkspace(w, r)
+		case "/internal/v1/preset/apply":
+			handleInternalPresetApply(w, r)
+		case "/internal/v1/tune/guard":
+			handleInternalTuneGuard(w, r)
+		case "/internal/v1/service/prestart":
+			handleInternalServicePrestart(w, r)
+		case "/internal/v1/chat/generating":
+			handleInternalChatGenerating(w, r)
+		case "/internal/v1/dictate/stop":
+			handleInternalDictateStop(w, r)
+		case "/internal/v1/web/reach/reset":
+			handleInternalReachReset(w, r)
+		case "/internal/v1/web/fetch":
+			handleInternalWebFetch(w, r)
+		case "/internal/v1/web/search":
+			handleInternalWebSearch(w, r)
+		case "/internal/v1/cdp/shutdown":
+			handleInternalCDPShutdown(w, r)
+		case "/internal/v1/service/action":
+			handleInternalServiceAction(w, r)
+		case "/internal/v1/project/switch":
+			handleInternalProjectSwitch(w, r)
+		case "/internal/v1/project/drop-convs":
+			handleInternalProjectDropConvs(w, r)
+		case "/internal/v1/engine/sidejob":
+			handleInternalSideJob(w, r)
+		case "/internal/v1/bench/perf":
+			handleInternalBenchPerf(w, r)
+		case "/internal/v1/tune/context":
+			handleInternalTuneContext(w, r)
+		case "/internal/v1/tasks/run":
+			handleInternalTaskRun(w, r)
+		case "/internal/v1/push/send":
+			handleInternalPushSend(w, r)
 		default:
 			http.NotFound(w, r)
 		}

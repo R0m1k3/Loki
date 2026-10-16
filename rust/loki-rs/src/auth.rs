@@ -32,6 +32,7 @@ pub struct AuthInfo {
 }
 
 /// Client de l'API interne du Go.
+#[derive(Clone)]
 pub struct InternalClient {
     client: Client<HttpConnector, Empty<Bytes>>,
     backend: SocketAddr,

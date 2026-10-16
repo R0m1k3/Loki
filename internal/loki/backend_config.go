@@ -73,10 +73,15 @@ func writeAPIKey(key string) error {
 }
 
 // maskAPIKey renders a key for display: keep the "sk-loki-" prefix and last 4
-// chars, elide the middle. Empty in → empty out.
+// chars, elide the middle. Empty in → empty out. Une clé d'un ou deux octets
+// n'est pas montrée du tout : k[len(k)-2:] paniquait sur un seul octet, et
+// /api/apikey tombait à chaque lecture tant que la clé restait en place.
 func maskAPIKey(k string) string {
 	if k == "" {
 		return ""
+	}
+	if len(k) <= 2 {
+		return "…"
 	}
 	if len(k) <= 13 {
 		return "…" + k[len(k)-2:]

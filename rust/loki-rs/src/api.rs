@@ -18,6 +18,7 @@ use crate::{engstatus, gguf, paths, presets, sysinfo};
 use std::collections::BTreeMap;
 
 /// Ce dont les routes ont besoin, partagé par toutes les connexions.
+#[derive(Clone)]
 pub struct Ctx {
     pub store: Store,
     pub internal: InternalClient,
@@ -26,11 +27,77 @@ pub struct Ctx {
     pub engine: engine::Paths,
     /// Conversation tenue par la façade (`LOKI_CHAT=rust`) ; `None` : au Go.
     pub chat: Option<std::sync::Arc<crate::chat::generate::ChatService>>,
+    /// Routes des modèles (liste, dossiers, suppression, téléchargements,
+    /// catalogue Hugging Face) tenues par la façade (`LOKI_MODELS=rust`) ;
+    /// `None` : au Go.
+    pub models: Option<std::sync::Arc<crate::models::Models>>,
+    /// Dictée vocale tenue par la façade (`LOKI_DICTATE=rust`) ; `None` : au Go.
+    pub dictate: Option<std::sync::Arc<crate::dictate::Dictation>>,
+    /// Réglages partagés tenus par la façade (`LOKI_SETTINGS=rust`).
+    pub settings: bool,
+    /// Fichiers de la discussion tenus par la façade (`LOKI_FILES=rust`).
+    pub files: Option<std::sync::Arc<crate::convfiles::ConvFiles>>,
+    /// Notifications Web Push tenues par la façade (`LOKI_PUSH=rust`).
+    pub push: Option<std::sync::Arc<crate::push::Push>>,
+    /// Mémoire tenue par la façade (`LOKI_MEM=rust`).
+    pub mem: Option<std::sync::Arc<crate::memory::Memory>>,
+    /// Presets tenus par la façade (`LOKI_PRESETS=rust`).
+    pub presets: bool,
+    /// Pilotage du moteur tenu par la façade (`LOKI_ENGINE=rust`).
+    pub engine_ctl: Option<std::sync::Arc<crate::enginectl::EngineCtl>>,
+    /// Interrupteurs système tenus par la façade (`LOKI_SYSTEM=rust`).
+    pub system: Option<std::sync::Arc<crate::system::System>>,
+    /// Hub des projets tenu par la façade (`LOKI_PROJECTS=rust`).
+    pub projects: bool,
+    /// Serveurs MCP tenus par la façade (`LOKI_MCP=rust`).
+    pub mcp: Option<std::sync::Arc<crate::mcp::Mcp>>,
+    /// Mise à jour de Loki tenue par la façade (`LOKI_UPDATE=rust`).
+    pub update: bool,
+    /// Backends llama.cpp et job des moteurs tenus par la façade
+    /// (`LOKI_BACKENDS=rust`).
+    pub backends: Option<std::sync::Arc<crate::backends::Backends>>,
+    /// Panneau « moteur de l'image » tenu par la façade
+    /// (`LOKI_ENGINE_IMAGE=rust`, avec les backends).
+    pub engineimg: Option<std::sync::Arc<crate::engineimg::EngineImg>>,
+    /// Strata (écran, réglages, installation) tenu par la façade
+    /// (`LOKI_STRATA=rust`, avec les backends).
+    pub strata: Option<std::sync::Arc<crate::strata::api::Strata>>,
+    /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
+    /// façade (`LOKI_TASKS=rust`).
+    pub tasks: Option<std::sync::Arc<crate::tasks::Tasks>>,
+    /// Banc d'essai tenu par la façade (`LOKI_BENCH=rust`).
+    pub bench: Option<std::sync::Arc<crate::bench::job::Bench>>,
+    /// Optimiseur tenu par la façade (`LOKI_TUNE=rust`).
+    pub tune: Option<std::sync::Arc<crate::tune::job::Tune>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
 }
 
 impl Ctx {
+    /// La façade tient-elle au moins un lot (le Go lui remet alors le trafic
+    /// de ce lot qui lui arrive par le tunnel) ?
+    pub fn holds_any(&self) -> bool {
+        self.chat.is_some()
+            || self.models.is_some()
+            || self.dictate.is_some()
+            || self.settings
+            || self.files.is_some()
+            || self.push.is_some()
+            || self.mem.is_some()
+            || self.presets
+            || self.engine_ctl.is_some()
+            || self.system.is_some()
+            || self.projects
+            || self.mcp.is_some()
+            || self.update
+            || self.backends.is_some()
+            || self.engineimg.is_some()
+            || self.strata.is_some()
+            || self.tasks.is_some()
+            || self.bench.is_some()
+            || self.tune.is_some()
+    }
+
     /// La requête vient du Go (jeton interne valide) : déjà authentifiée par
     /// lui (tunnel du relais, redistribution E2E).
     pub fn from_go(&self, headers: &HeaderMap) -> bool {
@@ -69,11 +136,21 @@ pub fn handles(_method: &Method, path: &str) -> bool {
     )
 }
 
-pub async fn serve(ctx: &Ctx, req: Request<Incoming>) -> Response<Body> {
+/// `from_go` : relayée par le Go (tunnel du relais), qui l'a déjà
+/// authentifiée.
+pub async fn serve(ctx: &Ctx, req: Request<Incoming>, from_go: bool) -> Response<Body> {
     let (parts, _body) = req.into_parts();
-    let version = match ctx.guard(&parts.headers).await {
-        Ok(v) => v,
-        Err(refus) => return *refus,
+    let version = if from_go {
+        ctx.internal
+            .auth()
+            .await
+            .map(|i| i.version)
+            .unwrap_or_default()
+    } else {
+        match ctx.guard(&parts.headers).await {
+            Ok(v) => v,
+            Err(refus) => return *refus,
+        }
     };
     match parts.uri.path() {
         // Vérifie la connectivité ET la clé (200 = bonne clé, 401 = mauvaise).

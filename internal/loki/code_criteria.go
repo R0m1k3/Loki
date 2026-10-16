@@ -9,6 +9,10 @@ package loki
 //
 // Rangés par discussion dans bbolt (bucket chat, clé crit:<id>) : ils suivent
 // la discussion, sa suppression les emporte.
+//
+// Port Rust de l'outil (lot 38) : rust/loki-rs/src/chat/crittool.rs, employé
+// par les tours de la façade ; journal de parité dans
+// parity_criteria_test.go.
 
 import (
 	"encoding/json"

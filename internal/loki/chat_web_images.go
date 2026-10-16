@@ -46,6 +46,9 @@ type imageResult struct {
 
 var ddgVqdRe = regexp.MustCompile(`vqd=["']?([0-9-]+)`)
 
+// ddgImagesBase : DuckDuckGo (un faux pour les tests).
+var ddgImagesBase = "https://duckduckgo.com"
+
 func ddgGet(ctx context.Context, target, referer string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
@@ -75,7 +78,7 @@ func ddgGet(ctx context.Context, target, referer string) ([]byte, error) {
 func duckduckgoImages(query string, limit int) ([]imageResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), goFetchTimeout)
 	defer cancel()
-	page := "https://duckduckgo.com/?q=" + url.QueryEscape(query) + "&iax=images&ia=images"
+	page := ddgImagesBase + "/?q=" + url.QueryEscape(query) + "&iax=images&ia=images"
 	body, err := ddgGet(ctx, page, "")
 	if err != nil {
 		return nil, err
@@ -84,7 +87,7 @@ func duckduckgoImages(query string, limit int) ([]imageResult, error) {
 	if m == nil {
 		return nil, fmt.Errorf("jeton DuckDuckGo introuvable (défi anti-bot ?)")
 	}
-	api := "https://duckduckgo.com/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=" + url.QueryEscape(query) + "&vqd=" + string(m[1])
+	api := ddgImagesBase + "/i.js?l=fr-fr&o=json&f=,,,,,&p=1&q=" + url.QueryEscape(query) + "&vqd=" + string(m[1])
 	body, err = ddgGet(ctx, api, "https://duckduckgo.com/")
 	if err != nil {
 		return nil, err

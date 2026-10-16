@@ -41,6 +41,10 @@ impl Paths {
 pub struct Opts {
     /// Binaire Go à lancer en `serve`.
     pub go_bin: PathBuf,
+    /// Commande qui compose la ligne du moteur puis lui cède la place :
+    /// `loki serve` (Go) par défaut, `loki-rs engine serve` quand
+    /// `LOKI_SERVE=rust` (lot 14).
+    pub serve: (PathBuf, Vec<String>),
     /// Délai avant de juger que le démarrage a tenu (2 s comme le Go).
     pub check_delay: Duration,
     /// SIGTERM → SIGKILL (4 s comme le Go).
@@ -52,6 +56,7 @@ pub struct Opts {
 impl Opts {
     pub fn new(go_bin: PathBuf) -> Self {
         Opts {
+            serve: (go_bin.clone(), vec!["serve".into()]),
             go_bin,
             check_delay: Duration::from_secs(2),
             grace: Duration::from_secs(4),
@@ -124,8 +129,8 @@ mod imp {
             .open(paths.log())
             .map_err(|e| format!("ouverture du log {}: {e}", paths.log().display()))?;
         let log2 = log.try_clone().map_err(|e| e.to_string())?;
-        let mut cmd = Command::new(&opts.go_bin);
-        cmd.arg("serve")
+        let mut cmd = Command::new(&opts.serve.0);
+        cmd.args(&opts.serve.1)
             .stdin(Stdio::null())
             .stdout(log)
             .stderr(log2)

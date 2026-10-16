@@ -1,0 +1,1082 @@
+{
+  "launch": [
+    "--headless=new",
+    "--remote-debugging-port=0",
+    "--user-data-dir={{PROFIL}}",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-features=Translate,BackForwardCache",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--window-size=1280,900",
+    "about:blank"
+  ],
+  "steps": [
+    {
+      "name": "ouverture sans url",
+      "tool": "browser_open",
+      "args": {
+        "url": "  "
+      },
+      "result": "[erreur] url manquante",
+      "saved": [],
+      "calls": []
+    },
+    {
+      "name": "ouverture",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "https://exemple.test/"
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": "exemple.test"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Page.enable",
+        "Runtime.enable",
+        "DOM.enable",
+        "Network.enable",
+        "Emulation.setDeviceMetricsOverride {\"deviceScaleFactor\":1,\"height\":800,\"mobile\":false,\"width\":1280}",
+        "Page.addScriptToEvaluateOnNewDocument {\"source\":\"(function(){try{\\n  window.open=function(…[264:24e8477d927f]\"}",
+        "Page.navigate {\"url\":\"https://exemple.test\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "snapshot inchangé",
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "réouverture : page complète",
+      "tool": "browser_open",
+      "args": {
+        "url": "https://exemple.test/"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.navigate {\"url\":\"https://exemple.test/\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "page vide",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 0,
+          "refs": [],
+          "title": "",
+          "url": "about:blank"
+        },
+        "href": "about:blank"
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "# \nabout:blank\n\n(aucun élément interactif détecté — page vide, en cours de chargement, ou rendue sur canvas ; réessaie browser_snapshot, ou utilise browser_screenshot pour voir)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "snapshot null",
+      "scene": {
+        "href": "about:blank"
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "# \n\n\n(aucun élément interactif détecté — page vide, en cours de chargement, ou rendue sur canvas ; réessaie browser_snapshot, ou utilise browser_screenshot pour voir)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "snapshot sans valeur",
+      "scene": {
+        "snap": "<absent>"
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "[erreur] snapshot illisible: unexpected end of JSON input",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "snapshot illisible",
+      "scene": {
+        "snap": "texte"
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "[erreur] snapshot illisible: json: cannot unmarshal string into Go value of type loki.cuSnap",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "exception JS",
+      "scene": {
+        "throw": true
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "[erreur] JS: Uncaught TypeError: x is not a function",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "défilé",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "https://exemple.test/"
+      },
+      "tool": "browser_scroll",
+      "args": {
+        "direction": "down"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,600);'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "défilement haut",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_scroll",
+      "args": {
+        "direction": "UP"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,-600);'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "défilement gauche puis droite",
+      "tool": "browser_scroll",
+      "args": {
+        "direction": "left"
+      },
+      "result": "(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(-600,0);'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "défilement par défaut",
+      "tool": "browser_scroll",
+      "args": {},
+      "result": "(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,600);'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "direction inconnue",
+      "tool": "browser_scroll",
+      "args": {
+        "direction": "diagonale"
+      },
+      "result": "[erreur] direction inconnue « diagonale » (up, down, left, right)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "clic",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "center": {
+          "x": 640,
+          "y": 412.5
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 2
+      },
+      "result": "[ok] cliqué [2]\n\n# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:d543b8f1c16e]\",\"returnByValue\":true}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":640,\"y\":412.5}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":640,\"y\":412.5}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "clic introuvable",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 9
+      },
+      "result": "[erreur] élément [9] introuvable — refais un browser_snapshot (la page a peut-être changé)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:22298800a28a]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "clic sans ref",
+      "tool": "browser_click",
+      "args": {
+        "ref": "2"
+      },
+      "result": "[erreur] ref manquant (numéro de l'élément)",
+      "saved": [],
+      "calls": []
+    },
+    {
+      "name": "clic refusé",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "center": {
+          "x": 1,
+          "y": 2
+        },
+        "errors": {
+          "Input.dispatchMouseEvent": "Cannot dispatch"
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 1
+      },
+      "result": "[erreur] Input.dispatchMouseEvent: Cannot dispatch",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:d1528b7be679]\",\"returnByValue\":true}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":1,\"y\":2}"
+      ]
+    },
+    {
+      "name": "clic en coordonnées",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_click_xy",
+      "args": {
+        "x": 100.4,
+        "y": 250.5
+      },
+      "result": "[ok] clic en (100, 250)\n\n# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":100.4,\"y\":250.5}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":100.4,\"y\":250.5}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "coordonnées manquantes",
+      "tool": "browser_click_xy",
+      "args": {
+        "x": 10
+      },
+      "result": "[erreur] coordonnées x et y requises (en pixels du screenshot)",
+      "saved": [],
+      "calls": []
+    },
+    {
+      "name": "saisie libre",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_type",
+      "args": {
+        "text": "bonjour <monde> & co"
+      },
+      "result": "[ok] saisi « bonjour <monde> & co »\n\n# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Input.insertText {\"text\":\"bonjour \\u003cmonde\\u003e \\u0026 co\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "saisie dans un champ",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "typed": "TEXT"
+      },
+      "tool": "browser_type",
+      "args": {
+        "ref": 3,
+        "text": "Jean"
+      },
+      "result": "[ok] saisi « Jean »\n\n# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4147:bba886791418]\",\"returnByValue\":true}",
+        "Input.insertText {\"text\":\"Jean\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "liste déroulante",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "typed": "SELECT"
+      },
+      "tool": "browser_type",
+      "args": {
+        "ref": 5,
+        "text": "France"
+      },
+      "result": "[ok] saisi « France »\n\n# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4149:abf8fb89d6ea]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "option absente",
+      "scene": {
+        "typed": "NOOPT"
+      },
+      "tool": "browser_type",
+      "args": {
+        "ref": 5,
+        "text": "Mars"
+      },
+      "result": "[erreur] aucune option de la liste [5] ne correspond à « Mars » — fais un browser_screenshot pour voir les choix",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4147:5fd2e2486627]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "champ introuvable",
+      "scene": {
+        "typed": "NOTFOUND"
+      },
+      "tool": "browser_type",
+      "args": {
+        "ref": 7,
+        "text": "x"
+      },
+      "result": "[erreur] champ [7] introuvable — refais un browser_snapshot",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4144:04f4774b7d77]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "touche",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_key",
+      "args": {
+        "key": " Enter "
+      },
+      "result": "[ok] touche  Enter \n\n# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Input.dispatchKeyEvent {\"code\":\"Enter\",\"key\":\"Enter\",\"nativeVirtualKeyCode\":13,\"type\":\"rawKeyDown\",\"windowsVirtualKeyCode\":13}",
+        "Input.dispatchKeyEvent {\"code\":\"Enter\",\"key\":\"Enter\",\"nativeVirtualKeyCode\":13,\"type\":\"keyUp\",\"windowsVirtualKeyCode\":13}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "touche esc",
+      "tool": "browser_key",
+      "args": {
+        "key": "esc"
+      },
+      "result": "[ok] touche esc\n\n(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Input.dispatchKeyEvent {\"code\":\"Escape\",\"key\":\"Escape\",\"nativeVirtualKeyCode\":27,\"type\":\"rawKeyDown\",\"windowsVirtualKeyCode\":27}",
+        "Input.dispatchKeyEvent {\"code\":\"Escape\",\"key\":\"Escape\",\"nativeVirtualKeyCode\":27,\"type\":\"keyUp\",\"windowsVirtualKeyCode\":27}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "touche inconnue",
+      "tool": "browser_key",
+      "args": {
+        "key": "F13"
+      },
+      "result": "[erreur] touche inconnue « F13 » — connues : enter, tab, backspace, escape, delete, up/down/left/right, home, end, pageup, pagedown",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "recherche vide",
+      "tool": "browser_find",
+      "args": {
+        "text": ""
+      },
+      "result": "[erreur] texte de recherche manquant",
+      "saved": [],
+      "calls": []
+    },
+    {
+      "name": "recherche",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "find": {
+          "refs": [
+            "[2] button \"Créer un compte\"",
+            "[7] link \"Créer\""
+          ]
+        }
+      },
+      "tool": "browser_find",
+      "args": {
+        "text": "créer <b>"
+      },
+      "result": "2 élément(s) contenant « créer <b> » (le 1er est amené dans la vue) — clique par numéro :\n[2] button \"Créer un compte\"\n[7] link \"Créer\"",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4257:2e4488312149]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "recherche sans résultat",
+      "scene": {
+        "find": {
+          "refs": []
+        }
+      },
+      "tool": "browser_find",
+      "args": {
+        "text": "zzz"
+      },
+      "result": "Aucun élément contenant « zzz » sur cette page. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien).",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4240:c7d0f581011e]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "navigation en échec",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "https://nulle-part.test/",
+        "nav_error": "net::ERR_NAME_NOT_RESOLVED"
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": "nulle-part.test"
+      },
+      "result": "[erreur] navigation : chargement de https://nulle-part.test échoué (net::ERR_NAME_NOT_RESOLVED) — URL/hôte invalide, DNS, ou site bloqué ; corrige l'URL, essaie 'back', ou passe par un lien de la page",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.navigate {\"url\":\"https://nulle-part.test\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "page d'erreur",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "chrome-error://chromewebdata/"
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": "http://x.test"
+      },
+      "result": "[erreur] navigation : chargement de http://x.test échoué (page injoignable) — URL/hôte invalide, DNS, ou site bloqué ; corrige l'URL, essaie 'back', ou passe par un lien de la page",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.navigate {\"url\":\"http://x.test\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "navigation interrompue bénigne",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "https://dl.test/f.zip",
+        "nav_error": "net::ERR_ABORTED"
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": "https://dl.test/f.zip"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.navigate {\"url\":\"https://dl.test/f.zip\"}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "retour",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "href": "https://exemple.test/"
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": " Back "
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"history.back();'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "avance",
+      "tool": "browser_open",
+      "args": {
+        "url": "forward"
+      },
+      "result": "# Exemple\nhttps://exemple.test/\n\n1 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[4] link \"Mentions\"\n\n↑ ~600 px au-dessus — browser_scroll(up) pour y revenir.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"history.forward();'ok'\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "commande refusée",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "errors": {
+          "Page.navigate": "Cannot navigate to invalid URL"
+        }
+      },
+      "tool": "browser_open",
+      "args": {
+        "url": "https://exemple.test/"
+      },
+      "result": "[erreur] navigation : Page.navigate: Cannot navigate to invalid URL",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.navigate {\"url\":\"https://exemple.test/\"}"
+      ]
+    },
+    {
+      "name": "capture sans vision",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        }
+      },
+      "tool": "browser_screenshot",
+      "args": {},
+      "result": "[erreur] la vision n'est pas active sur ce modèle — impossible de capturer l'écran",
+      "saved": [],
+      "calls": []
+    },
+    {
+      "name": "capture",
+      "vision": true,
+      "tool": "browser_screenshot",
+      "args": {},
+      "result": "[ok] capture prise (tu la vois ci-dessous, 1280x800 px, 1:1 avec la page). Une GRILLE de repères y est surimprimée (lignes + chiffres tous les 100 px) POUR TOI seulement, afin de viser précisément — le fichier enregistré, lui, est PROPRE (sans grille), donc l'aperçu ![capture] montré à l'utilisateur est net. Si un élément visible n'est PAS dans la liste numérotée (bandeau cookies en iframe, canvas), clique-le du premier coup avec browser_click_xy(x,y), coordonnées lues sur la grille. Enregistrée sous « capture-{{T}}.png ». Pour l'AFFICHER à l'utilisateur dans le chat, insère-la en IMAGE Markdown : ![capture](capture-{{T}}.png). Un simple lien [capture](capture-{{T}}.png) ne donne qu'un bouton de téléchargement, sans aperçu. Ne cherche pas de fichier sur le disque, c'est celui-ci.",
+      "image": {
+        "h": 800,
+        "px": {
+          "0,0": "40,80,120,255",
+          "100,50": "149,39,160,255",
+          "101,50": "40,80,120,255",
+          "104,4": "255,255,0,255",
+          "110,12": "0,0,0,255",
+          "1279,700": "149,39,160,255",
+          "2,2": "40,80,120,255",
+          "300,799": "149,39,160,255",
+          "4,204": "0,0,0,255",
+          "50,100": "149,39,160,255"
+        },
+        "w": 1280
+      },
+      "saved": [
+        "capture-{{T}}.png"
+      ],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.captureScreenshot {\"format\":\"png\"}"
+      ]
+    },
+    {
+      "name": "capture refusée",
+      "scene": {
+        "errors": {
+          "Page.captureScreenshot": "Unable to capture"
+        }
+      },
+      "vision": true,
+      "tool": "browser_screenshot",
+      "args": {},
+      "result": "[erreur] Page.captureScreenshot: Unable to capture",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Page.captureScreenshot {\"format\":\"png\"}"
+      ]
+    },
+    {
+      "name": "sortie plafonnée",
+      "scene": {
+        "snap": {
+          "refs": [
+            "[1] link \"Un lien assez long pour remplir la sortie, numéro 1\"",
+            "[2] link \"Un lien assez long pour remplir la sortie, numéro 2\"",
+            "[3] link \"Un lien assez long pour remplir la sortie, numéro 3\"",
+            "[4] link \"Un lien assez long pour remplir la sortie, numéro 4\"",
+            "[5] link \"Un lien assez long pour remplir la sortie, numéro 5\"",
+            "[6] link \"Un lien assez long pour remplir la sortie, numéro 6\"",
+            "[7] link \"Un lien assez long pour remplir la sortie, numéro 7\"",
+            "[8] link \"Un lien assez long pour remplir la sortie, numéro 8\"",
+            "[9] link \"Un lien assez long pour remplir la sortie, numéro 9\"",
+            "[10] link \"Un lien assez long pour remplir la sortie, numéro 10\"",
+            "[11] link \"Un lien assez long pour remplir la sortie, numéro 11\"",
+            "[12] link \"Un lien assez long pour remplir la sortie, numéro 12\"",
+            "[13] link \"Un lien assez long pour remplir la sortie, numéro 13\"",
+            "[14] link \"Un lien assez long pour remplir la sortie, numéro 14\"",
+            "[15] link \"Un lien assez long pour remplir la sortie, numéro 15\"",
+            "[16] link \"Un lien assez long pour remplir la sortie, numéro 16\"",
+            "[17] link \"Un lien assez long pour remplir la sortie, numéro 17\"",
+            "[18] link \"Un lien assez long pour remplir la sortie, numéro 18\"",
+            "[19] link \"Un lien assez long pour remplir la sortie, numéro 19\"",
+            "[20] link \"Un lien assez long pour remplir la sortie, numéro 20\"",
+            "[21] link \"Un lien assez long pour remplir la sortie, numéro 21\"",
+            "[22] link \"Un lien assez long pour remplir la sortie, numéro 22\"",
+            "[23] link \"Un lien assez long pour remplir la sortie, numéro 23\"",
+            "[24] link \"Un lien assez long pour remplir la sortie, numéro 24\"",
+            "[25] link \"Un lien assez long pour remplir la sortie, numéro 25\"",
+            "[26] link \"Un lien assez long pour remplir la sortie, numéro 26\"",
+            "[27] link \"Un lien assez long pour remplir la sortie, numéro 27\"",
+            "[28] link \"Un lien assez long pour remplir la sortie, numéro 28\"",
+            "[29] link \"Un lien assez long pour remplir la sortie, numéro 29\"",
+            "[30] link \"Un lien assez long pour remplir la sortie, numéro 30\"",
+            "[31] link \"Un lien assez long pour remplir la sortie, numéro 31\"",
+            "[32] link \"Un lien assez long pour remplir la sortie, numéro 32\"",
+            "[33] link \"Un lien assez long pour remplir la sortie, numéro 33\"",
+            "[34] link \"Un lien assez long pour remplir la sortie, numéro 34\"",
+            "[35] link \"Un lien assez long pour remplir la sortie, numéro 35\"",
+            "[36] link \"Un lien assez long pour remplir la sortie, numéro 36\"",
+            "[37] link \"Un lien assez long pour remplir la sortie, numéro 37\"",
+            "[38] link \"Un lien assez long pour remplir la sortie, numéro 38\"",
+            "[39] link \"Un lien assez long pour remplir la sortie, numéro 39\"",
+            "[40] link \"Un lien assez long pour remplir la sortie, numéro 40\"",
+            "[41] link \"Un lien assez long pour remplir la sortie, numéro 41\"",
+            "[42] link \"Un lien assez long pour remplir la sortie, numéro 42\"",
+            "[43] link \"Un lien assez long pour remplir la sortie, numéro 43\"",
+            "[44] link \"Un lien assez long pour remplir la sortie, numéro 44\"",
+            "[45] link \"Un lien assez long pour remplir la sortie, numéro 45\"",
+            "[46] link \"Un lien assez long pour remplir la sortie, numéro 46\"",
+            "[47] link \"Un lien assez long pour remplir la sortie, numéro 47\"",
+            "[48] link \"Un lien assez long pour remplir la sortie, numéro 48\"",
+            "[49] link \"Un lien assez long pour remplir la sortie, numéro 49\"",
+            "[50] link \"Un lien assez long pour remplir la sortie, numéro 50\"",
+            "[51] link \"Un lien assez long pour remplir la sortie, numéro 51\"",
+            "[52] link \"Un lien assez long pour remplir la sortie, numéro 52\"",
+            "[53] link \"Un lien assez long pour remplir la sortie, numéro 53\"",
+            "[54] link \"Un lien assez long pour remplir la sortie, numéro 54\"",
+            "[55] link \"Un lien assez long pour remplir la sortie, numéro 55\"",
+            "[56] link \"Un lien assez long pour remplir la sortie, numéro 56\"",
+            "[57] link \"Un lien assez long pour remplir la sortie, numéro 57\"",
+            "[58] link \"Un lien assez long pour remplir la sortie, numéro 58\"",
+            "[59] link \"Un lien assez long pour remplir la sortie, numéro 59\"",
+            "[60] link \"Un lien assez long pour remplir la sortie, numéro 60\"",
+            "[61] link \"Un lien assez long pour remplir la sortie, numéro 61\"",
+            "[62] link \"Un lien assez long pour remplir la sortie, numéro 62\"",
+            "[63] link \"Un lien assez long pour remplir la sortie, numéro 63\"",
+            "[64] link \"Un lien assez long pour remplir la sortie, numéro 64\"",
+            "[65] link \"Un lien assez long pour remplir la sortie, numéro 65\"",
+            "[66] link \"Un lien assez long pour remplir la sortie, numéro 66\"",
+            "[67] link \"Un lien assez long pour remplir la sortie, numéro 67\"",
+            "[68] link \"Un lien assez long pour remplir la sortie, numéro 68\"",
+            "[69] link \"Un lien assez long pour remplir la sortie, numéro 69\"",
+            "[70] link \"Un lien assez long pour remplir la sortie, numéro 70\"",
+            "[71] link \"Un lien assez long pour remplir la sortie, numéro 71\"",
+            "[72] link \"Un lien assez long pour remplir la sortie, numéro 72\"",
+            "[73] link \"Un lien assez long pour remplir la sortie, numéro 73\"",
+            "[74] link \"Un lien assez long pour remplir la sortie, numéro 74\"",
+            "[75] link \"Un lien assez long pour remplir la sortie, numéro 75\"",
+            "[76] link \"Un lien assez long pour remplir la sortie, numéro 76\"",
+            "[77] link \"Un lien assez long pour remplir la sortie, numéro 77\"",
+            "[78] link \"Un lien assez long pour remplir la sortie, numéro 78\"",
+            "[79] link \"Un lien assez long pour remplir la sortie, numéro 79\"",
+            "[80] link \"Un lien assez long pour remplir la sortie, numéro 80\"",
+            "[81] link \"Un lien assez long pour remplir la sortie, numéro 81\"",
+            "[82] link \"Un lien assez long pour remplir la sortie, numéro 82\"",
+            "[83] link \"Un lien assez long pour remplir la sortie, numéro 83\"",
+            "[84] link \"Un lien assez long pour remplir la sortie, numéro 84\"",
+            "[85] link \"Un lien assez long pour remplir la sortie, numéro 85\"",
+            "[86] link \"Un lien assez long pour remplir la sortie, numéro 86\"",
+            "[87] link \"Un lien assez long pour remplir la sortie, numéro 87\"",
+            "[88] link \"Un lien assez long pour remplir la sortie, numéro 88\"",
+            "[89] link \"Un lien assez long pour remplir la sortie, numéro 89\"",
+            "[90] link \"Un lien assez long pour remplir la sortie, numéro 90\"",
+            "[91] link \"Un lien assez long pour remplir la sortie, numéro 91\"",
+            "[92] link \"Un lien assez long pour remplir la sortie, numéro 92\"",
+            "[93] link \"Un lien assez long pour remplir la sortie, numéro 93\"",
+            "[94] link \"Un lien assez long pour remplir la sortie, numéro 94\"",
+            "[95] link \"Un lien assez long pour remplir la sortie, numéro 95\"",
+            "[96] link \"Un lien assez long pour remplir la sortie, numéro 96\"",
+            "[97] link \"Un lien assez long pour remplir la sortie, numéro 97\"",
+            "[98] link \"Un lien assez long pour remplir la sortie, numéro 98\"",
+            "[99] link \"Un lien assez long pour remplir la sortie, numéro 99\"",
+            "[100] link \"Un lien assez long pour remplir la sortie, numéro 100\"",
+            "[101] link \"Un lien assez long pour remplir la sortie, numéro 101\"",
+            "[102] link \"Un lien assez long pour remplir la sortie, numéro 102\"",
+            "[103] link \"Un lien assez long pour remplir la sortie, numéro 103\"",
+            "[104] link \"Un lien assez long pour remplir la sortie, numéro 104\"",
+            "[105] link \"Un lien assez long pour remplir la sortie, numéro 105\"",
+            "[106] link \"Un lien assez long pour remplir la sortie, numéro 106\"",
+            "[107] link \"Un lien assez long pour remplir la sortie, numéro 107\"",
+            "[108] link \"Un lien assez long pour remplir la sortie, numéro 108\"",
+            "[109] link \"Un lien assez long pour remplir la sortie, numéro 109\"",
+            "[110] link \"Un lien assez long pour remplir la sortie, numéro 110\"",
+            "[111] link \"Un lien assez long pour remplir la sortie, numéro 111\"",
+            "[112] link \"Un lien assez long pour remplir la sortie, numéro 112\"",
+            "[113] link \"Un lien assez long pour remplir la sortie, numéro 113\"",
+            "[114] link \"Un lien assez long pour remplir la sortie, numéro 114\"",
+            "[115] link \"Un lien assez long pour remplir la sortie, numéro 115\"",
+            "[116] link \"Un lien assez long pour remplir la sortie, numéro 116\"",
+            "[117] link \"Un lien assez long pour remplir la sortie, numéro 117\"",
+            "[118] link \"Un lien assez long pour remplir la sortie, numéro 118\"",
+            "[119] link \"Un lien assez long pour remplir la sortie, numéro 119\"",
+            "[120] link \"Un lien assez long pour remplir la sortie, numéro 120\"",
+            "[121] link \"Un lien assez long pour remplir la sortie, numéro 121\"",
+            "[122] link \"Un lien assez long pour remplir la sortie, numéro 122\"",
+            "[123] link \"Un lien assez long pour remplir la sortie, numéro 123\"",
+            "[124] link \"Un lien assez long pour remplir la sortie, numéro 124\"",
+            "[125] link \"Un lien assez long pour remplir la sortie, numéro 125\"",
+            "[126] link \"Un lien assez long pour remplir la sortie, numéro 126\"",
+            "[127] link \"Un lien assez long pour remplir la sortie, numéro 127\"",
+            "[128] link \"Un lien assez long pour remplir la sortie, numéro 128\"",
+            "[129] link \"Un lien assez long pour remplir la sortie, numéro 129\"",
+            "[130] link \"Un lien assez long pour remplir la sortie, numéro 130\"",
+            "[131] link \"Un lien assez long pour remplir la sortie, numéro 131\"",
+            "[132] link \"Un lien assez long pour remplir la sortie, numéro 132\"",
+            "[133] link \"Un lien assez long pour remplir la sortie, numéro 133\"",
+            "[134] link \"Un lien assez long pour remplir la sortie, numéro 134\"",
+            "[135] link \"Un lien assez long pour remplir la sortie, numéro 135\"",
+            "[136] link \"Un lien assez long pour remplir la sortie, numéro 136\"",
+            "[137] link \"Un lien assez long pour remplir la sortie, numéro 137\"",
+            "[138] link \"Un lien assez long pour remplir la sortie, numéro 138\"",
+            "[139] link \"Un lien assez long pour remplir la sortie, numéro 139\"",
+            "[140] link \"Un lien assez long pour remplir la sortie, numéro 140\"",
+            "[141] link \"Un lien assez long pour remplir la sortie, numéro 141\"",
+            "[142] link \"Un lien assez long pour remplir la sortie, numéro 142\"",
+            "[143] link \"Un lien assez long pour remplir la sortie, numéro 143\"",
+            "[144] link \"Un lien assez long pour remplir la sortie, numéro 144\"",
+            "[145] link \"Un lien assez long pour remplir la sortie, numéro 145\"",
+            "[146] link \"Un lien assez long pour remplir la sortie, numéro 146\"",
+            "[147] link \"Un lien assez long pour remplir la sortie, numéro 147\"",
+            "[148] link \"Un lien assez long pour remplir la sortie, numéro 148\"",
+            "[149] link \"Un lien assez long pour remplir la sortie, numéro 149\"",
+            "[150] link \"Un lien assez long pour remplir la sortie, numéro 150\"",
+            "[151] link \"Un lien assez long pour remplir la sortie, numéro 151\"",
+            "[152] link \"Un lien assez long pour remplir la sortie, numéro 152\"",
+            "[153] link \"Un lien assez long pour remplir la sortie, numéro 153\"",
+            "[154] link \"Un lien assez long pour remplir la sortie, numéro 154\"",
+            "[155] link \"Un lien assez long pour remplir la sortie, numéro 155\"",
+            "[156] link \"Un lien assez long pour remplir la sortie, numéro 156\"",
+            "[157] link \"Un lien assez long pour remplir la sortie, numéro 157\"",
+            "[158] link \"Un lien assez long pour remplir la sortie, numéro 158\"",
+            "[159] link \"Un lien assez long pour remplir la sortie, numéro 159\"",
+            "[160] link \"Un lien assez long pour remplir la sortie, numéro 160\"",
+            "[161] link \"Un lien assez long pour remplir la sortie, numéro 161\"",
+            "[162] link \"Un lien assez long pour remplir la sortie, numéro 162\"",
+            "[163] link \"Un lien assez long pour remplir la sortie, numéro 163\"",
+            "[164] link \"Un lien assez long pour remplir la sortie, numéro 164\"",
+            "[165] link \"Un lien assez long pour remplir la sortie, numéro 165\"",
+            "[166] link \"Un lien assez long pour remplir la sortie, numéro 166\"",
+            "[167] link \"Un lien assez long pour remplir la sortie, numéro 167\"",
+            "[168] link \"Un lien assez long pour remplir la sortie, numéro 168\"",
+            "[169] link \"Un lien assez long pour remplir la sortie, numéro 169\"",
+            "[170] link \"Un lien assez long pour remplir la sortie, numéro 170\"",
+            "[171] link \"Un lien assez long pour remplir la sortie, numéro 171\"",
+            "[172] link \"Un lien assez long pour remplir la sortie, numéro 172\"",
+            "[173] link \"Un lien assez long pour remplir la sortie, numéro 173\"",
+            "[174] link \"Un lien assez long pour remplir la sortie, numéro 174\"",
+            "[175] link \"Un lien assez long pour remplir la sortie, numéro 175\"",
+            "[176] link \"Un lien assez long pour remplir la sortie, numéro 176\"",
+            "[177] link \"Un lien assez long pour remplir la sortie, numéro 177\"",
+            "[178] link \"Un lien assez long pour remplir la sortie, numéro 178\"",
+            "[179] link \"Un lien assez long pour remplir la sortie, numéro 179\"",
+            "[180] link \"Un lien assez long pour remplir la sortie, numéro 180\"",
+            "[181] link \"Un lien assez long pour remplir la sortie, numéro 181\"",
+            "[182] link \"Un lien assez long pour remplir la sortie, numéro 182\"",
+            "[183] link \"Un lien assez long pour remplir la sortie, numéro 183\"",
+            "[184] link \"Un lien assez long pour remplir la sortie, numéro 184\"",
+            "[185] link \"Un lien assez long pour remplir la sortie, numéro 185\"",
+            "[186] link \"Un lien assez long pour remplir la sortie, numéro 186\"",
+            "[187] link \"Un lien assez long pour remplir la sortie, numéro 187\"",
+            "[188] link \"Un lien assez long pour remplir la sortie, numéro 188\"",
+            "[189] link \"Un lien assez long pour remplir la sortie, numéro 189\"",
+            "[190] link \"Un lien assez long pour remplir la sortie, numéro 190\"",
+            "[191] link \"Un lien assez long pour remplir la sortie, numéro 191\"",
+            "[192] link \"Un lien assez long pour remplir la sortie, numéro 192\"",
+            "[193] link \"Un lien assez long pour remplir la sortie, numéro 193\"",
+            "[194] link \"Un lien assez long pour remplir la sortie, numéro 194\"",
+            "[195] link \"Un lien assez long pour remplir la sortie, numéro 195\"",
+            "[196] link \"Un lien assez long pour remplir la sortie, numéro 196\"",
+            "[197] link \"Un lien assez long pour remplir la sortie, numéro 197\"",
+            "[198] link \"Un lien assez long pour remplir la sortie, numéro 198\"",
+            "[199] link \"Un lien assez long pour remplir la sortie, numéro 199\"",
+            "[200] link \"Un lien assez long pour remplir la sortie, numéro 200\""
+          ],
+          "title": "Long",
+          "url": "https://long.test/"
+        }
+      },
+      "tool": "browser_snapshot",
+      "args": {},
+      "result": "# Long\nhttps://long.test/\n\n200 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Un lien assez long pour remplir la sortie, numéro 1\"\n[2] link \"Un lien assez long pour remplir la sortie, numéro 2\"\n[3] link \"Un lien assez long pour remplir la sortie, numéro 3\"\n[4] link \"Un lien assez long pour remplir la sortie, numéro 4\"\n[5] link \"Un lien assez long pour remplir la sortie, numéro 5\"\n[6] link \"Un lien assez long pour remplir la sortie, numéro 6\"\n[7] link \"Un lien assez long pour remplir la sortie, numéro 7\"\n[8] link \"Un lien assez long pour remplir la sortie, numéro 8\"\n[9] link \"Un lien assez long pour remplir la sortie, numéro 9\"\n[10] link \"Un lien assez long pour remplir la sortie, numéro 10\"\n[11] link \"Un lien assez long pour remplir la sortie, numéro 11\"\n[12] link \"Un lien assez long pour remplir la sortie, numéro 12\"\n[13] link \"Un lien assez long pour remplir la sortie, numéro 13\"\n[14] link \"Un lien assez long pour remplir la sortie, numéro 14\"\n[15] link \"Un lien assez long pour remplir la sortie, numéro 15\"\n[16] link \"Un lien assez long pour remplir la sortie, numéro 16\"\n[17] link \"Un lien assez long pour remplir la sortie, numéro 17\"\n[18] link \"Un lien assez long pour remplir la sortie, numéro 18\"\n[19] link \"Un lien assez long pour remplir la sortie, numéro 19\"\n[20] link \"Un lien assez long pour remplir la sortie, numéro 20\"\n[21] link \"Un lien assez long pour remplir la sortie, numéro 21\"\n[22] link \"Un lien assez long pour remplir la sortie, numéro 22\"\n[23] link \"Un lien assez long pour remplir la sortie, numéro 23\"\n[24] link \"Un lien assez long pour remplir la sortie, numéro 24\"\n[25] link \"Un lien assez long pour remplir la sortie, numéro 25\"\n[26] link \"Un lien assez long pour remplir la sortie, numéro 26\"\n[27] link \"Un lien assez long pour remplir la sortie, numéro 27\"\n[28] link \"Un lien assez long pour remplir la sortie, numéro 28\"\n[29] link \"Un lien assez long pour remplir la sortie, numéro 29\"\n[30] link \"Un lien assez long pour remplir la sortie, numéro 30\"\n[31] link \"Un lien assez long pour remplir la sortie, numéro 31\"\n[32] link \"Un lien assez long pour remplir la sortie, numéro 32\"\n[33] link \"Un lien assez long pour remplir la sortie, numéro 33\"\n[34] link \"Un lien assez long pour remplir la sortie, numéro 34\"\n[35] link \"Un lien assez long pour remplir la sortie, numéro 35\"\n[36] link \"Un lien assez long pour remplir la sortie, numéro 36\"\n[37] link \"Un lien assez long pour remplir la sortie, numéro 37\"\n[38] link \"Un lien assez long pour remplir la sortie, numéro 38\"\n[39] link \"Un lien assez long pour remplir la sortie, numéro 39\"\n[40] link \"Un lien assez long pour remplir la sortie, numéro 40\"\n[41] link \"Un lien assez long pour remplir la sortie, numéro 41\"\n[42] link \"Un lien assez long pour remplir la sortie, numéro 42\"\n[43] link \"Un lien assez long pour remplir la sortie, numéro 43\"\n[44] link \"Un lien assez long pour remplir la sortie, numéro 44\"\n[45] link \"Un lien assez long pour remplir la sortie, numéro 45\"\n[46] link \"Un lien assez long pour remplir la sortie, numéro 46\"\n[47] link \"Un lien assez long pour remplir la sortie, numéro 47\"\n[48] link \"Un lien assez long pour remplir la sortie, numéro 48\"\n[49] link \"Un lien assez long pour remplir la sortie, numéro 49\"\n[50] link \"Un lien assez long pour remplir la sortie, numéro 50\"\n[51] link \"Un lien assez long pour remplir la sortie, numéro 51\"\n[52] link \"Un lien assez long pour remplir la sortie, numéro 52\"\n[53] link \"Un lien assez long pour remplir la sortie, numéro 53\"\n[54] link \"Un lien assez long pour remplir la sortie, numéro 54\"\n[55] link \"Un lien assez long pour remplir la sortie, numéro 55\"\n[56] link \"Un lien assez long pour remplir la sortie, numéro 56\"\n[57] link \"Un lien assez long pour remplir la sortie, numéro 57\"\n[58] link \"Un lien assez long pour remplir la sortie, numéro 58\"\n[59] link \"Un lien assez long pour remplir la sortie, numéro 59\"\n[60] link \"Un lien assez long pour remplir la sortie, numéro 60\"\n[61] link \"Un lien assez long pour remplir la sortie, numéro 61\"\n[62] link \"Un lien assez long pour remplir la sortie, numéro 62\"\n[63] link \"Un lien assez long pour remplir la sortie, numéro 63\"\n[64] link \"Un lien assez long pour remplir la sortie, numéro 64\"\n[65] link \"Un lien assez long pour remplir la sortie, numéro 65\"\n[66] link \"Un lien assez long pour remplir la sortie, numéro 66\"\n[67] link \"Un lien assez long pour remplir la sortie, numéro 67\"\n[68] link \"Un lien assez long pour remplir la sortie, numéro 68\"\n[69] link \"Un lien assez long pour remplir la sortie, numéro 69\"\n[70] link \"Un lien assez long pour remplir la sortie, numéro 70\"\n[71] link \"Un lien assez long pour remplir la sortie, numéro 71\"\n[72] link \"Un lien assez long pour remplir la sortie, numéro 72\"\n[73] link \"Un lien assez long pour remplir la sortie, numéro 73\"\n[74] link \"Un lien assez long pour remplir la sortie, numéro 74\"\n[75] link \"Un lien assez long pour remplir la sortie, numéro 75\"\n[76] link \"Un lien assez long pour remplir la sortie, numéro 76\"\n[77] link \"Un lien assez long pour remplir la sortie, numéro 77\"\n[78] link \"Un lien assez long pour remplir la sortie, numéro 78\"\n[79] link \"Un lien assez long pour remplir la sortie, numéro 79\"\n[80] link \"Un lien assez long pour remplir la sortie, numéro 80\"\n[81] link \"Un lien assez long pour remplir la sortie, numéro 81\"\n[82] link \"Un lien assez long pour remplir la sortie, numéro 82\"\n[83] link \"Un lien assez long pour remplir la sortie, numéro 83\"\n[84] link \"Un lien assez long pour remplir la sortie, numéro 84\"\n[85] link \"Un lien assez long pour remplir la sortie, numéro 85\"\n[86] link \"Un lien assez long pour remplir la sortie, numéro 86\"\n[87] link \"Un lien assez long pour remplir la sortie, numéro 87\"\n[88] link \"Un lien assez long pour remplir la sortie, numéro 88\"\n[89] link \"Un lien assez long pour remplir la sortie, numéro 89\"\n[90] link \"Un lien assez long pour remplir la sortie, numéro 90\"\n[91] link \"Un lien assez long pour remplir la sortie, numéro 91\"\n[92] link \"Un lien assez long pour remplir la sortie, numéro 92\"\n[93] link \"Un lien assez long pour remplir la sortie, numéro 93\"\n[94] link \"Un lien assez long pour remplir la sortie, numéro 94\"\n[95] link \"Un lien assez long pour remplir la sortie, numéro 95\"\n[96] link \"Un lien assez long pour remplir la sortie, numéro 96\"\n[97] link \"Un lien assez long pour remplir la sortie, numéro 97\"\n[98] link \"Un lien assez long pour remplir la sortie, numéro 98\"\n[99] link \"Un lien assez long pour remplir la sortie, numéro 99\"\n[100] link \"Un lien assez long pour remplir la sortie, numéro 100\"\n[101] link \"Un lien assez long pour remplir la sortie, numéro 101\"\n[102] link \"Un lien assez long pour remplir la sortie, numéro 102\"\n[103] link \"Un lien assez long pour remplir la sortie, numéro 103\"\n[104] link \"Un lien assez long pour remplir la sortie, numéro 104\"\n[105] link \"Un lien assez long pour remplir la sortie, numéro 105\"\n[106] link \"Un lien assez long pour remplir la sortie, numéro 106\"\n[107] link \"Un lien assez long pour remplir la sortie, numéro 107\"\n[108] link \"Un lien assez long pour remplir la sortie, numéro 108\"\n[109] link \"Un lien assez long pour remplir la sortie, numéro 109\"\n[110] link \"Un lien assez long pour remplir la sortie, numéro 110\"\n[111] link \"Un lien assez long pour remplir la sortie, numéro 111\"\n[112] link \"Un lien assez long pour remplir la sortie, numéro 112\"\n[113] link \"Un lien assez long pour remplir la sortie, numéro 113\"\n[114] link \"Un lien assez long pour remplir la sortie, numéro 114\"\n[115] link \"Un lien assez long pour remplir la sortie, numéro 115\"\n[116] link \"Un lien assez long pour remplir la sortie, numéro 116\"\n[117] link \"Un lien assez long pour remplir la sortie, numéro 117\"\n[118] link \"Un lien assez long pour remplir la sortie, numéro 118\"\n[119] link \"Un lien assez long pour remplir la sortie, numéro 119\"\n[120] link \"Un lien assez long pour remplir la sortie, numéro 120\"\n[121] link \"Un lien assez long pour remplir la sortie, numéro 1\n…[tronqué]",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+      ]
+    }
+  ]
+}

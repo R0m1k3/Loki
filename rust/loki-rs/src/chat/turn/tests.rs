@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::chat::compact::CompactConfig;
-use crate::chat::types::ToolFunction;
+use crate::chat::types::{StatsEvent, ToolFunction};
 use crate::chat::wire::resolve_chat_endpoint;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -17,6 +17,9 @@ enum Script {
     Cut(Vec<String>),
 }
 
+/// Une complétion signalée à la sonde : (outils, kwargs, effort).
+type Completion = (usize, Option<Map<String, Value>>, String);
+
 #[derive(Default)]
 struct Fake {
     script: Mutex<VecDeque<Script>>,
@@ -29,6 +32,29 @@ struct Fake {
     efforts: Mutex<Vec<(String, String)>>,
     /// L'arrêt à déclencher pendant l'exécution d'un outil.
     stop_on_exec: Mutex<Option<watch::Sender<bool>>>,
+    /// Verdict « préfixe instable » de la sonde (NUDGE_IN_TOOL).
+    unstable: Mutex<bool>,
+    /// Complétions signalées à la sonde : (outils, kwargs, effort).
+    completions: Mutex<Vec<Completion>>,
+    /// Télémétrie rangée ; et ce que le Go en tire.
+    perfs: Mutex<Vec<PerfRec>>,
+    marks: Mutex<PerfMarks>,
+    /// Slot rendu par l'hôte (SIDE_SLOT) ; demandes reçues.
+    slot: Mutex<Option<u8>>,
+    slot_asks: Mutex<usize>,
+    /// KEEP_TURN_IMAGES : budget (clé valable pour le tour) ; image relayée
+    /// par chaque outil ; rangements demandés (refusés si `keep_refuse`).
+    keep: Mutex<Option<i64>>,
+    relay: Mutex<Option<Message>>,
+    keep_stores: Mutex<usize>,
+    keep_refuse: Mutex<bool>,
+    /// PREWARM : la requête prolonge-t-elle le préchauffage ? ce que `send`
+    /// a reçu.
+    prewarm_match: Mutex<bool>,
+    sent_keeps: Mutex<Vec<bool>>,
+    /// PROJ_SNAPSHOT : clé posée pour ce tour ; rafraîchissements demandés.
+    snap_on: Mutex<bool>,
+    refreshes: Mutex<usize>,
 }
 
 impl Fake {
@@ -58,7 +84,13 @@ fn stream_of(lines: Vec<String>, cut: bool) -> BodyStream {
 }
 
 impl TurnHost for Fake {
-    async fn send(&self, _ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+    async fn send(
+        &self,
+        _ep: &ChatEndpoint,
+        body: Vec<u8>,
+        keep: bool,
+    ) -> Result<Reply, SendError> {
+        self.sent_keeps.lock().unwrap().push(keep);
         self.bodies
             .lock()
             .unwrap()
@@ -107,6 +139,7 @@ impl TurnHost for Fake {
             .unwrap_or_else(|| format!("résultat de {name}"));
         ToolOutcome {
             result,
+            relay: self.relay.lock().unwrap().clone(),
             ..Default::default()
         }
     }
@@ -120,13 +153,114 @@ impl TurnHost for Fake {
     fn drain_queued(&self) -> Vec<Message> {
         std::mem::take(&mut *self.queued.lock().unwrap())
     }
-    fn image_data_url(&self, _r: &str) -> Option<String> {
-        None
+    fn image_data_url(&self, r: &str) -> Option<String> {
+        (r == "loki-img:aa.png").then(|| IMG_URL.to_string())
     }
     fn effort_remember(&self, want: &str, got: &str) {
         self.efforts.lock().unwrap().push((want.into(), got.into()));
     }
     fn echo_refuse(&self, _model: &str) {}
+    fn completed(&self, tools: &[Tool], kwargs: Option<&Map<String, Value>>, effort: &str) {
+        self.completions
+            .lock()
+            .unwrap()
+            .push((tools.len(), kwargs.cloned(), effort.into()));
+    }
+    fn prefix_unstable(&self, _t: &[Tool], _k: Option<&Map<String, Value>>, _e: &str) -> bool {
+        *self.unstable.lock().unwrap()
+    }
+    async fn perf_record(&self, rec: PerfRec) -> PerfMarks {
+        self.perfs.lock().unwrap().push(rec);
+        self.marks.lock().unwrap().clone()
+    }
+    async fn keep_images(&self) -> Option<i64> {
+        *self.keep.lock().unwrap()
+    }
+    async fn project_refresh(&self, mut msgs: Vec<Message>) -> Vec<Message> {
+        if *self.snap_on.lock().unwrap() {
+            *self.refreshes.lock().unwrap() += 1;
+            msgs.insert(0, text_msg("system", "BLOC VIVANT"));
+        }
+        msgs
+    }
+    fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {
+        // Ce que l'hôte reçoit : les empreintes des messages envoyés et le
+        // corps de la requête.
+        assert_eq!(prefix.len(), payload["messages"].as_array().unwrap().len());
+        *self.prewarm_match.lock().unwrap()
+    }
+    async fn keep_image(&self, m: &Message) -> Option<(Message, i64)> {
+        *self.keep_stores.lock().unwrap() += 1;
+        if *self.keep_refuse.lock().unwrap() {
+            return None;
+        }
+        let mut r = m.clone();
+        r.content = Some(json!([
+            m.content.as_ref().unwrap()[0].clone(),
+            {"type": "image_url", "image_url": {"url": "loki-img:aa.png"}}
+        ]));
+        Some((r, 1000))
+    }
+    async fn engine_slot(&self, _ep: &ChatEndpoint) -> Option<u8> {
+        *self.slot_asks.lock().unwrap() += 1;
+        *self.slot.lock().unwrap()
+    }
+}
+
+/// L'image d'un relais : la même data-URL que rend la référence rangée.
+const IMG_URL: &str = "data:image/png;base64,AA==";
+
+fn relay_msg() -> Message {
+    Message {
+        role: "user".into(),
+        content: Some(json!([
+            {"type": "text", "text": "Voici la capture demandée."},
+            {"type": "image_url", "image_url": {"url": IMG_URL}}
+        ])),
+        ..Default::default()
+    }
+}
+
+/// Fin de complétion avec cet usage ; `prompt` 0 : aucun usage.
+fn finish_u(reason: &str, prompt: i64, completion: i64) -> Vec<String> {
+    let mut v = vec![format!(
+        "data: {}",
+        json!({"choices":[{"delta":{},"finish_reason": reason}]})
+    )];
+    if prompt > 0 {
+        v.push(format!(
+            "data: {}",
+            json!({"choices":[],"usage":{"prompt_tokens":prompt,"completion_tokens":completion}})
+        ));
+    }
+    v
+}
+
+fn see_image_step(prompt: i64) -> Script {
+    let mut l = vec![call("v1", "see_image", r#"{"file":"img.png"}"#)];
+    l.extend(finish_u("tool_calls", prompt, 20));
+    Script::Ok(l)
+}
+
+fn answer_u(s: &str, prompt: i64) -> Script {
+    let mut l = vec![content(s)];
+    l.extend(finish_u("stop", prompt, 5));
+    Script::Ok(l)
+}
+
+/// Lance un tour sur cet historique et rend (résultat, événements).
+async fn run_hist(
+    host: &Fake,
+    tc: &TurnConfig,
+    hist: Vec<Message>,
+) -> (TurnResult, Vec<StreamEvent>) {
+    let mut evs = Vec::new();
+    let mut cb = |ev: StreamEvent| {
+        evs.push(ev);
+        true
+    };
+    let r = run_turn(host, tc, hist, &Cancel::never(), &mut cb).await;
+    (r, evs)
 }
 
 fn content(s: &str) -> String {
@@ -339,6 +473,106 @@ async fn erreur_500_tool_choice_none_puis_outils_retires() {
     );
     assert!(host.body(2).get("tools").is_none(), "puis retirés");
     assert_eq!(host.body(2)["messages"][0]["role"], "system");
+    // Une relance outils coupés n'est pas la forme normale : pas de sonde.
+    assert!(host.completions.lock().unwrap().is_empty());
+    // Pas davantage outils neutralisés (tool_choice « none »).
+    let host = Fake::new(vec![
+        Script::Status(500, "parse error".into()),
+        answer("texte"),
+    ]);
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.body(1)["tool_choice"], "none");
+    assert!(host.completions.lock().unwrap().is_empty());
+}
+
+/// SIDE_SLOT : chaque requête porte le slot que rend l'hôte, demandé avant
+/// chaque envoi ; sans slot, aucun `id_slot`.
+#[tokio::test]
+async fn slot_du_moteur_dans_chaque_requete() {
+    let host = Fake::new(vec![
+        tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
+        answer("Trouvé"),
+    ]);
+    *host.slot.lock().unwrap() = Some(1);
+    let (r, _) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(
+        (
+            host.body(0)["id_slot"].clone(),
+            host.body(1)["id_slot"].clone()
+        ),
+        (json!(1), json!(1))
+    );
+    assert_eq!(*host.slot_asks.lock().unwrap(), 2);
+    let host = Fake::new(vec![answer("ok")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert!(host.body(0).get("id_slot").is_none());
+}
+
+/// Cache KV plein en plein calcul avec deux slots : rejouée telle quelle,
+/// deux fois au plus, sans compaction ; au-delà, l'erreur. Sans second slot,
+/// c'est un débordement comme un autre.
+#[tokio::test(start_paused = true)]
+async fn cache_kv_plein_rejoue_sans_compaction() {
+    let plein = r#"{"error":{"code":500,"message":"Context size has been exceeded.","type":"server_error"}}"#;
+    let host = Fake::new(vec![
+        Script::Status(500, plein.into()),
+        Script::Status(500, plein.into()),
+        answer("ok"),
+    ]);
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(text(&evs), "ok");
+    assert_eq!(host.sent(), 3);
+    assert!(host.phases.lock().unwrap().is_empty(), "pas de compaction");
+    assert_eq!(host.body(2)["messages"], host.body(0)["messages"]);
+    // Trois fois de suite : l'erreur telle quelle, sans compaction.
+    let host = Fake::new((0..3).map(|_| Script::Status(500, plein.into())).collect());
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    // Le corps du refus tel quel, comme le Go.
+    assert_eq!(r.err, Some(format!("llama-server a renvoyé 500 : {plein}")));
+    assert_eq!(host.sent(), 3);
+    assert!(host.phases.lock().unwrap().is_empty());
+    // Sans second slot : compaction réactive.
+    let host = Fake::new(vec![Script::Status(500, plein.into()), answer("ok")]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.phases.lock().unwrap(), [CompactPhase::Reactive]);
+    // Moteur externe : jamais (le slot vient d'un moteur local).
+    let host = Fake::new(vec![Script::Status(500, plein.into()), answer("ok")]);
+    *host.slot.lock().unwrap() = Some(0);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.phases.lock().unwrap(), [CompactPhase::Reactive]);
+}
+
+#[test]
+fn cache_kv_plein_ou_prompt_trop_long() {
+    for (msg, want) in [
+        (
+            r#"{"error":{"code":500,"message":"Context size has been exceeded.","type":"server_error"}}"#,
+            true,
+        ),
+        (
+            r#"{"error":{"message":"request (40000 tokens) exceeds the available context size (32768 tokens), try increasing it","type":"exceed_context_size_error"}}"#,
+            false,
+        ),
+        ("the request exceeds the available context size", false),
+        ("CONTEXT SIZE HAS BEEN EXCEEDED, Request (12 TOKENS)", false),
+        ("failed to parse tool call", false),
+    ] {
+        assert_eq!(side_slot_pool_error(msg), want, "{msg}");
+    }
 }
 
 #[tokio::test]
@@ -471,6 +705,104 @@ async fn budget_d_outils_rappel() {
     }));
 }
 
+/// NUDGE_IN_TOOL : avec la clé et un gabarit « préfixe instable », le rappel
+/// part au bout du dernier résultat d'outil (envoyé et gardé à l'identique),
+/// sans message user à part ; sans verdict, ou sans la clé, à part.
+#[tokio::test]
+async fn rappel_de_budget_dans_le_resultat() {
+    for (key, unstable, inside) in [
+        ("on", true, true),
+        ("on", false, false),
+        ("", true, false),
+        ("Oui", true, true),
+        ("external", true, false),
+    ] {
+        let mut script: Vec<Script> = (0..3)
+            .map(|i| {
+                tool_step(
+                    &format!("c{i}"),
+                    "bash",
+                    &format!("{{\"command\":\"ls {i}\"}}"),
+                )
+            })
+            .collect();
+        script.push(answer("fin"));
+        let host = Fake::new(script);
+        *host.unstable.lock().unwrap() = unstable;
+        let mut tc = config(&["bash"]);
+        tc.cfg.insert("AGENT_BUDGET".into(), "2".into());
+        if key == "external" {
+            // Preset externe : le rappel reste à part, quoi que dise la sonde.
+            let ext = HashMap::from([
+                ("EXTERNAL".to_string(), "1".to_string()),
+                (
+                    "EXTERNAL_URL".to_string(),
+                    "http://127.0.0.1:1/v1".to_string(),
+                ),
+            ]);
+            tc.ep = resolve_chat_endpoint(&ext, "");
+            tc.cfg.insert("NUDGE_IN_TOOL".into(), "on".into());
+        } else {
+            tc.cfg.insert("NUDGE_IN_TOOL".into(), key.into());
+        }
+        let (r, _) = run(&host, &tc, &Cancel::never()).await;
+        let msgs = host.body(2)["messages"].as_array().unwrap().clone();
+        let last = msgs.last().unwrap();
+        let ctx = format!("{key}/{unstable}");
+        if inside {
+            assert_eq!(last["role"], "tool", "{ctx}");
+            let c = last["content"].as_str().unwrap();
+            assert!(
+                c.starts_with("résultat de bash\n\n") && c.contains("2 tool calls"),
+                "{ctx} : {c}"
+            );
+            assert!(
+                !msgs.iter().any(|m| m["role"] == "user"
+                    && m["content"].as_str().unwrap_or("").contains("2 tool calls")),
+                "{ctx}"
+            );
+            let kept = r.extra.iter().filter(|m| m.role == "tool").nth(1).unwrap();
+            assert_eq!(
+                kept.content.as_ref().and_then(Value::as_str),
+                Some(c),
+                "{ctx} : historique"
+            );
+        } else {
+            assert_eq!(last["role"], "user", "{ctx}");
+            assert!(
+                last["content"].as_str().unwrap().contains("2 tool calls"),
+                "{ctx}"
+            );
+        }
+    }
+}
+
+/// Chaque complétion lue en entier est signalée à la sonde, avec la forme
+/// de la requête ; pas sur un preset externe.
+#[tokio::test]
+async fn completions_signalees_a_la_sonde() {
+    let host = Fake::new(vec![tool_step("c1", "bash", "{}"), answer("fin")]);
+    let mut tc = config(&["bash"]);
+    tc.reasoning.effort = "low".into();
+    let (_, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(
+        *host.completions.lock().unwrap(),
+        vec![(1, None, "low".to_string()), (1, None, "low".to_string())]
+    );
+    let host = Fake::new(vec![answer("fin")]);
+    let mut tc = config(&["bash"]);
+    let mut cfg = HashMap::new();
+    cfg.insert("EXTERNAL".to_string(), "1".to_string());
+    cfg.insert(
+        "EXTERNAL_URL".to_string(),
+        "http://127.0.0.1:1/v1".to_string(),
+    );
+    tc.ep = resolve_chat_endpoint(&cfg, "");
+    assert!(tc.ep.external);
+    let (_, _) = run(&host, &tc, &Cancel::never()).await;
+    assert!(host.completions.lock().unwrap().is_empty());
+}
+
 #[tokio::test]
 async fn arret_pendant_un_outil() {
     let host = Fake::new(vec![tool_step("c1", "bash", r#"{"command":"sleep 100"}"#)]);
@@ -497,4 +829,328 @@ async fn flux_externe_coupe_repris_apres_le_texte_affiche() {
     let host = Fake::new(vec![Script::Cut(vec![content("x")])]);
     let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
     assert!(r.err.unwrap().contains("a été coupé en cours de route"));
+}
+
+/// Télémétrie : chaque complétion rangée, numérotée dans le tour, avec les
+/// empreintes des messages envoyés ; la dernière statistique porte la
+/// nature et la perte de cache vue par le Go.
+#[tokio::test]
+async fn telemetrie_des_completions() {
+    let host = Fake::new(vec![
+        tool_step("c1", "glob", r#"{"pattern":"*.go"}"#),
+        answer("Trouvé"),
+    ]);
+    *host.marks.lock().unwrap() = PerfMarks {
+        kind: "verify".into(),
+        lost: Some(40),
+        lost_after: "foreign".into(),
+        lost_alert: true,
+    };
+    let (r, evs) = run(&host, &config(&["glob"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    let perfs = host.perfs.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 2);
+    for (i, rec) in perfs.iter().enumerate() {
+        assert_eq!(rec.iter, i as i64);
+        assert!(rec.complete);
+        assert_eq!(
+            (rec.stats.prompt_tokens_total, rec.stats.gen_tokens),
+            (100, 5)
+        );
+        assert!(!rec.external);
+        assert!(!rec.prefix.is_empty());
+    }
+    // La seconde requête prolonge la première : mêmes empreintes en tête.
+    let (a, b) = (&perfs[0].prefix, &perfs[1].prefix);
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 3);
+    assert_eq!(b[..1], a[..]);
+    let last: Vec<&StatsEvent> = evs
+        .iter()
+        .filter_map(|e| match e {
+            StreamEvent::Stats(s) if !s.kind.is_empty() => Some(s),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(last.len(), 2);
+    assert_eq!(
+        (
+            last[1].kind.as_str(),
+            last[1].lost,
+            last[1].lost_after.as_str(),
+            last[1].lost_alert
+        ),
+        ("verify", Some(40), "foreign", true)
+    );
+}
+
+/// Une complétion coupée avant son chunk final : rangée incomplète, sans
+/// empreintes ; un stop pendant la lecture aussi.
+#[tokio::test]
+async fn telemetrie_incomplete() {
+    let host = Fake::new(vec![Script::Cut(vec![content("Bon")])]);
+    host.marks.lock().unwrap().kind = "main".into();
+    let (_, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    let perfs = host.perfs.lock().unwrap().clone();
+    assert_eq!(perfs.len(), 1);
+    assert!(!perfs[0].complete);
+    assert!(perfs[0].prefix.is_empty());
+    assert!(
+        !evs.iter()
+            .any(|e| matches!(e, StreamEvent::Stats(s) if !s.kind.is_empty())),
+        "pas de statistique finale"
+    );
+}
+
+// ── KEEP_TURN_IMAGES (lot 32, cas de chat_keep_images_test.go) ──
+
+fn tool_res(s: &str) -> Message {
+    Message {
+        role: "tool".into(),
+        tool_call_id: "v1".into(),
+        content: Some(json!(s)),
+        ..Default::default()
+    }
+}
+
+fn kept_relay(tokens: i64) -> Message {
+    let mut m = relay_msg();
+    m.content.as_mut().unwrap()[1]["image_url"]["url"] = json!("loki-img:aa.png");
+    m.img_relay = true;
+    m.img_tokens = tokens;
+    m
+}
+
+/// Sans la clé : image éphémère, en data-URL, sans marque ; avec la clé, la
+/// requête qui la montre est la MÊME à l'octet près, et l'image est gardée
+/// par référence au coût mesuré (écart de prompt moins le texte ajouté).
+#[tokio::test]
+async fn images_gardees_requete_identique_et_mesuree() {
+    let text = crate::chat::compact::msg_tokens(&tool_res("résultat de see_image"));
+    let script = || vec![see_image_step(1000), answer_u("vu", 1020 + text + 300)];
+    let off = Fake::new(script());
+    *off.relay.lock().unwrap() = Some(relay_msg());
+    let (r, _) = run(&off, &config(&["see_image"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(r.extra.len(), 2, "sans la clé, l'image reste éphémère");
+    assert!(r.extra.iter().all(|m| !m.img_relay && m.img_tokens == 0));
+    assert_eq!(*off.keep_stores.lock().unwrap(), 0);
+
+    let on = Fake::new(script());
+    *on.relay.lock().unwrap() = Some(relay_msg());
+    *on.keep.lock().unwrap() = Some(3200);
+    let (r, _) = run(&on, &config(&["see_image"]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(on.body(0), off.body(0));
+    assert_eq!(on.body(1), off.body(1), "requête différente avec la clé");
+    assert_eq!(r.extra.len(), 3, "{:?}", r.extra);
+    let k = &r.extra[2];
+    assert!(k.img_relay && k.img_tokens == 300, "{k:?}");
+    assert_eq!(
+        k.content.as_ref().unwrap()[1]["image_url"]["url"],
+        "loki-img:aa.png"
+    );
+}
+
+/// Budget dépassé, moteur sans usage, rangement refusé : éphémère.
+#[tokio::test]
+async fn images_gardees_refusees() {
+    let text = crate::chat::compact::msg_tokens(&tool_res("résultat de see_image"));
+    for (budget, prompts, refuse) in [
+        (200, (1000, 1020 + text + 300), false),
+        (3200, (0, 0), false),
+        (3200, (1000, 1020 + text + 300), true),
+    ] {
+        let host = Fake::new(vec![see_image_step(prompts.0), answer_u("vu", prompts.1)]);
+        *host.relay.lock().unwrap() = Some(relay_msg());
+        *host.keep.lock().unwrap() = Some(budget);
+        *host.keep_refuse.lock().unwrap() = refuse;
+        let (r, _) = run(&host, &config(&["see_image"]), &Cancel::never()).await;
+        assert_eq!(r.err, None);
+        assert_eq!(
+            r.extra.len(),
+            2,
+            "budget={budget} {prompts:?} refus={refuse}"
+        );
+        // Le modèle l'a vue quand même, en data-URL.
+        assert_eq!(
+            host.body(1)["messages"][3]["content"][1]["image_url"]["url"],
+            IMG_URL
+        );
+    }
+}
+
+/// Tour interrompu juste après l'image : jamais mesurée, éphémère.
+#[tokio::test]
+async fn image_a_l_essai_en_fin_de_tour() {
+    let host = Fake::new(vec![
+        see_image_step(1000),
+        Script::Status(401, "clé refusée".into()),
+    ]);
+    *host.relay.lock().unwrap() = Some(relay_msg());
+    *host.keep.lock().unwrap() = Some(3200);
+    let (r, _) = run(&host, &config(&["see_image"]), &Cancel::never()).await;
+    assert!(r.err.is_some());
+    assert_eq!(r.extra.len(), 2, "{:?}", r.extra);
+    assert!(r.extra.iter().all(|m| !m.img_relay));
+}
+
+/// En cours de tour, au seuil : les images gardées partent d'abord, et le
+/// résumé n'est pas demandé si leur retrait suffit.
+#[tokio::test]
+async fn images_retirees_en_cours_de_tour() {
+    let mut glob = vec![call("g1", "glob", r#"{"pattern":"*.go"}"#)];
+    glob.extend(finish_u("tool_calls", 1600, 10));
+    let host = Fake::new(vec![Script::Ok(glob), answer_u("fini", 0)]);
+    let mut tc = config(&["glob"]);
+    tc.compact.ctx_window = 2000;
+    let hist = vec![
+        um("q"),
+        tool_res("[ok]"),
+        kept_relay(1000),
+        text_msg("assistant", "vu"),
+        um("suite"),
+    ];
+    let (r, evs) = run_hist(&host, &tc, hist.clone()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.sent(), 2);
+    assert!(host.phases.lock().unwrap().is_empty(), "pas de résumé");
+    let published = evs
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            StreamEvent::NewHistory(h) => Some(h.clone()),
+            _ => None,
+        })
+        .expect("historique publié");
+    assert_eq!(published.len(), hist.len() + 2);
+    assert_eq!(
+        published[2].content,
+        Some(json!(format!(
+            "Voici la capture demandée.{}",
+            crate::chat::compact::IMAGE_LOST_MARKER
+        )))
+    );
+    assert_eq!(
+        host.body(1)["messages"][2]["content"],
+        published[2].content.clone().unwrap()
+    );
+    assert!(r.extra.is_empty(), "{:?}", r.extra);
+}
+
+/// Prompt refusé pour débordement : les images gardées partent d'abord, la
+/// requête est rejouée sans elles, sans résumé.
+#[tokio::test]
+async fn images_retirees_avant_le_filet_reactif() {
+    let host = Fake::new(vec![
+        Script::Status(
+            400,
+            r#"{"error":{"code":400,"message":"request (2500 tokens) exceeds the available context size (2000 tokens), try increasing it"}}"#.into(),
+        ),
+        answer_u("fini", 0),
+    ]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let mut tc = config(&[]);
+    tc.compact.ctx_window = 2000;
+    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let (r, evs) = run_hist(&host, &tc, hist.clone()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.sent(), 2);
+    assert!(host.phases.lock().unwrap().is_empty(), "pas de résumé");
+    assert!(evs.iter().any(
+        |e| matches!(e, StreamEvent::NewHistory(h) if h.len() == hist.len() && h[2].img_tokens == 0)
+    ));
+    assert!(host.body(1)["messages"][2]["content"].is_string());
+}
+
+/// Coupée par une fenêtre pleine : les images gardées d'abord ; leur retrait
+/// suffit, l'étape est rejouée sans résumé.
+#[tokio::test]
+async fn images_retirees_fenetre_pleine() {
+    let mut cut = vec![];
+    cut.extend(finish_u("length", 1500, 200));
+    let host = Fake::new(vec![Script::Ok(cut), answer_u("fini", 0)]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    let mut tc = config(&[]);
+    tc.compact.ctx_window = 2000;
+    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let (r, evs) = run_hist(&host, &tc, hist).await;
+    assert_eq!(r.err, None);
+    assert_eq!(host.sent(), 2);
+    assert!(host.phases.lock().unwrap().is_empty(), "pas de résumé");
+    assert!(evs.iter().any(|e| matches!(e, StreamEvent::DropReasoning)));
+    assert_eq!(text(&evs), "fini");
+}
+
+/// PREWARM : la boucle demande à l'hôte si la requête prolonge le
+/// préchauffage en vol et le lui transmet à l'envoi ; jamais vers une API
+/// externe.
+#[tokio::test]
+async fn prechauffage_garde_par_la_requete_qui_le_prolonge() {
+    let host = Fake::new(vec![answer("ok")]);
+    *host.prewarm_match.lock().unwrap() = true;
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [true]);
+    let host = Fake::new(vec![answer("ok")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [false]);
+    let host = Fake::new(vec![answer("ok")]);
+    *host.prewarm_match.lock().unwrap() = true;
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [false]);
+}
+
+/// PROJ_SNAPSHOT : une compaction ou une réduction en plein tour fait
+/// rafraîchir le bloc projet (le début du prompt change de toute façon) ;
+/// l'historique publié et la requête rejouée le portent. Le retrait d'images
+/// gardées, lui, ne touche pas au début du prompt.
+#[tokio::test]
+async fn bloc_projet_rafraichi_par_la_compaction() {
+    let host = Fake::new(vec![
+        Script::Status(400, "the request exceeds the available context size".into()),
+        answer("après compaction"),
+    ]);
+    *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
+    *host.snap_on.lock().unwrap() = true;
+    let (r, evs) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None, "{:?}", host.bodies.lock().unwrap());
+    assert_eq!(*host.refreshes.lock().unwrap(), 1);
+    assert!(evs.iter().any(|e| matches!(e, StreamEvent::NewHistory(h)
+        if h.first().and_then(|m| m.content.as_ref()) == Some(&json!("BLOC VIVANT")))));
+    assert_eq!(host.body(1)["messages"][0]["content"], "BLOC VIVANT");
+    // Réduction forcée (pas de résumé possible) : rafraîchi aussi.
+    let host = Fake::new(vec![
+        Script::Status(
+            400,
+            "request (400000 tokens) exceeds the available context size (32768 tokens)".into(),
+        ),
+        answer("ok"),
+    ]);
+    *host.snap_on.lock().unwrap() = true;
+    let hist: Vec<Message> = (0..12)
+        .map(|i| um(&format!("message {i} {}", "x".repeat(400))))
+        .collect();
+    let (r, _) = run_hist(&host, &config(&[]), hist).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.refreshes.lock().unwrap(), 1);
+    assert!(
+        host.phases.lock().unwrap().len() == 1,
+        "résumé tenté puis réduction"
+    );
+    assert_eq!(host.body(1)["messages"][0]["content"], "BLOC VIVANT");
+    // Images gardées retirées au filet réactif : pas de rafraîchissement.
+    let host = Fake::new(vec![
+        Script::Status(400, "the request exceeds the available context size".into()),
+        answer_u("fini", 0),
+    ]);
+    *host.snap_on.lock().unwrap() = true;
+    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let (r, _) = run_hist(&host, &config(&[]), hist).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.refreshes.lock().unwrap(), 0);
 }

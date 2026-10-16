@@ -416,7 +416,7 @@ pub(crate) fn is_loki_injected(m: &Message) -> bool {
 
 /// `dropKeptImages` : copie où chaque image gardée devient sa légende suivie
 /// d'[`IMAGE_LOST_MARKER`], et coût libéré. `None` : aucune image gardée.
-fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
+pub fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
     if !msgs.iter().any(|m| m.img_tokens > 0) {
         return None;
     }
@@ -441,7 +441,7 @@ fn drop_kept_images(msgs: &[Message]) -> Option<(Vec<Message>, i64)> {
     Some((out, freed))
 }
 
-fn log_kept_images_dropped(phase: &str, freed: i64) {
+pub fn log_kept_images_dropped(phase: &str, freed: i64) {
     eprintln!("[images] {phase} : images gardées retirées ({freed} jetons)");
 }
 
@@ -508,6 +508,57 @@ pub(crate) fn strip_context_updates(msgs: Vec<Message>) -> Vec<Message> {
     msgs.into_iter()
         .map(|m| without_ctx_update(&m).unwrap_or(m))
         .collect()
+}
+
+/// `prependCtxUpdate` : la mise à jour du bloc projet (PROJ_SNAPSHOT) posée en
+/// tête d'un message `user`, marqué `ctx_upd` ; `None` : pas un message où la
+/// poser.
+pub(crate) fn prepend_ctx_update(m: &Message, block: &str) -> Option<Message> {
+    if m.role != "user" {
+        return None;
+    }
+    let mut out = m.clone();
+    match &m.content {
+        Some(Value::String(c)) => out.content = Some(Value::String(format!("{block}{c}"))),
+        Some(Value::Array(parts)) => {
+            let mut v = Vec::with_capacity(parts.len() + 1);
+            v.push(serde_json::json!({ "type": "text", "text": block }));
+            v.extend(parts.iter().cloned());
+            out.content = Some(Value::Array(v));
+        }
+        _ => return None,
+    }
+    out.ctx_upd = true;
+    Some(out)
+}
+
+/// `replaceProjectHead` : le bloc projet de tête (hors rappel des pages lues,
+/// qui appartient à l'historique) remplacé par `block`, à la même place.
+pub(crate) fn replace_project_head(msgs: Vec<Message>, block: &[Message]) -> Vec<Message> {
+    let end = msgs.iter().take_while(|m| m.role == "system").count();
+    let mut out = Vec::with_capacity(msgs.len() + block.len());
+    let mut inserted = false;
+    let mut rest = msgs.into_iter();
+    for m in rest.by_ref().take(end) {
+        let reminder = matches!(&m.content, Some(Value::String(s)) if s.starts_with(super::wire::MEM_REMINDER_PREFIX));
+        if super::wire::is_project_system(&m) && !reminder {
+            if !inserted {
+                out.extend(block.iter().cloned());
+                inserted = true;
+            }
+            continue;
+        }
+        if reminder && !inserted {
+            out.extend(block.iter().cloned());
+            inserted = true;
+        }
+        out.push(m);
+    }
+    if !inserted {
+        out.extend(block.iter().cloned());
+    }
+    out.extend(rest);
+    out
 }
 
 // ---- bornes et assemblage --------------------------------------------------
@@ -853,6 +904,9 @@ struct WireMsg {
     tool_calls: Option<Vec<Value>>,
 }
 
+/// Réponse lue mais sans choix.
+pub const ERR_EMPTY_SUMMARY: &str = "résumé: réponse vide";
+
 /// Décodage d'une réponse non streamée de /v1/chat/completions, comme
 /// `postSummary` : seule la PREMIÈRE valeur JSON compte (un octet parasite
 /// après elle est ignoré), aucun choix → « résumé: réponse vide ».
@@ -866,7 +920,7 @@ pub fn parse_summary_response(raw: &[u8]) -> Result<SummaryChoice, SummaryError>
         Some(Ok(r)) => r,
     };
     let Some(ch) = resp.choices.and_then(|c| c.into_iter().next()) else {
-        return Err(SummaryError::Other("résumé: réponse vide".into()));
+        return Err(SummaryError::Other(ERR_EMPTY_SUMMARY.into()));
     };
     Ok(SummaryChoice {
         content: ch.message.content.unwrap_or_default(),
@@ -1841,6 +1895,77 @@ impl<S: Summarizer, R: RecallArchive> Compactor<'_, S, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── PROJ_SNAPSHOT (lot 34, cas de chat_projsnap_test.go) ──
+
+    #[test]
+    fn mise_a_jour_en_tete_du_message() {
+        let block = format!("{CTX_UPD_OPEN} at=\"x\">\n+ a\n{CTX_UPD_CLOSE}\n\n");
+        let m = prepend_ctx_update(&um("suite"), &block).expect("message user");
+        assert!(m.ctx_upd);
+        assert_eq!(m.content, Some(Value::String(format!("{block}suite"))));
+        // Retirée à l'identique.
+        assert_eq!(without_ctx_update(&m).unwrap().content, um("suite").content);
+        let parts = Message {
+            role: "user".into(),
+            content: Some(
+                serde_json::json!([{"type": "image_url", "image_url": {"url": "loki-img:a.png"}}]),
+            ),
+            ..Default::default()
+        };
+        let m = prepend_ctx_update(&parts, &block).unwrap();
+        assert_eq!(
+            m.content.as_ref().unwrap()[0],
+            serde_json::json!({"type": "text", "text": block})
+        );
+        assert_eq!(m.content.as_ref().unwrap()[1]["type"], "image_url");
+        assert!(prepend_ctx_update(&tm("r"), &block).is_none());
+        let empty = Message {
+            role: "user".into(),
+            ..Default::default()
+        };
+        assert!(prepend_ctx_update(&empty, &block).is_none());
+    }
+
+    #[test]
+    fn bloc_projet_remplace_a_sa_place() {
+        use super::super::wire::{MEM_INDEX_PREFIX, MEM_REMINDER_PREFIX, PROJECT_CONTEXT_PREFIX};
+        let sys = |c: String| Message {
+            role: "system".into(),
+            content: Some(Value::String(c)),
+            ..Default::default()
+        };
+        let msgs = vec![
+            sys("base".into()),
+            sys(format!("{PROJECT_CONTEXT_PREFIX} — vieux")),
+            sys(format!("{MEM_INDEX_PREFIX} vieux")),
+            sys(format!("{MEM_REMINDER_PREFIX} a.md")),
+            um("q"),
+        ];
+        let block = vec![sys(format!("{MEM_INDEX_PREFIX} neuf"))];
+        let out = replace_project_head(msgs, &block);
+        let got: Vec<String> = out.iter().map(msg_text).collect();
+        assert_eq!(
+            got,
+            [
+                "base".to_string(),
+                format!("{MEM_INDEX_PREFIX} neuf"),
+                format!("{MEM_REMINDER_PREFIX} a.md"),
+                "q".into()
+            ]
+        );
+        // Bloc vide au départ : inséré après le système commun.
+        let out = replace_project_head(vec![sys("base".into()), um("q")], &block);
+        assert_eq!(msg_text(&out[1]), format!("{MEM_INDEX_PREFIX} neuf"));
+        assert_eq!(msg_text(&out[2]), "q");
+        // Rappel des pages lues avant tout bloc : le bloc se pose devant lui.
+        let out = replace_project_head(
+            vec![sys(format!("{MEM_REMINDER_PREFIX} a.md")), um("q")],
+            &block,
+        );
+        assert_eq!(msg_text(&out[0]), format!("{MEM_INDEX_PREFIX} neuf"));
+        assert_eq!(msg_text(&out[1]), format!("{MEM_REMINDER_PREFIX} a.md"));
+    }
     use crate::chat::types::{ToolCall, ToolCallFunc, ToolFunction};
     use serde_json::json;
     use std::sync::atomic::{AtomicBool, Ordering};

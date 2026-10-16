@@ -129,7 +129,7 @@ func cutSuffix(s, suffix string) (string, bool) {
 
 // validateSchedule vérifie qu'un schedule est acceptable, sans calculer de date.
 func validateSchedule(schedule, tz string) error {
-	_, err := nextAfter(schedule, tz, time.Now())
+	_, err := nextAfter(schedule, tz, tasksNow())
 	return err
 }
 

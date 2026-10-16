@@ -46,6 +46,9 @@ func cuLog(format string, a ...any) { fmt.Fprintf(os.Stderr, "[cu] "+format+"\n"
 // renvoie l'identifiant de la capture en mémoire ("" si impossible : jamais
 // bloquant pour l'outil).
 func cuAutoShot() string {
+	if id, ok := facadeBrowserShot(); ok {
+		return id
+	}
 	s, err := cdpGet()
 	if err != nil {
 		cuLog("aperçu : navigateur indisponible : %v", err)

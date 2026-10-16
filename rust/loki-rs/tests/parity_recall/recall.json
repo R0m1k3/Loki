@@ -1,0 +1,615 @@
+{
+  "blocks": [
+    {
+      "id": "r1",
+      "seq": 1,
+      "label": "web_read: Recette du gratin dauphinois",
+      "role": "tool",
+      "content": "Recette du gratin dauphinois\npommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail ",
+      "created": 0
+    },
+    {
+      "id": "r2",
+      "seq": 2,
+      "label": "web_read: Horaires SNCF",
+      "role": "tool",
+      "content": "Horaires SNCF\nle train de 14h12 part quai 3, le TRAIN suivant à 15h",
+      "created": 0
+    },
+    {
+      "id": "r3",
+      "seq": 3,
+      "label": "bash: $ ls -la",
+      "role": "tool",
+      "content": "\n\n   $ ls -la\na.go b.go\tc.go",
+      "created": 0
+    },
+    {
+      "id": "r4",
+      "seq": 4,
+      "label": "assistant: Voici le résumé de l'ÉTÉ : plage, soleil, Été indien.",
+      "role": "assistant",
+      "content": "Voici le résumé de l'ÉTÉ : plage, soleil, Été indien.",
+      "created": 0
+    },
+    {
+      "id": "r5",
+      "seq": 5,
+      "label": "user: İSTANBUL et ΣΟΦΙΑ en majuscules",
+      "role": "user",
+      "content": "İSTANBUL et ΣΟΦΙΑ en majuscules",
+      "created": 0
+    },
+    {
+      "id": "r6",
+      "seq": 6,
+      "label": "tool: outil sans nom : train de marchandises",
+      "role": "tool",
+      "content": "outil sans nom : train de marchandises",
+      "created": 0
+    },
+    {
+      "id": "r7",
+      "seq": 7,
+      "label": "read_file: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…",
+      "role": "tool",
+      "content": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé fin",
+      "created": 0
+    },
+    {
+      "id": "r8",
+      "seq": 8,
+      "label": "web_read: <html><b>balises</b> & entités &amp; \"guillemets\"</html>",
+      "role": "tool",
+      "content": "<html><b>balises</b> & entités &amp; \"guillemets\"</html>",
+      "created": 0
+    },
+    {
+      "id": "r9",
+      "seq": 9,
+      "label": "bash",
+      "role": "tool",
+      "content": "",
+      "created": 0
+    },
+    {
+      "id": "r10",
+      "seq": 10,
+      "label": "mem_search: très longue première ligne sans fin très longue première ligne sans fi…",
+      "role": "tool",
+      "content": "très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin \nsuite",
+      "created": 0
+    },
+    {
+      "id": "r11",
+      "seq": 11,
+      "label": "bash: lot 0 de la migration : sortie numéro 0",
+      "role": "tool",
+      "content": "lot 0 de la migration : sortie numéro 0",
+      "created": 0
+    },
+    {
+      "id": "r12",
+      "seq": 12,
+      "label": "bash: lot 1 de la migration : sortie numéro 1",
+      "role": "tool",
+      "content": "lot 1 de la migration : sortie numéro 1",
+      "created": 0
+    },
+    {
+      "id": "r13",
+      "seq": 13,
+      "label": "bash: lot 2 de la migration : sortie numéro 2",
+      "role": "tool",
+      "content": "lot 2 de la migration : sortie numéro 2",
+      "created": 0
+    },
+    {
+      "id": "r14",
+      "seq": 14,
+      "label": "bash: lot 3 de la migration : sortie numéro 3",
+      "role": "tool",
+      "content": "lot 3 de la migration : sortie numéro 3",
+      "created": 0
+    },
+    {
+      "id": "r15",
+      "seq": 15,
+      "label": "bash: lot 4 de la migration : sortie numéro 4",
+      "role": "tool",
+      "content": "lot 4 de la migration : sortie numéro 4",
+      "created": 0
+    },
+    {
+      "id": "r16",
+      "seq": 16,
+      "label": "bash: lot 5 de la migration : sortie numéro 5",
+      "role": "tool",
+      "content": "lot 5 de la migration : sortie numéro 5",
+      "created": 0
+    },
+    {
+      "id": "r17",
+      "seq": 17,
+      "label": "bash: lot 6 de la migration : sortie numéro 6",
+      "role": "tool",
+      "content": "lot 6 de la migration : sortie numéro 6",
+      "created": 0
+    },
+    {
+      "id": "r18",
+      "seq": 18,
+      "label": "bash: lot 7 de la migration : sortie numéro 7",
+      "role": "tool",
+      "content": "lot 7 de la migration : sortie numéro 7",
+      "created": 0
+    },
+    {
+      "id": "r19",
+      "seq": 19,
+      "label": "bash: lot 8 de la migration : sortie numéro 8",
+      "role": "tool",
+      "content": "lot 8 de la migration : sortie numéro 8",
+      "created": 0
+    },
+    {
+      "id": "r20",
+      "seq": 20,
+      "label": "bash: lot 9 de la migration : sortie numéro 9",
+      "role": "tool",
+      "content": "lot 9 de la migration : sortie numéro 9",
+      "created": 0
+    },
+    {
+      "id": "r21",
+      "seq": 21,
+      "label": "bash: lot 10 de la migration : sortie numéro 10",
+      "role": "tool",
+      "content": "lot 10 de la migration : sortie numéro 10",
+      "created": 0
+    },
+    {
+      "id": "r22",
+      "seq": 22,
+      "label": "bash: lot 11 de la migration : sortie numéro 11",
+      "role": "tool",
+      "content": "lot 11 de la migration : sortie numéro 11",
+      "created": 0
+    },
+    {
+      "id": "r23",
+      "seq": 23,
+      "label": "bash: lot 12 de la migration : sortie numéro 12",
+      "role": "tool",
+      "content": "lot 12 de la migration : sortie numéro 12",
+      "created": 0
+    },
+    {
+      "id": "r24",
+      "seq": 24,
+      "label": "bash: lot 13 de la migration : sortie numéro 13",
+      "role": "tool",
+      "content": "lot 13 de la migration : sortie numéro 13",
+      "created": 0
+    },
+    {
+      "id": "r25",
+      "seq": 25,
+      "label": "bash: lot 14 de la migration : sortie numéro 14",
+      "role": "tool",
+      "content": "lot 14 de la migration : sortie numéro 14",
+      "created": 0
+    },
+    {
+      "id": "r26",
+      "seq": 26,
+      "label": "bash: lot 15 de la migration : sortie numéro 15",
+      "role": "tool",
+      "content": "lot 15 de la migration : sortie numéro 15",
+      "created": 0
+    },
+    {
+      "id": "r27",
+      "seq": 27,
+      "label": "bash: lot 16 de la migration : sortie numéro 16",
+      "role": "tool",
+      "content": "lot 16 de la migration : sortie numéro 16",
+      "created": 0
+    },
+    {
+      "id": "r28",
+      "seq": 28,
+      "label": "bash: lot 17 de la migration : sortie numéro 17",
+      "role": "tool",
+      "content": "lot 17 de la migration : sortie numéro 17",
+      "created": 0
+    },
+    {
+      "id": "r29",
+      "seq": 29,
+      "label": "bash: lot 18 de la migration : sortie numéro 18",
+      "role": "tool",
+      "content": "lot 18 de la migration : sortie numéro 18",
+      "created": 0
+    },
+    {
+      "id": "r30",
+      "seq": 30,
+      "label": "bash: lot 19 de la migration : sortie numéro 19",
+      "role": "tool",
+      "content": "lot 19 de la migration : sortie numéro 19",
+      "created": 0
+    },
+    {
+      "id": "r31",
+      "seq": 31,
+      "label": "bash: lot 20 de la migration : sortie numéro 20",
+      "role": "tool",
+      "content": "lot 20 de la migration : sortie numéro 20",
+      "created": 0
+    },
+    {
+      "id": "r32",
+      "seq": 32,
+      "label": "bash: lot 21 de la migration : sortie numéro 21",
+      "role": "tool",
+      "content": "lot 21 de la migration : sortie numéro 21",
+      "created": 0
+    },
+    {
+      "id": "r33",
+      "seq": 33,
+      "label": "bash: lot 22 de la migration : sortie numéro 22",
+      "role": "tool",
+      "content": "lot 22 de la migration : sortie numéro 22",
+      "created": 0
+    },
+    {
+      "id": "r34",
+      "seq": 34,
+      "label": "bash: lot 23 de la migration : sortie numéro 23",
+      "role": "tool",
+      "content": "lot 23 de la migration : sortie numéro 23",
+      "created": 0
+    },
+    {
+      "id": "r35",
+      "seq": 35,
+      "label": "bash: lot 24 de la migration : sortie numéro 24",
+      "role": "tool",
+      "content": "lot 24 de la migration : sortie numéro 24",
+      "created": 0
+    }
+  ],
+  "steps": [
+    {
+      "name": "sans id",
+      "tool": "recall",
+      "args": {},
+      "result": "[erreur] id manquant"
+    },
+    {
+      "name": "id non texte",
+      "tool": "recall",
+      "args": {
+        "id": 7
+      },
+      "result": "[erreur] id manquant"
+    },
+    {
+      "name": "id blanc",
+      "tool": "recall",
+      "args": {
+        "id": "  "
+      },
+      "result": "[erreur] id manquant"
+    },
+    {
+      "name": "r1",
+      "tool": "recall",
+      "args": {
+        "id": "r1"
+      },
+      "result": "[r1 — web_read: Recette du gratin dauphinois, rappelé verbatim]\nRecette du gratin dauphinois\npommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail "
+    },
+    {
+      "name": "R2 majuscule",
+      "tool": "recall",
+      "args": {
+        "id": "R2"
+      },
+      "result": "[r2 — web_read: Horaires SNCF, rappelé verbatim]\nHoraires SNCF\nle train de 14h12 part quai 3, le TRAIN suivant à 15h"
+    },
+    {
+      "name": "espaces",
+      "tool": "recall",
+      "args": {
+        "id": " 3 "
+      },
+      "result": "[r3 — bash: $ ls -la, rappelé verbatim]\n\n\n   $ ls -la\na.go b.go\tc.go"
+    },
+    {
+      "name": "sans préfixe",
+      "tool": "recall",
+      "args": {
+        "id": "4"
+      },
+      "result": "[r4 — assistant: Voici le résumé de l'ÉTÉ : plage, soleil, Été indien., rappelé verbatim]\nVoici le résumé de l'ÉTÉ : plage, soleil, Été indien."
+    },
+    {
+      "name": "espace après le préfixe",
+      "tool": "recall",
+      "args": {
+        "id": "r 5"
+      },
+      "result": "[r5 — user: İSTANBUL et ΣΟΦΙΑ en majuscules, rappelé verbatim]\nİSTANBUL et ΣΟΦΙΑ en majuscules"
+    },
+    {
+      "name": "deux préfixes",
+      "tool": "recall",
+      "args": {
+        "id": "rR6"
+      },
+      "result": "[r6 — tool: outil sans nom : train de marchandises, rappelé verbatim]\noutil sans nom : train de marchandises"
+    },
+    {
+      "name": "préfixes à l'envers",
+      "tool": "recall",
+      "args": {
+        "id": "Rr6"
+      },
+      "result": "[erreur] bloc \"Rr6\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "zéros de tête",
+      "tool": "recall",
+      "args": {
+        "id": "r007"
+      },
+      "result": "[r7 — read_file: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…, rappelé verbatim]\néééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé fin"
+    },
+    {
+      "name": "contenu long",
+      "tool": "recall",
+      "args": {
+        "id": "r7"
+      },
+      "result": "[r7 — read_file: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…, rappelé verbatim]\néééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé fin"
+    },
+    {
+      "name": "caractères spéciaux",
+      "tool": "recall",
+      "args": {
+        "id": "r8"
+      },
+      "result": "[r8 — web_read: <html><b>balises</b> & entités &amp; \"guillemets\"</html>, rappelé verbatim]\n<html><b>balises</b> & entités &amp; \"guillemets\"</html>"
+    },
+    {
+      "name": "bloc vide",
+      "tool": "recall",
+      "args": {
+        "id": "r9"
+      },
+      "result": "[r9 — bash, rappelé verbatim]\n"
+    },
+    {
+      "name": "mal formé",
+      "tool": "recall",
+      "args": {
+        "id": "rr"
+      },
+      "result": "[erreur] bloc \"rr\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "négatif",
+      "tool": "recall",
+      "args": {
+        "id": "r-1"
+      },
+      "result": "[erreur] bloc \"r-1\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "signe plus",
+      "tool": "recall",
+      "args": {
+        "id": "+1"
+      },
+      "result": "[erreur] bloc \"+1\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "zéro",
+      "tool": "recall",
+      "args": {
+        "id": "r0"
+      },
+      "result": "[erreur] bloc \"r0\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "absent",
+      "tool": "recall",
+      "args": {
+        "id": "r999"
+      },
+      "result": "[erreur] bloc \"r999\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "démesuré",
+      "tool": "recall",
+      "args": {
+        "id": "r99999999999999999999"
+      },
+      "result": "[erreur] bloc \"r99999999999999999999\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "guillemets dans l'id",
+      "tool": "recall",
+      "args": {
+        "id": "r\"9\\"
+      },
+      "result": "[erreur] bloc \"r\\\"9\\\\\" introuvable — vérifie l'id, ou utilise recall_search pour le retrouver par mots-clés"
+    },
+    {
+      "name": "sans requête",
+      "tool": "recall_search",
+      "args": {},
+      "result": "[erreur] query manquante"
+    },
+    {
+      "name": "requête non texte",
+      "tool": "recall_search",
+      "args": {
+        "query": 3
+      },
+      "result": "[erreur] query manquante"
+    },
+    {
+      "name": "requête blanche",
+      "tool": "recall_search",
+      "args": {
+        "query": "   "
+      },
+      "result": "[erreur] query manquante"
+    },
+    {
+      "name": "mots trop courts",
+      "tool": "recall_search",
+      "args": {
+        "query": "a b ! ?"
+      },
+      "result": "[aucun bloc archivé ne correspond]"
+    },
+    {
+      "name": "train horaires",
+      "tool": "recall_search",
+      "args": {
+        "query": "train horaires"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r2 — web_read: Horaires SNCF\n  Horaires SNCF le train de 14h12 part quai 3, le TRAIN suivant à 15h\n- r6 — tool: outil sans nom : train de marchandises\n  outil sans nom : train de marchandises"
+    },
+    {
+      "name": "casse",
+      "tool": "recall_search",
+      "args": {
+        "query": "TRAIN"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r6 — tool: outil sans nom : train de marchandises\n  outil sans nom : train de marchandises\n- r2 — web_read: Horaires SNCF\n  Horaires SNCF le train de 14h12 part quai 3, le TRAIN suivant à 15h"
+    },
+    {
+      "name": "accents majuscules",
+      "tool": "recall_search",
+      "args": {
+        "query": "ÉTÉ"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r4 — assistant: Voici le résumé de l'ÉTÉ : plage, soleil, Été indien.\n  Voici le résumé de l'ÉTÉ : plage, soleil, Été indien."
+    },
+    {
+      "name": "i turc",
+      "tool": "recall_search",
+      "args": {
+        "query": "İstanbul"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r5 — user: İSTANBUL et ΣΟΦΙΑ en majuscules\n  İSTANBUL et ΣΟΦΙΑ en majuscules"
+    },
+    {
+      "name": "sigma",
+      "tool": "recall_search",
+      "args": {
+        "query": "σοφια"
+      },
+      "result": "[aucun bloc archivé ne correspond]"
+    },
+    {
+      "name": "souligné coupé",
+      "tool": "recall_search",
+      "args": {
+        "query": "web_read"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r8 — web_read: <html><b>balises</b> & entités &amp; \"guillemets\"</html>\n  <html><b>balises</b> & entités &amp; \"guillemets\"</html>\n- r2 — web_read: Horaires SNCF\n  Horaires SNCF le train de 14h12 part quai 3, le TRAIN suivant à 15h\n- r1 — web_read: Recette du gratin dauphinois\n  Recette du gratin dauphinois pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, crème, ail pommes de terre, cr…\n- r7 — read_file: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…\n  éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…"
+    },
+    {
+      "name": "extrait borné",
+      "tool": "recall_search",
+      "args": {
+        "query": "fin éé"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r7 — read_file: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…\n  éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…\n- r10 — mem_search: très longue première ligne sans fin très longue première ligne sans fi…\n  très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue prem…"
+    },
+    {
+      "name": "première ligne longue",
+      "tool": "recall_search",
+      "args": {
+        "query": "suite"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r10 — mem_search: très longue première ligne sans fin très longue première ligne sans fi…\n  très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue première ligne sans fin très longue prem…"
+    },
+    {
+      "name": "limite 1",
+      "tool": "recall_search",
+      "args": {
+        "limit": 1,
+        "query": "train"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r6 — tool: outil sans nom : train de marchandises\n  outil sans nom : train de marchandises"
+    },
+    {
+      "name": "limite tronquée",
+      "tool": "recall_search",
+      "args": {
+        "limit": 2.7,
+        "query": "train"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r6 — tool: outil sans nom : train de marchandises\n  outil sans nom : train de marchandises\n- r2 — web_read: Horaires SNCF\n  Horaires SNCF le train de 14h12 part quai 3, le TRAIN suivant à 15h"
+    },
+    {
+      "name": "limite négative",
+      "tool": "recall_search",
+      "args": {
+        "limit": -3,
+        "query": "lot"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r35 — bash: lot 24 de la migration : sortie numéro 24\n  lot 24 de la migration : sortie numéro 24\n- r34 — bash: lot 23 de la migration : sortie numéro 23\n  lot 23 de la migration : sortie numéro 23\n- r33 — bash: lot 22 de la migration : sortie numéro 22\n  lot 22 de la migration : sortie numéro 22\n- r32 — bash: lot 21 de la migration : sortie numéro 21\n  lot 21 de la migration : sortie numéro 21\n- r31 — bash: lot 20 de la migration : sortie numéro 20\n  lot 20 de la migration : sortie numéro 20"
+    },
+    {
+      "name": "défaut",
+      "tool": "recall_search",
+      "args": {
+        "query": "migration"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r35 — bash: lot 24 de la migration : sortie numéro 24\n  lot 24 de la migration : sortie numéro 24\n- r34 — bash: lot 23 de la migration : sortie numéro 23\n  lot 23 de la migration : sortie numéro 23\n- r33 — bash: lot 22 de la migration : sortie numéro 22\n  lot 22 de la migration : sortie numéro 22\n- r32 — bash: lot 21 de la migration : sortie numéro 21\n  lot 21 de la migration : sortie numéro 21\n- r31 — bash: lot 20 de la migration : sortie numéro 20\n  lot 20 de la migration : sortie numéro 20"
+    },
+    {
+      "name": "vingt au plus",
+      "tool": "recall_search",
+      "args": {
+        "limit": 50,
+        "query": "lot migration"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r35 — bash: lot 24 de la migration : sortie numéro 24\n  lot 24 de la migration : sortie numéro 24\n- r34 — bash: lot 23 de la migration : sortie numéro 23\n  lot 23 de la migration : sortie numéro 23\n- r33 — bash: lot 22 de la migration : sortie numéro 22\n  lot 22 de la migration : sortie numéro 22\n- r32 — bash: lot 21 de la migration : sortie numéro 21\n  lot 21 de la migration : sortie numéro 21\n- r31 — bash: lot 20 de la migration : sortie numéro 20\n  lot 20 de la migration : sortie numéro 20\n- r30 — bash: lot 19 de la migration : sortie numéro 19\n  lot 19 de la migration : sortie numéro 19\n- r29 — bash: lot 18 de la migration : sortie numéro 18\n  lot 18 de la migration : sortie numéro 18\n- r28 — bash: lot 17 de la migration : sortie numéro 17\n  lot 17 de la migration : sortie numéro 17\n- r27 — bash: lot 16 de la migration : sortie numéro 16\n  lot 16 de la migration : sortie numéro 16\n- r26 — bash: lot 15 de la migration : sortie numéro 15\n  lot 15 de la migration : sortie numéro 15\n- r25 — bash: lot 14 de la migration : sortie numéro 14\n  lot 14 de la migration : sortie numéro 14\n- r24 — bash: lot 13 de la migration : sortie numéro 13\n  lot 13 de la migration : sortie numéro 13\n- r23 — bash: lot 12 de la migration : sortie numéro 12\n  lot 12 de la migration : sortie numéro 12\n- r22 — bash: lot 11 de la migration : sortie numéro 11\n  lot 11 de la migration : sortie numéro 11\n- r21 — bash: lot 10 de la migration : sortie numéro 10\n  lot 10 de la migration : sortie numéro 10\n- r20 — bash: lot 9 de la migration : sortie numéro 9\n  lot 9 de la migration : sortie numéro 9\n- r19 — bash: lot 8 de la migration : sortie numéro 8\n  lot 8 de la migration : sortie numéro 8\n- r18 — bash: lot 7 de la migration : sortie numéro 7\n  lot 7 de la migration : sortie numéro 7\n- r17 — bash: lot 6 de la migration : sortie numéro 6\n  lot 6 de la migration : sortie numéro 6\n- r16 — bash: lot 5 de la migration : sortie numéro 5\n  lot 5 de la migration : sortie numéro 5"
+    },
+    {
+      "name": "limite texte ignorée",
+      "tool": "recall_search",
+      "args": {
+        "limit": "3",
+        "query": "lot"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r35 — bash: lot 24 de la migration : sortie numéro 24\n  lot 24 de la migration : sortie numéro 24\n- r34 — bash: lot 23 de la migration : sortie numéro 23\n  lot 23 de la migration : sortie numéro 23\n- r33 — bash: lot 22 de la migration : sortie numéro 22\n  lot 22 de la migration : sortie numéro 22\n- r32 — bash: lot 21 de la migration : sortie numéro 21\n  lot 21 de la migration : sortie numéro 21\n- r31 — bash: lot 20 de la migration : sortie numéro 20\n  lot 20 de la migration : sortie numéro 20"
+    },
+    {
+      "name": "rien ne correspond",
+      "tool": "recall_search",
+      "args": {
+        "query": "motabsolumentabsent"
+      },
+      "result": "[aucun bloc archivé ne correspond]"
+    },
+    {
+      "name": "ponctuation",
+      "tool": "recall_search",
+      "args": {
+        "query": "«entités»,&amp;"
+      },
+      "result": "Blocs trouvés (rappelle le bon avec recall(id)) :\n- r8 — web_read: <html><b>balises</b> & entités &amp; \"guillemets\"</html>\n  <html><b>balises</b> & entités &amp; \"guillemets\"</html>"
+    }
+  ]
+}

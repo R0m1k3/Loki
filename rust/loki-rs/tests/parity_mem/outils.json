@@ -1,0 +1,2319 @@
+[
+  {
+    "name": "recherche dans une mémoire vide",
+    "now": "2026-07-20T10:00:00Z",
+    "tool": "mem_search",
+    "args": {
+      "query": "docker"
+    },
+    "label": "docker",
+    "out": "[aucun résultat]",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {},
+    "trackers": {}
+  },
+  {
+    "name": "ajout",
+    "tool": "mem_add",
+    "args": {
+      "file": "docker-notes",
+      "content": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n\n\n"
+    },
+    "label": "docker-notes",
+    "out": "[ok] page 'docker-notes' créée",
+    "diff": [
+      {
+        "op": "+",
+        "text": "# Notes Docker"
+      },
+      {
+        "op": "+",
+        "text": ""
+      },
+      {
+        "op": "+",
+        "text": "Utiliser compose v2."
+      },
+      {
+        "op": "+",
+        "text": "Le port 8080 est pris."
+      },
+      {
+        "op": "+",
+        "text": ""
+      },
+      {
+        "op": "+",
+        "text": ""
+      }
+    ],
+    "added": 6,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout d'une page existante",
+    "tool": "mem_add",
+    "args": {
+      "file": "docker-notes.md",
+      "content": "x"
+    },
+    "label": "docker-notes.md",
+    "out": "[erreur] la page existe déjà — utilise mem_edit pour la modifier",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout d'un nom invalide",
+    "tool": "mem_add",
+    "args": {
+      "file": "../x",
+      "content": "x"
+    },
+    "label": "../x",
+    "out": "[erreur] nom invalide (alphanum, ._-)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout sans nom",
+    "tool": "mem_add",
+    "args": {
+      "content": "x"
+    },
+    "label": "",
+    "out": "[erreur] nom vide",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout en majuscules",
+    "tool": "mem_add",
+    "args": {
+      "file": "Recettes.MD",
+      "content": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte"
+    },
+    "label": "Recettes.MD",
+    "out": "[ok] page 'Recettes.MD' créée",
+    "diff": [
+      {
+        "op": "+",
+        "text": "# Recettes"
+      },
+      {
+        "op": "+",
+        "text": "Tarte aux pommes"
+      },
+      {
+        "op": "+",
+        "text": "La copine de Nathan aime la tarte"
+      }
+    ],
+    "added": 3,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout d'une page bavarde",
+    "tool": "mem_add",
+    "args": {
+      "file": "nathan",
+      "content": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019."
+    },
+    "label": "nathan",
+    "out": "[ok] page 'nathan' créée",
+    "diff": [
+      {
+        "op": "+",
+        "text": "## Nathan"
+      },
+      {
+        "op": "+",
+        "text": "Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan."
+      },
+      {
+        "op": "+",
+        "text": "Nathan est né en 2019."
+      }
+    ],
+    "added": 3,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout d'une longue page",
+    "tool": "mem_add",
+    "args": {
+      "content": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. ",
+      "file": "longue"
+    },
+    "label": "longue",
+    "out": "[ok] page 'longue' créée",
+    "diff": [
+      {
+        "op": "+",
+        "text": "# Longue"
+      },
+      {
+        "op": "+",
+        "text": "Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. "
+      }
+    ],
+    "added": 2,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "couverture d'abord",
+    "tool": "mem_search",
+    "args": {
+      "query": "copine Nathan"
+    },
+    "label": "copine Nathan",
+    "out": "- Recettes.MD — Recettes\n  # Recettes Tarte aux pommes La copine de Nathan aime la tarte\n- nathan.md — Nathan\n  ## Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan. Nathan est né en 2019.\n- MEMORY.md — Index mémoire — Générale\n  …Notes Docker](docker-notes.md) - [Recettes](Recettes.MD) - [Nathan](nathan.md) - [Longue](longue.md)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "rareté et nom",
+    "tool": "mem_search",
+    "args": {
+      "query": "Nathan nathan TARTE"
+    },
+    "label": "Nathan nathan TARTE",
+    "out": "- Recettes.MD — Recettes\n  # Recettes Tarte aux pommes La copine de Nathan aime la tarte\n- nathan.md — Nathan\n  ## Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan. Nathan est né en 2019.\n- MEMORY.md — Index mémoire — Générale\n  …Notes Docker](docker-notes.md) - [Recettes](Recettes.MD) - [Nathan](nathan.md) - [Longue](longue.md)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "requête vide : tout",
+    "tool": "mem_search",
+    "args": {
+      "query": "  "
+    },
+    "label": "  ",
+    "out": "- MEMORY.md — Index mémoire — Générale\n  # Index mémoire — Générale Une ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la su…\n- Recettes.MD — Recettes\n  # Recettes Tarte aux pommes La copine de Nathan aime la tarte\n- docker-notes.md — Notes Docker\n  # Notes Docker Utiliser compose v2. Le port 8080 est pris.\n- longue.md — Longue\n  # Longue Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un t…\n- nathan.md — Nathan\n  ## Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan. Nathan est né en 2019.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "limite",
+    "tool": "mem_search",
+    "args": {
+      "query": "e",
+      "limit": 2
+    },
+    "label": "e",
+    "out": "- longue.md — Longue\n  # Longue Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. …\n- MEMORY.md — Index mémoire — Générale\n  # Index mémoire — Générale Une ligne par page de ce projet (`- [titre](fichier.md) — accroche`). T…",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "limite hors bornes",
+    "tool": "mem_search",
+    "args": {
+      "query": "e",
+      "limit": 99
+    },
+    "label": "e",
+    "out": "- longue.md — Longue\n  # Longue Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. …\n- MEMORY.md — Index mémoire — Générale\n  # Index mémoire — Générale Une ligne par page de ce projet (`- [titre](fichier.md) — accroche`). T…\n- Recettes.MD — Recettes\n  # Recettes Tarte aux pommes La copine de Nathan aime la tarte\n- docker-notes.md — Notes Docker\n  # Notes Docker Utiliser compose v2. Le port 8080 est pris.\n- nathan.md — Nathan\n  …an Nathan Nathan Nathan Nathan Nathan Nathan Nathan. Nathan est né en 2019.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "extrait coupé des deux côtés",
+    "tool": "mem_search",
+    "args": {
+      "query": "rare"
+    },
+    "label": "rare",
+    "out": "- longue.md — Longue\n  …me. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, a…",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "rien",
+    "tool": "mem_search",
+    "args": {
+      "query": "zzz"
+    },
+    "label": "zzz",
+    "out": "[aucun résultat]",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "lecture",
+    "tool": "mem_read",
+    "args": {
+      "file": "docker-notes"
+    },
+    "label": "docker-notes",
+    "out": "1\t# Notes Docker\n2\t\n3\tUtiliser compose v2.\n4\tLe port 8080 est pris.\n5\t",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "lecture d'une plage",
+    "tool": "mem_read",
+    "args": {
+      "file": "docker-notes.md",
+      "offset": 3,
+      "limit": 1
+    },
+    "label": "docker-notes.md",
+    "out": "3\tUtiliser compose v2.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "lecture au-delà",
+    "tool": "mem_read",
+    "args": {
+      "file": "docker-notes",
+      "offset": 40
+    },
+    "label": "docker-notes",
+    "out": "",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "lecture d'une page absente",
+    "tool": "mem_read",
+    "args": {
+      "file": "absente"
+    },
+    "label": "absente",
+    "out": "[erreur] page 'absente' introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "lecture d'un nom invalide",
+    "tool": "mem_read",
+    "args": {
+      "file": "a/b"
+    },
+    "label": "a/b",
+    "out": "[erreur] page 'a/b' introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "modification",
+    "tool": "mem_edit",
+    "args": {
+      "file": "docker-notes",
+      "old": "Le port 8080 est pris.",
+      "new": "Le port 8080 est pris.\nLe port 9090 aussi."
+    },
+    "label": "docker-notes",
+    "out": "[ok] page 'docker-notes' modifiée",
+    "diff": [
+      {
+        "op": " ",
+        "text": "Le port 8080 est pris."
+      },
+      {
+        "op": "+",
+        "text": "Le port 9090 aussi."
+      }
+    ],
+    "added": 1,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "modification rejouée",
+    "tool": "mem_edit",
+    "args": {
+      "file": "docker-notes",
+      "old": "Le port 8080 est pris.\nLe port 9090 aussi.",
+      "new": "Le port 8080 est pris.\nLe port 9090 aussi."
+    },
+    "label": "docker-notes",
+    "out": "[ok] page 'docker-notes' modifiée",
+    "diff": [
+      {
+        "op": " ",
+        "text": "Le port 8080 est pris."
+      },
+      {
+        "op": " ",
+        "text": "Le port 9090 aussi."
+      }
+    ],
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "modification déjà en place",
+    "tool": "mem_edit",
+    "args": {
+      "file": "docker-notes",
+      "old": "compose v1",
+      "new": "Utiliser compose v2."
+    },
+    "label": "docker-notes",
+    "out": "[ok] page 'docker-notes' déjà à jour — la page contient déjà cette modification",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ancien texte absent",
+    "tool": "mem_edit",
+    "args": {
+      "file": "docker-notes",
+      "old": "introuvable",
+      "new": "x"
+    },
+    "label": "docker-notes",
+    "out": "[erreur] old introuvable dans la page",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ancien texte en double",
+    "tool": "mem_edit",
+    "args": {
+      "file": "nathan",
+      "old": "Nathan Nathan",
+      "new": "N"
+    },
+    "label": "nathan",
+    "out": "[erreur] old apparaît 4 fois — ajoute du contexte pour le rendre unique",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ancien texte vide",
+    "tool": "mem_edit",
+    "args": {
+      "file": "nathan",
+      "old": "",
+      "new": "N"
+    },
+    "label": "nathan",
+    "out": "[erreur] old vide",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "modification d'une page absente",
+    "tool": "mem_edit",
+    "args": {
+      "file": "absente",
+      "old": "a",
+      "new": "b"
+    },
+    "label": "absente",
+    "out": "[erreur] page 'absente' introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "suppression d'un passage",
+    "tool": "mem_edit",
+    "args": {
+      "file": "recettes",
+      "old": "\nTarte aux pommes",
+      "new": ""
+    },
+    "label": "recettes",
+    "out": "[erreur] page 'recettes' introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "aucun tracker",
+    "tool": "tracker",
+    "args": {},
+    "label": "",
+    "out": "Aucun tracker dans ce projet. Crée-en un en ajoutant un point : action:\"add\", name:\"…\", text:\"…\" (when facultatif = maintenant).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout sans nom",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "text": "1"
+    },
+    "label": "add",
+    "out": "[erreur] nom de tracker vide",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout sans texte",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "Poids",
+      "text": "  "
+    },
+    "label": "add Poids",
+    "out": "[erreur] contenu vide",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "date illisible",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "Poids",
+      "when": "hier",
+      "text": "72"
+    },
+    "label": "add Poids",
+    "out": "[erreur] date non comprise : \"hier\" (attendu AAAA, AAAA-MM, AAAA-MM-JJ ou AAAA-MM-JJ HH:MM)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {}
+  },
+  {
+    "name": "ajout daté",
+    "tool": "tracker",
+    "args": {
+      "action": "ADD",
+      "name": "Poids",
+      "when": "2026-07-15",
+      "text": " 72.5 "
+    },
+    "label": "ADD Poids",
+    "out": "[ok] point ajouté à « Poids » (id {{T1}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          }
+        ],
+        "name": "Poids"
+      }
+    }
+  },
+  {
+    "name": "ajout à l'heure",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "poids",
+      "when": "2026-07-16T08:30",
+      "text": "72.1"
+    },
+    "label": "add poids",
+    "out": "[ok] point ajouté à « poids » (id {{T2}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          }
+        ],
+        "name": "Poids"
+      }
+    }
+  },
+  {
+    "name": "ajout l'an passé",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "Poids",
+      "when": "2025-12",
+      "text": "73"
+    },
+    "label": "add Poids",
+    "out": "[ok] point ajouté à « Poids » (id {{T3}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          }
+        ],
+        "name": "Poids"
+      }
+    }
+  },
+  {
+    "name": "ajout maintenant",
+    "now": "2026-07-20T10:15:00Z",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "Poids",
+      "text": "71.9"
+    },
+    "label": "add Poids",
+    "out": "[ok] point ajouté à « Poids » (id {{T4}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      }
+    }
+  },
+  {
+    "name": "un autre tracker",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": "Séances de sport",
+      "when": "2024",
+      "text": "course"
+    },
+    "label": "add Séances de sport",
+    "out": "[ok] point ajouté à « Séances de sport » (id {{T5}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "un nom en nombre",
+    "tool": "tracker",
+    "args": {
+      "action": "add",
+      "name": 42,
+      "when": "2026-01-02 03:04:05",
+      "text": 7
+    },
+    "label": "add 42",
+    "out": "[ok] point ajouté à « 42 » (id {{T6}}).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "vue d'ensemble",
+    "tool": "tracker",
+    "args": {
+      "action": "view"
+    },
+    "label": "view",
+    "out": "Trackers du projet (3) :\n- Poids — 4 points, du 2025-12-01 au 2026-07-20\n- 42 — 1 points, du 2026-01-02 au 2026-01-02\n- Séances de sport — 1 points, du 2024-01-01 au 2024-01-01\nZoom : tracker(name:\"\u003cnom\u003e\") pour le détail d'un tracker.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "squelette",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » — 4 points, du 2025-12-01 au 2026-07-20\nAnnées : 2025 (1) · 2026 (3)\n2026 (année en cours) : 2026-07 (3)\nZoom : tracker(name:\"Poids\", when:\"2025\") pour une année · when:\"2026-07\" pour un mois.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "une année",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids",
+      "when": "2026"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » en 2026 — 3 points :\n2026-07 (3)\nZoom : when:\"2026-07\" pour un mois.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "une année vide",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids",
+      "when": "2027"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » : rien en 2027.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "un mois",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids",
+      "when": "2026-07"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » en 2026-07 — 3 points :\n- [{{T1}}] 2026-07-15 — 72.5\n- [{{T2}}] 2026-07-16 08:30 — 72.1\n- [{{T4}}] 2026-07-20 10:15 — 71.9\nModifier/supprimer : action:\"edit\"|\"delete\", name, id (l'identifiant entre crochets).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "un jour à l'heure",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids",
+      "when": "2026-07-16T08"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » en 2026-07-16T08 — 1 points :\n- [{{T2}}] 2026-07-16 08:30 — 72.1\nModifier/supprimer : action:\"edit\"|\"delete\", name, id (l'identifiant entre crochets).",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "tracker inconnu",
+    "tool": "tracker",
+    "args": {
+      "name": "Tension"
+    },
+    "label": "Tension",
+    "out": "[aucun tracker « Tension »] Appelle tracker() sans argument pour la liste, ou ajoute un point avec action:\"add\".",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "modifier sans id",
+    "tool": "tracker",
+    "args": {
+      "action": "edit",
+      "name": "Poids",
+      "text": "1"
+    },
+    "label": "edit Poids",
+    "out": "[erreur] name et id sont requis pour modifier un point",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.5",
+            "ts": 1784073600000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "modifier",
+    "tool": "tracker",
+    "args": {
+      "action": "edit",
+      "name": "Poids",
+      "id": "{{T1}}",
+      "text": "72.4",
+      "when": "2026-07-14"
+    },
+    "label": "edit Poids",
+    "out": "[ok] point {{T1}} de « Poids » modifié.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "modifier une date illisible",
+    "tool": "tracker",
+    "args": {
+      "action": "edit",
+      "name": "Poids",
+      "id": "{{T1}}",
+      "when": "demain"
+    },
+    "label": "edit Poids",
+    "out": "[erreur] date non comprise : \"demain\" (attendu AAAA, AAAA-MM, AAAA-MM-JJ ou AAAA-MM-JJ HH:MM)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "modifier un point inconnu",
+    "tool": "tracker",
+    "args": {
+      "action": "edit",
+      "name": "Poids",
+      "id": "1"
+    },
+    "label": "edit Poids",
+    "out": "[erreur] événement introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "modifier un tracker inconnu",
+    "tool": "tracker",
+    "args": {
+      "action": "edit",
+      "name": "Tension",
+      "id": "1"
+    },
+    "label": "edit Tension",
+    "out": "[erreur] tracker introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "supprimer sans id",
+    "tool": "tracker",
+    "args": {
+      "action": "delete",
+      "name": "Poids"
+    },
+    "label": "delete Poids",
+    "out": "[erreur] id requis — supprimer un tracker entier se fait depuis l'interface, pas par l'outil",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "supprimer sans nom",
+    "tool": "tracker",
+    "args": {
+      "action": "delete"
+    },
+    "label": "delete",
+    "out": "[erreur] name requis",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T2}}",
+            "text": "72.1",
+            "ts": 1784190600000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "supprimer",
+    "tool": "tracker",
+    "args": {
+      "action": "delete",
+      "name": "Poids",
+      "id": "{{T2}}"
+    },
+    "label": "delete Poids",
+    "out": "[ok] point {{T2}} de « Poids » supprimé.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "supprimer deux fois",
+    "tool": "tracker",
+    "args": {
+      "action": "delete",
+      "name": "Poids",
+      "id": "{{T2}}"
+    },
+    "label": "delete Poids",
+    "out": "[erreur] événement introuvable",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "action inconnue",
+    "tool": "tracker",
+    "args": {
+      "action": "purge",
+      "name": "Poids"
+    },
+    "label": "purge Poids",
+    "out": "[erreur] action inconnue \"purge\" (view, add, edit, delete)",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  },
+  {
+    "name": "après modifications",
+    "tool": "tracker",
+    "args": {
+      "name": "Poids",
+      "when": "2026"
+    },
+    "label": "Poids",
+    "out": "Tracker « Poids » en 2026 — 2 points :\n2026-07 (2)\nZoom : when:\"2026-07\" pour un mois.",
+    "diff": null,
+    "added": 0,
+    "removed": 0,
+    "files": {
+      "MEMORY.md": "# Index mémoire — Générale\n\nUne ligne par page de ce projet (`- [titre](fichier.md) — accroche`). Tenu à jour automatiquement à la création et à la suppression d'une page ; l'accroche après le titre, elle, est libre.\n- [Notes Docker](docker-notes.md)\n- [Recettes](Recettes.MD)\n- [Nathan](nathan.md)\n- [Longue](longue.md)\n",
+      "Recettes.MD": "# Recettes\nTarte aux pommes\nLa copine de Nathan aime la tarte\n",
+      "docker-notes.md": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "docker-notes.md.bak": "# Notes Docker\n\nUtiliser compose v2.\nLe port 8080 est pris.\nLe port 9090 aussi.\n",
+      "longue.md": "# Longue\nUn texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Un texte de remplissage pour éloigner le terme. Le mot RARE est là, puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. puis encore du texte après lui, assez pour couper. \n",
+      "nathan.md": "## Nathan\nNathan Nathan Nathan Nathan Nathan Nathan Nathan Nathan.\nNathan est né en 2019.\n"
+    },
+    "trackers": {
+      "generale/42": {
+        "events": [
+          {
+            "id": "{{T6}}",
+            "text": "7",
+            "ts": 1767323045000
+          }
+        ],
+        "name": "42"
+      },
+      "generale/poids": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T3}}",
+            "text": "73",
+            "ts": 1764547200000
+          },
+          {
+            "date_only": true,
+            "id": "{{T1}}",
+            "text": "72.4",
+            "ts": 1783987200000
+          },
+          {
+            "id": "{{T4}}",
+            "text": "71.9",
+            "ts": 1784542500000
+          }
+        ],
+        "name": "Poids"
+      },
+      "generale/seances-de-sport": {
+        "events": [
+          {
+            "date_only": true,
+            "id": "{{T5}}",
+            "text": "course",
+            "ts": 1704067200000
+          }
+        ],
+        "name": "Séances de sport"
+      }
+    }
+  }
+]

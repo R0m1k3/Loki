@@ -457,6 +457,7 @@ func sweepStaleCUDirs() {
 }
 
 func cdpShutdown() {
+	facadeBrowserShutdown() // lot 44 : celui de la façade, quand elle tient la conversation
 	cdpMu.Lock()
 	defer cdpMu.Unlock()
 	if cdpCur != nil {

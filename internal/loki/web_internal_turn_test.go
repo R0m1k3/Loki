@@ -101,7 +101,10 @@ func TestTourInterneVue(t *testing.T) {
 	if err := SetConfigKey("PROJ_SNAPSHOT", "on"); err != nil {
 		t.Fatal(err)
 	}
-	turnJSON(t, "/internal/v1/turn/view", `{"caps":{"Agent":true}}`, 409)
+	// Avec la clé : le bloc figé et la décision (facade_projsnap.go).
+	if got := turnJSON(t, "/internal/v1/turn/view", `{"caps":{"Agent":true}}`, 200); got["projsnap"] == nil {
+		t.Fatalf("PROJ_SNAPSHOT sans décision : %v", got)
+	}
 	turnJSON(t, "/internal/v1/turn/view", `{"caps":{"Agent":false,"Mem":"off"}}`, 200)
 }
 

@@ -176,6 +176,55 @@ fn mkdir_all(dir: &str) -> io::Result<()> {
     b.create(dir)
 }
 
+/// `os.MkdirAll(p, 0o755)` du Go, erreur comprise : elle nomme l'élément du
+/// chemin qui a échoué (un parent qui est un fichier, par exemple).
+pub fn go_mkdir_all(p: &Path) -> Result<(), String> {
+    let err = |e: &io::Error| os_err("mkdir", &p.to_string_lossy(), e);
+    match std::fs::metadata(p) {
+        Ok(m) if m.is_dir() => return Ok(()),
+        Ok(_) => return Err(err(&io::Error::from_raw_os_error(libc_enotdir()))),
+        Err(_) => {}
+    }
+    let s = p.to_string_lossy();
+    let b = s.as_bytes();
+    let mut i = b.len();
+    while i > 0 && b[i - 1] == b'/' {
+        i -= 1;
+    }
+    let mut j = i;
+    while j > 0 && b[j - 1] != b'/' {
+        j -= 1;
+    }
+    if j > 1 {
+        go_mkdir_all(Path::new(&s[..j - 1]))?;
+    }
+    let mut d = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        d.mode(0o755);
+    }
+    if let Err(e) = d.create(p) {
+        if std::fs::symlink_metadata(p).is_ok_and(|m| m.is_dir()) {
+            return Ok(());
+        }
+        return Err(err(&e));
+    }
+    Ok(())
+}
+
+/// ENOTDIR de la plateforme.
+fn libc_enotdir() -> i32 {
+    #[cfg(unix)]
+    {
+        libc::ENOTDIR
+    }
+    #[cfg(not(unix))]
+    {
+        267 // ERROR_DIRECTORY
+    }
+}
+
 /// Équivalent de `os.CreateTemp(dir, ".probe-*")` suivi de sa suppression.
 fn probe_writable(dir: &str) -> bool {
     for _ in 0..16 {
@@ -359,6 +408,22 @@ pub fn go_dir(path: &str) -> String {
     format!("{}{dir}", &path[..vol_len])
 }
 
+/// `filepath.Base` : le dernier élément ; "." pour un chemin vide, "/" pour
+/// une suite de séparateurs.
+pub fn go_base(p: &str) -> String {
+    if p.is_empty() {
+        return ".".into();
+    }
+    let t = p.trim_end_matches(|c: char| c == '/' || (cfg!(windows) && c == '\\'));
+    if t.is_empty() {
+        return "/".into();
+    }
+    match t.rfind(|c: char| c == '/' || (cfg!(windows) && c == '\\')) {
+        Some(i) => t[i + 1..].to_string(),
+        None => t.to_string(),
+    }
+}
+
 /// `filepath.IsAbs`.
 pub fn go_is_abs(path: &str) -> bool {
     if !cfg!(windows) {
@@ -394,6 +459,27 @@ pub fn base_name(p: &str) -> String {
         Some(i) => p[i + 1..].to_string(),
         None => p.to_string(),
     }
+}
+
+/// `exec.LookPath` : le chemin du programme dans le PATH (exécutable).
+pub fn look_path(name: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(name))
+        .find(|p| {
+            std::fs::metadata(p).is_ok_and(|m| {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    m.is_file() && m.permissions().mode() & 0o111 != 0
+                }
+                #[cfg(not(unix))]
+                {
+                    m.is_file()
+                }
+            })
+        })
+        .map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Message d'une `*os.PathError` du Go : « op chemin: raison ». La raison

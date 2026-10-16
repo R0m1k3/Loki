@@ -16,6 +16,18 @@ use tokio::sync::oneshot;
 
 pub const JETON: &str = "0123456789abcdef0123456789abcdef";
 
+/// Scellement simulé par le faux Go.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CryptMode {
+    /// « SCELLE: » + clair (historique des essais de la conversation).
+    #[default]
+    Scelle,
+    /// Chiffrement coupé : rien ne change.
+    Plain,
+    /// Magic des pages mémoire (`LOKIMEMv1`) + clair.
+    Magic,
+}
+
 #[derive(Default)]
 pub struct FakeGo {
     /// bucket → clé → valeur.
@@ -40,6 +52,12 @@ pub struct FakeGo {
     /// Résultat imposé à tout outil (sinon « exec:<nom> »), et archive recall.
     pub tool_result: Mutex<Option<String>>,
     pub recall: Mutex<Vec<String>>,
+    /// Blocs servis par /internal/v1/recall/block(s) (lot 46), et lectures
+    /// reçues (« block <seq> », « blocks »).
+    pub recall_blocks: Mutex<Vec<serde_json::Value>>,
+    pub recall_log: Mutex<Vec<String>>,
+    /// Vues des rôles délégués (/internal/v1/turn/subagent, lot 47), par rôle.
+    pub subagent_views: Mutex<HashMap<String, serde_json::Value>>,
     /// Discussion active annoncée et discussions supprimées.
     pub conv_log: Mutex<Vec<String>>,
     /// Tours : débuts, vues et fins demandés.
@@ -62,6 +80,87 @@ pub struct FakeGo {
     pub turn_view: Mutex<Option<serde_json::Value>>,
     pub turn_verifier: Mutex<Option<serde_json::Value>>,
     pub tool_results: Mutex<HashMap<String, String>>,
+    /// /internal/v1/tune/guard : message d'une optimisation en cours.
+    pub tune_busy: Mutex<Option<String>>,
+    /// /internal/v1/preset/apply reçus : (chemin, mode).
+    pub preset_applies: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/preset/apply écrit-il le preset dans la configuration
+    /// (`applyPresetFile` : clés « appareil » et BIN de la machine gardés) ?
+    pub apply_presets: Mutex<bool>,
+    /// Clés que l'application d'un preset ajoute à la configuration (un
+    /// réglage changé ailleurs pendant l'application).
+    pub apply_extra: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/chat/generating : le Go écrit une réponse.
+    pub generating: Mutex<bool>,
+    /// /internal/v1/service/prestart reçus.
+    pub prestarts: Mutex<u32>,
+    /// /internal/v1/dictate/stop reçus.
+    pub dictate_stops: Mutex<u32>,
+    /// /internal/v1/web/reach/reset reçus.
+    pub reach_resets: Mutex<u32>,
+    /// /internal/v1/cdp/shutdown reçus.
+    pub cdp_shutdowns: Mutex<u32>,
+    /// /internal/v1/service/action reçus : (action, if_active).
+    pub service_actions: Mutex<Vec<(String, bool)>>,
+    /// Le moteur tourne-t-il (`if_active` des actions de service) ?
+    pub service_active: Mutex<bool>,
+    /// Comportement de /internal/v1/crypt/* (préfixe « SCELLE: » par défaut).
+    pub crypt_mode: Mutex<CryptMode>,
+    /// Réponse de /internal/v1/conv/workspace (None : 404).
+    pub conv_workspace: Mutex<Option<serde_json::Value>>,
+    /// /internal/v1/conv/workspace crée-t-il la discussion active dans
+    /// l'index, s'il est vide (`convEnsureActive`) ?
+    pub conv_ensure: Mutex<bool>,
+    /// /internal/v1/tasks/run reçus (ids) : la tâche IA ne tourne pas (le
+    /// modèle n'est jamais prêt ici).
+    pub task_runs: Mutex<Vec<String>>,
+    /// Durée d'une tâche IA reçue (rien : rendue tout de suite).
+    pub task_run_delay: Mutex<Option<std::time::Duration>>,
+    /// /internal/v1/push/send reçus : (titre, corps).
+    pub push_sends: Mutex<Vec<(String, String)>>,
+    /// /internal/v1/engine/lease reçus avec un motif (« bench »).
+    pub lease_whys: Mutex<Vec<String>>,
+    /// /internal/v1/engine/sidejob : « begin n » ou « end n served ».
+    pub side_jobs: Mutex<Vec<String>>,
+    /// /internal/v1/bench/perf reçus.
+    pub bench_perfs: Mutex<Vec<serde_json::Value>>,
+    /// Délai avant de répondre à une prise de bail.
+    pub lease_delay: Mutex<Option<std::time::Duration>>,
+    /// /internal/v1/tune/context : refus du processus web et télémétrie
+    /// (« main_active » : `service_active`).
+    pub tune_ctx_busy: Mutex<String>,
+    pub tune_perf: Mutex<serde_json::Value>,
+    /// /internal/v1/service/action reçus avec « os » ; une erreur à rendre
+    /// pour une action donnée.
+    pub service_os: Mutex<Vec<String>>,
+    pub service_os_fail: Mutex<Option<(String, String)>>,
+    /// /internal/v1/turn/slot : second slot en service (le fil de la
+    /// discussion sur le 0, le reste sur le 1 ; sinon aucun) ; demandes
+    /// reçues (« conv main »).
+    pub turn_side_live: Mutex<bool>,
+    pub turn_slots: Mutex<Vec<String>>,
+    /// Message relayé par chaque outil exécuté ici (image d'une capture).
+    pub tool_relay: Mutex<Option<serde_json::Value>>,
+    /// /internal/v1/turn/keepimg : vision active ; rangements reçus.
+    pub keep_vision: Mutex<bool>,
+    pub keep_stores: Mutex<Vec<serde_json::Value>>,
+    /// /internal/v1/prewarm/* : refus du contrôle (raison), appels reçus
+    /// (« check », « begin {corps} », « end {corps} »).
+    pub prewarm_refuse: Mutex<Option<String>>,
+    pub prewarm_log: Mutex<Vec<String>>,
+    /// PROJ_SNAPSHOT : corps reçus par /internal/v1/turn/view ; décisions à
+    /// rendre (une par appel, dans l'ordre) ; réponse de
+    /// /internal/v1/turn/projsnap/refresh et corps reçus.
+    pub turn_view_bodies: Mutex<Vec<serde_json::Value>>,
+    pub projsnaps: Mutex<std::collections::VecDeque<serde_json::Value>>,
+    pub projsnap_refresh: Mutex<Option<serde_json::Value>>,
+    pub projsnap_refreshes: Mutex<Vec<serde_json::Value>>,
+    /// Moteur web intégré (lot 42) : réponses de /internal/v1/web/fetch par
+    /// URL et de /internal/v1/web/search par « requête|limite » ; appels
+    /// reçus (« fetch URL », « search requête|limite »).
+    pub web_fetch: Mutex<HashMap<String, serde_json::Value>>,
+    pub web_search: Mutex<HashMap<String, serde_json::Value>>,
+    pub web_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -72,6 +171,24 @@ impl FakeGo {
             .entry(bucket.into())
             .or_default()
             .insert(key.into(), val.as_bytes().to_vec());
+    }
+    /// La configuration rangée.
+    pub fn config_map(&self) -> HashMap<String, String> {
+        self.store
+            .lock()
+            .unwrap()
+            .get("config")
+            .map(|m| {
+                m.iter()
+                    .map(|(k, v)| (k.clone(), String::from_utf8_lossy(v).into_owned()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+    pub fn del(&self, bucket: &str, key: &str) {
+        if let Some(b) = self.store.lock().unwrap().get_mut(bucket) {
+            b.remove(key);
+        }
     }
     pub fn get(&self, bucket: &str, key: &str) -> Option<String> {
         let s = self.store.lock().unwrap();
@@ -146,6 +263,24 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(423, r#"{"error":"mémoire verrouillée"}"#);
             }
             let body = req.into_body().collect().await.unwrap().to_bytes();
+            match *st.crypt_mode.lock().unwrap() {
+                // Chiffrement coupé : clair rendu tel quel.
+                CryptMode::Plain => return resp(200, body),
+                // Enveloppe au magic des pages (`LOKIMEMv1`).
+                CryptMode::Magic => {
+                    return if path.ends_with("seal") {
+                        let mut out = b"LOKIMEMv1".to_vec();
+                        out.extend_from_slice(&body);
+                        resp(200, out)
+                    } else {
+                        resp(
+                            200,
+                            body.strip_prefix(b"LOKIMEMv1").unwrap_or(&body).to_vec(),
+                        )
+                    };
+                }
+                CryptMode::Scelle => {}
+            }
             if path.ends_with("seal") {
                 let mut out = b"SCELLE:".to_vec();
                 out.extend_from_slice(&body);
@@ -156,7 +291,14 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         }
         "/internal/v1/engine/lease" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
+            let delay = *st.lease_delay.lock().unwrap();
+            if let Some(d) = delay {
+                tokio::time::sleep(d).await;
+            }
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            if let Some(why) = v["why"].as_str() {
+                st.lease_whys.lock().unwrap().push(why.to_string());
+            }
             if let Some(why) = st.go_busy.lock().unwrap().clone() {
                 let out = serde_json::json!({"error": why, "task_id": "t1", "task_name": "veille"});
                 return resp(409, out.to_string());
@@ -238,15 +380,30 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         }
         "/internal/v1/turn/view" => {
             st.turn_log.lock().unwrap().push("view".into());
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.turn_view_bodies.lock().unwrap().push(v);
             if let Some(v) = st.turn_view.lock().unwrap().clone() {
                 return resp(200, v.to_string());
             }
-            let out = serde_json::json!({
+            let mut out = serde_json::json!({
                 "head": [{"role": "system", "content": "Tu es Loki."}],
                 "prefix": "PRÉAMBULE",
                 "tools": [{"type": "function", "function": {"name": "bash", "description": "", "parameters": {"type": "object"}}}],
             });
+            if let Some(d) = st.projsnaps.lock().unwrap().pop_front() {
+                out["projsnap"] = d;
+            }
             resp(200, out.to_string())
+        }
+        "/internal/v1/turn/projsnap/refresh" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.projsnap_refreshes.lock().unwrap().push(v);
+            match st.projsnap_refresh.lock().unwrap().clone() {
+                Some(r) => resp(200, r.to_string()),
+                None => resp(500, r#"{"error":"non prévu"}"#),
+            }
         }
         "/internal/v1/chat/holder" => match st.go_keeps_chat.lock().unwrap().clone() {
             None => resp(200, r#"{"holder":"rust"}"#),
@@ -265,6 +422,72 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             st.conv_log.lock().unwrap().push(format!("project {slug}"));
             st.set("state", "active_project", &slug);
             resp(204, "")
+        }
+        // Conversation tenue par le Go (lot 18) : bascule (projectSwitch) et
+        // discussions d'un projet supprimé (convDelete), sur l'index en base.
+        "/internal/v1/project/switch" | "/internal/v1/project/drop-convs" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let slug = v["slug"].as_str().unwrap_or_default().trim().to_string();
+            if *st.generating.lock().unwrap() {
+                return resp(409, r#"{"error":"une génération est en cours"}"#);
+            }
+            let mut idx: Vec<serde_json::Value> = st
+                .get("chat", "index")
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
+            let proj = |m: &serde_json::Value| match m["project"].as_str().unwrap_or("").trim() {
+                "" => "generale".to_string(),
+                s => s.to_string(),
+            };
+            if path.ends_with("drop-convs") {
+                let gone: Vec<String> = idx
+                    .iter()
+                    .filter(|m| proj(m) == slug)
+                    .map(|m| m["id"].as_str().unwrap_or("").to_string())
+                    .collect();
+                idx.retain(|m| proj(m) != slug);
+                st.set("chat", "index", &serde_json::to_string(&idx).unwrap());
+                for id in &gone {
+                    st.del("chat", &format!("conv:{id}"));
+                }
+                return resp(
+                    200,
+                    serde_json::json!({ "dropped": gone.len() }).to_string(),
+                );
+            }
+            let known = st
+                .get("state", "projects")
+                .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+                .unwrap_or_default()
+                .iter()
+                .any(|p| p["slug"] == slug.as_str());
+            if !known {
+                return resp(400, r#"{"error":"projet introuvable"}"#);
+            }
+            if st.get("state", "active_project").as_deref() == Some(slug.as_str()) {
+                return resp(204, "");
+            }
+            st.set("state", "active_project", &slug);
+            if !idx.iter().any(|m| proj(m) == slug) {
+                let id = format!("c{}", idx.len() + 1_000_000);
+                idx.push(serde_json::json!({ "id": id, "title": "", "created": 0, "updated": 0, "turns": 0, "project": slug }));
+                st.set("chat", "index", &serde_json::to_string(&idx).unwrap());
+            }
+            resp(204, "")
+        }
+        "/internal/v1/turn/subagent" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let role = v["role"].as_str().unwrap_or_default().to_string();
+            st.turn_log.lock().unwrap().push(format!("subagent {role}"));
+            match st.subagent_views.lock().unwrap().get(&role) {
+                Some(view) => resp(200, view.to_string()),
+                None => resp(
+                    400,
+                    serde_json::json!({ "error": format!("rôle inconnu : {role}") }).to_string(),
+                ),
+            }
         }
         "/internal/v1/turn/verifier" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
@@ -289,6 +512,205 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
         "/internal/v1/engine/stop" => {
             st.lease_log.lock().unwrap().push("stop".into());
             *st.go_busy.lock().unwrap() = None;
+            resp(204, "")
+        }
+        "/internal/v1/tune/guard" => match st.tune_busy.lock().unwrap().clone() {
+            Some(e) => resp(
+                200,
+                serde_json::json!({ "busy": true, "error": e }).to_string(),
+            ),
+            None => resp(200, r#"{"busy":false}"#),
+        },
+        "/internal/v1/recall/block" => {
+            let seq = req
+                .uri()
+                .query()
+                .unwrap_or("")
+                .strip_prefix("seq=")
+                .unwrap_or("")
+                .to_string();
+            st.recall_log.lock().unwrap().push(format!("block {seq}"));
+            let found = st
+                .recall_blocks
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|b| b["seq"].as_u64().map(|n| n.to_string()).as_deref() == Some(seq.as_str()))
+                .cloned();
+            match found {
+                Some(b) => resp(200, b.to_string()),
+                None => resp(404, r#"{"error":"bloc introuvable"}"#),
+            }
+        }
+        "/internal/v1/recall/blocks" => {
+            st.recall_log.lock().unwrap().push("blocks".into());
+            resp(
+                200,
+                serde_json::Value::Array(st.recall_blocks.lock().unwrap().clone()).to_string(),
+            )
+        }
+        "/internal/v1/service/prestart" => {
+            *st.prestarts.lock().unwrap() += 1;
+            let e = st.tune_busy.lock().unwrap().clone().unwrap_or_default();
+            resp(200, serde_json::json!({ "error": e }).to_string())
+        }
+        "/internal/v1/chat/generating" => resp(
+            200,
+            serde_json::json!({ "generating": *st.generating.lock().unwrap() }).to_string(),
+        ),
+        "/internal/v1/web/fetch" | "/internal/v1/web/search" => {
+            let fetch = path == "/internal/v1/web/fetch";
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let key = if fetch {
+                v["url"].as_str().unwrap_or("").to_string()
+            } else {
+                format!("{}|{}", v["query"].as_str().unwrap_or(""), v["limit"])
+            };
+            st.web_log
+                .lock()
+                .unwrap()
+                .push(format!("{} {key}", if fetch { "fetch" } else { "search" }));
+            let map = if fetch { &st.web_fetch } else { &st.web_search };
+            let out = map
+                .lock()
+                .unwrap()
+                .get(&key)
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({ "error": format!("inconnu : {key}") }));
+            resp(200, out.to_string())
+        }
+        "/internal/v1/web/reach/reset" => {
+            *st.reach_resets.lock().unwrap() += 1;
+            resp(204, "")
+        }
+        "/internal/v1/cdp/shutdown" => {
+            *st.cdp_shutdowns.lock().unwrap() += 1;
+            resp(204, "")
+        }
+        "/internal/v1/service/action" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let if_active = v["if_active"].as_bool().unwrap_or(false);
+            if v["os"].as_bool() == Some(true) {
+                let action = v["action"].as_str().unwrap_or("").to_string();
+                st.service_os.lock().unwrap().push(action.clone());
+                let fail = st.service_os_fail.lock().unwrap().clone();
+                if let Some((a, e)) = fail.filter(|(a, _)| *a == action) {
+                    let _ = a;
+                    return resp(
+                        200,
+                        serde_json::json!({"ran": true, "error": e}).to_string(),
+                    );
+                }
+                return resp(200, r#"{"ran":true,"error":""}"#);
+            }
+            st.service_actions
+                .lock()
+                .unwrap()
+                .push((v["action"].as_str().unwrap_or("").to_string(), if_active));
+            if if_active && !*st.service_active.lock().unwrap() {
+                return resp(200, r#"{"ran":false,"error":""}"#);
+            }
+            resp(200, r#"{"ran":true,"error":""}"#)
+        }
+        "/internal/v1/tune/context" => {
+            let v = serde_json::json!({
+                "busy": *st.tune_ctx_busy.lock().unwrap(),
+                "main_active": *st.service_active.lock().unwrap(),
+                "perf": *st.tune_perf.lock().unwrap(),
+            });
+            resp(200, v.to_string())
+        }
+        "/internal/v1/dictate/stop" => {
+            *st.dictate_stops.lock().unwrap() += 1;
+            resp(204, "")
+        }
+        "/internal/v1/preset/apply" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let path = v["path"].as_str().unwrap_or("").to_string();
+            let mode = v["mode"].as_str().unwrap_or("").to_string();
+            if mode == "refus" || path.ends_with("refus.env") {
+                return resp(500, r#"{"error":"application refusée"}"#);
+            }
+            if *st.apply_presets.lock().unwrap() {
+                let text = std::fs::read_to_string(&path).unwrap_or_default();
+                let mut next = loki_rs::presets::parse_env(&text);
+                let mut store = st.store.lock().unwrap();
+                let cur = store.entry("config".into()).or_default();
+                for k in loki_rs::presets::PRESERVED_KEYS {
+                    if let Some(v) = cur.get(*k) {
+                        next.insert(k.to_string(), String::from_utf8_lossy(v).into_owned());
+                    }
+                }
+                if let Some(bin) = cur.get("BIN").filter(|v| !v.is_empty()) {
+                    next.insert("BIN".into(), String::from_utf8_lossy(bin).into_owned());
+                }
+                for (k, v) in st.apply_extra.lock().unwrap().iter() {
+                    next.insert(k.clone(), v.clone());
+                }
+                *cur = next.into_iter().map(|(k, v)| (k, v.into_bytes())).collect();
+            }
+            st.preset_applies.lock().unwrap().push((path, mode));
+            resp(204, "")
+        }
+        "/internal/v1/conv/workspace" => match st.conv_workspace.lock().unwrap().clone() {
+            Some(v) => {
+                if *st.conv_ensure.lock().unwrap() && st.get("chat", "index").is_none() {
+                    let id = v["id"].as_str().unwrap_or("actif");
+                    st.set(
+                        "chat",
+                        "index",
+                        &serde_json::json!([{ "id": id }]).to_string(),
+                    );
+                }
+                resp(200, v.to_string())
+            }
+            None => resp(404, "404 page not found"),
+        },
+        "/internal/v1/tasks/run" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.task_runs
+                .lock()
+                .unwrap()
+                .push(v["id"].as_str().unwrap_or("").to_string());
+            let delay = *st.task_run_delay.lock().unwrap();
+            if let Some(d) = delay {
+                tokio::time::sleep(d).await;
+            }
+            resp(200, r#"{"busy":true}"#)
+        }
+        "/internal/v1/engine/sidejob" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let mut log = st.side_jobs.lock().unwrap();
+            match v["end"].as_i64() {
+                Some(id) if id != 0 => {
+                    log.push(format!("end {id} {}", v["served"]));
+                    resp(204, "")
+                }
+                _ => {
+                    let id = log.len() + 1;
+                    log.push(format!("begin {id}"));
+                    resp(200, serde_json::json!({ "id": id }).to_string())
+                }
+            }
+        }
+        "/internal/v1/bench/perf" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.bench_perfs.lock().unwrap().push(v);
+            resp(204, "")
+        }
+        "/internal/v1/push/send" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            st.push_sends.lock().unwrap().push((
+                v["title"].as_str().unwrap_or("").to_string(),
+                v["body"].as_str().unwrap_or("").to_string(),
+            ));
             resp(204, "")
         }
         "/internal/v1/tool/context" => match st.tool_ctx.lock().unwrap().clone() {
@@ -316,31 +738,18 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 "{name} {}",
                 v["caps"]["Role"].as_str().unwrap_or_default()
             ));
-            if name == "criteria" && v["args"]["action"] == "set" {
-                let mut chat = st.store.lock().unwrap();
-                for (k, val) in chat.entry("chat".into()).or_default().iter_mut() {
-                    if !k.starts_with("crit:") {
-                        continue;
-                    }
-                    let mut list: Vec<serde_json::Value> =
-                        serde_json::from_slice(val).unwrap_or_default();
-                    for c in &mut list {
-                        if c["id"] == v["args"]["id"] {
-                            c["status"] = v["args"]["status"].clone();
-                        }
-                    }
-                    *val = serde_json::to_vec(&list).unwrap();
-                }
-            }
             let by_name = st.tool_results.lock().unwrap().get(name).cloned();
             let result = by_name
                 .or_else(|| st.tool_result.lock().unwrap().clone())
                 .unwrap_or_else(|| format!("exec:{}", v["name"].as_str().unwrap()));
-            let out = serde_json::json!({
+            let mut out = serde_json::json!({
                 "label": v["args"]["command"],
                 "result": result,
                 "caps_agent": v["caps"]["Agent"],
             });
+            if let Some(r) = st.tool_relay.lock().unwrap().clone() {
+                out["relay"] = r;
+            }
             resp(200, out.to_string())
         }
         "/internal/v1/oai/route" => {
@@ -359,10 +768,16 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
             if let Some(conv) = v["main_conv"].as_str() {
+                let side = if v["side"] == true { " side" } else { "" };
+                let keep = if v["prewarm_keep"] == true {
+                    " prewarm_keep"
+                } else {
+                    ""
+                };
                 st.oai_log
                     .lock()
                     .unwrap()
-                    .push(format!("begin main_conv={conv}"));
+                    .push(format!("begin main_conv={conv}{side}{keep}"));
             } else {
                 st.oai_log.lock().unwrap().push(format!(
                     "begin read={} side={} post_v1={}",
@@ -374,6 +789,62 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             }
             resp(200, r#"{"ticket":7}"#)
         }
+        "/internal/v1/prewarm/check" => {
+            st.prewarm_log.lock().unwrap().push("check".into());
+            let v = match st.prewarm_refuse.lock().unwrap().clone() {
+                Some(why) => serde_json::json!({ "ok": false, "why": why }),
+                None => serde_json::json!({ "ok": true, "slot": -1 }),
+            };
+            resp(200, v.to_string())
+        }
+        "/internal/v1/prewarm/begin" | "/internal/v1/prewarm/end" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let what = if path.ends_with("begin") {
+                "begin"
+            } else {
+                "end"
+            };
+            st.prewarm_log.lock().unwrap().push(format!("{what} {v}"));
+            if what == "begin" {
+                resp(200, r#"{"ok":true,"id":5}"#)
+            } else {
+                resp(204, "")
+            }
+        }
+        "/internal/v1/turn/keepimg" => {
+            let v = serde_json::json!({
+                "vision": *st.keep_vision.lock().unwrap(),
+                "budget": 3276,
+            });
+            resp(200, v.to_string())
+        }
+        "/internal/v1/turn/keepimg/store" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let mut msg = v["msg"].clone();
+            st.keep_stores.lock().unwrap().push(msg.clone());
+            msg["content"][1]["image_url"]["url"] = serde_json::json!("loki-img:k1.png");
+            resp(
+                200,
+                serde_json::json!({ "ok": true, "msg": msg, "weight": 4 }).to_string(),
+            )
+        }
+        "/internal/v1/turn/slot" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let main = v["main"] == true;
+            st.turn_slots
+                .lock()
+                .unwrap()
+                .push(format!("{} {main}", v["conv"].as_str().unwrap_or("")));
+            let slot = match (*st.turn_side_live.lock().unwrap(), main) {
+                (false, _) => -1,
+                (true, true) => 0,
+                (true, false) => 1,
+            };
+            resp(200, serde_json::json!({ "slot": slot }).to_string())
+        }
         "/internal/v1/oai/served" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -382,23 +853,6 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 .unwrap()
                 .push(format!("served {}", v["ticket"]));
             resp(204, "")
-        }
-        "/internal/v1/turn/perf" => {
-            let body = req.into_body().collect().await.unwrap().to_bytes();
-            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-            st.oai_log.lock().unwrap().push(format!(
-                "perf kind={} conv={} iter={} complete={} prefix={} probe={}",
-                v["kind"].as_str().unwrap_or(""),
-                v["conv"].as_str().unwrap_or(""),
-                v["iter"],
-                v["complete"],
-                v["prefix"].as_array().map_or(0, Vec::len),
-                !v["probe"].is_null()
-            ));
-            resp(
-                200,
-                r#"{"kind":"main","lost":3,"lost_after":"tâche","lost_alert":true}"#,
-            )
         }
         "/internal/v1/oai/end" => {
             let body = req.into_body().collect().await.unwrap().to_bytes();
@@ -460,8 +914,63 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
-    let (f, st, tx, _) = start_opts(home, false, None).await;
+    let (f, st, tx, _) = start_with(home, Opts::default()).await;
     (f, st, tx)
+}
+
+/// Comme [`start`], avec les routes des modèles tenues par la façade
+/// (`LOKI_MODELS=rust`) ; `hf` : adresse du faux Hugging Face.
+pub async fn start_models(
+    home: std::path::PathBuf,
+    hf: &str,
+) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let opts = Opts {
+        models_hf: Some(hf.to_string()),
+        ..Opts::default()
+    };
+    let (f, st, tx, _) = start_with(home, opts).await;
+    (f, st, tx)
+}
+
+/// Comme [`start`], avec la dictée tenue par la façade (`LOKI_DICTATE=rust`).
+pub async fn start_dictate(
+    home: std::path::PathBuf,
+    d: Arc<loki_rs::dictate::Dictation>,
+) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
+    let opts = Opts {
+        dictate: Some(d),
+        ..Opts::default()
+    };
+    let (f, st, tx, _) = start_with(home, opts).await;
+    (f, st, tx)
+}
+
+/// Ce que la façade tient en plus du proxy.
+#[derive(Default)]
+pub struct Opts {
+    pub chat: bool,
+    pub engine_port: Option<u16>,
+    pub models_hf: Option<String>,
+    pub dictate: Option<Arc<loki_rs::dictate::Dictation>>,
+    pub settings: bool,
+    pub files: Option<Arc<loki_rs::convfiles::ConvFiles>>,
+    pub push: Option<Arc<loki_rs::push::Push>>,
+    pub mem: Option<Arc<loki_rs::memory::Memory>>,
+    pub presets: bool,
+    pub engine_ctl: Option<Arc<loki_rs::enginectl::EngineCtl>>,
+    pub system: Option<Arc<loki_rs::system::System>>,
+    pub projects: bool,
+    pub mcp: Option<Arc<loki_rs::mcp::Mcp>>,
+    pub update: bool,
+    pub backends: Option<Arc<loki_rs::backends::Backends>>,
+    pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
+    pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
+    pub tasks: Option<Arc<loki_rs::tasks::Tasks>>,
+    pub bench: Option<Arc<loki_rs::bench::job::Bench>>,
+    pub tune: Option<Arc<loki_rs::tune::job::Tune>>,
+    /// Base de départ, posée avant que la façade démarre : (bucket, clé,
+    /// valeur).
+    pub seed: Vec<(String, String, String)>,
 }
 
 /// Comme [`start`], avec la conversation tenue par la façade
@@ -475,14 +984,21 @@ pub async fn start_chat(
     oneshot::Sender<()>,
     Arc<loki_rs::chat::generate::ChatService>,
 ) {
-    let (f, st, tx, chat) = start_opts(home, true, Some(engine_port)).await;
+    let (f, st, tx, chat) = start_with(
+        home,
+        Opts {
+            chat: true,
+            engine_port: Some(engine_port),
+            ..Opts::default()
+        },
+    )
+    .await;
     (f, st, tx, chat.unwrap())
 }
 
-async fn start_opts(
+pub async fn start_with(
     home: std::path::PathBuf,
-    with_chat: bool,
-    engine_port: Option<u16>,
+    opts: Opts,
 ) -> (
     SocketAddr,
     Arc<FakeGo>,
@@ -490,7 +1006,10 @@ async fn start_opts(
     Option<Arc<loki_rs::chat::generate::ChatService>>,
 ) {
     let st = Arc::new(FakeGo::default());
-    if let Some(p) = engine_port {
+    for (b, k, v) in &opts.seed {
+        st.set(b, k, v);
+    }
+    if let Some(p) = opts.engine_port {
         st.set("config", "PORT", &p.to_string());
     }
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -511,7 +1030,7 @@ async fn start_opts(
             });
         }
     });
-    let chat = if with_chat {
+    let chat = if opts.chat {
         use loki_rs::chat::{
             conv::Conversation, generate::ChatService, host::ChatShared, sessions,
         };
@@ -522,7 +1041,11 @@ async fn start_opts(
             sessions::GoSessionHooks(store.clone()),
         );
         s.load().await.unwrap();
-        let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+        let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
+        shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
+        shared.mcp = opts.mcp.clone();
+        shared.tasks = opts.tasks.clone();
+        shared.memory = opts.mem.clone();
         Some(ChatService::new(Arc::new(s), Arc::new(shared)))
     } else {
         None
@@ -539,11 +1062,60 @@ async fn start_opts(
             service: "loki-engine".into(),
         },
         chat: chat.clone(),
+        models: opts.models_hf.map(|hf| {
+            Arc::new(loki_rs::models::Models {
+                downloads: Arc::new(loki_rs::downloads::Downloads::new()),
+                hf: loki_rs::hf::HfClient::new(&hf),
+            })
+        }),
+        dictate: opts.dictate,
+        settings: opts.settings,
+        files: opts.files,
+        push: opts.push,
+        mem: opts.mem,
+        presets: opts.presets,
+        engine_ctl: opts.engine_ctl,
+        system: opts.system,
+        projects: opts.projects,
+        mcp: opts.mcp,
+        update: opts.update,
+        backends: opts.backends,
+        engineimg: opts.engineimg,
+        strata: opts.strata,
+        tasks: opts.tasks,
+        bench: opts.bench,
+        tune: opts.tune,
     };
     tokio::spawn(loki_rs::proxy::serve(fl, cfg, async move {
         let _ = rx.await;
     }));
     (facade, st, tx, chat)
+}
+
+/// Requête via la façade (corps JSON) : (code, corps).
+pub async fn send(
+    facade: SocketAddr,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> (StatusCode, Bytes) {
+    use hyper_util::client::legacy::Client;
+    use hyper_util::rt::TokioExecutor;
+    let mut req = Request::builder()
+        .method(method)
+        .uri(format!("http://{facade}{path}"))
+        .header("content-type", "application/json");
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let client: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
+    let r = client
+        .request(req.body(Full::new(Bytes::from(body.to_string()))).unwrap())
+        .await
+        .unwrap();
+    let (parts, body) = r.into_parts();
+    (parts.status, body.collect().await.unwrap().to_bytes())
 }
 
 /// GET via la façade : (code, en-têtes, corps).

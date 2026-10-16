@@ -143,6 +143,10 @@ func tasksPaused() bool { return getBool(bkState, "tasks_paused") }
 
 func setTasksPaused(on bool) error { return putBool(bkState, "tasks_paused", on) }
 
+// tasksNow : l'heure des tâches (planification, passages), remplaçable par
+// les tests (journal de parité des tâches).
+var tasksNow = time.Now
+
 // computeNextRun calcule le prochain déclenchement d'une tâche à partir de son
 // Schedule (dans le fuseau tz), relatif à `from`. Renvoie 0 si le schedule est
 // invalide (la tâche ne se déclenchera alors jamais — l'UI refuse déjà un

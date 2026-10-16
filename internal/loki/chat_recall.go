@@ -138,6 +138,11 @@ func recallGet(id string) (recallBlock, bool) {
 	if !ok {
 		return recallBlock{}, false
 	}
+	return recallGetSeq(seq)
+}
+
+// recallGetSeq ramène un bloc par sa séquence (aussi servi à la façade).
+func recallGetSeq(seq uint64) (recallBlock, bool) {
 	var blk recallBlock
 	found := false
 	_ = view(bkRecall, func(b *bolt.Bucket) error {
@@ -153,6 +158,27 @@ func recallGet(id string) (recallBlock, bool) {
 		return nil
 	})
 	return blk, found
+}
+
+// recallAll : tous les blocs lisibles, par séquence croissante (un bloc
+// chiffré sous une mémoire verrouillée n'en fait pas partie).
+func recallAll() []recallBlock {
+	var out []recallBlock
+	_ = view(bkRecall, func(b *bolt.Bucket) error {
+		return b.ForEach(func(_, v []byte) error {
+			var blk recallBlock
+			dec, err := decodeMemContent(v)
+			if err != nil {
+				return nil
+			}
+			if json.Unmarshal(dec, &blk) != nil {
+				return nil
+			}
+			out = append(out, blk)
+			return nil
+		})
+	})
+	return out
 }
 
 // recallSearch cherche dans toute l'archive par recouvrement de mots-clés.
@@ -176,33 +202,22 @@ func recallSearch(query string, limit int) []recallBlock {
 		score int
 	}
 	var hits []scored
-	_ = view(bkRecall, func(b *bolt.Bucket) error {
-		return b.ForEach(func(_, v []byte) error {
-			var blk recallBlock
-			dec, err := decodeMemContent(v)
-			if err != nil {
-				return nil // chiffré et verrouillé : ce bloc ne participe pas
+	for _, blk := range recallAll() {
+		label := strings.ToLower(blk.Label)
+		body := strings.ToLower(blk.Content)
+		score := 0
+		for t := range terms {
+			if strings.Contains(label, t) {
+				score += 2
 			}
-			if json.Unmarshal(dec, &blk) != nil {
-				return nil
+			if strings.Contains(body, t) {
+				score++
 			}
-			label := strings.ToLower(blk.Label)
-			body := strings.ToLower(blk.Content)
-			score := 0
-			for t := range terms {
-				if strings.Contains(label, t) {
-					score += 2
-				}
-				if strings.Contains(body, t) {
-					score++
-				}
-			}
-			if score > 0 {
-				hits = append(hits, scored{blk, score})
-			}
-			return nil
-		})
-	})
+		}
+		if score > 0 {
+			hits = append(hits, scored{blk, score})
+		}
+	}
 	sort.Slice(hits, func(i, j int) bool {
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score

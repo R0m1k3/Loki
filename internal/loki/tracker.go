@@ -273,10 +273,14 @@ func trackerMoveToProject(slug, toSlug string) error {
 // Vide ou « now » = maintenant. Le T de l'ISO est accepté à la place de l'espace.
 // dateOnly=true quand aucune heure n'a été fournie → le point n'aura pas d'heure
 // d'affichage, plutôt qu'un faux « minuit ».
+// trackerNow : l'heure des trackers (« maintenant », année en cours),
+// remplaçable par les tests (journal de parité des outils mémoire).
+var trackerNow = time.Now
+
 func parseWhen(when string) (ts int64, dateOnly bool, err error) {
 	w := strings.TrimSpace(when)
 	if w == "" || strings.EqualFold(w, "now") || strings.EqualFold(w, "maintenant") {
-		return time.Now().UnixMilli(), false, nil
+		return trackerNow().UnixMilli(), false, nil
 	}
 	w = strings.Replace(w, "T", " ", 1)
 	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04", "2006-01-02 15"} {
@@ -402,7 +406,7 @@ func trackerSkeleton(s *Tracker) string {
 		parts = append(parts, fmt.Sprintf("%s (%d)", y, years[y]))
 	}
 	fmt.Fprintf(&b, "Années : %s\n", strings.Join(parts, " · "))
-	cur := time.Now().In(time.Local).Format("2006")
+	cur := trackerNow().In(time.Local).Format("2006")
 	var curEv []TrackerEvent
 	for _, e := range s.Events {
 		if strings.HasPrefix(fmtTS(e.TS), cur) {

@@ -256,6 +256,10 @@ func mcpEnsureAll(servers map[string]MCPServerConfig) {
 // qui donnait l'impression d'une IA très lente à démarrer. Sans mode agent les
 // outils MCP ne sont de toute façon pas exposés : inutile de lancer les process.
 func MCPPrewarm() {
+	if facadeMCP() { // le pool est celui de la façade (facade_mcp.go)
+		facadeMCPPrewarm()
+		return
+	}
 	if !agentEnabled() {
 		return
 	}
@@ -282,6 +286,9 @@ func mcpExposedName(server, tool string) string {
 // mcpTools connecte les serveurs activés et renvoie leurs outils, prêts à être
 // annoncés au modèle. Réservé au mode agent (appelé par EnabledTools).
 func mcpTools() []Tool {
+	if facadeMCP() { // le pool est celui de la façade (facade_mcp.go)
+		return facadeMCPTools()
+	}
 	servers, err := LoadMCPConfig()
 	if err != nil || len(servers) == 0 {
 		return nil
@@ -368,6 +375,9 @@ func isMCPTool(name string) bool {
 // mcpCall exécute un outil MCP à partir de son nom exposé et renvoie une chaîne
 // résultat (texte aplati), cappée. Reconnecte une fois si la session est morte.
 func mcpCall(name string, args map[string]any) string {
+	if facadeMCP() { // le pool est celui de la façade (facade_mcp.go)
+		return facadeMCPCall(name, args)
+	}
 	mcpMgr.mu.Lock()
 	ref, ok := mcpMgr.registry[name]
 	mcpMgr.mu.Unlock()
