@@ -1373,6 +1373,9 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 	// Contexte estimé pour la requête suivante (en-tour), comparé au compte
 	// réel du moteur quand il arrive — journalisé s'il s'en écarte.
 	lastEst := 0
+	// Compaction en cours de tour qui n'a rien pu réduire : la retenter
+	// seulement une fois le contexte nettement plus gros (compactRetryDue).
+	compactRetryAt := 0
 	// Garde-fou « appel d'outil écrit en texte » (code_retry.go) : relances
 	// consécutives bornées, compteur remis à zéro après chaque outil exécuté.
 	patternRetries := 0
@@ -2468,7 +2471,8 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 					publishHistory()
 				}
 			}
-			if compactNeeded(messages, used, peakGen) && !compactRefusedSkip(mainConv, used, messages) {
+			if compactNeeded(messages, used, peakGen) && compactRetryDue(compactRetryAt, used, messages) &&
+				!compactRefusedSkip(mainConv, used, messages) {
 				opt := compactOptsMid(chatCfg, ep, mainConv, messages, used, tools, reasoningEffort, reasoningKwargs, pol,
 					disableTools || toolChoiceNone)
 				yes, no := true, false
@@ -2476,6 +2480,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				c, changed := compactMessagesNoted(ctx, messages, caps, opt)
 				cb(StreamEvent{Compacting: &no})
 				logCompact("en-tour", used, messages, c, changed)
+				compactRetryAt = compactNextRetry(changed, used, messages)
 				if changed {
 					lastEst = 0 // estimation d'avant compaction : plus rien à comparer
 					messages = c
@@ -2810,7 +2815,7 @@ func execTool(ctx context.Context, name string, args map[string]any, label strin
 		result, visionImg = toolCUScreenshot()
 	default:
 		if isMCPTool(name) {
-			result = mcpCall(name, args)
+			result = mcpCall(ctx, name, args)
 		} else {
 			result = "[erreur] outil inconnu: " + name
 		}

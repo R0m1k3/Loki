@@ -50,6 +50,11 @@ type MCPServerConfig struct {
 	// non namespacé). Permet de garder un serveur connecté tout en masquant
 	// certains de ses outils. Vide = tous les outils exposés.
 	DisabledTools []string `json:"disabledTools,omitempty"`
+
+	// CallTimeoutSec : délai d'un appel d'outil de ce serveur, en secondes.
+	// 0 = défaut (mcpCallTimeout). Pour un serveur dont les outils sont longs
+	// par nature (build, scraping, requête lourde).
+	CallTimeoutSec int `json:"callTimeoutSec,omitempty"`
 }
 
 // ToolDisabled indique si un outil (nom réel) est masqué pour ce serveur.

@@ -297,6 +297,14 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	// issue connue était de redémarrer loki-ui.
 	cmd.WaitDelay = 2 * time.Second
 	err := cmd.Run()
+	// ErrWaitDelay : la commande s'est terminée normalement, mais un process
+	// laissé en arrière-plan tenait encore les tubes. Ce qu'elle a écrit est
+	// déjà capturé : le rendre, au lieu de « [erreur: exec: WaitDelay expired
+	// before I/O complete] » qui l'effaçait (repris d'AJEAN 7403a8a0).
+	detached := errors.Is(err, exec.ErrWaitDelay)
+	if detached {
+		err = nil
+	}
 	// Sortie nettoyée (couleurs ANSI retirées), réduite à la fin si la commande
 	// demandait un tail.
 	clean := func(s string) string { return tailOutput(stripANSI(s)) }
@@ -336,6 +344,9 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	}
 	if errOut != "" {
 		parts = append(parts, "stderr:\n"+errOut)
+	}
+	if detached {
+		parts = append(parts, "(un process lancé en arrière-plan tourne toujours ; sa sortie n'est plus suivie — pour un serveur, utilise bash_bg)")
 	}
 	return strings.Join(parts, "\n\n")
 }

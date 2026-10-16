@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"sync"
@@ -83,7 +84,7 @@ func TestMCPEndToEnd(t *testing.T) {
 		t.Fatalf("outil %s introuvable dans %d outils", echoName, len(tools))
 	}
 
-	out := mcpCall(echoName, map[string]any{"message": "bonjour-loki"})
+	out := mcpCall(context.Background(), echoName, map[string]any{"message": "bonjour-loki"})
 	if !strings.Contains(out, "bonjour-loki") {
 		t.Fatalf("echo n'a pas renvoyé le message ; got: %q", out)
 	}

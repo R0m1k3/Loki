@@ -25,6 +25,14 @@ pub struct ServerConfig {
     pub enabled: bool,
     #[serde(rename = "disabledTools", skip_serializing_if = "Vec::is_empty")]
     pub disabled_tools: Vec<String>,
+    /// `CallTimeoutSec` : délai d'un appel d'outil de ce serveur, en
+    /// secondes ; 0 = défaut ([`CALL_TIMEOUT`]).
+    #[serde(rename = "callTimeoutSec", skip_serializing_if = "is_zero")]
+    pub call_timeout_sec: i64,
+}
+
+fn is_zero(n: &i64) -> bool {
+    *n == 0
 }
 
 impl Default for ServerConfig {
@@ -37,6 +45,7 @@ impl Default for ServerConfig {
             headers: BTreeMap::new(),
             enabled: true,
             disabled_tools: Vec::new(),
+            call_timeout_sec: 0,
         }
     }
 }
@@ -78,6 +87,7 @@ impl<'de> Deserialize<'de> for ServerConfig {
                 Some(x) => x.as_bool().unwrap_or(false),
             },
             disabled_tools: list("disabledTools"),
+            call_timeout_sec: v.get("callTimeoutSec").and_then(Value::as_i64).unwrap_or(0),
         })
     }
 }
@@ -282,6 +292,53 @@ pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 pub const CONNECT_TIMEOUT_COLD: Duration = Duration::from_secs(180);
 /// `mcpCallTimeout`.
 pub const CALL_TIMEOUT: Duration = Duration::from_secs(120);
+/// `mcpCallTimeoutMax` : plafond d'un appel, quoi que demandent l'outil ou la
+/// config.
+pub const CALL_TIMEOUT_MAX: Duration = Duration::from_secs(30 * 60);
+
+/// `mcpCallTimeoutFor` : [`CALL_TIMEOUT`], remplacé par `callTimeoutSec` du
+/// serveur ; un argument `timeout` de l'outil l'allonge de 30 s.
+pub fn call_timeout_for(cfg: &ServerConfig, args: &Map<String, Value>) -> Duration {
+    let mut d = CALL_TIMEOUT;
+    if cfg.call_timeout_sec > 0 {
+        d = Duration::from_secs(cfg.call_timeout_sec as u64);
+    }
+    if let Some(t) = arg_timeout(args) {
+        let t = t + Duration::from_secs(30);
+        if t > d {
+            d = t;
+        }
+    }
+    d.min(CALL_TIMEOUT_MAX)
+}
+
+/// `mcpArgTimeout` : l'argument `timeout` d'un appel. Au-delà de 3600, lu en
+/// millisecondes (5000 = 5 s) ; en deçà, en secondes (600 = 10 min).
+fn arg_timeout(args: &Map<String, Value>) -> Option<Duration> {
+    let v = match args.get("timeout")? {
+        Value::Number(n) => n.as_f64()?,
+        Value::String(s) => s.trim().parse::<f64>().ok()?,
+        _ => return None,
+    };
+    if !v.is_finite() || v <= 0.0 {
+        return None;
+    }
+    if v > 3600.0 {
+        // Plafonné bien avant tout débordement (CALL_TIMEOUT_MAX suit).
+        return Some(Duration::from_millis(v.min(1e12) as u64));
+    }
+    Some(Duration::from_secs_f64(v))
+}
+
+/// `mcpCall` pour un délai dépassé : le serveur est vivant mais l'outil est
+/// lent, pas de nouvel essai (il doublerait l'attente, et l'effet de l'outil).
+pub fn call_deadline_error(timeout: Duration) -> String {
+    let secs = (timeout.as_millis() + 500) / 1000;
+    format!(
+        "[erreur MCP] pas de réponse après {} (délai de l'appel ; un argument timeout plus grand l'allonge)",
+        crate::tools::shell::go_duration(Duration::from_secs(secs as u64))
+    )
+}
 
 /// Nom du lanceur (`filepath.Base`), en minuscules, sans `.exe` puis sans
 /// `.cmd`.
@@ -462,6 +519,51 @@ fn resource_contents_json(v: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Les cas de `TestMCPCallTimeoutFor` côté Go.
+    #[test]
+    fn delai_d_appel() {
+        let cfg = |n: i64| ServerConfig {
+            call_timeout_sec: n,
+            ..Default::default()
+        };
+        let args = |v: Value| {
+            let mut m = Map::new();
+            m.insert("timeout".into(), v);
+            m
+        };
+        let s = Duration::from_secs;
+        let none = Map::new();
+        assert_eq!(call_timeout_for(&cfg(0), &none), CALL_TIMEOUT);
+        assert_eq!(call_timeout_for(&cfg(600), &none), s(600));
+        assert_eq!(call_timeout_for(&cfg(0), &args(json!(300.0))), s(330));
+        assert_eq!(call_timeout_for(&cfg(0), &args(json!(200000.0))), s(230));
+        assert_eq!(
+            call_timeout_for(&cfg(0), &args(json!(5000.0))),
+            CALL_TIMEOUT
+        );
+        assert_eq!(call_timeout_for(&cfg(0), &args(json!("400"))), s(430));
+        assert_eq!(
+            call_timeout_for(&cfg(0), &args(json!(86400.0 * 1000.0))),
+            CALL_TIMEOUT_MAX
+        );
+        assert_eq!(call_timeout_for(&cfg(30), &none), s(30));
+        assert_eq!(
+            call_deadline_error(s(330)),
+            "[erreur MCP] pas de réponse après 5m30s (délai de l'appel ; un argument timeout plus grand l'allonge)"
+        );
+        // Le champ survit à un aller-retour JSON, absent quand il vaut 0.
+        let c: ServerConfig =
+            serde_json::from_value(json!({"command": "x", "callTimeoutSec": 45})).unwrap();
+        assert_eq!(c.call_timeout_sec, 45);
+        assert_eq!(serde_json::to_value(&c).unwrap()["callTimeoutSec"], 45);
+        assert!(
+            serde_json::to_value(cfg(0))
+                .unwrap()
+                .get("callTimeoutSec")
+                .is_none()
+        );
+    }
 
     #[test]
     fn noms() {

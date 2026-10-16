@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -40,39 +41,94 @@ var defaultRetryPatterns = []string{
 // Compilés à la première utilisation, pas à l'init du package : la surcharge
 // vit dans la base bbolt, qu'on ne veut pas ouvrir avant que le process ait
 // choisi son rôle (CLI, serveur…).
+//
+// Relus quand la surcharge change (OpenFox c52c5bf7) : un sync.Once les
+// figeait jusqu'au redémarrage du process. retryPatterns tourne pendant le flux,
+// à chaque morceau : la base n'est rouverte que si une écriture de ce process a
+// touché le bucket d'état (retryStateBust, via cacheBust) ou, au plus une fois
+// par seconde, si date ou taille du fichier trahissent l'écriture d'un autre
+// process (`loki config set` pendant que le service tourne).
 var (
-	retryOnce sync.Once
-	retryRes  []*regexp.Regexp
+	retryMu  sync.Mutex
+	retryRes []*regexp.Regexp
 	// retryCustom : la surcharge `retry_patterns` est active. Ses motifs sont
 	// quelconques (\A, (?s).*? sur des Ko…) : le balayage fenêtré pendant le
 	// flux (textualToolCallFrom) ne vaut que pour les motifs embarqués.
-	retryCustom bool
+	retryCustom  bool
+	retryLoaded  bool
+	retryStale   bool // écriture locale du bucket d'état depuis la lecture
+	retryRaw     string
+	retryPath    string // la base lue (LOKI_HOME change d'un test à l'autre)
+	retryChecked time.Time
+	retryMtime   time.Time
+	retrySize    int64
 )
 
-func retryPatterns() []*regexp.Regexp {
-	retryOnce.Do(func() { retryRes, retryCustom = compileRetryPatterns() })
-	return retryRes
+// retryStateBust : appelé par cacheBust pour toute écriture du bucket d'état.
+func retryStateBust() {
+	retryMu.Lock()
+	retryStale = true
+	retryMu.Unlock()
 }
 
-func compileRetryPatterns() ([]*regexp.Regexp, bool) {
-	pats := defaultRetryPatterns
-	custom := false
-	// Surcharge optionnelle : clé d'état `retry_patterns` = tableau JSON de
-	// regex. Pas d'UI dédiée — c'est un réglage d'expert, posé via
-	// `loki config` ou l'API ; l'embarqué couvre les cas connus.
-	if raw := getStr(bkState, "retry_patterns"); raw != "" {
-		var over []string
-		if json.Unmarshal([]byte(raw), &over) == nil && len(over) > 0 {
-			pats, custom = over, true
+func retryPatterns() []*regexp.Regexp {
+	res, _ := retryState()
+	return res
+}
+
+// retryState renvoie les motifs compilés et si ce sont ceux de la surcharge.
+func retryState() ([]*regexp.Regexp, bool) {
+	retryMu.Lock()
+	defer retryMu.Unlock()
+	reload := !retryLoaded || retryStale || retryPath != dbPath()
+	if !reload && time.Since(retryChecked) >= time.Second {
+		retryChecked = time.Now()
+		if mtime, size := dbStamp(); size != retrySize || !mtime.Equal(retryMtime) {
+			reload = true
 		}
 	}
+	if reload {
+		raw := getStr(bkState, "retry_patterns")
+		retryMtime, retrySize = dbStamp()
+		retryChecked, retryStale, retryPath = time.Now(), false, dbPath()
+		if !retryLoaded || raw != retryRaw {
+			retryRes, retryCustom = compileRetryPatterns(raw)
+			retryRaw, retryLoaded = raw, true
+		}
+	}
+	return retryRes, retryCustom
+}
+
+// compileRetryPatterns compile la surcharge raw (tableau JSON de regex), ou
+// les motifs embarqués quand elle est absente, illisible, ou sans un seul motif
+// utilisable. Un motif vide est écarté : "(?mi)" correspond à TOUT, et chaque
+// tour était relancé une fois (OpenFox 8e9b4869).
+func compileRetryPatterns(raw string) ([]*regexp.Regexp, bool) {
+	// Surcharge optionnelle : clé d'état `retry_patterns`. Pas d'UI dédiée —
+	// c'est un réglage d'expert, posé via `loki config` ou l'API ; l'embarqué
+	// couvre les cas connus.
+	if raw != "" {
+		var over []string
+		if json.Unmarshal([]byte(raw), &over) == nil {
+			if out := compileRetryList(over); len(out) > 0 {
+				return out, true
+			}
+		}
+	}
+	return compileRetryList(defaultRetryPatterns), false
+}
+
+func compileRetryList(pats []string) []*regexp.Regexp {
 	var out []*regexp.Regexp
 	for _, p := range pats {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
 		if re, err := regexp.Compile("(?mi)" + p); err == nil {
 			out = append(out, re)
 		}
 	}
-	return out, custom
+	return out
 }
 
 // textualToolCall dit si le texte final du tour contient un appel d'outil
@@ -100,9 +156,9 @@ func textualToolCallFrom(content string, scanned int) bool {
 	if content == "" {
 		return false
 	}
-	res := retryPatterns()
+	res, custom := retryState()
 	start := 0
-	if !retryCustom {
+	if !custom {
 		start = retryScanStart(content, scanned)
 	}
 	w := content[start:]

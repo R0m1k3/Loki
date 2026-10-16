@@ -39,6 +39,9 @@ pub const INTERNAL_TOOLS: &str = "/internal/facade/v1/mcp/tools";
 pub const INTERNAL_CALL: &str = "/internal/facade/v1/mcp/call";
 pub const INTERNAL_PREWARM: &str = "/internal/facade/v1/mcp/prewarm";
 
+/// Erreur d'un appel au délai dépassé (`context.DeadlineExceeded` du Go).
+const CALL_DEADLINE: &str = "context deadline exceeded";
+
 /// Issue d'une tentative de connexion.
 #[derive(Default)]
 struct SlotState {
@@ -251,15 +254,20 @@ impl Mcp {
             return format!("[erreur] outil MCP inconnu ou serveur non connecté: {name}");
         };
         let cap = config::output_cap(config::ctx_window(&store.config().await));
-        let mut err = match self.call_once(&server, &tool, args, cap).await {
+        let servers = Self::load(store).await;
+        let timeout =
+            config::call_timeout_for(&servers.get(&server).cloned().unwrap_or_default(), args);
+        let mut err = match self.call_once(&server, &tool, args, cap, timeout).await {
             Ok(r) => return r,
             Err(e) => e,
         };
-        let servers = Self::load(store).await;
+        if err == CALL_DEADLINE {
+            return config::call_deadline_error(timeout);
+        }
         if let Some(cfg) = servers.get(&server).filter(|c| c.enabled) {
             self.invalidate(&server).await;
             self.ensure(&server, cfg, version).await;
-            match self.call_once(&server, &tool, args, cap).await {
+            match self.call_once(&server, &tool, args, cap, timeout).await {
                 Ok(r) => return r,
                 Err(e) => err = e,
             }
@@ -273,6 +281,7 @@ impl Mcp {
         tool: &str,
         args: &Map<String, Value>,
         cap: usize,
+        timeout: std::time::Duration,
     ) -> Result<String, String> {
         let slot = lock(&self.slots).get(server).cloned();
         let sess = slot
@@ -281,9 +290,9 @@ impl Mcp {
             .and_then(|st| st.sess.clone())
             .filter(|s| !s.is_closed())
             .ok_or_else(|| format!("serveur {server} non connecté"))?;
-        let res = tokio::time::timeout(config::CALL_TIMEOUT, sess.call_tool(tool, args))
+        let res = tokio::time::timeout(timeout, sess.call_tool(tool, args))
             .await
-            .map_err(|_| "context deadline exceeded".to_string())??;
+            .map_err(|_| CALL_DEADLINE.to_string())??;
         let out = config::cap_output(config::flatten_content(&res), cap);
         if res.get("isError").and_then(Value::as_bool) == Some(true) {
             return Ok(format!("[l'outil a renvoyé une erreur]\n{out}"));
@@ -570,6 +579,7 @@ pub async fn serve(
                     .collect(),
                 enabled: d.opt_bool("enabled").unwrap_or(true),
                 disabled_tools: Vec::new(),
+                call_timeout_sec: 0,
             };
             let name = d.str("name");
             let res = mcp

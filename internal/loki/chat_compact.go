@@ -242,6 +242,42 @@ func compactNeeded(msgs []Message, used, peakGen int) bool {
 	return compactEnabled() && genHeadroomShort(used, peakGen, ctxWindow())
 }
 
+// compactRetryDue : une compaction en cours de tour peut-elle être tentée ?
+// Après un essai qui n'a rien réduit (résumé raté, réduction sous 20 %),
+// chaque étape suivante relançait un résumé complet voué au même échec : plus
+// d'une heure de tentatives à vide, une par étape, sur une longue tâche (AJEAN
+// 68659e73). compactRefusedSkip ne couvre que la discussion principale avec
+// COMPACT_CONTINUATION ; ce garde-fou vaut pour tout tour, tâches et
+// sous-agents compris. Jamais à 90 % de la fenêtre ou plus : là, essayer
+// encore vaut mieux que déborder.
+func compactRetryDue(retryAt, used int, msgs []Message) bool {
+	if retryAt <= 0 {
+		return true
+	}
+	est := compactUsedOrEstimate(used, msgs)
+	return est >= retryAt || est*10 >= ctxWindow()*9
+}
+
+// compactNextRetry : seuil du prochain essai après une compaction en cours de
+// tour. 0 (aucun) si elle a réduit ; sinon le contexte d'aujourd'hui plus 5 %
+// de la fenêtre.
+func compactNextRetry(changed bool, used int, msgs []Message) int {
+	if changed {
+		return 0
+	}
+	est := compactUsedOrEstimate(used, msgs)
+	next := est + ctxWindow()/20
+	fmt.Fprintf(os.Stderr, "[compact] rien réduit en cours de tour : prochain essai à %d jetons (contexte à %d)\n", next, est)
+	return next
+}
+
+func compactUsedOrEstimate(used int, msgs []Message) int {
+	if used > 0 {
+		return used
+	}
+	return estimateTokens(msgs)
+}
+
 // genHeadroomShort : la fenêtre ne laisse plus la place d'une génération de
 // 1,2 × la plus longue récente (plancher de 8 k jetons, ramené à 1/8 de la
 // fenêtre pour les petites), plus une petite marge. Fonction pure, testable.
@@ -437,18 +473,24 @@ func compactMessagesCore(ctx context.Context, msgs []Message, caps Caps, opt com
 	var index []recallEntry
 	if caps.Agent && compactEnabled() {
 		names := torsoToolNames(torso)
+		var blocks []recallArchiveInput
+		var at []int // position dans le torse de chaque bloc
 		for i, m := range torso {
 			if !recallEligible(m) {
 				continue
 			}
 			content := msgText(m)
-			label := recallLabel(m.Role, names[m.ToolCallID], content)
-			id, aerr := archiveRecallBlock(label, m.Role, content)
-			if aerr != nil {
-				continue
+			blocks = append(blocks, recallArchiveInput{Label: recallLabel(m.Role, names[m.ToolCallID], content), Role: m.Role, Content: content})
+			at = append(at, i)
+		}
+		// Une seule transaction pour tous les blocs (AJEAN #130).
+		if entries, aerr := archiveRecallBlocks(blocks); aerr == nil {
+			for k, e := range entries {
+				archived[at[k]] = &recallEntry{id: e.id, label: e.label}
+				index = append(index, e)
 			}
-			archived[i] = &recallEntry{id: id, label: label}
-			index = append(index, recallEntry{id: id, label: label})
+		} else if len(blocks) > 0 {
+			fmt.Fprintf(os.Stderr, "[compact] archives recall non écrites (%v) : repli sans rappel\n", aerr)
 		}
 	}
 
@@ -527,6 +569,14 @@ func compactMessagesCore(ctx context.Context, msgs []Message, caps Caps, opt com
 		}
 	} else {
 		summary, err = summarizeTranscriptFor(ctx, renderTranscript(forSummary), caps.Code)
+	}
+	// La cause d'un résumé raté n'était écrite nulle part : on ne voyait que des
+	// compactions « changé=false » à répétition, sans savoir pourquoi (AJEAN
+	// 68659e73).
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[compact] résumé raté : %v\n", err)
+	} else if summaryLooksEmpty(summary) {
+		fmt.Fprintf(os.Stderr, "[compact] résumé vide ou dégénéré (%d car.)\n", len([]rune(strings.TrimSpace(summary))))
 	}
 	var mid []Message
 	if err != nil || summaryLooksEmpty(summary) {

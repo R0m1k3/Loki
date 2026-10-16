@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -374,7 +375,11 @@ func isMCPTool(name string) bool {
 
 // mcpCall exécute un outil MCP à partir de son nom exposé et renvoie une chaîne
 // résultat (texte aplati), cappée. Reconnecte une fois si la session est morte.
-func mcpCall(name string, args map[string]any) string {
+//
+// parent est le contexte DU TOUR, comme pour runShell : l'appel naissait d'un
+// context.Background(), donc le bouton stop n'arrêtait rien et le tour restait
+// bloqué jusqu'au bout des 120 s (OpenFox 2ef584b8).
+func mcpCall(parent context.Context, name string, args map[string]any) string {
 	if facadeMCP() { // le pool est celui de la façade (facade_mcp.go)
 		return facadeMCPCall(name, args)
 	}
@@ -384,20 +389,32 @@ func mcpCall(name string, args map[string]any) string {
 	if !ok {
 		return "[erreur] outil MCP inconnu ou serveur non connecté: " + name
 	}
+	servers, _ := LoadMCPConfig()
+	cfg, exists := servers[ref.server]
+	timeout := mcpCallTimeoutFor(cfg, args)
 
-	result, err := mcpCallOnce(ref, args)
+	result, err := mcpCallOnce(parent, ref, args, timeout)
 	if err != nil {
+		if parent.Err() != nil {
+			return "[appel MCP interrompu]"
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			// Le serveur est vivant mais l'outil est lent : le relancer
+			// doublerait l'attente (et l'effet de l'outil).
+			return fmt.Sprintf("[erreur MCP] pas de réponse après %s (délai de l'appel ; un argument timeout plus grand l'allonge)", timeout.Round(time.Second))
+		}
 		// Session peut-être morte (process stdio tombé) : on l'invalide et on
 		// retente une fois avec une reconnexion fraîche.
-		servers, _ := LoadMCPConfig()
-		cfg, exists := servers[ref.server]
 		if exists && cfg.Enabled {
 			mcpInvalidate(ref.server)
 			mcpMgr.ensure(ref.server, cfg)
-			if result2, err2 := mcpCallOnce(ref, args); err2 == nil {
+			if result2, err2 := mcpCallOnce(parent, ref, args, timeout); err2 == nil {
 				return result2
 			} else {
 				err = err2
+			}
+			if parent.Err() != nil {
+				return "[appel MCP interrompu]"
 			}
 		}
 		return "[erreur MCP] " + err.Error()
@@ -405,14 +422,59 @@ func mcpCall(name string, args map[string]any) string {
 	return result
 }
 
-func mcpCallOnce(ref mcpToolRef, args map[string]any) (string, error) {
+// mcpCallTimeoutMax plafonne le délai d'un appel, quoi que demandent l'outil
+// ou la config : au-delà, c'est un job d'arrière-plan, pas un appel d'outil.
+const mcpCallTimeoutMax = 30 * time.Minute
+
+// mcpCallTimeoutFor : délai d'un appel. Défaut mcpCallTimeout, remplacé par
+// CallTimeoutSec du serveur ; un argument « timeout » de l'outil lui-même
+// (beaucoup en ont un : navigateur, build, requête) l'allonge de 30 s pour que
+// l'outil ait le temps de rendre SA propre erreur de délai.
+func mcpCallTimeoutFor(cfg MCPServerConfig, args map[string]any) time.Duration {
+	d := mcpCallTimeout
+	if cfg.CallTimeoutSec > 0 {
+		d = time.Duration(cfg.CallTimeoutSec) * time.Second
+	}
+	if t := mcpArgTimeout(args); t > 0 && t+30*time.Second > d {
+		d = t + 30*time.Second
+	}
+	return min(d, mcpCallTimeoutMax)
+}
+
+// mcpArgTimeout lit l'argument « timeout » d'un appel. Les serveurs MCP ne
+// s'accordent pas sur l'unité : au-delà de 3600 on le lit en millisecondes
+// (5000 = 5 s), en deçà en secondes (600 = 10 min).
+func mcpArgTimeout(args map[string]any) time.Duration {
+	var v float64
+	switch x := args["timeout"].(type) {
+	case float64:
+		v = x
+	case int:
+		v = float64(x)
+	case int64:
+		v = float64(x)
+	case json.Number:
+		v, _ = x.Float64()
+	case string:
+		v, _ = strconv.ParseFloat(strings.TrimSpace(x), 64)
+	}
+	if v <= 0 {
+		return 0
+	}
+	if v > 3600 {
+		return time.Duration(v) * time.Millisecond
+	}
+	return time.Duration(v * float64(time.Second))
+}
+
+func mcpCallOnce(parent context.Context, ref mcpToolRef, args map[string]any, timeout time.Duration) (string, error) {
 	mcpMgr.mu.Lock()
 	s := mcpMgr.sessions[ref.server]
 	mcpMgr.mu.Unlock()
 	if s == nil || s.sess == nil {
 		return "", fmt.Errorf("serveur %s non connecté", ref.server)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpCallTimeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	res, err := s.sess.CallTool(ctx, &mcpsdk.CallToolParams{Name: ref.tool, Arguments: args})
 	if err != nil {

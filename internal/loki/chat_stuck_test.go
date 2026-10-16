@@ -41,11 +41,15 @@ func TestRunShellNeBloquePasSurUnProcessDetache(t *testing.T) {
 	}
 	testHome(t)
 	start := time.Now()
-	out := runShell(context.Background(), "sleep 30 & echo lance", 2)
-	if d := time.Since(start); d > 10*time.Second {
+	// Délai de 10 s, bien au-delà de WaitDelay (2 s) : c'est le détachement
+	// qui rend la main, pas le délai de la commande.
+	out := runShell(context.Background(), "sleep 30 & echo lance", 10)
+	if d := time.Since(start); d > 8*time.Second {
 		t.Fatalf("runShell est resté accroché aux tubes du process détaché (%s)", d)
 	}
-	if !strings.Contains(out, "lance") && !strings.Contains(out, "timeout") {
+	// La commande a fini (exit 0) : sa sortie est rendue, pas effacée par
+	// « WaitDelay expired » (AJEAN 7403a8a0).
+	if !strings.Contains(out, "exit: 0") || !strings.Contains(out, "lance") || !strings.Contains(out, "arrière-plan") {
 		t.Errorf("sortie inattendue : %q", out)
 	}
 }
