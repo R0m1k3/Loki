@@ -358,6 +358,8 @@ pub struct ChatShared {
     pub jobs: Arc<crate::tools::jobs::BgJobs>,
     /// Le navigateur piloté (lot 44).
     pub browser: Arc<crate::browser::Browser>,
+    /// La sonde « le moteur voit-il les images » (lot 45).
+    pub vision: Arc<crate::imagetools::VisionProbe>,
     /// La version du Go, annoncée aux serveurs MCP à une reconnexion ; lue
     /// une fois.
     pub go_version: tokio::sync::OnceCell<String>,
@@ -715,6 +717,74 @@ impl TurnHost for GoTurnHost {
                 result,
                 ..Default::default()
             };
+        }
+        // Outils d'image (lot 45) : see_image dans le dossier de la
+        // discussion, web_screenshot par Playwright ; l'image relayée au
+        // modèle s'il la voit.
+        if name == "see_image" || name == "web_screenshot" {
+            let cfg = self.shared.store.config().await;
+            let vision = crate::system::vision_enabled(&cfg);
+            if name == "see_image" {
+                let st = crate::tools::GoToolState {
+                    store: self.shared.store.clone(),
+                    caps: self.caps.clone(),
+                };
+                match crate::tools::ToolState::context(&st).await {
+                    Ok(ctx) => {
+                        let sees = self.shared.vision.sees(&self.shared.store, &cfg);
+                        let (result, img) = crate::imagetools::see_image(
+                            label,
+                            &ctx.cwd,
+                            &ctx.target,
+                            vision,
+                            sees,
+                        )
+                        .await;
+                        return ToolOutcome {
+                            result,
+                            relay: img.map(|i| see_image_message(label, i)),
+                            ..Default::default()
+                        };
+                    }
+                    Err(e) => {
+                        eprintln!("[outils] contexte indisponible, see_image par le Go : {e}")
+                    }
+                }
+            } else {
+                let home = self.shared.images.home();
+                let ws = tokio::task::spawn_blocking(move || {
+                    let env = std::env::var(crate::paths::WORKSPACE_ENV).ok();
+                    crate::paths::agent_workspace(&home, env.as_deref())
+                })
+                .await
+                .unwrap_or_default();
+                let conv_dir = crate::convfiles::conv_dir(&ws, &self.compact.main_conv);
+                let internet = self.caps.get("Internet").and_then(Value::as_bool) == Some(true);
+                let pw = crate::paths::look_path("playwright").unwrap_or_default();
+                let shot = crate::imagetools::web_screenshot(
+                    args,
+                    &pw,
+                    Path::new(&conv_dir),
+                    internet,
+                    &crate::imagetools::local_stamp(),
+                )
+                .await;
+                let relay = if !shot.rel.is_empty()
+                    && vision
+                    && self.shared.vision.sees(&self.shared.store, &cfg).await
+                {
+                    crate::imagetools::screenshot_message(&shot.abs)
+                        .and_then(|m| serde_json::from_value::<Message>(m).ok())
+                } else {
+                    None
+                };
+                return ToolOutcome {
+                    result: shot.result,
+                    image: shot.rel,
+                    relay,
+                    ..Default::default()
+                };
+            }
         }
         // Navigateur piloté (lot 44) : la session est ici ; aperçu de la page
         // après une action qui la change (jamais après une erreur), capture

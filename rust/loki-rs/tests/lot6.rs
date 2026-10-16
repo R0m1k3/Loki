@@ -674,6 +674,7 @@ async fn tour_complet_par_le_go() {
         web: Default::default(),
         jobs: Default::default(),
         browser: Default::default(),
+        vision: Default::default(),
         go_version: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
@@ -2840,6 +2841,46 @@ async fn job_arriere_plan_par_la_facade() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert_eq!(jobs.running(), 0);
+}
+
+/// Lot 45 : `see_image` et `web_screenshot` sont exécutés par la façade
+/// (rien par le Go) : sans projecteur, l'image n'est pas lue ; une capture
+/// sans url est refusée avant Playwright.
+#[tokio::test]
+async fn outils_image_par_la_facade() {
+    let calls = sse(&[
+        serde_json::json!({"choices":[{"delta":{"tool_calls":[
+            {"index":0,"id":"v1","type":"function","function":{"name":"see_image","arguments":"{\"path\":\"photo.png\"}"}},
+            {"index":1,"id":"v2","type":"function","function":{"name":"web_screenshot","arguments":"{}"}}
+        ]}}]}),
+        serde_json::json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+    ]);
+    let (url, seen) = fake_engine(vec![calls, answer("vu")]).await;
+    let ws = tempfile::tempdir().unwrap();
+    std::fs::write(ws.path().join("photo.png"), b"x").unwrap();
+    let (svc, go, _stop, _t) = service_with(Some(&url), |_| {}).await;
+    *go.tool_ctx.lock().unwrap() = Some(serde_json::json!({
+        "cwd": ws.path(), "memory_dir": ws.path().join("mem"), "target": ""
+    }));
+    svc.send(serde_json::json!({"message": "regarde", "cid": "v"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let seen = seen.lock().unwrap().clone();
+    let tools: Vec<String> = seen[1].1["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .map(|m| m["content"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(tools.len(), 2, "{tools:?}");
+    assert!(tools[0].contains("la vision n'est pas active"), "{tools:?}");
+    assert!(
+        tools[1] == "[erreur] url manquante" || tools[1].contains("Playwright n'est pas installé"),
+        "{tools:?}"
+    );
 }
 
 /// Lot 44 : le navigateur piloté est celui de la façade. Un tour qui ouvre

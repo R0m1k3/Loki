@@ -1325,6 +1325,7 @@ impl ChatShared {
             web: Default::default(),
             jobs: crate::tools::jobs::global(),
             browser: crate::browser::global(),
+            vision: Default::default(),
             go_version: Default::default(),
         }
     }

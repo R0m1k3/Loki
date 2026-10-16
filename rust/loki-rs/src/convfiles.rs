@@ -145,6 +145,17 @@ fn safe_conv_id(id: &str) -> String {
     id.to_string()
 }
 
+/// `convDirFor` : le dossier d'une discussion sous la racine de travail (la
+/// racine elle-même pour un identifiant douteux).
+pub fn conv_dir(root: &str, id: &str) -> String {
+    let id = safe_conv_id(id);
+    if id.is_empty() {
+        root.to_string()
+    } else {
+        go_join(&[root, CONV_FILES_ROOT, &id])
+    }
+}
+
 /// `exifOrientation` : le tag Orientation (1..8) d'un JPEG, 0 sinon.
 pub fn exif_orientation(b: &[u8]) -> i32 {
     if b.len() < 4 || b[0] != 0xFF || b[1] != 0xD8 {
