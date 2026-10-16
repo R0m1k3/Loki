@@ -267,8 +267,14 @@ var (
 )
 
 // prewarmKick : un déclencheur. Sans la clé, rien — ni goroutine, ni requête.
+// Quand la façade tient la conversation, le déclencheur lui part
+// (facade_prewarm.go) : c'est elle qui a l'historique.
 func (c *Conversation) prewarmKick(why string) {
 	if prewarmMode(ReadConfig()) == "" {
+		return
+	}
+	if facadeChat() {
+		go func() { _ = facadePost("/internal/facade/v1/chat/prewarm", map[string]any{"why": why}) }()
 		return
 	}
 	if prewarmAsync {

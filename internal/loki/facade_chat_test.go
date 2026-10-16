@@ -277,7 +277,7 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 		t.Fatalf("détenteur : %d %s", w.Code, w.Body.String())
 	}
 	// Posé après la décision : sans effet avant le redémarrage.
-	if err := SetConfigKey("PREWARM", "on"); err != nil {
+	if err := SetConfigKey("PROJ_SNAPSHOT", "on"); err != nil {
 		t.Fatal(err)
 	}
 	if !facadeChat() {
@@ -285,10 +285,10 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 	}
 	oublierDecisionFacade(t)
 	if facadeChat() {
-		t.Fatal("PREWARM posé : la conversation doit rester au Go")
+		t.Fatal("PROJ_SNAPSHOT posé : la conversation doit rester au Go")
 	}
 	w := appelOAIInterne(t, "GET", "/internal/v1/chat/holder", "")
-	if !strings.Contains(w.Body.String(), `"holder":"go"`) || !strings.Contains(w.Body.String(), "PREWARM") {
+	if !strings.Contains(w.Body.String(), `"holder":"go"`) || !strings.Contains(w.Body.String(), "PROJ_SNAPSHOT") {
 		t.Fatalf("détenteur : %s", w.Body.String())
 	}
 	local := func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") }
@@ -299,7 +299,7 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 	}
 	for k, want := range map[string]string{
 		"PROJ_SNAPSHOT": "PROJ_SNAPSHOT", "NUDGE_IN_TOOL": "", "SIDE_SLOT": "",
-		"SLOT_PERSIST": "", "KEEP_TURN_IMAGES": "", "PREWARM": "PREWARM",
+		"SLOT_PERSIST": "", "KEEP_TURN_IMAGES": "", "PREWARM": "",
 	} {
 		if got := facadeChatBlocker(map[string]string{k: "on"}); got != want {
 			t.Errorf("%s : %q", k, got)

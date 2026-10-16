@@ -75,6 +75,12 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalTurnPerf(w, r)
 		case "/internal/v1/turn/slot":
 			handleInternalTurnSlot(w, r)
+		case "/internal/v1/prewarm/check":
+			handleInternalPrewarmCheck(w, r)
+		case "/internal/v1/prewarm/begin":
+			handleInternalPrewarmBegin(w, r)
+		case "/internal/v1/prewarm/end":
+			handleInternalPrewarmEnd(w, r)
 		case "/internal/v1/turn/keepimg":
 			handleInternalTurnKeepImg(w, r)
 		case "/internal/v1/turn/keepimg/store":

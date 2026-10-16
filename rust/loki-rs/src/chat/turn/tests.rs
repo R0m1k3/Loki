@@ -48,6 +48,10 @@ struct Fake {
     relay: Mutex<Option<Message>>,
     keep_stores: Mutex<usize>,
     keep_refuse: Mutex<bool>,
+    /// PREWARM : la requête prolonge-t-elle le préchauffage ? ce que `send`
+    /// a reçu.
+    prewarm_match: Mutex<bool>,
+    sent_keeps: Mutex<Vec<bool>>,
 }
 
 impl Fake {
@@ -77,7 +81,13 @@ fn stream_of(lines: Vec<String>, cut: bool) -> BodyStream {
 }
 
 impl TurnHost for Fake {
-    async fn send(&self, _ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+    async fn send(
+        &self,
+        _ep: &ChatEndpoint,
+        body: Vec<u8>,
+        keep: bool,
+    ) -> Result<Reply, SendError> {
+        self.sent_keeps.lock().unwrap().push(keep);
         self.bodies
             .lock()
             .unwrap()
@@ -162,6 +172,12 @@ impl TurnHost for Fake {
     }
     async fn keep_images(&self) -> Option<i64> {
         *self.keep.lock().unwrap()
+    }
+    fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {
+        // Ce que l'hôte reçoit : les empreintes des messages envoyés et le
+        // corps de la requête.
+        assert_eq!(prefix.len(), payload["messages"].as_array().unwrap().len());
+        *self.prewarm_match.lock().unwrap()
     }
     async fn keep_image(&self, m: &Message) -> Option<(Message, i64)> {
         *self.keep_stores.lock().unwrap() += 1;
@@ -1054,4 +1070,27 @@ async fn images_retirees_fenetre_pleine() {
     assert!(host.phases.lock().unwrap().is_empty(), "pas de résumé");
     assert!(evs.iter().any(|e| matches!(e, StreamEvent::DropReasoning)));
     assert_eq!(text(&evs), "fini");
+}
+
+/// PREWARM : la boucle demande à l'hôte si la requête prolonge le
+/// préchauffage en vol et le lui transmet à l'envoi ; jamais vers une API
+/// externe.
+#[tokio::test]
+async fn prechauffage_garde_par_la_requete_qui_le_prolonge() {
+    let host = Fake::new(vec![answer("ok")]);
+    *host.prewarm_match.lock().unwrap() = true;
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [true]);
+    let host = Fake::new(vec![answer("ok")]);
+    let (r, _) = run(&host, &config(&[]), &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [false]);
+    let host = Fake::new(vec![answer("ok")]);
+    *host.prewarm_match.lock().unwrap() = true;
+    let mut tc = config(&[]);
+    tc.ep.external = true;
+    let (r, _) = run(&host, &tc, &Cancel::never()).await;
+    assert_eq!(r.err, None);
+    assert_eq!(*host.sent_keeps.lock().unwrap(), [false]);
 }

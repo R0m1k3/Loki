@@ -22,8 +22,9 @@
 //! corrections du builder) suit le tour, avant la compaction de fin
 //! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
 //!
-//! Écarts assumés (restent au Go) : PROJ_SNAPSHOT (refusé par
-//! `/turn/view`), préchauffage. Les images gardées (KEEP_TURN_IMAGES, lot 32)
+//! Écart assumé (reste au Go) : PROJ_SNAPSHOT (refusé par `/turn/view`). Le
+//! préchauffage (PREWARM, lot 33) part en fin de tour ([`super::prewarm`]).
+//! Les images gardées (KEEP_TURN_IMAGES, lot 32)
 //! partent en début et en fin de tour quand il le faut
 //! ([`ChatService::kept_images_turn_start`]). La télémétrie des complétions
 //! (tours, vérifications, résumés) rejoint l'anneau du Go
@@ -684,7 +685,7 @@ impl ChatService {
 
     /// Changement de projet (`/api/projects`, action switch), remis par le
     /// Go : refusé pendant un tour.
-    pub async fn project_switch(&self, slug: &str) -> Result<(), Refused> {
+    pub async fn project_switch(self: &Arc<Self>, slug: &str) -> Result<(), Refused> {
         if self.sessions.conv().is_generating() {
             return Err(Refused {
                 status: 409,
@@ -697,7 +698,9 @@ impl ChatService {
             .map_err(|e| Refused {
                 status: 400,
                 error: e.to_string(),
-            })
+            })?;
+        self.prewarm_after_switch().await;
+        Ok(())
     }
 
     /// Suppression d'un projet (`deleteProject`) : ses discussions d'abord,
@@ -752,6 +755,9 @@ impl ChatService {
         );
         let local = !ep.external;
         let conv_id = conv.id();
+        // Capacités demandées pour ce tour, retenues en mémoire (jamais
+        // persistées) pour préchauffer le suivant (PREWARM).
+        self.shared.prewarm.note_caps(&conv_id, prep.caps.clone());
         let agent = prep.cap("Agent");
         let mem_off = prep.turn_caps.get("Mem").and_then(Value::as_str) == Some("off");
         let ccaps = CompactCaps {
@@ -1105,6 +1111,9 @@ impl ChatService {
             {
                 eprintln!("[chat] fin de tour non signalée : {e}");
             }
+            // Plus rien ne suit : le prochain tour peut être préparé pendant
+            // que l'utilisateur lit (PREWARM, off par défaut).
+            self.prewarm_kick(super::prewarm::TURN_END).await;
         }
     }
 }
@@ -1160,6 +1169,7 @@ impl ChatShared {
             images: super::host::ImageCache::new(img_dir),
             patterns: super::stream::RetryPatterns::builtin(),
             tpl: std::sync::Arc::new(super::tplprobe::TplProbe::new()),
+            prewarm: Default::default(),
         }
     }
 }

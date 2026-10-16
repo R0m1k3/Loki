@@ -666,6 +666,7 @@ async fn tour_complet_par_le_go() {
         images: ImageCache::new(imgdir),
         patterns: RetryPatterns::builtin(),
         tpl: Arc::new(loki_rs::chat::tplprobe::TplProbe::new()),
+        prewarm: Default::default(),
     });
     let cfg = std::collections::HashMap::new();
     let host = GoTurnHost {
@@ -2080,5 +2081,137 @@ async fn images_gardees_par_la_facade() {
             .iter()
             .all(|m| !m["content"].to_string().contains("image_url")),
         "image encore envoyée : {sent}"
+    );
+}
+
+/// Réponse non streamée d'un préchauffage (un seul jeton, jeté).
+fn prewarm_reply() -> String {
+    serde_json::json!({
+        "choices": [{"message": {"content": "x"}, "finish_reason": "length"}],
+        "usage": {"prompt_tokens": 60, "completion_tokens": 1},
+        "timings": {"prompt_n": 18, "cache_n": 42}
+    })
+    .to_string()
+}
+
+/// Lot 33 : PREWARM tenu par la façade. Fin de tour → la requête du prochain
+/// tour, sentinelle « . » et un seul jeton, inscrite au Go et rendue avec ce
+/// que le moteur a repris. Le tour suivant, qui la prolonge, ne l'annule pas.
+#[tokio::test]
+async fn prechauffage_par_la_facade() {
+    let gate = Arc::new(tokio::sync::Semaphore::new(1));
+    let (url, seen) = fake_engine_gated(
+        vec![answer("vu"), prewarm_reply(), answer("ok"), prewarm_reply()],
+        Some(gate.clone()),
+    )
+    .await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "PREWARM", "on");
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "p1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    let id = svc.sessions.conv().id();
+    // Le préchauffage attend le moteur : il est en vol.
+    until(|| seen.lock().unwrap().len() == 2).await;
+    assert_eq!(go.prewarm_log.lock().unwrap()[..1], ["check".to_string()]);
+    let pre = seen.lock().unwrap()[1].1.clone();
+    assert_eq!(pre["stream"], false);
+    assert_eq!(pre["max_tokens"], 1);
+    let msgs = pre["messages"].as_array().unwrap().clone();
+    assert_eq!(msgs.last().unwrap()["content"], ".");
+    assert_eq!(msgs.last().unwrap()["role"], "user");
+    let first = seen.lock().unwrap()[0].1.clone();
+    assert_eq!(msgs[..2], first["messages"].as_array().unwrap()[..2]);
+    assert_eq!(msgs[2]["content"], "vu");
+    assert_eq!(pre["tools"], first["tools"]);
+    let begin = go.prewarm_log.lock().unwrap()[1].clone();
+    assert!(
+        begin.starts_with("begin ")
+            && begin.contains(&format!("\"conv\":\"{id}\""))
+            && begin.contains("\"n\":3"),
+        "{begin}"
+    );
+    // Pas de ticket « en vol » de la façade : le Go l'a inscrit lui-même.
+    let begins = || {
+        go.oai_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("begin"))
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(begins().len(), 1);
+
+    // Le tour suivant prolonge le préfixe préchauffé : gardé.
+    svc.send(serde_json::json!({"message": "suite", "cid": "p2"}))
+        .await
+        .unwrap();
+    until(|| begins().len() == 2).await;
+    assert_eq!(begins()[1], format!("begin main_conv={id} prewarm_keep"));
+    gate.add_permits(10);
+    until_done(&svc, 2).await;
+    until(|| {
+        go.prewarm_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("end"))
+            .count()
+            == 2
+    })
+    .await;
+    let log = go.prewarm_log.lock().unwrap().clone();
+    let first_end = log.iter().find(|l| l.starts_with("end")).unwrap();
+    let v: serde_json::Value = serde_json::from_str(first_end.trim_start_matches("end ")).unwrap();
+    assert_eq!(v, serde_json::json!({"id": 5, "total": 60, "cached": 42}));
+    let perfs = go.perf_records.lock().unwrap().clone();
+    assert!(
+        perfs
+            .iter()
+            .any(|p| p["kind"] == "prewarm" && p["stats"]["prompt_tokens_total"] == 60)
+    );
+}
+
+/// Le Go refuse (moteur occupé) : rien ne part ; annulé par une autre
+/// requête : la connexion est coupée et la place rendue.
+#[tokio::test]
+async fn prechauffage_refuse_ou_annule() {
+    let (url, seen) = fake_engine(vec![answer("vu")]).await;
+    let (svc, go, _stop, _t) = service(Some(&url)).await;
+    go.set("config", "PREWARM", "on");
+    *go.prewarm_refuse.lock().unwrap() = Some("moteur occupé".into());
+    svc.send(serde_json::json!({"message": "bonjour", "cid": "r1"}))
+        .await
+        .unwrap();
+    until_done(&svc, 1).await;
+    until(|| !go.prewarm_log.lock().unwrap().is_empty()).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(*go.prewarm_log.lock().unwrap(), ["check"]);
+    assert_eq!(seen.lock().unwrap().len(), 1);
+
+    // Annulation relayée par le Go pendant que le moteur calcule.
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let (url, seen) = fake_engine_gated(vec![prewarm_reply()], Some(gate.clone())).await;
+    go.set("config", "PORT", &port_of(&url));
+    *go.prewarm_refuse.lock().unwrap() = None;
+    go.prewarm_log.lock().unwrap().clear();
+    svc.prewarm_kick(loki_rs::chat::prewarm::AFTER_TASK).await;
+    until(|| seen.lock().unwrap().len() == 1).await;
+    assert!(svc.shared.prewarm.live());
+    assert!(svc.shared.prewarm.cancel_id(5));
+    until(|| !svc.shared.prewarm.live()).await;
+    let log = go.prewarm_log.lock().unwrap().clone();
+    assert_eq!(
+        log.last().unwrap(),
+        r#"end {"cached":null,"id":5,"total":0}"#
+    );
+    assert!(
+        go.perf_records
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|p| p["kind"] != "prewarm")
     );
 }

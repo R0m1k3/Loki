@@ -137,6 +137,10 @@ pub struct FakeGo {
     /// /internal/v1/turn/keepimg : vision active ; rangements reçus.
     pub keep_vision: Mutex<bool>,
     pub keep_stores: Mutex<Vec<serde_json::Value>>,
+    /// /internal/v1/prewarm/* : refus du contrôle (raison), appels reçus
+    /// (« check », « begin {corps} », « end {corps} »).
+    pub prewarm_refuse: Mutex<Option<String>>,
+    pub prewarm_log: Mutex<Vec<String>>,
 }
 
 impl FakeGo {
@@ -680,10 +684,15 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
             if let Some(conv) = v["main_conv"].as_str() {
                 let side = if v["side"] == true { " side" } else { "" };
+                let keep = if v["prewarm_keep"] == true {
+                    " prewarm_keep"
+                } else {
+                    ""
+                };
                 st.oai_log
                     .lock()
                     .unwrap()
-                    .push(format!("begin main_conv={conv}{side}"));
+                    .push(format!("begin main_conv={conv}{side}{keep}"));
             } else {
                 st.oai_log.lock().unwrap().push(format!(
                     "begin read={} side={} post_v1={}",
@@ -694,6 +703,29 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(200, serde_json::json!({ "refuse": r }).to_string());
             }
             resp(200, r#"{"ticket":7}"#)
+        }
+        "/internal/v1/prewarm/check" => {
+            st.prewarm_log.lock().unwrap().push("check".into());
+            let v = match st.prewarm_refuse.lock().unwrap().clone() {
+                Some(why) => serde_json::json!({ "ok": false, "why": why }),
+                None => serde_json::json!({ "ok": true, "slot": -1 }),
+            };
+            resp(200, v.to_string())
+        }
+        "/internal/v1/prewarm/begin" | "/internal/v1/prewarm/end" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let what = if path.ends_with("begin") {
+                "begin"
+            } else {
+                "end"
+            };
+            st.prewarm_log.lock().unwrap().push(format!("{what} {v}"));
+            if what == "begin" {
+                resp(200, r#"{"ok":true,"id":5}"#)
+            } else {
+                resp(204, "")
+            }
         }
         "/internal/v1/turn/keepimg" => {
             let v = serde_json::json!({

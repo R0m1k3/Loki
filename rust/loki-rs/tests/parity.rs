@@ -63,7 +63,12 @@ struct ParityHost {
 }
 
 impl TurnHost for ParityHost {
-    async fn send(&self, _ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+    async fn send(
+        &self,
+        _ep: &ChatEndpoint,
+        body: Vec<u8>,
+        _keep: bool,
+    ) -> Result<Reply, SendError> {
         self.requests
             .lock()
             .unwrap()

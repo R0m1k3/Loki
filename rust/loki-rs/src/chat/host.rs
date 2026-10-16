@@ -196,7 +196,7 @@ impl EngineSummarizer {
             {
                 o.insert("id_slot".into(), Value::from(n));
             }
-            _gate = engine_begin(store, "", slot == Some(1)).await;
+            _gate = engine_begin(store, "", slot == Some(1), false).await;
         }
         let body = serde_json::to_vec(&payload).unwrap_or_default();
         let resp = self
@@ -328,6 +328,8 @@ pub struct ChatShared {
     pub patterns: Arc<RetryPatterns>,
     /// Sonde de gabarit (`chat_tplprobe.go`) : derniers verdicts et cache.
     pub tpl: Arc<super::tplprobe::TplProbe>,
+    /// Préchauffage (PREWARM) : celui en vol, capacités des discussions.
+    pub prewarm: super::prewarm::Prewarm,
 }
 
 /// Ce que la compaction sait du tour.
@@ -397,15 +399,21 @@ pub async fn engine_slot_for(store: &Store, conv: &str, main: bool) -> Option<u8
 
 /// Ouvre un ticket « en vol » auprès du Go (`engineRequestBeginSide`) : le
 /// slot de la discussion n'est pas effacé pendant la requête, et un
-/// préchauffage est annulé. `main_conv` : étape d'un tour de cette
-/// discussion ; `side` : requête sur le second slot. `None` si le Go ne
-/// répond pas — la requête part quand même.
-pub async fn engine_begin(store: &Store, main_conv: &str, side: bool) -> Option<GateTicket> {
+/// préchauffage est annulé — sauf `keep_prewarm`, une étape de tour qui le
+/// prolonge. `main_conv` : étape d'un tour de cette discussion ; `side` :
+/// requête sur le second slot. `None` si le Go ne répond pas — la requête
+/// part quand même.
+pub async fn engine_begin(
+    store: &Store,
+    main_conv: &str,
+    side: bool,
+    keep_prewarm: bool,
+) -> Option<GateTicket> {
     match store
         .internal_json(
             hyper::Method::POST,
             "/internal/v1/oai/begin",
-            Some(&json!({ "main_conv": main_conv, "side": side })),
+            Some(&json!({ "main_conv": main_conv, "side": side, "prewarm_keep": keep_prewarm })),
         )
         .await
     {
@@ -461,14 +469,14 @@ impl Drop for GateTicket {
 }
 
 impl GoTurnHost {
-    async fn gate_begin(&self) -> Option<GateTicket> {
+    async fn gate_begin(&self, keep_prewarm: bool) -> Option<GateTicket> {
         let main_conv = if self.perf_kind == super::perf::KIND_MAIN {
             self.conv_id.as_str()
         } else {
             ""
         };
         let side = self.side_slot.load(Ordering::SeqCst);
-        engine_begin(&self.shared.store, main_conv, side).await
+        engine_begin(&self.shared.store, main_conv, side, keep_prewarm).await
     }
 }
 
@@ -527,13 +535,23 @@ pub fn see_image_message(label: &str, img: Value) -> Message {
 }
 
 impl TurnHost for GoTurnHost {
-    async fn send(&self, ep: &ChatEndpoint, body: Vec<u8>) -> Result<Reply, SendError> {
+    async fn send(
+        &self,
+        ep: &ChatEndpoint,
+        body: Vec<u8>,
+        keep_prewarm: bool,
+    ) -> Result<Reply, SendError> {
         // Moteur local : requête comptée en vol jusqu'à la fin de lecture du
         // flux (le ticket voyage avec le corps). Rien pour une API externe.
+        // Un préchauffage qu'elle ne prolonge pas est coupé tout de suite (le
+        // Go l'annulerait aussi, un aller-retour plus tard).
         let gate = if ep.external {
             None
         } else {
-            self.gate_begin().await
+            if !keep_prewarm {
+                self.shared.prewarm.stop();
+            }
+            self.gate_begin(keep_prewarm).await
         };
         match self.shared.http.post(&ep.url, &ep.key, body).await {
             Ok(resp) => {
@@ -718,6 +736,15 @@ impl TurnHost for GoTurnHost {
 
     fn echo_refuse(&self, model: &str) {
         self.shared.echo_refusals.refuse(model);
+    }
+
+    fn prewarm_keeps(&self, prefix: &[u64], payload: &Value) -> bool {
+        self.perf_kind == super::perf::KIND_MAIN
+            && self.shared.prewarm.live()
+            && self
+                .shared
+                .prewarm
+                .keeps(prefix, super::prewarm::opts_hash(payload))
     }
 
     async fn keep_images(&self) -> Option<i64> {

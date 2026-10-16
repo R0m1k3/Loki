@@ -48,18 +48,18 @@ func facadeChat() bool {
 
 // facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
 // en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
-// figé, préchauffage). NUDGE_IN_TOOL n'en est plus (lot 23) : la façade a sa
+// figé). NUDGE_IN_TOOL n'en est plus (lot 23) : la façade a sa
 // sonde de gabarit ; ni les motifs de relance personnalisés (retry_patterns,
 // lot 30) : la façade les lit et les compile ; ni SIDE_SLOT et SLOT_PERSIST
 // (lot 31) : la façade demande son slot avant chaque requête
 // (facade_slots.go) ; ni KEEP_TURN_IMAGES (lot 32) : la façade tient l'état
-// du tour, le Go range les images (facade_keepimg.go).
+// du tour, le Go range les images (facade_keepimg.go) ; ni PREWARM (lot 33) :
+// la façade assemble le préchauffage, le Go l'inscrit et l'annule
+// (facade_prewarm.go).
 func facadeChatBlocker(cfg map[string]string) string {
 	switch {
 	case projSnapEnabled(cfg):
 		return "PROJ_SNAPSHOT"
-	case prewarmMode(cfg) != "":
-		return "PREWARM"
 	}
 	return ""
 }

@@ -70,6 +70,10 @@ func handleInternalOAIBegin(w http.ResponseWriter, r *http.Request) {
 		// MainConv : étape d'un tour de cette discussion, tenue par la façade
 		// (LOKI_CHAT=rust) — comptée comme la requête principale du Go.
 		MainConv string `json:"main_conv"`
+		// PrewarmKeep : étape d'un tour de la façade qui prolonge exactement
+		// le préchauffage en vol (PREWARM, facade_prewarm.go) — il n'est pas
+		// annulé, la requête le suit dans le même slot.
+		PrewarmKeep bool `json:"prewarm_keep"`
 	}
 	if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&in) != nil {
 		sendJSON(w, http.StatusBadRequest, map[string]any{"error": "POST JSON attendu"})
@@ -80,7 +84,11 @@ func handleInternalOAIBegin(w http.ResponseWriter, r *http.Request) {
 	if in.Read {
 		end, seq = engineRequestBeginSide(func(*prewarmRun) bool { return true }, true)
 	} else {
-		end, seq = engineRequestBeginSide(nil, in.Side)
+		var keep func(*prewarmRun) bool
+		if in.PrewarmKeep {
+			keep = func(*prewarmRun) bool { return true }
+		}
+		end, seq = engineRequestBeginSide(keep, in.Side)
 	}
 	if in.PostV1 {
 		refuse := func(retry, msg, code string) {

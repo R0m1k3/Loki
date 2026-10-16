@@ -19,6 +19,7 @@ use crate::store::Store;
 pub const KIND_MAIN: &str = "main";
 pub const KIND_VERIFY: &str = "verify";
 pub const KIND_COMPACT: &str = "compact";
+pub const KIND_PREWARM: &str = "prewarm";
 
 /// `perfRecFromWire` : une réponse NON streamée (compaction), lue d'un
 /// bloc, au format des stats d'une complétion streamée. Jamais d'échec : un

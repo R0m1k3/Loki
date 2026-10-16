@@ -33,6 +33,7 @@ pub mod lease;
 pub mod nudges;
 pub mod perf;
 pub mod persist;
+pub mod prewarm;
 pub mod sessions;
 pub mod stream;
 pub mod tplprobe;

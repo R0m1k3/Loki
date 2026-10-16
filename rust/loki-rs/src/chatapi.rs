@@ -66,6 +66,8 @@ pub fn is_internal(path: &str) -> bool {
             | "/internal/facade/v1/project/switch"
             | "/internal/facade/v1/project/drop"
             | "/internal/facade/v1/chat/tpl"
+            | "/internal/facade/v1/chat/prewarm"
+            | "/internal/facade/v1/chat/prewarm/cancel"
     )
 }
 
@@ -106,6 +108,27 @@ pub async fn serve_internal(chat: &Arc<ChatService>, req: Request<Incoming>) -> 
                 ),
                 None => send_json(StatusCode::OK, &json!({ "ok": false })),
             }
+        }
+        // PREWARM (lot 33) : déclencheur venu du Go (fin d'une tâche
+        // planifiée), annulation relayée (une autre requête est partie).
+        "/internal/facade/v1/chat/prewarm" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let why = match str_of(&v, "why") {
+                crate::chat::prewarm::AFTER_TASK => crate::chat::prewarm::AFTER_TASK,
+                crate::chat::prewarm::SWITCH => crate::chat::prewarm::SWITCH,
+                _ => crate::chat::prewarm::TURN_END,
+            };
+            chat.prewarm_kick(why).await;
+            send_json(StatusCode::OK, &json!({ "ok": true }))
+        }
+        "/internal/facade/v1/chat/prewarm/cancel" => {
+            let v = read_json(req.into_body()).await.unwrap_or_default();
+            let id = v.get("id").and_then(Value::as_u64).unwrap_or(0);
+            let cancelled = chat.shared.prewarm.cancel_id(id);
+            send_json(
+                StatusCode::OK,
+                &json!({ "ok": true, "cancelled": cancelled }),
+            )
         }
         "/internal/facade/v1/project/switch" | "/internal/facade/v1/project/drop" => {
             let v = read_json(req.into_body()).await.unwrap_or_default();
@@ -238,8 +261,16 @@ pub async fn serve(
         // Corps illisible : champs vides, comme le `_ = Decode` du Go.
         "/api/conversations/switch" => {
             let v = read_json(body).await.unwrap_or_default();
+            let before = chat.sessions.conv().id();
             match chat.sessions.switch(str_of(&v, "id")).await {
-                Ok(()) => ok(),
+                Ok(()) => {
+                    // PREWARM : le préchauffage de l'ancienne est annulé ; avec
+                    // « full », la nouvelle est préparée si on y reste.
+                    if chat.sessions.conv().id() != before {
+                        chat.prewarm_after_switch().await;
+                    }
+                    ok()
+                }
                 Err(e) => session_error(e),
             }
         }

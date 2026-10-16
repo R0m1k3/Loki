@@ -38,9 +38,12 @@
 //! est gardée à l'essai jusqu'à la mesure de son coût par le moteur
 //! ([`super::keepimg`]) ; les images gardées partent avant tout résumé.
 //!
-//! Non portés (clés opt-in, ou machinerie du moteur local restée au Go) :
-//! PROJ_SNAPSHOT, préchauffage. Avec l'une de ces clés, le Go garde la
-//! conversation (`facadeChatBlocker`, décidé au démarrage).
+//! Préchauffage (PREWARM, lot 33) : une requête qui prolonge exactement le
+//! préchauffage en vol le garde ([`TurnHost::prewarm_keeps`]) ; toute autre
+//! l'annule ([`super::prewarm`]).
+//!
+//! Non porté : PROJ_SNAPSHOT. Avec cette clé, le Go garde la conversation
+//! (`facadeChatBlocker`, décidé au démarrage).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -138,12 +141,20 @@ pub enum CompactPhase {
 
 /// Les effets d'un tour, fournis par l'appelant.
 pub trait TurnHost: Send + Sync {
-    /// POST du corps vers l'endpoint (sa clé à lui).
+    /// POST du corps vers l'endpoint (sa clé à lui). `keep_prewarm` : la
+    /// requête prolonge exactement le préchauffage en vol, qui n'est pas
+    /// annulé ([`Self::prewarm_keeps`]).
     fn send(
         &self,
         ep: &ChatEndpoint,
         body: Vec<u8>,
+        keep_prewarm: bool,
     ) -> impl Future<Output = Result<Reply, SendError>> + Send;
+    /// PREWARM : la requête qui part (empreintes cumulées de ses messages,
+    /// corps) prolonge-t-elle exactement le préchauffage en vol ?
+    fn prewarm_keeps(&self, _prefix: &[u64], _payload: &Value) -> bool {
+        false
+    }
     /// Exécute un appel d'outil (`execTool`).
     fn exec_tool(
         &self,
@@ -541,7 +552,7 @@ async fn run_turn_loop<H: TurnHost>(
         let pol = turn_echo_policy(ep.external || s.echo_off_turn, || tc.echo.clone());
         host.prepare_images(&messages).await;
         let slot = host.engine_slot(ep).await;
-        let (body, echo_sent, prefix) = {
+        let (body, echo_sent, prefix, keep_prewarm) = {
             let (sent, echo_sent) = wire_messages(&messages, s.tool_choice_none, &pol);
             let mut payload = build_chat_payload(
                 ep,
@@ -564,10 +575,13 @@ async fn run_turn_loop<H: TurnHost>(
             {
                 o.insert("id_slot".into(), Value::from(n));
             }
+            let prefix = perf_prefix(&sent);
+            let keep = !ep.external && host.prewarm_keeps(&prefix, &payload);
             (
                 serde_json::to_vec(&payload).unwrap_or_default(),
                 echo_sent,
-                perf_prefix(&sent),
+                prefix,
+                keep,
             )
         };
         let t_req = Instant::now();
@@ -575,7 +589,7 @@ async fn run_turn_loop<H: TurnHost>(
         if let Some(k) = kt.as_mut() {
             k.sending(messages.len());
         }
-        let reply = match cancel.or_stop(host.send(ep, body)).await {
+        let reply = match cancel.or_stop(host.send(ep, body, keep_prewarm)).await {
             None => return TurnResult { extra, err: None },
             Some(Ok(r)) => r,
             Some(Err(e)) => {
