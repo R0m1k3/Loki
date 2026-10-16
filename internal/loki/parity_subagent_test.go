@@ -1,3 +1,5 @@
+//go:build linux
+
 package loki
 
 import (
@@ -9,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -194,6 +197,13 @@ func TestPariteSubagent(t *testing.T) {
 	got := bytes.ReplaceAll(buf.Bytes(), []byte(ws), []byte("{{WS}}"))
 	if h := os.Getenv("LOKI_HOME"); h != "" {
 		got = bytes.ReplaceAll(got, []byte(h), []byte("{{HOME}}"))
+	}
+	// Le briefing machine nomme l'hôte et le compte : propres au poste.
+	if host, _ := os.Hostname(); host != "" {
+		got = bytes.ReplaceAll(got, []byte("host="+host+","), []byte("host={{HOTE}},"))
+	}
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		got = bytes.ReplaceAll(got, []byte(", user="+u.Username+","), []byte(", user={{COMPTE}},"))
 	}
 	if os.Getenv("LOKI_PARITY_UPDATE") == "1" {
 		if err := os.MkdirAll(filepath.Dir(paritySubagentFile), 0o755); err != nil {
