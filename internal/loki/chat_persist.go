@@ -173,6 +173,9 @@ func (p *convPersister) run() {
 
 		sort.Slice(snaps, func(i, j int) bool { return snaps[i].seq < snaps[j].seq })
 		wrote, err := persistCommitByPath(snaps, res)
+		// Index plein-texte (chat_search.go) AVANT de marquer le lot traité : un
+		// flush attend donc aussi l'index, et une suppression passe toujours après.
+		histIndexWritten(wrote)
 
 		p.mu.Lock()
 		for _, j := range res {

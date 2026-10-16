@@ -499,4 +499,11 @@ mod tests {
         );
         assert!(is_internal("/internal/facade/v1/delta") && !is_internal("/internal/v1/auth"));
     }
+
+    /// La recherche plein-texte reste au Go, qui tient l'index (chat_search.go) :
+    /// la façade la relaie, elle ne doit pas la servir.
+    #[test]
+    fn recherche_relayee_au_go() {
+        assert!(!handles("/api/conversations/search"));
+    }
 }

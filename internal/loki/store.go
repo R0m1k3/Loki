@@ -42,6 +42,11 @@ const (
 	// bkTracker : les trackers, 3e type de mémoire (tracker.go). Clé
 	// « <slug-projet>/<slug-tracker> » — le cloisonnement par projet est dans la clé.
 	bkTracker = "tracker"
+	// bkChatSearch : index PLEIN-TEXTE des discussions (chat_search.go) — fiche
+	// et liste de mots par discussion, liste de discussions par mot. Chiffré
+	// comme bkChat : un sac de mots en clair à côté de discussions chiffrées
+	// serait une fuite.
+	bkChatSearch = "chatsearch"
 )
 
 // La base n'est PAS gardée ouverte entre deux opérations, et c'est délibéré.
