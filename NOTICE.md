@@ -52,6 +52,21 @@ et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
 **pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
 expose à la place un export/import de paquet chiffré en fichier local.
 
+Le **rendu des formules LaTeX** dans les réponses (`ui/src/js/00-math.js`,
+`web_katex.go`) est repris d'AJEAN (#123) : $…$, $$…$$, \\(…\\) et \\[…\\] rendus
+par KaTeX, chargé à la première formule seulement, sans toucher au code ni aux
+montants en $. Loki y ajoute deux garde-fous de détection (« 5 $, » et un $
+voisin d'un code en ligne restent du texte) et sert la route `/katex/` aussi
+depuis la façade Rust (`rust/loki-rs/src/ui.rs`).
+
+## KaTeX
+
+**[KaTeX](https://katex.org/)** 0.16.11 (licence MIT, © Khan Academy et
+contributeurs) est embarqué tel que publié — script, feuille de style et
+polices woff2 — sous `internal/loki/ui/katex/`, avec sa licence
+(`internal/loki/ui/katex/LICENSE`). Il est servi par Loki sous `/katex/`, sans
+appel à un CDN.
+
 ## Moteur Strata
 
 Le second moteur de Loki (`internal/loki/backend_strata.go`) est
