@@ -4,7 +4,8 @@
 //!   classées et formulées comme `friendlyLLMError` ;
 //! - outils fichiers et shell exécutés ici ([`crate::tools`], état partagé
 //!   tenu par le Go), outils MCP par le pool de la façade quand elle le tient
-//!   (lot 36), outils task_* quand elle tient les tâches (lot 37) ; les autres
+//!   (lot 36), outils task_* quand elle tient les tâches (lot 37), critères
+//!   du mode Code (lot 38) ; les autres
 //!   par le Go (`/internal/v1/tool/exec`), avec
 //!   ce qu'il tire du résultat (capture de la bulle, aperçu du navigateur,
 //!   image relayée) ;
@@ -391,6 +392,9 @@ pub struct GoTurnHost {
     pub compact: TurnCompact,
     /// Messages mis en file par l'utilisateur pendant le tour.
     pub queued: Box<dyn Fn() -> Vec<Message> + Send + Sync>,
+    /// Un événement pour l'écran, hors du flux du tour (la liste des
+    /// critères après l'outil `criteria`).
+    pub deltas: Box<dyn Fn(super::journal::Delta) + Send + Sync>,
     /// Nature des complétions pour la télémétrie : `main` (tour de la
     /// discussion), `verify` (passe de vérification du mode Code).
     pub perf_kind: &'static str,
@@ -649,6 +653,24 @@ impl TurnHost for GoTurnHost {
         // Outils MCP, quand la façade tient le pool : ce que ferait le Go
         // (`mcpCall` → /internal/facade/v1/mcp/call), sans ses deux
         // allers-retours. Le Go n'en tire rien d'autre que le texte.
+        // Critères d'acceptation du mode Code (lot 38) : ceux de la
+        // discussion du tour ; seule la vérification marque `passed`.
+        if name == "criteria" {
+            let verifier = self.caps.get("Role").and_then(Value::as_str) == Some("verifier");
+            let out =
+                super::crittool::exec(&self.shared.store, &self.compact.main_conv, args, verifier)
+                    .await;
+            if let Some(list) = &out.notify {
+                (self.deltas)(super::crittool::notify_delta(
+                    list,
+                    super::crittool::now_ms(),
+                ));
+            }
+            return ToolOutcome {
+                result: out.result,
+                ..Default::default()
+            };
+        }
         // Outils task_*, quand la façade tient les tâches (lot 37).
         if crate::tasks::tools::is_tool(name)
             && let Some(tasks) = &self.shared.tasks

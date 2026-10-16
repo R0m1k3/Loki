@@ -1012,6 +1012,10 @@ impl ChatService {
                 kwargs: reasoning.kwargs.clone().unwrap_or_default(),
             },
             queued: Box::new(move || me.drain_queued(epoch)),
+            deltas: {
+                let me = self.clone();
+                Box::new(move |d| me.push_delta(d))
+            },
             perf_kind: super::perf::KIND_MAIN,
             side_slot: Default::default(),
             projsnap: snap_turn,

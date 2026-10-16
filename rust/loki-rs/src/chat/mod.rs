@@ -23,6 +23,7 @@
 
 pub mod compact;
 pub mod conv;
+pub mod crittool;
 pub mod engine;
 pub mod generate;
 pub mod history;

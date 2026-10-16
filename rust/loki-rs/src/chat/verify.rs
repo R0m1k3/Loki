@@ -19,7 +19,7 @@
 
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::watch;
 
@@ -43,7 +43,7 @@ pub const CODE_MAX_FIX_TURNS: usize = 2;
 pub const CODE_MAX_CONTINUE: usize = 2;
 
 /// Un critère d'acceptation (`Criterion`).
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct Criterion {
     #[serde(default)]
     pub id: i64,
@@ -52,7 +52,7 @@ pub struct Criterion {
     /// pending | completed (le builder dit « fait ») | passed | failed.
     #[serde(default)]
     pub status: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub note: String,
 }
 
@@ -476,6 +476,12 @@ impl ChatService {
             // Les messages en file attendent la fin du tour (runChatTools sans
             // injection, comme le Go).
             queued: Box::new(Vec::new),
+            deltas: {
+                let conv = conv.clone();
+                Box::new(move |d| {
+                    conv.append_delta(conv.epoch(), d);
+                })
+            },
             // Passe de vérification : comptée à part, comme perfVerify.
             perf_kind: if isolated {
                 super::perf::KIND_VERIFY

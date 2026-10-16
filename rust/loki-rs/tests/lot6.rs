@@ -696,6 +696,7 @@ async fn tour_complet_par_le_go() {
             kwargs: Default::default(),
         },
         queued: Box::new(Vec::new),
+        deltas: Box::new(|_| {}),
         perf_kind: "main",
         side_slot: Default::default(),
         projsnap: None,
@@ -1089,6 +1090,7 @@ async fn hote_et_sonde_de_gabarit() {
                 kwargs: Default::default(),
             },
             queued: Box::new(Vec::new),
+            deltas: Box::new(|_| {}),
             perf_kind: "main",
             side_slot: Default::default(),
             projsnap: None,
@@ -1259,7 +1261,20 @@ async fn contrat_verifie_par_la_facade() {
          Verify each non-passed criterion now (git_diff first), and record every verdict with the criteria tool."
     );
     assert_eq!(v["tools"][0]["function"]["name"], "criteria");
-    assert_eq!(*go.tool_log.lock().unwrap(), ["criteria verifier"]);
+    // L'outil criteria s'exécute dans la façade (lot 38) : rien par le Go ;
+    // le critère rangé (scellé) passe à « passed », et l'écran reçoit la
+    // liste.
+    assert!(go.tool_log.lock().unwrap().is_empty(), "{:?}", go.tool_log);
+    let stored = go.get("chat", &format!("crit:{id}")).unwrap();
+    assert_eq!(
+        stored,
+        r#"SCELLE:[{"id":1,"text":"les tests passent","status":"passed"}]"#
+    );
+    let crit = deltas(&svc, "criteria");
+    assert_eq!(
+        crit,
+        [serde_json::json!([{"id":1,"text":"les tests passent","status":"passed"}])]
+    );
     assert_eq!(
         deltas(&svc, "role"),
         [serde_json::json!("verifier"), serde_json::json!("")]

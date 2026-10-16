@@ -665,22 +665,6 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 "{name} {}",
                 v["caps"]["Role"].as_str().unwrap_or_default()
             ));
-            if name == "criteria" && v["args"]["action"] == "set" {
-                let mut chat = st.store.lock().unwrap();
-                for (k, val) in chat.entry("chat".into()).or_default().iter_mut() {
-                    if !k.starts_with("crit:") {
-                        continue;
-                    }
-                    let mut list: Vec<serde_json::Value> =
-                        serde_json::from_slice(val).unwrap_or_default();
-                    for c in &mut list {
-                        if c["id"] == v["args"]["id"] {
-                            c["status"] = v["args"]["status"].clone();
-                        }
-                    }
-                    *val = serde_json::to_vec(&list).unwrap();
-                }
-            }
             let by_name = st.tool_results.lock().unwrap().get(name).cloned();
             let result = by_name
                 .or_else(|| st.tool_result.lock().unwrap().clone())
