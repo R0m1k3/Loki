@@ -869,7 +869,8 @@ pub async fn start_with(
             sessions::GoSessionHooks(store.clone()),
         );
         s.load().await.unwrap();
-        let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+        let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
+        shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
         Some(ChatService::new(Arc::new(s), Arc::new(shared)))
     } else {
         None

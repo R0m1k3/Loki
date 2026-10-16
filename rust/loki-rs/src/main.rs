@@ -510,7 +510,8 @@ async fn start_chat(
         sessions::GoSessionHooks(store.clone()),
     );
     s.load().await?;
-    let shared = ChatShared::for_sessions(&s, store, home.join("chatimg"));
+    let mut shared = ChatShared::for_sessions(&s, store.clone(), home.join("chatimg"));
+    shared.patterns = loki_rs::chat::generate::retry_patterns(&store).await;
     eprintln!("[loki-rs] conversation tenue par la façade (LOKI_CHAT=rust)");
     Ok(ChatService::new(
         std::sync::Arc::new(s),

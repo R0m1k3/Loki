@@ -23,9 +23,10 @@
 //! ([`super::verify`]) ; toute compaction rend l'état des critères au résumé.
 //!
 //! Écarts assumés (restent au Go) : PROJ_SNAPSHOT et KEEP_TURN_IMAGES
-//! (refusés par `/turn/view`), préchauffage, motifs `retry_patterns`
-//! personnalisés. La télémétrie des complétions (tours, vérifications,
-//! résumés) rejoint l'anneau du Go (`/internal/v1/perf/record`).
+//! (refusés par `/turn/view`), préchauffage. La télémétrie des complétions
+//! (tours, vérifications, résumés) rejoint l'anneau du Go
+//! (`/internal/v1/perf/record`) ; les motifs `retry_patterns` personnalisés
+//! sont lus au démarrage ([`retry_patterns`]).
 
 use std::collections::VecDeque;
 use std::future::Future;
@@ -1050,6 +1051,25 @@ pub async fn go_keeps_chat(store: &crate::store::Store) -> Result<Option<String>
         Some("rust") => Ok(None),
         Some("go") => Ok(Some(v["reason"].as_str().unwrap_or("").to_string())),
         _ => Err(format!("détenteur de la conversation illisible : {v}")),
+    }
+}
+
+/// `retryPatterns()` : la surcharge `retry_patterns` de la base si elle se
+/// lit, sinon les motifs embarqués. Lue une fois, au démarrage, comme le Go
+/// la compile une fois par processus.
+pub async fn retry_patterns(
+    store: &crate::store::Store,
+) -> std::sync::Arc<super::stream::RetryPatterns> {
+    let raw = store.get_str(BK_STATE, "retry_patterns").await;
+    match super::stream::RetryPatterns::from_override(&raw) {
+        Some(p) => {
+            eprintln!(
+                "[chat] motifs de relance personnalisés (retry_patterns) : {} motif(s)",
+                p.len()
+            );
+            std::sync::Arc::new(p)
+        }
+        None => super::stream::RetryPatterns::builtin(),
     }
 }
 

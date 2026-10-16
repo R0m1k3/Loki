@@ -308,6 +308,12 @@ func TestFacadeReglageQuiGardeLaConversation(t *testing.T) {
 	if got := facadeChatBlocker(map[string]string{}); got != "" {
 		t.Errorf("sans réglage : %q", got)
 	}
+	// Les motifs de relance personnalisés ne gardent plus la conversation.
+	putStr(bkState, "retry_patterns", `["oups"]`)
+	if got := facadeChatBlocker(map[string]string{}); got != "" {
+		t.Errorf("retry_patterns : %q", got)
+	}
+	putStr(bkState, "retry_patterns", "")
 	// Sans LOKI_CHAT=rust : le Go, et pourquoi.
 	oublierDecisionFacade(t)
 	t.Setenv(facadeChatEnv, "")

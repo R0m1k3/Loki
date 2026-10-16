@@ -48,9 +48,9 @@ func facadeChat() bool {
 
 // facadeChatBlocker : le réglage qui garde la conversation ici, "" s'il n'y
 // en a pas. Ces clés opt-in demandent une machinerie restée au Go (bloc projet
-// figé, images gardées, slots du moteur, préchauffage, motifs de relance
-// personnalisés). NUDGE_IN_TOOL n'en est plus (lot 23) : la façade a sa sonde
-// de gabarit.
+// figé, images gardées, slots du moteur, préchauffage). NUDGE_IN_TOOL n'en est
+// plus (lot 23) : la façade a sa sonde de gabarit ; ni les motifs de relance
+// personnalisés (retry_patterns, lot 30) : la façade les lit et les compile.
 func facadeChatBlocker(cfg map[string]string) string {
 	switch {
 	case projSnapEnabled(cfg):
@@ -63,8 +63,6 @@ func facadeChatBlocker(cfg map[string]string) string {
 		return "SLOT_PERSIST"
 	case prewarmMode(cfg) != "":
 		return "PREWARM"
-	case strings.TrimSpace(getStr(bkState, "retry_patterns")) != "":
-		return "retry_patterns"
 	}
 	return ""
 }

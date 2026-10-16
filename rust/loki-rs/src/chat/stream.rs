@@ -909,6 +909,165 @@ impl RetryPatterns {
     }
 }
 
+impl RetryPatterns {
+    /// `compileRetryPatterns` : la surcharge `retry_patterns` de la base —
+    /// un tableau JSON de regex du Go, chacune en `(?mi)`. `None` : absente,
+    /// illisible ou vide (les motifs embarqués s'appliquent). Une regex qui
+    /// ne se compile pas est sautée, comme le Go le fait.
+    pub fn from_override(raw: &str) -> Option<RetryPatterns> {
+        if raw.is_empty() {
+            return None;
+        }
+        let over: Vec<String> = serde_json::from_str(raw).ok()?;
+        if over.is_empty() {
+            return None;
+        }
+        let pats = over
+            .iter()
+            .filter_map(|p| compile_go_regex(&format!("(?mi){p}")))
+            .map(|r| Box::new(GoRegex(r)) as Box<dyn RetryPattern>)
+            .collect();
+        Some(RetryPatterns::custom(pats))
+    }
+
+    /// Nombre de motifs.
+    pub fn len(&self) -> usize {
+        self.pats.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pats.is_empty()
+    }
+}
+
+/// `regexp.Compile` du Go : la regex traduite ([`go_regex`]), octal permis
+/// (`\\101`) ; `None` si l'un ou l'autre la refuse.
+pub fn compile_go_regex(p: &str) -> Option<regex::Regex> {
+    regex::RegexBuilder::new(&go_regex(p)?)
+        .octal(true)
+        .build()
+        .ok()
+}
+
+/// Un motif de la surcharge, compilé.
+struct GoRegex(regex::Regex);
+
+impl RetryPattern for GoRegex {
+    fn find(&self, haystack: &str) -> Option<(usize, usize)> {
+        self.0.find(haystack).map(|m| (m.start(), m.end()))
+    }
+}
+
+/// Une regex du Go (RE2, paquet `regexp`) réécrite pour `regex` : les
+/// classes Perl et les limites de mot du Go sont ASCII (`\w`, `\d`, `\s`,
+/// `\b`), celles de `regex` Unicode ; `\Q…\E` (texte littéral) n'existe
+/// pas en Rust ; dans une classe, `[`, `&&`, `--` et `~~` y ont un sens que
+/// le Go ne leur donne pas. `None` : une regex que le Go refuse et que
+/// `regex` accepterait (`\\Q` dans une classe).
+pub fn go_regex(p: &str) -> Option<String> {
+    let cs: Vec<char> = p.chars().collect();
+    let mut out = String::with_capacity(p.len() + 16);
+    let (mut i, mut class, mut class_start) = (0, false, false);
+    while i < cs.len() {
+        let c = cs[i];
+        if c == '\\' && i + 1 < cs.len() {
+            let n = cs[i + 1];
+            i += 2;
+            if n == 'Q' {
+                // Texte littéral jusqu'à \E, ou jusqu'au bout.
+                let mut lit = String::new();
+                while i < cs.len() && !(cs[i] == '\\' && cs.get(i + 1) == Some(&'E')) {
+                    lit.push(cs[i]);
+                    i += 1;
+                }
+                if i < cs.len() {
+                    i += 2;
+                }
+                if class {
+                    return None;
+                }
+                out.push_str(&regex::escape(&lit));
+                class_start = false;
+                continue;
+            }
+            // Un chiffre seul est une référence arrière pour le Go, qui la
+            // refuse ; avec l'octal permis, `regex` l'accepterait.
+            if ('1'..='7').contains(&n) && !cs.get(i).is_some_and(|d| ('0'..='7').contains(d)) {
+                return None;
+            }
+            let rep: &str = match (class, n) {
+                (false, 'w') => "[[:word:]]",
+                (false, 'W') => "[[:^word:]]",
+                (false, 'd') => "[0-9]",
+                (false, 'D') => "[^0-9]",
+                (false, 's') => r"[\t\n\f\r ]",
+                (false, 'S') => r"[^\t\n\f\r ]",
+                (false, 'b') => r"(?-u:\b)",
+                (false, 'B') => r"(?-u:\B)",
+                (true, 'w') => "[:word:]",
+                (true, 'W') => "[:^word:]",
+                (true, 'd') => "0-9",
+                (true, 'D') => "[:^digit:]",
+                (true, 's') => r"\t\n\f\r ",
+                (true, 'S') => "[:^space:]",
+                _ => {
+                    out.push('\\');
+                    out.push(n);
+                    class_start = false;
+                    continue;
+                }
+            };
+            out.push_str(rep);
+            class_start = false;
+            continue;
+        }
+        if class {
+            match c {
+                ']' if !class_start => {
+                    class = false;
+                    out.push(']');
+                }
+                '[' if cs.get(i + 1) == Some(&':') => {
+                    // Classe POSIX : recopiée jusqu'à « :] ».
+                    let rest: String = cs[i..].iter().collect();
+                    match rest.find(":]") {
+                        Some(end) => {
+                            out.push_str(&rest[..end + 2]);
+                            i += rest[..end + 2].chars().count();
+                            class_start = false;
+                            continue;
+                        }
+                        None => out.push_str(r"\["),
+                    }
+                }
+                '[' | '&' | '~' => {
+                    out.push('\\');
+                    out.push(c);
+                }
+                '-' if cs.get(i + 1) == Some(&'-') => {
+                    out.push_str(r"-\-");
+                    i += 1;
+                }
+                _ => out.push(c),
+            }
+            class_start = false;
+            i += 1;
+            continue;
+        }
+        out.push(c);
+        i += 1;
+        if c == '[' {
+            class = true;
+            class_start = true;
+            if cs.get(i) == Some(&'^') {
+                out.push('^');
+                i += 1;
+            }
+        }
+    }
+    Some(out)
+}
+
 /// Marge relue avant la fin du balayage précédent.
 const RETRY_SCAN_MARGIN: usize = 512;
 /// Recul au-delà duquel on retombe sur le balayage complet.
@@ -2671,6 +2830,62 @@ mod tests {
         );
         // Une ligne sans fin plus longue que le recul permis : balayage complet.
         assert_eq!(retry_scan_start(&"a b ".repeat(20000), 80000), 0);
+    }
+
+    /// La surcharge `retry_patterns` : tableau JSON de regex du Go, chacune
+    /// en `(?mi)`, sémantique du Go (classes et limites de mot ASCII).
+    #[test]
+    fn surcharge_retry_patterns() {
+        for raw in ["", "null", "[]", "[\"a\", 1]", "\"x\"", "[\"a\"] x"] {
+            assert!(RetryPatterns::from_override(raw).is_none(), "{raw}");
+        }
+        let p = RetryPatterns::from_override(r#"["^oups", "[", "\\bdo_\\w+\\("]"#).unwrap();
+        assert!(p.is_custom());
+        assert_eq!(p.len(), 2, "la regex illisible est sautée");
+        assert!(p.textual_tool_call("Bonjour\nOUPS !"));
+        assert!(p.textual_tool_call("éxécute do_it(1)"));
+        assert_eq!(
+            p.snippet("puis do_it(1) et la suite"),
+            "do_it(1) et la suite"
+        );
+        assert!(!p.textual_tool_call("ado_it(1)"));
+        // Classes du Go : ASCII.
+        let m = |pat: &str, s: &str| {
+            compile_go_regex(&format!("(?mi){pat}"))
+                .unwrap()
+                .find(s)
+                .map(|m| m.as_str().to_string())
+        };
+        assert_eq!(m(r"\w+", "été"), Some("t".into()));
+        assert_eq!(m(r"\bfoo\b", "éfoo"), Some("foo".into()));
+        assert_eq!(m(r"\Bfoo", "éfoo"), None);
+        assert_eq!(m(r"\d+", "x٣42"), Some("42".into()));
+        assert_eq!(m(r"\s+", "a\u{a0} \tb"), Some(" \t".into()));
+        assert_eq!(m(r"\S+", "\u{a0}a b"), Some("\u{a0}a".into()));
+        assert_eq!(m(r"[\w-]+", "é-a_b c"), Some("-a_b".into()));
+        assert_eq!(m(r"[^\s]+", " ab "), Some("ab".into()));
+        assert_eq!(m(r"[\W]", "aé"), Some("é".into()));
+        assert_eq!(m(r"[\d\s]+", "a1 2b"), Some("1 2".into()));
+        assert_eq!(m(r"[\D]", "1x"), Some("x".into()));
+        // Texte littéral, dans et hors d'une classe.
+        assert_eq!(m(r"\Qa.b\E", "axb a.b"), Some("a.b".into()));
+        assert_eq!(m(r"\Q(x", "a(x"), Some("(x".into()));
+        // Le Go refuse \Q dans une classe.
+        assert_eq!(go_regex(r"[\Q]-\E]+"), None);
+        // Dans une classe, « [ », « && », « -- » et « ~~ » sont littéraux.
+        assert_eq!(m(r"[a[]+", "x[a["), Some("[a[".into()));
+        assert_eq!(m(r"[a&&b]+", "x&ab"), Some("&ab".into()));
+        // « !-- » : l'intervalle de « ! » à « - » pour le Go.
+        assert_eq!(m(r"[!--]+", "a!#-b"), Some("!#-".into()));
+        assert_eq!(m(r"[~~a]+", "x~a"), Some("~a".into()));
+        assert_eq!(m(r"[]a]+", "x]a"), Some("]a".into()));
+        assert_eq!(m(r"[[:alpha:]]+", "1abc"), Some("abc".into()));
+        assert_eq!(m(r"[^[:alpha:]]+", "ab12"), Some("12".into()));
+        // Le reste passe tel quel.
+        assert_eq!(
+            go_regex(r"\pL\.x{2}(?s:.)").as_deref(),
+            Some(r"\pL\.x{2}(?s:.)")
+        );
     }
 
     /// `(?mi)\Aoups` : motif de surcharge ancré en tête.
