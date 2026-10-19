@@ -48,6 +48,10 @@ static MANIFEST: Asset = Asset::new(
     "application/manifest+json",
     "public, max-age=3600",
 );
+/// KaTeX (formules LaTeX des réponses) : mêmes en-têtes que `web_katex.go`.
+const KATEX_CACHE: &str = "public, max-age=86400";
+static KATEX_JS: Asset = Asset::new(assets::KATEX_JS, "application/javascript", KATEX_CACHE);
+static KATEX_CSS: Asset = Asset::new(assets::KATEX_CSS, "text/css; charset=utf-8", KATEX_CACHE);
 
 /// Réponse statique pour cette requête, ou `None` si la route n'est pas une
 /// ressource de l'UI (elle part alors au Go, qui rendra son 404 habituel).
@@ -76,6 +80,9 @@ pub fn serve(method: &Method, path: &str, headers: &HeaderMap) -> Option<Respons
         }
         "/manifest.webmanifest" => asset(&MANIFEST, accepts_gzip),
         p if p.starts_with("/fonts/") => font(p)?,
+        "/katex/katex.min.js" => asset(&KATEX_JS, accepts_gzip),
+        "/katex/katex.min.css" => asset(&KATEX_CSS, accepts_gzip),
+        p if p.starts_with("/katex/") => katex_font(p)?,
         _ => return None,
     };
     if accepts_gzip {
@@ -126,6 +133,20 @@ fn font(path: &str) -> Option<Response<Body>> {
         header::CACHE_CONTROL,
         HeaderValue::from_static("public, max-age=31536000, immutable"),
     );
+    h.insert(header::CONTENT_LENGTH, HeaderValue::from(body.len()));
+    Some(r)
+}
+
+/// `/katex/fonts/<nom>.woff2` — chemin exact (pas le dernier segment seul,
+/// contrairement à `/fonts/`), comme `katexFile` dans `web_katex.go`. Le
+/// reste de `/katex/` part au Go, qui rend son 404.
+fn katex_font(path: &str) -> Option<Response<Body>> {
+    let rel = path.strip_prefix("/katex/")?;
+    let (_, body) = assets::KATEX_FONTS.iter().find(|(n, _)| *n == rel)?;
+    let mut r = Response::new(full(Bytes::from_static(body)));
+    let h = r.headers_mut();
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static("font/woff2"));
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static(KATEX_CACHE));
     h.insert(header::CONTENT_LENGTH, HeaderValue::from(body.len()));
     Some(r)
 }
@@ -191,6 +212,46 @@ mod tests {
         assert_eq!(hv(&r, "vary"), "Accept-Encoding");
         assert!(get("/fonts/absente.woff2", false).is_none());
         assert!(get("/fonts/inter.ttf", false).is_none());
+    }
+
+    #[test]
+    fn katex() {
+        let r = get("/katex/katex.min.js", true).unwrap();
+        assert_eq!(hv(&r, "content-type"), "application/javascript");
+        assert_eq!(hv(&r, "cache-control"), "public, max-age=86400");
+        assert_eq!(hv(&r, "content-encoding"), "gzip");
+        assert!(
+            String::from_utf8_lossy(assets::KATEX_JS).contains("version:\"0.16.11\""),
+            "KaTeX 0.16.11 attendu"
+        );
+        let r = get("/katex/katex.min.css", false).unwrap();
+        assert_eq!(hv(&r, "content-type"), "text/css; charset=utf-8");
+        // Chaque police woff2 demandée par la feuille est servie, non compressée.
+        let css = String::from_utf8_lossy(assets::KATEX_CSS);
+        let polices: Vec<&str> = css
+            .split("url(")
+            .skip(1)
+            .filter_map(|s| s.split(')').next())
+            .filter(|u| u.ends_with(".woff2"))
+            .collect();
+        assert!(polices.len() >= 10, "{} polices", polices.len());
+        for p in polices {
+            let r = get(&format!("/katex/{p}"), true).unwrap_or_else(|| panic!("{p}"));
+            assert_eq!(hv(&r, "content-type"), "font/woff2");
+            assert_eq!(hv(&r, "content-encoding"), "");
+            assert_eq!(hv(&r, "cache-control"), "public, max-age=86400");
+        }
+        // Le reste part au Go (404) : ni index, ni licence, ni dernier segment seul.
+        for p in [
+            "/katex/",
+            "/katex/LICENSE",
+            "/katex/fonts/",
+            "/katex/fonts/absente.woff2",
+            "/katex/KaTeX_Main-Regular.woff2",
+            "/katex/x/fonts/KaTeX_Main-Regular.woff2",
+        ] {
+            assert!(get(p, false).is_none(), "{p}");
+        }
     }
 
     #[test]

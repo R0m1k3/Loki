@@ -14,7 +14,13 @@ function fixMd(s){
   s = s.replace(/\n{3,}/g, '\n\n');
   return s;
 }
-function md(src){ return src ? marked.parse(fixMd(src)) : ''; }
+// Les formules LaTeX sont mises de côté avant marked puis rendues par KaTeX
+// (00-math.js) ; le code et les montants en $ ne sont pas touchés.
+function md(src){
+  if(!src) return '';
+  const m = mathExtract(fixMd(src));
+  return mathRestore(marked.parse(m.text), m.list, mathHtml);
+}
 // Les garde-fous du serveur ("[stop: trop d'appels d'outils]") sont concaténés
 // au texte de la réponse : ils arrivent donc en clair, au milieu du markdown.
 // markNotices les sort du fil pour qu'on ne les prenne pas pour une phrase du
