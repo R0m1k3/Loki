@@ -66,17 +66,44 @@ fn parite_des_fonctions_pures() {
             .unwrap_or_default();
         assert_eq!(cf::prompt_line(&tools), s(&c["out"]), "{c}");
     }
+    let def = cf::Timeouts::default();
     for (cmd, v) in fx["timeouts"].as_object().unwrap() {
         let cfg = cf::ServerConfig {
             command: cmd.clone(),
             ..Default::default()
         };
         assert_eq!(
-            cf::timeout_for(&cfg).as_secs() as i64,
+            cf::timeout_for(&cfg, &def).as_secs() as i64,
             v["secs"].as_i64().unwrap(),
             "{cmd}"
         );
-        assert_eq!(cf::timeout_error(&cfg), s(&v["err"]), "{cmd}");
+        assert_eq!(cf::timeout_error(&cfg, &def), s(&v["err"]), "{cmd}");
+    }
+    // Délais globaux : lecture de la base, puis leur effet.
+    let tm = |v: &Value| cf::Timeouts {
+        connect: v["connect"].as_i64().unwrap(),
+        call: v["call"].as_i64().unwrap(),
+    };
+    for c in fx["timeouts_stored"].as_array().unwrap() {
+        let raw = s(&c["in"]);
+        let got = cf::decode_timeouts((!raw.is_empty()).then_some(raw.as_bytes()));
+        assert_eq!(got, tm(&c["out"]), "{raw}");
+    }
+    for c in fx["timeouts_effects"].as_array().unwrap() {
+        let t = tm(&c["timeouts"]);
+        let cfg: cf::ServerConfig = serde_json::from_str(s(&c["cfg"])).unwrap();
+        let args: Map<String, Value> = serde_json::from_str(s(&c["args"])).unwrap();
+        assert_eq!(
+            cf::timeout_for(&cfg, &t).as_millis() as i64,
+            c["connect"].as_i64().unwrap(),
+            "{c}"
+        );
+        assert_eq!(cf::timeout_error(&cfg, &t), s(&c["err"]), "{c}");
+        assert_eq!(
+            cf::call_timeout_for(&cfg, &t, &args).as_millis() as i64,
+            c["call"].as_i64().unwrap(),
+            "{c}"
+        );
     }
     for c in fx["flatten"].as_array().unwrap() {
         let v: Value = serde_json::from_str(s(&c["in"])).unwrap();
@@ -422,6 +449,50 @@ async fn routes_de_configuration() {
     );
     let stored: Value = serde_json::from_str(&go.get("state", "mcp").unwrap()).unwrap();
     assert_eq!(stored["web"]["url"], json!(url));
+    assert!(stored["web"].get("callTimeoutSec").is_none());
+    // Délai d'un appel propre au serveur : rangé, rendu, puis retiré quand le
+    // champ revient vide.
+    let body = |ct: Option<i64>| {
+        let mut b = json!({ "name": "web", "url": url, "headers": { "X-Cle": "k" } });
+        if let Some(n) = ct {
+            b["callTimeoutSec"] = json!(n);
+        }
+        b.to_string()
+    };
+    let (c, v) = post("/api/mcp/save", body(Some(900))).await;
+    assert_eq!(
+        (c, v["servers"][0]["callTimeoutSec"].clone()),
+        (200, json!(900))
+    );
+    let stored: Value = serde_json::from_str(&go.get("state", "mcp").unwrap()).unwrap();
+    assert_eq!(stored["web"]["callTimeoutSec"], 900);
+    let (c, v) = post("/api/mcp/save", body(None)).await;
+    assert_eq!(c, 200);
+    assert!(v["servers"][0].get("callTimeoutSec").is_none(), "{v}");
+    for n in [-1, 3601] {
+        let (c, v) = post("/api/mcp/save", body(Some(n))).await;
+        assert_eq!(
+            (c, v["error"].clone()),
+            (
+                400,
+                json!("délai d'un appel : 0 à 3600 s (vide = réglage global)")
+            )
+        );
+    }
+    let (c, v) = post(
+        "/api/mcp/save",
+        r#"{"name":"x","url":"http://h","callTimeoutSec":"9"}"#.into(),
+    )
+    .await;
+    assert_eq!(
+        (c, v["error"].clone()),
+        (
+            400,
+            json!(
+                "json: cannot unmarshal string into Go struct field mcpSaveReq.callTimeoutSec of type int"
+            )
+        )
+    );
     // Erreurs de la configuration et du JSON.
     let (c, v) = post("/api/mcp/save", r#"{"name":"a__b","command":"x"}"#.into()).await;
     assert_eq!(
@@ -506,6 +577,67 @@ async fn routes_de_configuration() {
     pool.close_all().await;
 }
 
+/// Les routes des délais globaux rejouées contre la façade : mêmes codes,
+/// mêmes réponses, même valeur rangée ; un enregistrement réussi ferme les
+/// sessions ouvertes.
+#[tokio::test]
+async fn routes_des_delais() {
+    let tmp = tempfile::tempdir().unwrap();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let fx = fixture();
+    let url = fake_server(fx["wire"].clone(), seen.clone()).await;
+    let pool = Arc::new(Mcp::new(tmp.path().to_path_buf()));
+    let (facade, go, _stop, _) = fakego::start_with(
+        tmp.path().to_path_buf(),
+        fakego::Opts {
+            mcp: Some(pool.clone()),
+            ..Default::default()
+        },
+    )
+    .await;
+    go.set(
+        "state",
+        "mcp",
+        &json!({ "web": { "url": url, "enabled": true } }).to_string(),
+    );
+    let initialize = || {
+        seen.lock()
+            .unwrap()
+            .iter()
+            .filter(|l| l.starts_with("initialize"))
+            .count()
+    };
+    let (_, b) = fakego::send(facade, "GET", "/api/mcp", &[], "").await;
+    let v: Value = serde_json::from_slice(&b).unwrap();
+    assert_eq!(v["servers"][0]["connected"], true, "{v}");
+    let mut connections = initialize();
+    for c in fx["timeouts_routes"].as_array().unwrap() {
+        let path = s(&c["path"]);
+        let method = if path.ends_with("/save") {
+            "POST"
+        } else {
+            "GET"
+        };
+        let (code, b) = fakego::send(facade, method, path, &[], s(&c["body"])).await;
+        assert_eq!(code.as_u16() as i64, c["code"].as_i64().unwrap(), "{c}");
+        let got: Value = serde_json::from_slice(&b).unwrap();
+        let want: Value = serde_json::from_str(s(&c["resp"])).unwrap();
+        assert_eq!(got, want, "{c}");
+        assert_eq!(
+            go.get("state", cf::ST_TIMEOUTS).unwrap_or_default(),
+            s(&c["state"]),
+            "{c}"
+        );
+        // Session fermée : la liste suivante se reconnecte.
+        fakego::send(facade, "GET", "/api/mcp", &[], "").await;
+        let now = initialize();
+        let saved = method == "POST" && code.as_u16() == 200;
+        assert_eq!(now, connections + usize::from(saved), "{c}");
+        connections = now;
+    }
+    pool.close_all().await;
+}
+
 #[tokio::test]
 async fn catalogue_embarque() {
     let tmp = tempfile::tempdir().unwrap();
@@ -544,6 +676,8 @@ async fn sans_la_variable_mcp_reste_au_go() {
         "/api/mcp/save",
         "/api/mcp/catalog",
         "/api/mcp/test",
+        "/api/mcp/timeouts",
+        "/api/mcp/timeouts/save",
     ] {
         let (_, _, b) = fakego::get(facade, p, &[]).await;
         assert_eq!(&b[..], format!("go:{p}").as_bytes());

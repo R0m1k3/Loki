@@ -26,7 +26,7 @@ pub struct ServerConfig {
     #[serde(rename = "disabledTools", skip_serializing_if = "Vec::is_empty")]
     pub disabled_tools: Vec<String>,
     /// `CallTimeoutSec` : délai d'un appel d'outil de ce serveur, en
-    /// secondes ; 0 = défaut ([`CALL_TIMEOUT`]).
+    /// secondes ; 0 = réglage global ([`Timeouts::call`]).
     #[serde(rename = "callTimeoutSec", skip_serializing_if = "is_zero")]
     pub call_timeout_sec: i64,
 }
@@ -285,21 +285,107 @@ pub fn prompt_line(tools: &[(String, String)]) -> String {
     )
 }
 
-/// `mcpConnectTimeout`.
-pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 /// `mcpConnectTimeoutCold` : npx et uvx téléchargent le paquet au premier
-/// lancement.
+/// lancement ; un minimum, un délai de connexion réglé plus long l'emporte.
 pub const CONNECT_TIMEOUT_COLD: Duration = Duration::from_secs(180);
-/// `mcpCallTimeout`.
-pub const CALL_TIMEOUT: Duration = Duration::from_secs(120);
+/// `mcpTimeoutMaxSec` : borne haute des réglages (1 h).
+pub const TIMEOUT_MAX_SECS: i64 = 3600;
 /// `mcpCallTimeoutMax` : plafond d'un appel, quoi que demandent l'outil ou la
-/// config.
-pub const CALL_TIMEOUT_MAX: Duration = Duration::from_secs(30 * 60);
+/// config ; il suit la borne des réglages.
+pub const CALL_TIMEOUT_MAX: Duration = Duration::from_secs(TIMEOUT_MAX_SECS as u64);
+/// `mcpTimeoutsKey` : clé des délais globaux (`state/mcp_timeouts`).
+pub const ST_TIMEOUTS: &str = "mcp_timeouts";
 
-/// `mcpCallTimeoutFor` : [`CALL_TIMEOUT`], remplacé par `callTimeoutSec` du
+/// `MCPTimeouts` : les délais globaux, en secondes (`mcp_timeouts.go`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Timeouts {
+    pub connect: i64,
+    pub call: i64,
+}
+
+impl Default for Timeouts {
+    /// 20 s de connexion, 120 s d'appel.
+    fn default() -> Self {
+        Timeouts {
+            connect: 0,
+            call: 0,
+        }
+        .normalized()
+    }
+}
+
+impl Timeouts {
+    /// `normalized` : nul ou négatif = défaut, au-delà de la borne = la borne.
+    pub fn normalized(self) -> Self {
+        let fix = |v: i64, def: i64| if v <= 0 { def } else { v.min(TIMEOUT_MAX_SECS) };
+        Timeouts {
+            connect: fix(self.connect, 20),
+            call: fix(self.call, 120),
+        }
+    }
+
+    pub fn connect(&self) -> Duration {
+        Duration::from_secs(self.connect.max(0) as u64)
+    }
+
+    pub fn call(&self) -> Duration {
+        Duration::from_secs(self.call.max(0) as u64)
+    }
+
+    /// `json.Marshal(MCPTimeouts)`.
+    pub fn marshal(&self) -> String {
+        format!(r#"{{"connect":{},"call":{}}}"#, self.connect, self.call)
+    }
+}
+
+/// Le type Go décodé (`MCPTimeouts`) et ses champs, pour [`crate::gojson`].
+pub const TIMEOUTS_TYPE: &str = "MCPTimeouts";
+pub const TIMEOUTS_FIELDS: [(&str, crate::gojson::Kind); 2] = [
+    ("connect", crate::gojson::Kind::Int),
+    ("call", crate::gojson::Kind::Int),
+];
+
+/// `LoadMCPTimeouts` : `getJSON` puis normalisation. Une valeur que
+/// `json.Unmarshal` refuse, même en partie, donne les défauts.
+pub fn decode_timeouts(raw: Option<&[u8]>) -> Timeouts {
+    let raw = raw.unwrap_or_default();
+    if raw.is_empty() || serde_json::from_slice::<Value>(raw).is_err() {
+        return Timeouts::default();
+    }
+    let d = crate::gojson::decode_struct(raw, TIMEOUTS_TYPE, &TIMEOUTS_FIELDS);
+    if d.err.is_some() {
+        return Timeouts::default();
+    }
+    Timeouts {
+        connect: d.int("connect"),
+        call: d.int("call"),
+    }
+    .normalized()
+}
+
+/// `mcpTimeoutsError` : le refus d'un réglage hors bornes.
+pub fn timeouts_error(t: &Timeouts) -> Option<&'static str> {
+    if !(1..=TIMEOUT_MAX_SECS).contains(&t.connect) {
+        return Some("connexion : 1 à 3600 s");
+    }
+    if !(1..=TIMEOUT_MAX_SECS).contains(&t.call) {
+        return Some("appel d'outil : 1 à 3600 s");
+    }
+    None
+}
+
+/// `mcpCallTimeoutSecError` : le refus d'un délai par serveur hors bornes.
+pub fn call_timeout_sec_error(sec: i64) -> Option<&'static str> {
+    if !(0..=TIMEOUT_MAX_SECS).contains(&sec) {
+        return Some("délai d'un appel : 0 à 3600 s (vide = réglage global)");
+    }
+    None
+}
+
+/// `mcpCallTimeoutFor` : le réglage global, remplacé par `callTimeoutSec` du
 /// serveur ; un argument `timeout` de l'outil l'allonge de 30 s.
-pub fn call_timeout_for(cfg: &ServerConfig, args: &Map<String, Value>) -> Duration {
-    let mut d = CALL_TIMEOUT;
+pub fn call_timeout_for(cfg: &ServerConfig, tm: &Timeouts, args: &Map<String, Value>) -> Duration {
+    let mut d = tm.call();
     if cfg.call_timeout_sec > 0 {
         d = Duration::from_secs(cfg.call_timeout_sec as u64);
     }
@@ -354,23 +440,27 @@ fn launcher(cfg: &ServerConfig) -> String {
     b.strip_suffix(".cmd").unwrap_or(b).to_string()
 }
 
-/// `mcpTimeoutFor`.
-pub fn timeout_for(cfg: &ServerConfig) -> Duration {
+/// `mcpTimeoutFor` : le réglage global, au moins [`CONNECT_TIMEOUT_COLD`]
+/// pour npx et uvx.
+pub fn timeout_for(cfg: &ServerConfig, tm: &Timeouts) -> Duration {
     match launcher(cfg).as_str() {
-        "npx" | "uvx" => CONNECT_TIMEOUT_COLD,
-        _ => CONNECT_TIMEOUT,
+        "npx" | "uvx" => tm.connect().max(CONNECT_TIMEOUT_COLD),
+        _ => tm.connect(),
     }
 }
 
 /// `mcpFriendlyErr` pour un délai dépassé.
-pub fn timeout_error(cfg: &ServerConfig) -> String {
+pub fn timeout_error(cfg: &ServerConfig, tm: &Timeouts) -> String {
     let l = launcher(cfg);
     if l == "npx" || l == "uvx" {
         return format!(
             "délai dépassé — {l} télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)"
         );
     }
-    "délai dépassé — le serveur n'a pas répondu au handshake en 20s".into()
+    format!(
+        "délai dépassé — le serveur n'a pas répondu au handshake en {} (délai de connexion réglable dans les réglages MCP)",
+        crate::tools::shell::go_duration(tm.connect())
+    )
 }
 
 /// `mcpOutputCap` : environ un caractère par jeton de contexte, jamais sous
@@ -534,20 +624,24 @@ mod tests {
         };
         let s = Duration::from_secs;
         let none = Map::new();
-        assert_eq!(call_timeout_for(&cfg(0), &none), CALL_TIMEOUT);
-        assert_eq!(call_timeout_for(&cfg(600), &none), s(600));
-        assert_eq!(call_timeout_for(&cfg(0), &args(json!(300.0))), s(330));
-        assert_eq!(call_timeout_for(&cfg(0), &args(json!(200000.0))), s(230));
+        let def = Timeouts::default();
+        let ct = |c: &ServerConfig, a: &Map<String, Value>| call_timeout_for(c, &def, a);
+        assert_eq!(ct(&cfg(0), &none), s(120));
+        assert_eq!(ct(&cfg(600), &none), s(600));
+        assert_eq!(ct(&cfg(0), &args(json!(300.0))), s(330));
+        assert_eq!(ct(&cfg(0), &args(json!(200000.0))), s(230));
+        assert_eq!(ct(&cfg(0), &args(json!(5000.0))), s(120));
+        assert_eq!(ct(&cfg(0), &args(json!("400"))), s(430));
         assert_eq!(
-            call_timeout_for(&cfg(0), &args(json!(5000.0))),
-            CALL_TIMEOUT
-        );
-        assert_eq!(call_timeout_for(&cfg(0), &args(json!("400"))), s(430));
-        assert_eq!(
-            call_timeout_for(&cfg(0), &args(json!(86400.0 * 1000.0))),
+            ct(&cfg(0), &args(json!(86400.0 * 1000.0))),
             CALL_TIMEOUT_MAX
         );
-        assert_eq!(call_timeout_for(&cfg(30), &none), s(30));
+        assert_eq!(ct(&cfg(30), &none), s(30));
+        // Le réglage global, remplacé par celui du serveur, jamais rogné.
+        let tm = |call| Timeouts { connect: 20, call };
+        assert_eq!(call_timeout_for(&cfg(0), &tm(45), &none), s(45));
+        assert_eq!(call_timeout_for(&cfg(90), &tm(45), &none), s(90));
+        assert_eq!(call_timeout_for(&cfg(0), &tm(3600), &none), s(3600));
         assert_eq!(
             call_deadline_error(s(330)),
             "[erreur MCP] pas de réponse après 5m30s (délai de l'appel ; un argument timeout plus grand l'allonge)"
@@ -577,9 +671,41 @@ mod tests {
             command: cmd.into(),
             ..Default::default()
         };
-        assert_eq!(timeout_for(&c("/usr/bin/npx")), CONNECT_TIMEOUT_COLD);
-        assert_eq!(timeout_for(&c("UVX.EXE")), CONNECT_TIMEOUT_COLD);
-        assert_eq!(timeout_for(&c("npx.cmd")), CONNECT_TIMEOUT_COLD);
-        assert_eq!(timeout_for(&c("node")), CONNECT_TIMEOUT);
+        let def = Timeouts::default();
+        assert_eq!(timeout_for(&c("/usr/bin/npx"), &def), CONNECT_TIMEOUT_COLD);
+        assert_eq!(timeout_for(&c("UVX.EXE"), &def), CONNECT_TIMEOUT_COLD);
+        assert_eq!(timeout_for(&c("npx.cmd"), &def), CONNECT_TIMEOUT_COLD);
+        assert_eq!(timeout_for(&c("node"), &def), Duration::from_secs(20));
+        // Un délai réglé plus long que le minimum des lanceurs l'emporte.
+        let long = Timeouts {
+            connect: 600,
+            call: 120,
+        };
+        assert_eq!(timeout_for(&c("npx"), &long), Duration::from_secs(600));
+        assert_eq!(timeout_for(&c("node"), &long), Duration::from_secs(600));
+    }
+
+    #[test]
+    fn delais_globaux() {
+        let d = |raw: &str| decode_timeouts(Some(raw.as_bytes()));
+        let t = |connect, call| Timeouts { connect, call };
+        assert_eq!(decode_timeouts(None), t(20, 120));
+        assert_eq!(d(r#"{"connect":5,"call":300}"#), t(5, 300));
+        assert_eq!(d(r#"{"connect":0,"call":0}"#), t(20, 120));
+        assert_eq!(d(r#"{"connect":-4,"call":99999}"#), t(20, 3600));
+        assert_eq!(d(r#"{"connect":"x","call":50}"#), t(20, 120));
+        assert_eq!(d(r#"{"CONNECT":7}"#), t(7, 120));
+        assert_eq!(d("null"), t(20, 120));
+        assert_eq!(d(r#"{"connect":30,"call":40} reste"#), t(20, 120));
+        assert_eq!(t(30, 600).marshal(), r#"{"connect":30,"call":600}"#);
+        assert_eq!(timeouts_error(&t(0, 120)), Some("connexion : 1 à 3600 s"));
+        assert_eq!(
+            timeouts_error(&t(20, 3601)),
+            Some("appel d'outil : 1 à 3600 s")
+        );
+        assert_eq!(timeouts_error(&t(3600, 1)), None);
+        assert!(call_timeout_sec_error(-1).is_some());
+        assert!(call_timeout_sec_error(0).is_none());
+        assert!(call_timeout_sec_error(3601).is_some());
     }
 }
