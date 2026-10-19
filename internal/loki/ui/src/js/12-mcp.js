@@ -5,7 +5,47 @@
 let mcpServers = [];
 let mcpEditing = null; // nom du serveur en cours d'édition ('' ou null = nouveau)
 
-async function loadMCP(){ renderMCP(await jget('/api/mcp')); }
+async function loadMCP(){
+  renderMCP(await jget('/api/mcp'));
+  loadMcpTimeouts();
+}
+
+// ─── Délais globaux ──────────────────────────────────────────────────────────
+// Connexion et appel d'outil, communs à tous les serveurs (/api/mcp/timeouts).
+// Un seul enregistrement par modification : « change » part à la validation
+// ou à la perte du focus, pas à chaque frappe.
+let mcpTimeouts = {connect: 20, call: 120};
+
+async function loadMcpTimeouts(){
+  const r = await jget('/api/mcp/timeouts');
+  if(!r || !r.ok) return;
+  mcpTimeouts = {connect: r.connect, call: r.call};
+  document.getElementById('mcp-timeout-connect').value = r.connect;
+  document.getElementById('mcp-timeout-call').value = r.call;
+  mcpCallTimeoutPlaceholder();
+}
+
+async function saveMcpTimeouts(){
+  const connect = Number(document.getElementById('mcp-timeout-connect').value);
+  const call = Number(document.getElementById('mcp-timeout-call').value);
+  const ok = v => Number.isInteger(v) && v >= 1 && v <= 3600;
+  if(!ok(connect) || !ok(call)){
+    toast('délai invalide : de 1 à 3600 s');
+    loadMcpTimeouts(); // revient aux valeurs enregistrées
+    return;
+  }
+  const r = await jpost('/api/mcp/timeouts/save', {connect, call});
+  if(!r || !r.ok){ toast('erreur : '+((r && r.error) || 'délais non enregistrés')); loadMcpTimeouts(); return; }
+  mcpTimeouts = {connect: r.connect, call: r.call};
+  mcpCallTimeoutPlaceholder();
+  toast('délais MCP enregistrés');
+}
+
+// Le champ « délai d'un appel » de la fenêtre d'édition montre le réglage
+// global qu'il remplacerait.
+function mcpCallTimeoutPlaceholder(){
+  document.getElementById('mcp-call-timeout').placeholder = 'réglage global ('+mcpTimeouts.call+' s)';
+}
 
 function renderMCP(r){
   mcpServers = (r && r.servers) || [];
@@ -178,6 +218,7 @@ function openMcpFromCatalog(e){
       Object.entries(e.env||{}).map(([k,v])=>k+'='+v).join('\n');
     document.getElementById('mcp-url').value = '';
     document.getElementById('mcp-headers').value = '';
+    document.getElementById('mcp-call-timeout').value = '';
     document.getElementById('mcp-modal-title').textContent = e.name+' — depuis le catalogue';
   }
   const st = document.getElementById('mcp-modal-status');
@@ -205,6 +246,8 @@ function openMcp(name){
   document.getElementById('mcp-env').value = s && s.env ? Object.entries(s.env).map(([k,v])=>k+'='+v).join('\n') : '';
   document.getElementById('mcp-url').value = s ? (s.url||'') : '';
   document.getElementById('mcp-headers').value = s && s.headers ? Object.entries(s.headers).map(([k,v])=>k+': '+v).join('\n') : '';
+  document.getElementById('mcp-call-timeout').value = s && s.callTimeoutSec ? s.callTimeoutSec : '';
+  mcpCallTimeoutPlaceholder();
   const st = document.getElementById('mcp-modal-status');
   st.textContent = ''; st.style.color = '';
   if(s && s.enabled && s.error){ st.textContent = '⚠ '+s.error; st.style.color = 'var(--err)'; }
@@ -282,6 +325,13 @@ async function saveMcp(){
     if(!body.url){ toast("renseigne l'URL"); return; }
     body.headers = mcpParseKV(document.getElementById('mcp-headers').value, ':');
     body.command = ''; body.args = undefined; body.env = undefined;
+  }
+  // Vide = réglage global (0 côté serveur).
+  const ct = document.getElementById('mcp-call-timeout').value.trim();
+  if(ct){
+    const n = Number(ct);
+    if(!Number.isInteger(n) || n < 1 || n > 3600){ toast("délai d'un appel d'outil : de 1 à 3600 s, ou vide"); return; }
+    body.callTimeoutSec = n;
   }
   const st = document.getElementById('mcp-modal-status');
   st.textContent = 'connexion…'; st.style.color = '';

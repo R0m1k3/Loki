@@ -36,19 +36,17 @@ import (
 // pour router les appels sans avoir à re-parser des noms potentiellement
 // ambigus.
 
+// Les délais de connexion et d'appel sont réglables (mcp_timeouts.go) :
+// 20 s et 120 s par défaut.
 const (
-	// mcpConnectTimeout borne l'établissement d'une session (handshake initialize
-	// + tools/list). Un serveur qui rame ne doit pas figer le tour de chat.
-	mcpConnectTimeout = 20 * time.Second
 	// mcpConnectTimeoutCold : npx et uvx TÉLÉCHARGENT le paquet du serveur au
 	// premier lancement (le catalogue les utilise tous les deux). Sur un réseau
 	// ou un disque lents, ça dépasse largement 20 s, et l'utilisateur voyait
 	// « enregistré mais connexion échouée : context deadline exceeded » pour un
 	// serveur parfaitement sain. Les lancements suivants profitent du cache et
 	// retombent dans le régime normal.
+	// C'est un minimum : un délai de connexion réglé plus long l'emporte.
 	mcpConnectTimeoutCold = 3 * time.Minute
-	// mcpCallTimeout borne un appel d'outil MCP.
-	mcpCallTimeout = 120 * time.Second
 )
 
 // mcpOutputCap borne la sortie d'un outil MCP renvoyée au modèle. L'amont
@@ -194,11 +192,12 @@ func (m *mcpManager) ensure(name string, cfg MCPServerConfig) *mcpSession {
 	m.mu.Unlock()
 
 	// Connexion hors-lock (peut être lente).
-	ctx, cancel := context.WithTimeout(context.Background(), mcpTimeoutFor(cfg))
+	timeouts := LoadMCPTimeouts()
+	ctx, cancel := context.WithTimeout(context.Background(), mcpTimeoutFor(cfg, timeouts))
 	defer cancel()
 	sess, err := mcpConnect(ctx, name, cfg)
 	if err != nil {
-		s.err = mcpFriendlyErr(err, cfg)
+		s.err = mcpFriendlyErr(err, cfg, timeouts)
 	} else {
 		s.sess = sess
 		lt, lerr := sess.ListTools(ctx, nil)
@@ -391,7 +390,7 @@ func mcpCall(parent context.Context, name string, args map[string]any) string {
 	}
 	servers, _ := LoadMCPConfig()
 	cfg, exists := servers[ref.server]
-	timeout := mcpCallTimeoutFor(cfg, args)
+	timeout := mcpCallTimeoutFor(cfg, LoadMCPTimeouts(), args)
 
 	result, err := mcpCallOnce(parent, ref, args, timeout)
 	if err != nil {
@@ -424,14 +423,16 @@ func mcpCall(parent context.Context, name string, args map[string]any) string {
 
 // mcpCallTimeoutMax plafonne le délai d'un appel, quoi que demandent l'outil
 // ou la config : au-delà, c'est un job d'arrière-plan, pas un appel d'outil.
-const mcpCallTimeoutMax = 30 * time.Minute
+// Il suit la borne des réglages (1 h) : un délai réglé à 3600 s n'est pas
+// rogné en silence.
+const mcpCallTimeoutMax = mcpTimeoutMaxSec * time.Second
 
-// mcpCallTimeoutFor : délai d'un appel. Défaut mcpCallTimeout, remplacé par
-// CallTimeoutSec du serveur ; un argument « timeout » de l'outil lui-même
+// mcpCallTimeoutFor : délai d'un appel. Le réglage global (t.Call), remplacé
+// par CallTimeoutSec du serveur ; un argument « timeout » de l'outil lui-même
 // (beaucoup en ont un : navigateur, build, requête) l'allonge de 30 s pour que
 // l'outil ait le temps de rendre SA propre erreur de délai.
-func mcpCallTimeoutFor(cfg MCPServerConfig, args map[string]any) time.Duration {
-	d := mcpCallTimeout
+func mcpCallTimeoutFor(cfg MCPServerConfig, t MCPTimeouts, args map[string]any) time.Duration {
+	d := t.call()
 	if cfg.CallTimeoutSec > 0 {
 		d = time.Duration(cfg.CallTimeoutSec) * time.Second
 	}
@@ -598,6 +599,8 @@ type MCPServerStatus struct {
 	Env     map[string]string `json:"env,omitempty"`
 	URL     string            `json:"url,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
+	// CallTimeoutSec : délai d'un appel propre au serveur (0 = réglage global).
+	CallTimeoutSec int `json:"callTimeoutSec,omitempty"`
 }
 
 // MCPStatus renvoie l'état de tous les serveurs configurés, en tentant de
@@ -621,7 +624,9 @@ func MCPStatus() ([]MCPServerStatus, error) {
 			URL:       cfg.URL,
 			Headers:   cfg.Headers,
 			Tools:     []string{},
-			Disabled:  cfg.DisabledTools,
+
+			CallTimeoutSec: cfg.CallTimeoutSec,
+			Disabled:       cfg.DisabledTools,
 		}
 		if st.Disabled == nil {
 			st.Disabled = []string{}
@@ -643,29 +648,36 @@ func MCPStatus() ([]MCPServerStatus, error) {
 	return out, nil
 }
 
-// mcpTimeoutFor choisit le délai de connexion d'un serveur : long pour un
-// lanceur qui télécharge son paquet à la volée (npx, uvx), court sinon.
-func mcpTimeoutFor(cfg MCPServerConfig) time.Duration {
+// mcpTimeoutFor choisit le délai de connexion d'un serveur : le réglage
+// global, mais au moins mcpConnectTimeoutCold pour un lanceur qui télécharge
+// son paquet à la volée (npx, uvx).
+func mcpTimeoutFor(cfg MCPServerConfig, t MCPTimeouts) time.Duration {
+	if mcpColdLauncher(cfg) {
+		return max(t.connect(), mcpConnectTimeoutCold)
+	}
+	return t.connect()
+}
+
+// mcpColdLauncher : npx ou uvx, qui téléchargent le paquet au premier
+// lancement.
+func mcpColdLauncher(cfg MCPServerConfig) bool {
 	base := strings.ToLower(filepath.Base(cfg.Command))
 	base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
-	if base == "npx" || base == "uvx" {
-		return mcpConnectTimeoutCold
-	}
-	return mcpConnectTimeout
+	return base == "npx" || base == "uvx"
 }
 
 // mcpFriendlyErr habille l'erreur de connexion la plus vécue : le délai
 // dépassé d'un npx/uvx en plein téléchargement. L'erreur brute (« context
 // deadline exceeded ») envoyait l'utilisateur chercher un bug de config alors
 // qu'il suffit souvent de réessayer une fois le paquet en cache.
-func mcpFriendlyErr(err error, cfg MCPServerConfig) error {
+func mcpFriendlyErr(err error, cfg MCPServerConfig, t MCPTimeouts) error {
 	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	base := strings.ToLower(filepath.Base(cfg.Command))
-	base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
-	if base == "npx" || base == "uvx" {
+	if mcpColdLauncher(cfg) {
+		base := strings.ToLower(filepath.Base(cfg.Command))
+		base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
 		return fmt.Errorf("délai dépassé — %s télécharge le paquet du serveur au premier lancement, ce qui peut être long ; clique « tester » pour réessayer (le paquet reste en cache), et vérifie que le conteneur atteint le registre (npm/PyPI)", base)
 	}
-	return fmt.Errorf("délai dépassé — le serveur n'a pas répondu au handshake en %s", mcpConnectTimeout)
+	return fmt.Errorf("délai dépassé — le serveur n'a pas répondu au handshake en %s (délai de connexion réglable dans les réglages MCP)", t.connect())
 }

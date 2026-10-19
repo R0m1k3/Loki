@@ -334,6 +334,8 @@ func newWebMux() *http.ServeMux {
 	api("/api/mcp/toggle", handleMCPToggle)
 	api("/api/mcp/tool", handleMCPTool)
 	api("/api/mcp/test", handleMCPTest)
+	api("/api/mcp/timeouts", handleMCPTimeouts)
+	api("/api/mcp/timeouts/save", handleMCPTimeoutsSave)
 	api("/api/memory", handleMemoryMode)
 	// Tâches planifiées : l'IA exécute des consignes toute seule sur une fréquence
 	// réglable (tasks.go). Le planificateur tourne dans CE process — celui qui

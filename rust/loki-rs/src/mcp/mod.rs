@@ -29,7 +29,7 @@ use crate::gojson::{self, Kind};
 use crate::proxy::Body;
 use crate::store::{BK_STATE, Store};
 use client::Session;
-use config::{ServerConfig, Servers};
+use config::{ServerConfig, Servers, Timeouts};
 
 /// Clé de la configuration (`state/mcp`).
 pub const ST_MCP: &str = "mcp";
@@ -108,6 +108,26 @@ impl Mcp {
         Ok(())
     }
 
+    /// `SaveMCPTimeouts` puis la fermeture des sessions des serveurs
+    /// configurés : le nouveau délai de connexion vaut dès la suivante.
+    async fn save_timeouts(&self, store: &Store, t: Timeouts) -> Result<(), String> {
+        let names: Vec<String> = {
+            let _g = self.cfg_lock.lock().await;
+            store
+                .put(
+                    BK_STATE,
+                    config::ST_TIMEOUTS,
+                    t.normalized().marshal().into_bytes(),
+                )
+                .await?;
+            Self::load(store).await.keys().cloned().collect()
+        };
+        for name in names {
+            self.invalidate(&name).await;
+        }
+        Ok(())
+    }
+
     /// `mcpInvalidate` : la session du serveur fermée et oubliée, ses outils
     /// retirés du registre.
     pub async fn invalidate(&self, name: &str) {
@@ -136,8 +156,27 @@ impl Mcp {
         }
     }
 
-    /// `ensure` : la session du serveur, connectée ou en erreur.
-    async fn ensure(&self, name: &str, cfg: &ServerConfig, version: &str) -> Arc<Slot> {
+    /// `LoadMCPTimeouts` : les délais globaux (`state/mcp_timeouts`).
+    pub async fn timeouts(store: &Store) -> Timeouts {
+        config::decode_timeouts(
+            store
+                .get(BK_STATE, config::ST_TIMEOUTS)
+                .await
+                .ok()
+                .flatten()
+                .as_deref(),
+        )
+    }
+
+    /// `ensure` : la session du serveur, connectée ou en erreur. Le délai de
+    /// connexion est lu au moment de se connecter.
+    async fn ensure(
+        &self,
+        store: &Store,
+        name: &str,
+        cfg: &ServerConfig,
+        version: &str,
+    ) -> Arc<Slot> {
         let slot = lock(&self.slots)
             .entry(name.to_string())
             .or_insert_with(|| {
@@ -150,14 +189,15 @@ impl Mcp {
         slot.state
             .get_or_init(|| async {
                 let cfg = &slot.cfg;
+                let tm = Self::timeouts(store).await;
                 let mut st = SlotState::default();
                 let work = async {
                     let sess = Session::connect(cfg, version).await?;
                     let tools = sess.list_tools().await;
                     Ok::<_, String>((sess, tools))
                 };
-                match tokio::time::timeout(config::timeout_for(cfg), work).await {
-                    Err(_) => st.err = Some(config::timeout_error(cfg)),
+                match tokio::time::timeout(config::timeout_for(cfg, &tm), work).await {
+                    Err(_) => st.err = Some(config::timeout_error(cfg, &tm)),
                     Ok(Err(e)) => st.err = Some(e),
                     Ok(Ok((sess, tools))) => {
                         match tools {
@@ -191,12 +231,12 @@ impl Mcp {
     }
 
     /// `mcpEnsureAll` : les serveurs activés connectés en parallèle.
-    async fn ensure_all(&self, servers: &Servers, version: &str) {
+    async fn ensure_all(&self, store: &Store, servers: &Servers, version: &str) {
         join_all(
             servers
                 .iter()
                 .filter(|(_, c)| c.enabled && !c.transport().is_empty())
-                .map(|(n, c)| self.ensure(n, c, version)),
+                .map(|(n, c)| self.ensure(store, n, c, version)),
         )
         .await;
     }
@@ -208,13 +248,13 @@ impl Mcp {
         if servers.is_empty() {
             return Vec::new();
         }
-        self.ensure_all(&servers, version).await;
+        self.ensure_all(store, &servers, version).await;
         let mut out = Vec::new();
         for (name, cfg) in &servers {
             if !cfg.enabled || cfg.transport().is_empty() {
                 continue;
             }
-            let slot = self.ensure(name, cfg, version).await;
+            let slot = self.ensure(store, name, cfg, version).await;
             let Some(st) = slot.state.get() else { continue };
             if st.sess.is_none() {
                 continue;
@@ -255,8 +295,11 @@ impl Mcp {
         };
         let cap = config::output_cap(config::ctx_window(&store.config().await));
         let servers = Self::load(store).await;
-        let timeout =
-            config::call_timeout_for(&servers.get(&server).cloned().unwrap_or_default(), args);
+        let timeout = config::call_timeout_for(
+            &servers.get(&server).cloned().unwrap_or_default(),
+            &Self::timeouts(store).await,
+            args,
+        );
         let mut err = match self.call_once(&server, &tool, args, cap, timeout).await {
             Ok(r) => return r,
             Err(e) => e,
@@ -266,7 +309,7 @@ impl Mcp {
         }
         if let Some(cfg) = servers.get(&server).filter(|c| c.enabled) {
             self.invalidate(&server).await;
-            self.ensure(&server, cfg, version).await;
+            self.ensure(store, &server, cfg, version).await;
             match self.call_once(&server, &tool, args, cap, timeout).await {
                 Ok(r) => return r,
                 Err(e) => err = e,
@@ -307,7 +350,7 @@ impl Mcp {
     /// activés.
     pub async fn status(&self, store: &Store, version: &str) -> Vec<Value> {
         let servers = Self::load(store).await;
-        self.ensure_all(&servers, version).await;
+        self.ensure_all(store, &servers, version).await;
         let mut out = Vec::new();
         for (name, cfg) in &servers {
             let mut st = json!({
@@ -324,11 +367,13 @@ impl Mcp {
                 ("env", json!(cfg.env)),
                 ("url", json!(cfg.url)),
                 ("headers", json!(cfg.headers)),
+                ("callTimeoutSec", json!(cfg.call_timeout_sec)),
             ] {
                 let empty = match &v {
                     Value::String(s) => s.is_empty(),
                     Value::Array(a) => a.is_empty(),
                     Value::Object(o) => o.is_empty(),
+                    Value::Number(n) => n.as_i64() == Some(0),
                     _ => false,
                 };
                 if !empty {
@@ -336,7 +381,7 @@ impl Mcp {
                 }
             }
             if cfg.enabled && !cfg.transport().is_empty() {
-                let slot = self.ensure(name, cfg, version).await;
+                let slot = self.ensure(store, name, cfg, version).await;
                 if let Some(s) = slot.state.get() {
                     if s.sess.is_some() {
                         st["connected"] = json!(true);
@@ -367,7 +412,7 @@ impl Mcp {
             }
             let servers = Self::load(&store).await;
             if !servers.is_empty() {
-                me.ensure_all(&servers, &version).await;
+                me.ensure_all(&store, &servers, &version).await;
             }
         });
     }
@@ -494,6 +539,8 @@ pub fn handles(path: &str) -> bool {
             | "/api/mcp/toggle"
             | "/api/mcp/tool"
             | "/api/mcp/test"
+            | "/api/mcp/timeouts"
+            | "/api/mcp/timeouts/save"
     )
 }
 
@@ -562,9 +609,14 @@ pub async fn serve(
                     ("url", Kind::Str),
                     ("headers", Kind::StrMap),
                     ("enabled", Kind::OptBool),
+                    ("callTimeoutSec", Kind::Int),
                 ],
             );
             if let Some(e) = d.err.clone() {
+                return fail(StatusCode::BAD_REQUEST, e);
+            }
+            let call_timeout_sec = d.int("callTimeoutSec");
+            if let Some(e) = config::call_timeout_sec_error(call_timeout_sec) {
                 return fail(StatusCode::BAD_REQUEST, e);
             }
             let cfg = ServerConfig {
@@ -579,7 +631,7 @@ pub async fn serve(
                     .collect(),
                 enabled: d.opt_bool("enabled").unwrap_or(true),
                 disabled_tools: Vec::new(),
-                call_timeout_sec: 0,
+                call_timeout_sec,
             };
             let name = d.str("name");
             let res = mcp
@@ -653,6 +705,34 @@ pub async fn serve(
             }
             mcp.invalidate(&d.str("name")).await;
             servers_ok(mcp.status(store, &version).await)
+        }
+        "/api/mcp/timeouts" => {
+            let t = Mcp::timeouts(store).await;
+            send_json(
+                StatusCode::OK,
+                &json!({ "ok": true, "connect": t.connect, "call": t.call }),
+            )
+        }
+        "/api/mcp/timeouts/save" => {
+            let raw = read_body(body).await;
+            let d = gojson::decode_struct(&raw, config::TIMEOUTS_TYPE, &config::TIMEOUTS_FIELDS);
+            if let Some(e) = d.err.clone() {
+                return fail(StatusCode::BAD_REQUEST, e);
+            }
+            let t = Timeouts {
+                connect: d.int("connect"),
+                call: d.int("call"),
+            };
+            if let Some(e) = config::timeouts_error(&t) {
+                return fail(StatusCode::BAD_REQUEST, e);
+            }
+            match mcp.save_timeouts(store, t).await {
+                Ok(()) => send_json(
+                    StatusCode::OK,
+                    &json!({ "ok": true, "connect": t.connect, "call": t.call }),
+                ),
+                Err(e) => fail(StatusCode::INTERNAL_SERVER_ERROR, e),
+            }
         }
         _ => fail(StatusCode::NOT_FOUND, "route inconnue"),
     }

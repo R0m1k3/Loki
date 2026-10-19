@@ -91,13 +91,76 @@ func TestPariteMCP(t *testing.T) {
 	}
 	fx["prompt_line"] = lines
 	timeouts := map[string]any{}
+	def := MCPTimeouts{}.normalized()
 	for _, cmd := range []string{"npx", "/usr/local/bin/NPX", "uvx.exe", "npx.cmd", "node", "", "uvx-x", "C:/bin/uvx.EXE"} {
 		cfg := MCPServerConfig{Command: cmd}
-		timeouts[cmd] = map[string]any{"secs": int(mcpTimeoutFor(cfg).Seconds()),
-			"err": mcpFriendlyErr(context.DeadlineExceeded, cfg).Error()}
+		timeouts[cmd] = map[string]any{"secs": int(mcpTimeoutFor(cfg, def).Seconds()),
+			"err": mcpFriendlyErr(context.DeadlineExceeded, cfg, def).Error()}
 	}
 	fx["timeouts"] = timeouts
-	fx["friendly_other"] = mcpFriendlyErr(errors.New("autre"), MCPServerConfig{Command: "npx"}).Error()
+	fx["friendly_other"] = mcpFriendlyErr(errors.New("autre"), MCPServerConfig{Command: "npx"}, def).Error()
+	// Délais globaux (mcp_timeouts) : lecture de la base, puis leur effet sur
+	// la connexion et sur l'appel.
+	var stored []any
+	for _, raw := range []string{"", `{"connect":5,"call":300}`, `{"connect":0,"call":0}`, `{"connect":-4,"call":99999}`,
+		`{"connect":"x","call":50}`, `{"CONNECT":7,"Call":8}`, `null`, `[1]`, `{"connect":30,"call":40} reste`,
+		`{"connect":1.5,"call":60}`, `{"connect":3600,"call":3600,"autre":1}`} {
+		_ = putStr(bkState, mcpTimeoutsKey, raw)
+		stored = append(stored, map[string]any{"in": raw, "out": LoadMCPTimeouts()})
+	}
+	fx["timeouts_stored"] = stored
+	var effects []any
+	for _, tm := range []MCPTimeouts{{20, 120}, {5, 45}, {600, 3600}, {180, 1}} {
+		for _, c := range []struct {
+			cfg  MCPServerConfig
+			args string
+		}{
+			{MCPServerConfig{Command: "node"}, `{}`},
+			{MCPServerConfig{Command: "npx"}, `{}`},
+			{MCPServerConfig{URL: "http://h", CallTimeoutSec: 90}, `{}`},
+			{MCPServerConfig{Command: "uvx", CallTimeoutSec: 3600}, `{"timeout":7200}`},
+			{MCPServerConfig{URL: "http://h"}, `{"timeout":600}`},
+			{MCPServerConfig{URL: "http://h"}, `{"timeout":99999999}`},
+		} {
+			var args map[string]any
+			_ = json.Unmarshal([]byte(c.args), &args)
+			cfgJSON, _ := json.Marshal(c.cfg)
+			effects = append(effects, map[string]any{
+				"timeouts": tm, "cfg": string(cfgJSON), "args": c.args,
+				"connect": mcpTimeoutFor(c.cfg, tm).Milliseconds(),
+				"err":     mcpFriendlyErr(context.DeadlineExceeded, c.cfg, tm).Error(),
+				"call":    mcpCallTimeoutFor(c.cfg, tm, args).Milliseconds(),
+			})
+		}
+	}
+	fx["timeouts_effects"] = effects
+	_ = putStr(bkState, mcpTimeoutsKey, "")
+	var routes []any
+	for _, rq := range [][2]string{
+		{"/api/mcp/timeouts", ""},
+		{"/api/mcp/timeouts/save", `{"connect":0,"call":120}`},
+		{"/api/mcp/timeouts/save", `{"connect":20,"call":3601}`},
+		{"/api/mcp/timeouts/save", `{"connect":20}`},
+		{"/api/mcp/timeouts/save", `{"connect":"20","call":120}`},
+		{"/api/mcp/timeouts/save", `{"connect":2.5,"call":120}`},
+		{"/api/mcp/timeouts/save", `[]`},
+		{"/api/mcp/timeouts/save", `pas du json`},
+		{"/api/mcp/timeouts/save", `{"Connect":45,"CALL":900,"x":1}`},
+		{"/api/mcp/timeouts", ""},
+		{"/api/mcp/timeouts/save", `{"connect":3600,"call":1}`},
+		{"/api/mcp/timeouts", ""},
+	} {
+		w := httptest.NewRecorder()
+		if rq[0] == "/api/mcp/timeouts" {
+			handleMCPTimeouts(w, httptest.NewRequest("GET", rq[0], nil))
+		} else {
+			handleMCPTimeoutsSave(w, httptest.NewRequest("POST", rq[0], strings.NewReader(rq[1])))
+		}
+		routes = append(routes, map[string]any{"path": rq[0], "body": rq[1], "code": w.Code,
+			"resp": strings.TrimSpace(w.Body.String()), "state": getStr(bkState, mcpTimeoutsKey)})
+	}
+	fx["timeouts_routes"] = routes
+	_ = putStr(bkState, mcpTimeoutsKey, "")
 	var flat []any
 	for _, raw := range []string{
 		`{"content":[{"type":"text","text":"  un "},{"type":"text","text":"deux\n"}]}`,
@@ -148,7 +211,7 @@ func TestPariteMCP(t *testing.T) {
 		{Op: "set", Name: "a__b", Cfg: `{"command":"x"}`},
 		{Op: "set", Name: "both", Cfg: `{"command":"x","url":"http://u"}`},
 		{Op: "set", Name: "none", Cfg: `{"enabled":true}`},
-		{Op: "set", Name: "web", Cfg: `{"url":"http://u/mcp","headers":{"X":"1"},"enabled":false}`},
+		{Op: "set", Name: "web", Cfg: `{"url":"http://u/mcp","headers":{"X":"1"},"enabled":false,"callTimeoutSec":45}`},
 		{Op: "enable", Name: "web", On: true},
 		{Op: "enable", Name: "nope", On: true},
 		{Op: "tool", Name: "fs", Tool: "write", On: false},
@@ -285,7 +348,7 @@ func TestPariteMCP(t *testing.T) {
 	}
 	_ = SetMCPToolEnabled("alpha", "secret", false)
 	_ = SetMCPServer("beta", MCPServerConfig{Command: "loki-mcp-absent-pour-test", Enabled: true})
-	_ = SetMCPServer("gamma", MCPServerConfig{URL: ts.URL, Enabled: false})
+	_ = SetMCPServer("gamma", MCPServerConfig{URL: ts.URL, Enabled: false, CallTimeoutSec: 300})
 	raw := getStr(bkState, "mcp")
 	raw = strings.Replace(raw, `}}`, `},"delta":{"enabled":true}}`, 1)
 	_ = putStr(bkState, "mcp", raw)

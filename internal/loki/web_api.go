@@ -1166,6 +1166,9 @@ type mcpSaveReq struct {
 	URL     string            `json:"url"`
 	Headers map[string]string `json:"headers"`
 	Enabled *bool             `json:"enabled"`
+	// CallTimeoutSec : délai d'un appel propre au serveur, en secondes
+	// (0 ou absent = réglage global).
+	CallTimeoutSec int `json:"callTimeoutSec"`
 }
 
 // handleMCP renvoie l'état de tous les serveurs MCP configurés (connexion tentée
@@ -1241,6 +1244,10 @@ func handleMCPSave(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
+	if msg := mcpCallTimeoutSecError(req.CallTimeoutSec); msg != "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": msg})
+		return
+	}
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -1252,6 +1259,8 @@ func handleMCPSave(w http.ResponseWriter, r *http.Request) {
 		URL:     strings.TrimSpace(req.URL),
 		Headers: req.Headers,
 		Enabled: enabled,
+
+		CallTimeoutSec: req.CallTimeoutSec,
 	}
 	if err := SetMCPServer(req.Name, cfg); err != nil {
 		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
@@ -1332,6 +1341,36 @@ func handleMCPTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendJSON(w, 200, map[string]any{"ok": true, "servers": list})
+}
+
+// handleMCPTimeouts renvoie les délais MCP globaux (secondes).
+func handleMCPTimeouts(w http.ResponseWriter, r *http.Request) {
+	t := LoadMCPTimeouts()
+	sendJSON(w, 200, map[string]any{"ok": true, "connect": t.Connect, "call": t.Call})
+}
+
+// handleMCPTimeoutsSave enregistre les délais MCP globaux (1 à 3600 s) et
+// ferme les sessions ouvertes, pour que le délai de connexion s'applique dès
+// la suivante.
+func handleMCPTimeoutsSave(w http.ResponseWriter, r *http.Request) {
+	var req MCPTimeouts
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if msg := mcpTimeoutsError(req); msg != "" {
+		sendJSON(w, 400, map[string]any{"ok": false, "error": msg})
+		return
+	}
+	if err := SaveMCPTimeouts(req); err != nil {
+		sendJSON(w, 500, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	servers, _ := LoadMCPConfig()
+	for name := range servers {
+		mcpInvalidate(name)
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "connect": req.Connect, "call": req.Call})
 }
 
 // handleMem / handleMemSave / handleMemDelete : éditeur web des pages mémoire
