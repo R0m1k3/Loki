@@ -922,11 +922,19 @@ impl RetryPatterns {
         if over.is_empty() {
             return None;
         }
-        let pats = over
+        // Un motif vide (ou blanc) est écarté : `(?mi)` correspond à TOUT, et
+        // chaque tour était relancé une fois (OpenFox 8e9b4869). Sans un seul
+        // motif utilisable, les motifs embarqués, comme le Go
+        // (compileRetryPatterns).
+        let pats: Vec<Box<dyn RetryPattern>> = over
             .iter()
+            .filter(|p| !p.trim().is_empty())
             .filter_map(|p| compile_go_regex(&format!("(?mi){p}")))
             .map(|r| Box::new(GoRegex(r)) as Box<dyn RetryPattern>)
             .collect();
+        if pats.is_empty() {
+            return None;
+        }
         Some(RetryPatterns::custom(pats))
     }
 
@@ -2907,10 +2915,19 @@ mod tests {
     /// en `(?mi)`, sémantique du Go (classes et limites de mot ASCII).
     #[test]
     fn surcharge_retry_patterns() {
-        for raw in ["", "null", "[]", "[\"a\", 1]", "\"x\"", "[\"a\"] x"] {
+        for raw in [
+            "",
+            "null",
+            "[]",
+            "[\"a\", 1]",
+            "\"x\"",
+            "[\"a\"] x",
+            "[\"\"]",
+            "[\" \", \"(\"]",
+        ] {
             assert!(RetryPatterns::from_override(raw).is_none(), "{raw}");
         }
-        let p = RetryPatterns::from_override(r#"["^oups", "[", "\\bdo_\\w+\\("]"#).unwrap();
+        let p = RetryPatterns::from_override(r#"["^oups", "[", "", "\\bdo_\\w+\\("]"#).unwrap();
         assert!(p.is_custom());
         assert_eq!(p.len(), 2, "la regex illisible est sautée");
         assert!(p.textual_tool_call("Bonjour\nOUPS !"));

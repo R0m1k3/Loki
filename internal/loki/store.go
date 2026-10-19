@@ -222,6 +222,10 @@ func cacheBust(bucket string) {
 	cacheMu.Lock()
 	delete(caches, bucket)
 	cacheMu.Unlock()
+	if bucket == bkState {
+		webKeyCacheBust()
+		retryStateBust()
+	}
 }
 
 // dbStamp renvoie la date et la taille du fichier de base — de quoi repérer

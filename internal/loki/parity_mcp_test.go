@@ -299,9 +299,9 @@ func TestPariteMCP(t *testing.T) {
 	results := map[string]string{}
 	for _, n := range []string{"echo", "multi", "media", "link", "struct", "fail", "empty", "big", "titled", "secret", "dot_tool", "nope"} {
 		name := mcpExposedName("alpha", n)
-		results[name] = mcpCall(name, callArgs[n])
+		results[name] = mcpCall(context.Background(), name, callArgs[n])
 	}
-	results["mcp__zeta__x"] = mcpCall("mcp__zeta__x", nil)
+	results["mcp__zeta__x"] = mcpCall(context.Background(), "mcp__zeta__x", nil)
 	fx["calls"] = results
 	fx["prompt_line_live"] = mcpPromptLine(mcpTools())
 
