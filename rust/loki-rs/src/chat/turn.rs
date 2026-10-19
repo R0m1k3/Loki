@@ -384,6 +384,13 @@ pub fn side_slot_pool_error(msg: &str) -> bool {
         && !REQ_EXCEEDS.is_match(msg)
 }
 
+/// Le relais porte-t-il une vidéo (see_video, partie `input_video`) ?
+fn is_video_relay(m: &Message) -> bool {
+    super::wire::content_parts(m.content.as_ref())
+        .iter()
+        .any(|p| p.get("type").and_then(Value::as_str) == Some("input_video"))
+}
+
 fn text_msg(role: &str, text: impl Into<String>) -> Message {
     Message {
         role: role.into(),
@@ -1071,8 +1078,11 @@ async fn run_turn_loop<H: TurnHost>(
                 push_result(&mut messages, &mut extra, cap_tool_result(&ex.result));
                 if let Some(img) = ex.relay {
                     match kt.as_mut() {
-                        // Éphémère : jamais dans l'historique.
+                        // Éphémère : jamais dans l'historique. Une vidéo
+                        // (see_video) l'est toujours, KEEP_TURN_IMAGES compris :
+                        // le rangement ne sait garder que des images.
                         None => messages.push(img),
+                        Some(_) if is_video_relay(&img) => messages.push(img),
                         // KEEP_TURN_IMAGES : gardée par référence, à l'essai
                         // jusqu'à la mesure de son coût.
                         Some(k) => {

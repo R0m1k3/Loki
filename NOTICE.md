@@ -52,6 +52,15 @@ et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
 **pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
 expose à la place un export/import de paquet chiffré en fichier local.
 
+La **compréhension des vidéos** est reprise d'AJEAN (PR #100 de Trombo38 et
+son correctif « vidéo envoyée seulement si le moteur sait la lire ») :
+l'outil `see_video` et les vidéos jointes (`chat_video.go`,
+`chat_video_tool.go`), lues par llama.cpp avec `--video-fps` et ffmpeg ;
+ailleurs, la vidéo reste un fichier, avec la marche à suivre (ffmpeg puis
+`see_image`). Adaptée à Loki : vidéo de `see_video` toujours éphémère, vidéos
+jointes chiffrées comme le fil et retirées d'un fil rouvert, outil tenu aussi
+par la façade Rust (`imagetools.rs`).
+
 ## Moteur Strata
 
 Le second moteur de Loki (`internal/loki/backend_strata.go`) est

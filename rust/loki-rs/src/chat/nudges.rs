@@ -141,10 +141,13 @@ pub fn steer_system(msgs: &[Message], hint: &str) -> Vec<Message> {
 }
 
 /// `dedupableTool` : un appel identique se court-circuite, sauf bash et ses
-/// jobs (effets de bord), see_image et le navigateur (état vivant, image à
-/// part).
+/// jobs (effets de bord), see_image, see_video et le navigateur (état
+/// vivant, image ou vidéo à part).
 pub fn dedupable_tool(name: &str) -> bool {
-    !matches!(name, "bash" | "bash_bg" | "bash_tail" | "see_image") && !name.starts_with("browser_")
+    !matches!(
+        name,
+        "bash" | "bash_bg" | "bash_tail" | "see_image" | "see_video"
+    ) && !name.starts_with("browser_")
 }
 
 /// `repeatedCallResult` : réponse à un appel RIGOUREUSEMENT identique déjà

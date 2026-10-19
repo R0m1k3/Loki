@@ -58,6 +58,9 @@ pub const COMPACT_SUMMARY_PREFIX: &str = "[CONTEXT COMPACTED]";
 /// Remplace la partie `image_url` d'un message multimodal dans [`msg_text`].
 pub const IMAGE_LOST_MARKER: &str = " [image — not kept in the conversation past this point; look at it again (see_image on the file, or a new screenshot) if you still need to see it]";
 
+/// `videoLostMarker` : remplace la partie `input_video` (chat_video.go).
+pub const VIDEO_LOST_MARKER: &str = " [video — not kept in the conversation past this point; call see_video on the file again if you still need to watch it]";
+
 /// La réponse assistant synthétique qui suit le résumé.
 pub const COMPACT_ACK_MSG: &str = "Understood. I'll resume from exactly where I left off, using the findings above, and call recall(id) if I need the full content of an archived block, without redoing work that is already done.";
 
@@ -265,6 +268,7 @@ pub fn msg_text(m: &Message) -> String {
                         }
                     }
                     Some("image_url") => b.push_str(IMAGE_LOST_MARKER),
+                    Some("input_video") => b.push_str(VIDEO_LOST_MARKER),
                     _ => {}
                 }
             }

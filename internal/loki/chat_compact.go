@@ -130,7 +130,8 @@ const imageLostMarker = " [image — not kept in the conversation past this poin
 // (userMessageContent : parties texte + image quand la vision est active) porte
 // un tableau de parties ; on en recolle les segments `text` pour que l'estimation
 // de contexte et le transcript de compaction ne partent pas d'un texte vide, et
-// on marque la présence d'une partie `image_url` (voir imageLostMarker) — sans
+// on marque la présence d'une partie `image_url` (voir imageLostMarker) ou
+// `input_video` (videoLostMarker, chat_video.go) — sans
 // quoi elle reste invisible à toute la chaîne de compaction.
 func msgText(m Message) string {
 	switch v := m.Content.(type) {
@@ -146,6 +147,8 @@ func msgText(m Message) string {
 				}
 			case "image_url":
 				b.WriteString(imageLostMarker)
+			case "input_video":
+				b.WriteString(videoLostMarker)
 			}
 		}
 		return b.String()
@@ -163,6 +166,8 @@ func msgText(m Message) string {
 				}
 			case "image_url":
 				b.WriteString(imageLostMarker)
+			case "input_video":
+				b.WriteString(videoLostMarker)
 			}
 		}
 		return b.String()

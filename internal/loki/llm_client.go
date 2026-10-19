@@ -515,6 +515,12 @@ func EnabledTools(caps Caps) []Tool {
 	// pas — il promettrait alors de regarder, puis se contredirait.
 	if caps.Agent && visionEnabled() {
 		tools = append(tools, seeImageTool())
+		// Voir une vidéo : seulement si le moteur sait la lire (llama.cpp local
+		// avec --video-fps, chat_video.go). Ailleurs, la vidéo resterait lettre
+		// morte : Strata et les API externes ignorent la partie sans erreur.
+		if videoInputSupported() {
+			tools = append(tools, seeVideoTool())
+		}
 	}
 	if caps.Agent && (caps.Internet || caps.Code) && screenshotAvailable() {
 		tools = append(tools, webScreenshotTool())
@@ -670,12 +676,12 @@ func fillToolResult(ev *ToolUsedEvent, result string) *ToolUsedEvent {
 //   - leur résultat dépend de l'ÉTAT VIVANT de la page (un browser_snapshot sans
 //     argument a forcément la même clé de dédup à chaque appel, alors que la page
 //     a changé) — les dédupliquer fige l'IA sur un vieux cliché ;
-//   - surtout, browser_screenshot et see_image portent leur IMAGE dans un message
+//   - surtout, browser_screenshot et see_image (see_video : sa vidéo) portent leur IMAGE dans un message
 //     à part (visionImg) que le chemin de dédup ne rejoue PAS : l'IA recevrait
 //     « [déjà fait] » SANS l'image et tournerait en boucle.
 func dedupableTool(name string) bool {
 	switch name {
-	case "bash", "bash_bg", "bash_tail", "see_image":
+	case "bash", "bash_bg", "bash_tail", "see_image", "see_video":
 		return false
 	}
 	return !strings.HasPrefix(name, "browser_")
@@ -1121,7 +1127,7 @@ func toolCallLabel(name string, args map[string]any) string {
 	switch name {
 	case "mem_search", "web_search", "web_images", "recall_search":
 		label, _ = args["query"].(string)
-	case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff", "see_image":
+	case "mem_read", "mem_add", "mem_edit", "edit", "write", "read", "git_diff", "see_image", "see_video":
 		label, _ = args["file"].(string)
 	case "recall":
 		label, _ = args["id"].(string)
@@ -1221,9 +1227,10 @@ type chatPayloadOpts struct {
 func buildChatPayload(ep chatEndpoint, sent []Message, temperature float64, o chatPayloadOpts) map[string]any {
 	payload := map[string]any{
 		"model": ep.Model,
-		// Les images de l'historique y sont rangées par référence
-		// (chat_images.go) : on remet leurs octets juste avant l'envoi.
-		"messages":    expandImageRefs(sent),
+		// Les images et vidéos de l'historique y sont rangées par référence
+		// (chat_images.go, chat_video.go) : on remet leurs octets juste avant
+		// l'envoi.
+		"messages":    expandVideoRefs(expandImageRefs(sent)),
 		"stream":      true,
 		"temperature": temperature,
 		// include_usage → chunk final avec `usage.prompt_tokens` = taille TOTALE
@@ -2343,7 +2350,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				var diffAdd, diffDel int // vrais totaux (diff est tronqué pour l'UI)
 				// visionImg : partie image_url rendue par see_image, réinjectée après
 				// le résultat de l'outil (un message `tool` ne porte que du texte).
-				var visionImg map[string]any
+				var visionImg, visionVideo map[string]any
 				// Appel rigoureusement identique déjà exécuté dans ce tour : on ne le
 				// rejoue pas. Les petits modèles réémettent volontiers deux fois la
 				// même écriture ; la rejouer produisait une fausse erreur (« old
@@ -2375,7 +2382,7 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				} else {
 					ex = execTool(ctx, tc.Function.Name, args, label, caps)
 				}
-				result, diff, diffAdd, diffDel, visionImg = ex.Result, ex.Diff, ex.Added, ex.Removed, ex.VisionImg
+				result, diff, diffAdd, diffDel, visionImg, visionVideo = ex.Result, ex.Diff, ex.Added, ex.Removed, ex.VisionImg, ex.VisionVideo
 				if ex.Ask != nil {
 					cb(StreamEvent{Ask: ex.Ask})
 				}
@@ -2432,6 +2439,13 @@ func runChatLoop(ctx context.Context, kt *keepImages, messages []Message, tools 
 				// maintenant ; ce qu'il en dit, lui, reste.
 				if visionImg != nil {
 					messages, extra = kt.relay(messages, extra, seeImageMessage(label, visionImg), stepStart)
+				}
+				// see_video a réussi : même relais, toujours ÉPHÉMÈRE — dans
+				// `messages` seulement, jamais dans `extra`, KEEP_TURN_IMAGES
+				// compris (une vidéo pèse des milliers de jetons visuels, et
+				// kt.relay ne sait ranger que des images).
+				if visionVideo != nil {
+					messages = append(messages, seeVideoMessage(label, visionVideo))
 				}
 			}
 			// Compaction EN COURS DE TOUR. Le seuil n'était testé qu'AU DÉBUT du tour :
@@ -2616,7 +2630,10 @@ type toolExecResult struct {
 	Added     int            `json:"added,omitempty"`
 	Removed   int            `json:"removed,omitempty"`
 	VisionImg map[string]any `json:"vision_img,omitempty"`
-	Ask       *AskEvent      `json:"ask,omitempty"`
+	// VisionVideo : partie input_video rendue par see_video (chat_video_tool.go),
+	// relayée au modèle comme l'image, mais toujours éphémère.
+	VisionVideo map[string]any `json:"vision_video,omitempty"`
+	Ask         *AskEvent      `json:"ask,omitempty"`
 }
 
 // execToolHook : nil en service. Les tests de parité Go/Rust
@@ -2631,11 +2648,13 @@ func execTool(ctx context.Context, name string, args map[string]any, label strin
 	result := ""
 	var diff []DiffLine
 	var diffAdd, diffDel int
-	var visionImg map[string]any
+	var visionImg, visionVideo map[string]any
 	var ask *AskEvent
 	switch name {
 	case "see_image":
 		result, visionImg = toolSeeImage(label)
+	case "see_video":
+		result, visionVideo = toolSeeVideo(label)
 	case "recall":
 		result = toolRecall(args)
 	case "recall_search":
@@ -2820,5 +2839,5 @@ func execTool(ctx context.Context, name string, args map[string]any, label strin
 			result = "[erreur] outil inconnu: " + name
 		}
 	}
-	return toolExecResult{Result: result, Diff: diff, Added: diffAdd, Removed: diffDel, VisionImg: visionImg, Ask: ask}
+	return toolExecResult{Result: result, Diff: diff, Added: diffAdd, Removed: diffDel, VisionImg: visionImg, VisionVideo: visionVideo, Ask: ask}
 }
