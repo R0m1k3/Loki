@@ -330,6 +330,7 @@ func convDelete(id string) error {
 	convIndexSave(next)
 	convIndexMu.Unlock()
 	_ = putBytes(bkChat, convKey(id), nil)
+	histUnindexAt(dbPath(), id) // son index plein-texte part avec elle (chat_search.go)
 	// Mode code : les jobs d'arrière-plan de la discussion s'arrêtent avec
 	// elle, et ses critères/mode/puce partent avec ses messages.
 	stopConvJobs(id)

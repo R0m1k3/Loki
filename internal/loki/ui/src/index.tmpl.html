@@ -66,11 +66,12 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
        d'origine) : basculer ici bascule partout.
-       La recherche filtre CÔTÉ CLIENT : la liste est déjà entièrement chargée
-       (métadonnées seules, sans les messages), un aller-retour serveur par
-       frappe n'apporterait rien. -->
+       La recherche filtre d'abord les titres CÔTÉ CLIENT (la liste est déjà
+       chargée, réponse immédiate), puis demande au serveur les discussions dont
+       le TEXTE contient les mots (index plein-texte, chat_search.go) — avec un
+       extrait sous le titre. -->
   <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion" aria-label="nouvelle discussion"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></summary>
-    <input id="conv-search" type="search" placeholder="rechercher une discussion…" oninput="renderConversations()" aria-label="rechercher une discussion">
+    <input id="conv-search" type="search" placeholder="rechercher partout…" oninput="renderConversations()" aria-label="rechercher dans les titres et le texte des discussions">
     <div id="conv-list" class="slist"></div>
   </details>
   <!-- Avertissement de lancement (App Translocation macOS) — masqué par défaut. -->

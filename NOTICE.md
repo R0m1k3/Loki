@@ -52,6 +52,14 @@ et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
 **pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
 expose à la place un export/import de paquet chiffré en fichier local.
 
+La **recherche plein-texte des discussions** (`chat_search.go`) reprend celle
+de l'historique d'AJEAN (commit `558d3b4d`, issue amont #98, PR #99 d'Olioli4) :
+index inversé chiffré comme les discussions, tokens repliés sans accents,
+correspondance par début de mot, titre compté double. Adaptée au modèle de
+Loki (toutes les discussions dans `bkChat`, index tenu à chaque écriture, y
+compris celles de la façade Rust) et à sa barre latérale (« rechercher
+partout », extrait autour du passage trouvé).
+
 ## Moteur Strata
 
 Le second moteur de Loki (`internal/loki/backend_strata.go`) est

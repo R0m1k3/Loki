@@ -228,6 +228,10 @@ func handleInternalStore(w http.ResponseWriter, r *http.Request) {
 			sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
 			return
 		}
+		// Une discussion écrite par la façade : l'index plein-texte la suit
+		// (chat_search.go). Avant la réponse, pour que sa suppression, qui
+		// n'arrive qu'après, ne soit jamais doublée par cette indexation.
+		histIndexStoreWrite(bucket, key, val, false)
 		w.WriteHeader(http.StatusNoContent)
 	case http.MethodDelete:
 		err := update(bucket, func(b *bolt.Bucket) error { return b.Delete([]byte(key)) })
@@ -235,6 +239,7 @@ func handleInternalStore(w http.ResponseWriter, r *http.Request) {
 			sendJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
 			return
 		}
+		histIndexStoreWrite(bucket, key, nil, true)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.Header().Set("Allow", "GET, PUT, DELETE")

@@ -951,6 +951,7 @@ func handleMemUnlock(w http.ResponseWriter, r *http.Request) {
 	if memEncActive() && memUnlocked() {
 		_ = reencryptChatStores()
 	}
+	startHistSearchBackfill() // index plein-texte : il attendait la clé (chat_search.go)
 	sendJSON(w, 200, map[string]any{"ok": true, "kind": kind, "health": memHealth()})
 }
 

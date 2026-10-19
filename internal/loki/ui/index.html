@@ -1797,6 +1797,14 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   color:var(--dim);letter-spacing:-.01em;overflow:visible}
 .side .preset:hover .conv-when{opacity:0}
 .conv-empty{font-size:12px;color:var(--dim);padding:8px 11px}
+/* Extrait d'un résultat de recherche plein-texte : sous le titre, à la place
+   de .preset-meta, une seule ligne tronquée comme le titre. */
+.side .preset .conv-snip{font-size:12px;color:var(--dim);margin-top:3px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+/* Ligne à extrait : deux lignes de texte. L'heure et l'anneau se calent sur
+   la ligne de base du TITRE au lieu de se centrer entre les deux (les boutons,
+   en position absolue, restent centrés sur la ligne entière). */
+.side .preset.has-snip{align-items:baseline}
 .conv-more{display:block;width:100%;font:inherit;font-size:12px;color:var(--dim);background:none;
   border:0;padding:8px 11px;text-align:left;cursor:pointer}
 .conv-more:hover{color:var(--text)}
@@ -2351,11 +2359,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
   <!-- Discussions : plusieurs fils, la liste la plus récente en tête. Le fil
        actif est partagé par tous les appareils (comme la conversation unique
        d'origine) : basculer ici bascule partout.
-       La recherche filtre CÔTÉ CLIENT : la liste est déjà entièrement chargée
-       (métadonnées seules, sans les messages), un aller-retour serveur par
-       frappe n'apporterait rien. -->
+       La recherche filtre d'abord les titres CÔTÉ CLIENT (la liste est déjà
+       chargée, réponse immédiate), puis demande au serveur les discussions dont
+       le TEXTE contient les mots (index plein-texte, chat_search.go) — avec un
+       extrait sous le titre. -->
   <details id="conv-details" open><summary><span class="stitle">Discussions</span><button class="preset-add" onclick="event.preventDefault();event.stopPropagation();convNew()" title="nouvelle discussion" aria-label="nouvelle discussion"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg></button></summary>
-    <input id="conv-search" type="search" placeholder="rechercher une discussion…" oninput="renderConversations()" aria-label="rechercher une discussion">
+    <input id="conv-search" type="search" placeholder="rechercher partout…" oninput="renderConversations()" aria-label="rechercher dans les titres et le texte des discussions">
     <div id="conv-list" class="slist"></div>
   </details>
   <!-- Avertissement de lancement (App Translocation macOS) — masqué par défaut. -->
@@ -10528,8 +10537,11 @@ function fmtWhen(sec){
 // balisage ni les gestionnaires d'événement.
 //
 // La liste chargée est GARDÉE en mémoire (CONVS) pour que la recherche filtre
-// sans aller-retour serveur : elle ne porte que des métadonnées — identifiant,
-// titre, dates, nombre d'échanges — jamais les messages.
+// les TITRES sans aller-retour serveur : elle ne porte que des métadonnées —
+// identifiant, titre, dates, nombre d'échanges — jamais les messages. Le TEXTE
+// des discussions, lui, est cherché par le serveur (/api/conversations/search,
+// index plein-texte chiffré comme les discussions) : sa réponse arrive après
+// une courte pause de frappe et complète la liste, avec un extrait.
 
 let CONVS = [], CONV_ACTIVE = '';
 // Vrai quand le SERVEUR dit qu'un tour tourne sur la discussion active. Sert au
@@ -10543,11 +10555,65 @@ let CONV_BUSY = false;
 // recherche, elle, filtre toujours TOUTE la liste (CONVS est en mémoire).
 const CONV_PAGE = 40;
 let CONV_SHOWN = CONV_PAGE, CONV_LAST_Q = '', convMoreObs = null;
+// Recherche plein-texte : dernière réponse du serveur (pour la requête q), et
+// minuterie de la pause de frappe. Une réponse arrivée pour une requête qui
+// n'est plus celle du champ est jetée.
+// convSrvGen numérote les requêtes : un rechargement de la liste en relance
+// une pour la même saisie, la réponse d'avant ne doit plus s'afficher.
+let CONV_SRV = null, convSrvTimer = 0, convSrvWanted = '', convSrvGen = 0;
+const CONV_SRV_PAUSE = 250;
+
+function convSearchSchedule(q){
+  if(q === convSrvWanted) return;
+  convSrvWanted = q;
+  clearTimeout(convSrvTimer);
+  const gen = ++convSrvGen;
+  if(!q) return;
+  convSrvTimer = setTimeout(async () => {
+    let r;
+    try{ r = await jget('/api/conversations/search?limit=100&q=' + encodeURIComponent(q)); }catch(_){ r = null; }
+    if(gen !== convSrvGen) return; // saisie changée, ou liste rechargée depuis
+    CONV_SRV = {q, r: (r && r.ok) ? r : null, failed: !(r && r.ok)};
+    renderConversations();
+  }, CONV_SRV_PAUSE);
+}
+
+// Liste affichée pour une requête : les résultats du serveur dans leur ordre
+// (pertinence : titre puis texte), puis les titres trouvés ici que le serveur
+// n'a pas (il cherche des débuts de mots, le filtre local une sous-chaîne).
+// Rend aussi les extraits et la ligne d'état éventuelle.
+function convSearchList(q){
+  const byTitle = CONVS.filter(c => (c.title || 'Nouvelle discussion').toLowerCase().includes(q));
+  const snips = new Map();
+  const cur = CONV_SRV && CONV_SRV.q === q ? CONV_SRV : null;
+  const srv = cur ? cur.r : null;
+  if(!srv) return {list: byTitle, snips, note: cur && cur.failed ? 'recherche dans le texte indisponible : titres seulement' : ''};
+  let note = '';
+  const got = (srv.conversations || []).length;
+  if(srv.state === 'locked') note = 'mémoire verrouillée : recherche dans les titres seulement';
+  else if(srv.indexed < srv.indexed_total) note = 'indexation en cours (' + srv.indexed + '/' + srv.indexed_total + ') : résultats partiels';
+  else if(srv.total > got) note = 'les ' + got + ' plus pertinentes sur ' + srv.total + ' : précisez la recherche';
+  const byID = new Map(CONVS.map(c => [c.id, c]));
+  const list = [], seen = new Set();
+  for(const h of (srv.conversations || [])){
+    const c = byID.get(h.id);
+    if(!c || seen.has(c.id)) continue;
+    seen.add(c.id);
+    list.push(c);
+    if(h.snippet && h.snippet !== (c.title || '')) snips.set(c.id, h.snippet);
+  }
+  for(const c of byTitle) if(!seen.has(c.id)) list.push(c);
+  return {list, snips, note};
+}
 
 async function loadConversations(){
   let r;
   try{ r = await jget('/api/conversations'); }catch(_){ return; }
   CONVS = r.conversations || [];
+  // La liste a changé (fin de tour, bascule, suppression) : une recherche en
+  // cours est refaite. Ses résultats restent affichés d'ici la nouvelle
+  // réponse — les effacer ferait clignoter la liste à chaque tour.
+  convSrvWanted = '';
   // Ordre de CRÉATION, la plus récente en tête : une discussion garde sa place
   // dans la liste quoi qu'il arrive — écrire dans un vieux fil ne le fait pas
   // remonter (le serveur, lui, trie par activité). Départage par l'ordre du
@@ -10566,9 +10632,14 @@ function renderConversations(){
   const q = (document.getElementById('conv-search')?.value || '').trim().toLowerCase();
   cont.textContent = '';
   if(q !== CONV_LAST_Q){ CONV_LAST_Q = q; CONV_SHOWN = CONV_PAGE; }
-  const list = q
-    ? CONVS.filter(c => (c.title || 'Nouvelle discussion').toLowerCase().includes(q))
-    : CONVS;
+  convSearchSchedule(q);
+  const {list, snips, note} = q ? convSearchList(q) : {list: CONVS, snips: new Map(), note: ''};
+  if(note){
+    const e = document.createElement('div');
+    e.className = 'conv-empty';
+    e.textContent = note;
+    cont.appendChild(e);
+  }
   if(!list.length){
     const e = document.createElement('div');
     e.className = 'conv-empty';
@@ -10583,7 +10654,8 @@ function renderConversations(){
   const shown = Math.max(CONV_SHOWN, ai + 1);
   for(const c of list.slice(0, shown)){
     const row = document.createElement('div');
-    row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '');
+    const sn = snips.get(c.id);
+    row.className = 'preset' + (c.id === CONV_ACTIVE ? ' active' : '') + (sn ? ' has-snip' : '');
     // L'identifiant est porté par la ligne : convSyncBusy retrouve ainsi CELLE
     // qui travaille sans redessiner la liste (un redessin relancerait
     // l'animation de l'anneau à chaque événement du flux).
@@ -10596,6 +10668,14 @@ function renderConversations(){
     nm.appendChild(document.createTextNode(title));
     nm.title = title + (c.turns ? ' · ' + c.turns + ' échange' + (c.turns > 1 ? 's' : '') : '');
     info.appendChild(nm);
+    // Recherche : le passage du texte où les mots ont été trouvés.
+    if(sn){
+      const s = document.createElement('div');
+      s.className = 'conv-snip';
+      s.textContent = sn;
+      s.title = sn;
+      info.appendChild(s);
+    }
 
     // Heure à droite du titre, sur la même ligne (maquette). Elle s'efface au
     // survol : renommer et supprimer prennent sa place, la ligne ne s'allonge

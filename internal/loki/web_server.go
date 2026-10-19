@@ -163,6 +163,9 @@ func newWebMux() *http.ServeMux {
 	// orphelin arrêté, moteur relancé s'il tournait avant (backend_tune_lock.go)
 	// — au démarrage, puis toutes les 30 s (un stat sans verrou).
 	go tuneRecoverWatch(time.NewTicker(tuneRecoverEvery).C)
+	// Index plein-texte des discussions : rattrape celles d'avant la
+	// fonctionnalité (ou dont l'indexation a échoué), en tâche de fond.
+	startHistSearchBackfill()
 	mux := http.NewServeMux()
 	// Pages publiques : le HTML et le JS ne contiennent aucun secret. Toute la
 	// donnée et toutes les actions passent par /api/* qui, lui, exige la clé.
@@ -399,6 +402,9 @@ func newWebMux() *http.ServeMux {
 	api("/api/conversations/switch", handleConvSwitch)
 	api("/api/conversations/rename", handleConvRename)
 	api("/api/conversations/delete", handleConvDelete)
+	// Recherche plein-texte (chat_search.go) : servie ici même quand la façade
+	// tient la conversation — l'index est tenu par ce process.
+	api("/api/conversations/search", handleConvSearch)
 	api("/api/chat/mode", handleChatMode)         // GET mode+critères / POST bascule Chat|Code
 	api("/api/chat/criteria", handleChatCriteria) // édition manuelle des critères (mode code)
 	api("/api/chat/compact", handleChatCompact)   // compaction manuelle du contexte
