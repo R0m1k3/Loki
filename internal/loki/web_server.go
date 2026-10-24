@@ -57,8 +57,16 @@ func cmdWeb(args []string) error {
 	if sh := storageFuseHint(); sh != "" {
 		fmt.Println(yellow(sh))
 	}
+	if gen, err := ensureWebKey(); err != nil {
+		fmt.Printf("%s clé de pilotage : %v\n", red("[!]"), err)
+	} else if gen != "" {
+		// Affichée UNE seule fois : l'interface la demande à la première visite
+		// et la garde dans le navigateur.
+		fmt.Printf("%s clé de pilotage générée (à saisir dans l'interface) : %s\n", green("[ok]"), bold(gen))
+		fmt.Printf("       pour la revoir : %s — pour en choisir une : %s\n", bold("loki set-web-key show"), bold("loki set-web-key <clé>"))
+	}
 	if readWebKey() == "" {
-		fmt.Printf("%s API de pilotage NON protégée (aucune clé). Avant de l'exposer sur internet :\n", yellow("[!]"))
+		fmt.Printf("%s API de pilotage NON protégée (clé retirée par « loki set-web-key off »). Pour la protéger :\n", yellow("[!]"))
 		fmt.Printf("       %s\n", bold("loki set-web-key"))
 	} else {
 		fmt.Printf("%s API protégée par clé (Authorization: Bearer …)\n", green("[ok]"))

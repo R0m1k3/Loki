@@ -157,7 +157,8 @@ Interface (loki-ui) :
   ui [start|stop|restart|status]  pilote le service d'interface
   web [PORT]                    sert l'interface au premier plan (défaut :8090) —
                                 ouvre aussi le tunnel si un jeton est enregistré
-  set-web-key [clé]             protéger l'API de pilotage; vide = générer, "" = retirer
+  set-web-key [clé|show|off]    clé de l'API de pilotage (générée au 1er démarrage);
+                                vide = générer, show = afficher, off = retirer
 
 Interaction:
   chat [system-prompt]          chat terminal streamé

@@ -54,8 +54,8 @@ function showAccessBlocked(msg){
   d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;padding:12px 16px;background:var(--err,#b3564d);color:#fff;font-size:13px;line-height:1.5';
   const host = location.hostname;
   d.innerHTML = '<b>Accès refusé par Loki</b> — ' + escHtml(msg) +
-    '<br>Derrière un reverse proxy : ajoute <code>LOKI_TRUSTED_HOSTS=' + escHtml(host) +
-    '</code> aux variables du conteneur puis recrée-le, ou définis une clé de pilotage (<code>docker exec -it loki loki set-web-key</code>).';
+    '<br>Définis une clé de pilotage (<code>docker exec -it loki loki set-web-key</code>), ou, derrière un reverse proxy, ajoute <code>LOKI_TRUSTED_HOSTS=' + escHtml(host) +
+    '</code> aux variables du conteneur puis recrée-le.';
   document.body.appendChild(d);
 }
 // askKeyOnce : UNE seule demande de clé à la fois, partagée par tous les appels.
@@ -69,7 +69,7 @@ function showAccessBlocked(msg){
 let _keyAsk = null;
 function askKeyOnce(){
   if(!_keyAsk){
-    _keyAsk = askPrompt('Clé de pilotage Loki requise :', {title:'Authentification', placeholder:'clé…'})
+    _keyAsk = askPrompt('Clé de pilotage Loki requise (affichée dans le journal au premier démarrage ; « loki set-web-key show » pour la revoir) :', {title:'Authentification', placeholder:'clé…'})
       .then(k => {
         _keyAsk = null;
         if(k){ TOKEN = k.trim(); localStorage.setItem('loki.key', TOKEN); }

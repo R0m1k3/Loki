@@ -12,6 +12,8 @@
 #        mkdir -p /mnt/user/appdata/loki/data /mnt/user/appdata/loki/models
 #   3) Plugin « Compose Manager » -> nouvelle stack -> colle ce fichier.
 #   4) Compose Up. Interface : http://<ip-unraid>:8090
+#      La clé de pilotage demandée par l'interface est affichée dans le
+#      journal du conteneur au premier démarrage.
 #
 #   Les modèles se téléchargent directement depuis l'UI (catalogue intégré),
 #   ou dépose tes .gguf dans /mnt/user/appdata/loki/models.
@@ -36,10 +38,12 @@ services:
       # lancement). Ex. LOKI_MODEL=Qwen3-14B-Q4_K_M.gguf après dépôt du
       # fichier dans /mnt/user/appdata/loki/models.
       - LOKI_MODEL=
-      # Accès par NOM DE DOMAINE (reverse proxy, ex. loki.mondomaine.fr) sans
-      # clé de pilotage : liste ici le(s) nom(s), séparés par des virgules —
-      # sinon l'API répond 403 (protection contre les sites tiers / DNS
-      # rebinding). Inutile pour un accès par IP ou nom local.
+      # Clé de pilotage : générée au premier démarrage et affichée UNE fois
+      # dans le journal du conteneur — l'interface la demande à la première
+      # visite. Revoir : docker exec -it loki loki set-web-key show
+      # LOKI_TRUSTED_HOSTS ne sert que si la clé a été retirée EXPRÈS
+      # (loki set-web-key off, déconseillé) : nom(s) de domaine admis sans
+      # clé, séparés par des virgules.
       - LOKI_TRUSTED_HOSTS=
       # Conversation tenue par la façade Rust (défaut). « go » la rend au Go si
       # quelque chose ne va pas — puis Compose Down / Up.

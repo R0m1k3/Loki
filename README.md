@@ -57,6 +57,8 @@ docker compose up --build   # quelques minutes : llama-server vient précompilé
 
 Interface : http://localhost:8090 — installe un modèle depuis la recherche
 Hugging Face intégrée (voir ci-dessous), il démarre tout seul.
+La clé de pilotage demandée à la première visite est affichée dans le journal
+(`docker compose logs loki`) — voir « Sécurité / clé de pilotage ».
 
 ## Installer un modèle
 
@@ -242,7 +244,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint (repli : le jeton réglé dans l'UI prime) | — |
 | `LOKI_CHROME` | binaire du navigateur piloté (contrôle du navigateur) ; par défaut le Chromium de Playwright de l'image | — |
 | `LOKI_CU_HEADFUL` | `1` : ouvre une vraie fenêtre au lieu du mode headless (machine avec écran) | — |
-| `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** clé de pilotage (reverse proxy), séparés par des virgules | — |
+| `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** clé de pilotage (reverse proxy), séparés par des virgules — ne sert que si la clé a été retirée exprès (`loki set-web-key off`) | — |
 | `LOKI_AUTO_UPDATE` | `0` : pas de mise à jour des binaires au démarrage | `1` |
 | `LOKI_FACADE` | `0` : sans façade Rust, le Go sert directement le port public (porte de sortie) | `1` |
 | `LOKI_GO_PORT` | port local (127.0.0.1) du serveur Go derrière la façade | `8091` |
@@ -267,16 +269,31 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_SYSTEM` | `rust` : les interrupteurs système — accès internet et Crawl4AI, pilotage du navigateur, clé de complétion, écoute réseau du moteur — sont tenus par la façade Rust (expérimental, migration en cours) ; le navigateur piloté, lui, est celui de la façade dès qu'elle tient la conversation | Go |
 | `LOKI_ENGINE` | `rust` : le pilotage du moteur (démarrage, arrêt, redémarrage, déchargement et rechargement de la VRAM) est tenu par la façade Rust, en conteneur avec son superviseur ; le verrou de l'optimiseur reste au Go (expérimental, migration en cours) | Go |
 
-**Accès par nom de domaine.** Sans clé de pilotage, l'API n'accepte que les
-hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) et refuse
-toute requête venue d'un autre site : une page web ouverte dans un navigateur
-du réseau ne peut plus piloter Loki en douce (ni par DNS rebinding). Derrière
-un reverse proxy (`loki.mondomaine.fr`), définir une clé
-(`docker exec -it loki loki set-web-key`) ou lister le nom dans
-`LOKI_TRUSTED_HOSTS`.
-
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `tune`, `test`…).
+
+### Sécurité / clé de pilotage
+
+L'API de pilotage (`/api/*`) permet, entre autres, de lancer des commandes sur
+la machine (serveurs MCP, compilation de llama.cpp, agent). Elle est donc
+**toujours protégée par une clé** : au premier démarrage (ou au premier
+démarrage d'une installation qui n'en avait pas), Loki génère une clé
+aléatoire et l'affiche **une seule fois** dans le journal :
+
+```
+[ok] clé de pilotage générée (à saisir dans l'interface) : loki-web-…
+```
+
+L'interface la demande à la première visite et la garde dans le navigateur.
+Pour la revoir : `docker exec -it loki loki set-web-key show` ; pour en
+générer une nouvelle : `docker exec -it loki loki set-web-key` ; pour choisir
+la sienne : `docker exec -it loki loki set-web-key <clé>`. Une clé déjà
+définie n'est jamais modifiée.
+
+Retirer la clé (`loki set-web-key off`, déconseillé dès que le port est
+joignable par d'autres machines) rouvre l'API : elle n'accepte alors que les
+hôtes locaux (IP, `localhost`, nom sans point, `.local`/`.lan`…) ou listés
+dans `LOKI_TRUSTED_HOSTS`, et refuse toute requête venue d'un autre site.
 
 ### Données et persistance
 

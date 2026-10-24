@@ -95,7 +95,9 @@ func readWebKey() string { k, _ := readWebKeyErr(); return k }
 
 // requireWebAuth wraps an HTTP handler, rejecting requests that don't present
 // the configured Bearer token. When no key is configured the handler is left
-// open (pratique en local) — cmdWeb avertit alors bruyamment au démarrage.
+// open — ce qui n'arrive plus qu'après un retrait explicite (loki set-web-key
+// off) : cmdWeb génère sinon une clé au démarrage (ensureWebKey) et avertit
+// bruyamment si l'API reste ouverte.
 func requireWebAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key, err := readWebKeyErr()
@@ -198,7 +200,9 @@ func checkBearer(r *http.Request, key string) bool {
 //
 //	loki set-web-key <clé>     définit la clé
 //	loki set-web-key           génère une clé aléatoire
-//	loki set-web-key ""        supprime la protection (API ouverte)
+//	loki set-web-key show      affiche la clé actuelle
+//	loki set-web-key off       supprime la protection (API ouverte), et
+//	                           empêche sa régénération au démarrage
 //
 // Contrairement à set-api-key, aucun redémarrage n'est nécessaire : le serveur
 // web relit la clé à chaque requête.
@@ -206,18 +210,38 @@ func cmdSetWebKey(args []string) error {
 	var key string
 	switch {
 	case len(args) == 0:
-		buf := make([]byte, 24)
-		if _, err := rand.Read(buf); err != nil {
+		k, err := newWebKey()
+		if err != nil {
 			return err
 		}
-		key = "loki-web-" + hex.EncodeToString(buf)
+		key = k
 		fmt.Printf("%s clé générée : %s\n", green("[ok]"), bold(key))
+	case args[0] == "show":
+		k, err := readWebKeyErr()
+		if err != nil {
+			return err
+		}
+		if k == "" {
+			fmt.Printf("%s aucune clé de pilotage — l'API web n'est pas protégée\n", yellow("[!]"))
+		} else {
+			fmt.Println(k)
+		}
+		return nil
 	case args[0] == "" || args[0] == "off" || args[0] == "none":
 		key = ""
 	default:
 		key = strings.TrimSpace(args[0])
 	}
 	if err := putStr(bkState, "web_key", key); err != nil {
+		return err
+	}
+	// Retrait EXPLICITE : on le retient, pour que le démarrage suivant ne
+	// régénère pas une clé (voir ensureWebKey). Toute autre valeur l'annule.
+	open := ""
+	if key == "" {
+		open = "1"
+	}
+	if err := putStr(bkState, webKeyOpenFlag, open); err != nil {
 		return err
 	}
 	if key == "" {
@@ -228,6 +252,47 @@ func cmdSetWebKey(args []string) error {
 	fmt.Printf("       les clients doivent envoyer : %s\n", dim("Authorization: Bearer "+key))
 	fmt.Printf("       (relance 'loki web' si le serveur web tourne déjà — non requis, lu à chaud)\n")
 	return nil
+}
+
+// webKeyOpenFlag : posé par « loki set-web-key off » — le propriétaire a retiré
+// la clé de pilotage EXPRÈS. Sans lui, une API sans clé est un oubli, et
+// ensureWebKey en génère une au démarrage.
+const webKeyOpenFlag = "web_key_open"
+
+// newWebKey tire une clé de pilotage aléatoire (192 bits).
+func newWebKey() (string, error) {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return "loki-web-" + hex.EncodeToString(buf), nil
+}
+
+// ensureWebKey : sans clé de pilotage, l'API /api/* est ouverte à quiconque
+// joint le port — et elle mène jusqu'à l'exécution de commandes (serveurs MCP,
+// llama.cpp personnalisé, agent). Le port étant publié sur toutes les
+// interfaces par défaut, on ne démarre plus jamais sans clé : au premier
+// démarrage (ou sur une installation qui n'en avait pas), une clé aléatoire est
+// générée, enregistrée là où « loki set-web-key » la range, et renvoyée pour
+// être affichée UNE fois dans le journal. Une clé déjà définie n'est jamais
+// touchée ; un retrait explicite (« loki set-web-key off ») est respecté.
+// Renvoie la clé générée, "" si rien n'a été fait.
+func ensureWebKey() (string, error) {
+	key, err := readWebKeyErr()
+	if err != nil || key != "" {
+		return "", err
+	}
+	if getStr(bkState, webKeyOpenFlag) == "1" {
+		return "", nil
+	}
+	key, err = newWebKey()
+	if err != nil {
+		return "", err
+	}
+	if err := putStr(bkState, "web_key", key); err != nil {
+		return "", err
+	}
+	return key, nil
 }
 
 // crossSiteReject refuse les requêtes qu'un SITE TIERS ouvert dans le navigateur
