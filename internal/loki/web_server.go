@@ -19,7 +19,7 @@ import (
 )
 
 //go:generate go run ../../tools/assemble-ui ui
-//go:embed ui/index.html ui/marked.min.js ui/sw.js ui/manifest.webmanifest ui/fonts/*.woff2
+//go:embed ui/index.html ui/marked.min.js ui/purify.min.js ui/sw.js ui/manifest.webmanifest ui/fonts/*.woff2
 var uiFS embed.FS
 
 // cmdWeb starts the HTTP server on the given port (default 8090).
@@ -183,6 +183,13 @@ func newWebMux() *http.ServeMux {
 	mux.HandleFunc("/api/node/ws", handleNodeWS)
 	mux.HandleFunc("/marked.min.js", func(w http.ResponseWriter, r *http.Request) {
 		b, _ := uiFS.ReadFile("ui/marked.min.js")
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(b)
+	})
+	// DOMPurify : assainit le HTML que marked produit (voir md() dans 00-md.js).
+	mux.HandleFunc("/purify.min.js", func(w http.ResponseWriter, r *http.Request) {
+		b, _ := uiFS.ReadFile("ui/purify.min.js")
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		w.Write(b)
@@ -546,8 +553,19 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
+	w.Header().Set("Content-Security-Policy", uiCSP)
 	w.Write(b)
 }
+
+// uiCSP : politique de sécurité du contenu de l'UI (même valeur dans
+// rust/loki-rs/src/ui.rs). L'UI est un seul fichier aux scripts et gestionnaires
+// d'événements en ligne : 'unsafe-inline' reste donc nécessaire pour script-src,
+// la défense principale contre l'injection étant DOMPurify. Elle interdit en
+// revanche tout script, toute requête (connect-src) et tout formulaire vers une
+// autre origine — une injection ne peut ni charger de code ni exfiltrer la clé
+// par fetch —, ainsi que <object>, <base> et l'inclusion de l'UI dans un cadre
+// tiers. Images http(s) admises : l'outil web_images affiche des images du web.
+const uiCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' data: blob: mediastream:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 
 func sendJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")

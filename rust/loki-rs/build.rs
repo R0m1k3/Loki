@@ -17,6 +17,7 @@ fn main() {
     for name in [
         "index.html",
         "marked.min.js",
+        "purify.min.js",
         "sw.js",
         "manifest.webmanifest",
     ] {

@@ -217,7 +217,8 @@ function setStats(el, work, speed){
   s.classList.toggle('has-work', !!work);
 }
 function bodyOf(el){ return el.querySelector('.body'); }
-// Render markdown into a message body in place; safe because md() escapes HTML.
+// Render markdown into a message body in place; safe because md() sanitizes
+// marked's output with DOMPurify (marked itself does NOT escape raw HTML).
 function renderBody(el, text){ const b=bodyOf(el); b.innerHTML = md(encodeMdLinkSpaces(text)); markNotices(b); addCopyButtons(b); markFileLinks(b); hydrateImages(b); scrollMaybe(); }
 // Images servies par Loki (/api/chat/image) : une balise <img> ne peut pas
 // porter d'en-tête Authorization, or /api/* exige la clé de pilotage dès qu'elle

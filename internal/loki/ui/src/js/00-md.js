@@ -14,7 +14,13 @@ function fixMd(s){
   s = s.replace(/\n{3,}/g, '\n\n');
   return s;
 }
-function md(src){ return src ? marked.parse(fixMd(src)) : ''; }
+// Le markdown vient du modèle, d'outils (pages web, fichiers, MCP) et de
+// rapports de tâches : marked laisse passer le HTML brut tel quel, donc tout
+// passe par DOMPurify avant innerHTML (XSS stocké sinon — un <img onerror> dans
+// une réponse lisait la clé de pilotage du localStorage). Schémas admis en plus
+// des défauts : sandbox: et file:, que markFileLinks change en téléchargements.
+const MD_PURIFY = { ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|sandbox|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i };
+function md(src){ return src ? DOMPurify.sanitize(marked.parse(fixMd(src)), MD_PURIFY) : ''; }
 // Les garde-fous du serveur ("[stop: trop d'appels d'outils]") sont concaténés
 // au texte de la réponse : ils arrivent donc en clair, au milieu du markdown.
 // markNotices les sort du fil pour qu'on ne les prenne pas pour une phrase du

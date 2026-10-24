@@ -36,9 +36,18 @@ impl Asset {
 
 const NO_STORE: &str = "no-store, max-age=0";
 
+/// Politique de sécurité du contenu de l'UI : même valeur que `uiCSP` dans
+/// `web_server.go` (voir le commentaire qui la justifie là-bas).
+pub const UI_CSP: &str = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' data: blob: mediastream:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
+
 static INDEX: Asset = Asset::new(assets::INDEX_HTML, "text/html; charset=utf-8", NO_STORE);
 static MARKED: Asset = Asset::new(
     assets::MARKED_MIN_JS,
+    "application/javascript",
+    "public, max-age=86400",
+);
+static PURIFY: Asset = Asset::new(
+    assets::PURIFY_MIN_JS,
     "application/javascript",
     "public, max-age=86400",
 );
@@ -66,8 +75,16 @@ pub fn serve(method: &Method, path: &str, headers: &HeaderMap) -> Option<Respons
             .any(|v| v.contains("gzip"));
 
     let mut resp = match path {
-        "/" | "/index.html" => asset(&INDEX, accepts_gzip),
+        "/" | "/index.html" => {
+            let mut r = asset(&INDEX, accepts_gzip);
+            r.headers_mut().insert(
+                header::CONTENT_SECURITY_POLICY,
+                HeaderValue::from_static(UI_CSP),
+            );
+            r
+        }
         "/marked.min.js" => asset(&MARKED, accepts_gzip),
+        "/purify.min.js" => asset(&PURIFY, accepts_gzip),
         "/sw.js" => {
             let mut r = asset(&SW, accepts_gzip);
             r.headers_mut()
@@ -173,10 +190,13 @@ mod tests {
         assert_eq!(hv(&r, "content-type"), "text/html; charset=utf-8");
         assert_eq!(hv(&r, "cache-control"), "no-store, max-age=0");
         assert_eq!(hv(&r, "vary"), "");
+        assert_eq!(hv(&r, "content-security-policy"), UI_CSP);
         let r = get("/sw.js", false).unwrap();
         assert_eq!(hv(&r, "service-worker-allowed"), "/");
         assert_eq!(hv(&r, "cache-control"), "no-store, max-age=0");
         let r = get("/marked.min.js", false).unwrap();
+        assert_eq!(hv(&r, "cache-control"), "public, max-age=86400");
+        let r = get("/purify.min.js", false).unwrap();
         assert_eq!(hv(&r, "cache-control"), "public, max-age=86400");
         let r = get("/manifest.webmanifest", false).unwrap();
         assert_eq!(hv(&r, "content-type"), "application/manifest+json");
