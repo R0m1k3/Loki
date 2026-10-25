@@ -14,8 +14,9 @@
 //! - compaction par [`Compactor`] : résumé demandé au moteur
 //!   ([`EngineSummarizer`]), blocs archivés pour recall par le Go
 //!   ([`StoreRecall`]) ;
-//! - images jointes (`loki-img:…`) lues sur disque et ouvertes par le Go
-//!   (déchiffrées), gardées en cache comme `chatImageDataURL` ;
+//! - images et vidéos jointes (`loki-img:…`, `loki-vid:…`) lues sur disque
+//!   et ouvertes par le Go (déchiffrées), gardées en cache comme
+//!   `chatImageDataURL` / `chatVideoDataURL` ;
 //! - slots du moteur (lot 31) : avant chaque requête au moteur local, le Go
 //!   rend le slot où l'envoyer (SIDE_SLOT) et recharge au besoin l'état
 //!   gardé de la discussion (SLOT_PERSIST) ; la requête est comptée en vol,
@@ -46,8 +47,8 @@ use super::stream::{CacheHintFn, PreflightFn, RetryPatterns};
 use super::turn::{CompactPhase, PerfMarks, PerfRec, Reply, SendError, ToolOutcome, TurnHost};
 use super::types::{AskEvent, DiffLine, Message, Tool};
 use super::wire::{
-    ChatEndpoint, ChatPayloadOpts, EchoRefusals, EffortFallbacks, IMG_REF_SCHEME,
-    build_chat_payload, content_parts, part_image_url, wire_messages,
+    ChatEndpoint, ChatPayloadOpts, EchoRefusals, EffortFallbacks, IMG_REF_SCHEME, VID_REF_SCHEME,
+    build_chat_payload, content_parts, part_image_url, part_video_url, wire_messages,
 };
 use crate::store::{BK_STATE, Store};
 
@@ -97,8 +98,30 @@ fn image_mime(name: &str) -> &'static str {
 
 /// Nom d'une image rangée, si la référence est sûre (ni chemin ni `..`).
 fn image_name(r: &str) -> Option<&str> {
-    let name = r.strip_prefix(IMG_REF_SCHEME)?;
+    safe_media_name(r.strip_prefix(IMG_REF_SCHEME)?)
+}
+
+fn safe_media_name(name: &str) -> Option<&str> {
     (!name.is_empty() && !name.contains(['/', '\\']) && !name.contains("..")).then_some(name)
+}
+
+/// Média rangé : (clé du cache, fichier relatif à `LOKI_HOME`, type MIME).
+/// Une image a pour clé son nom (dossier `chatimg`), une vidéo jointe
+/// (`loki-vid:`, chat_video.go) sa référence entière (dossier `chatvid`).
+fn media_ref(r: &str) -> Option<(String, PathBuf, &'static str)> {
+    if let Some(name) = image_name(r) {
+        return Some((
+            name.to_string(),
+            Path::new("chatimg").join(name),
+            image_mime(name),
+        ));
+    }
+    let name = safe_media_name(r.strip_prefix(VID_REF_SCHEME)?)?;
+    let mime = match crate::imagetools::video_mime(name) {
+        "" => "video/mp4",
+        m => m,
+    };
+    Some((r.to_string(), Path::new("chatvid").join(name), mime))
 }
 
 #[derive(Default)]
@@ -129,9 +152,10 @@ impl ImageCache {
         }
     }
 
+    /// Data-URL d'une image (`loki-img:`) ou d'une vidéo (`loki-vid:`) rangée.
     pub fn get(&self, r: &str) -> Option<String> {
-        let name = image_name(r)?;
-        self.inner.lock().ok()?.map.get(name).cloned()
+        let (key, _, _) = media_ref(r)?;
+        self.inner.lock().ok()?.map.get(&key).cloned()
     }
 
     fn put(&self, name: &str, url: String) {
@@ -151,27 +175,30 @@ impl ImageCache {
         }
     }
 
-    /// Lit et ouvre (par le Go) les images référencées pas encore en cache.
-    /// Une image illisible reste absente : la requête dira « indisponible ».
+    /// Lit et ouvre (par le Go) les images et vidéos référencées pas encore
+    /// en cache. Un média illisible reste absent : la requête dira
+    /// « indisponible ».
     pub async fn prefetch(&self, store: &Store, msgs: &[Message]) {
+        let home = self.home();
         for m in msgs {
             for p in content_parts(m.content.as_ref()) {
-                let Some(name) = image_name(part_image_url(p)) else {
+                let u = match part_image_url(p) {
+                    "" => part_video_url(p),
+                    u => u,
+                };
+                let Some((key, rel, mime)) = media_ref(u) else {
                     continue;
                 };
-                if self.inner.lock().is_ok_and(|g| g.map.contains_key(name)) {
+                if self.inner.lock().is_ok_and(|g| g.map.contains_key(&key)) {
                     continue;
                 }
-                let Ok(raw) = tokio::fs::read(self.dir.join(name)).await else {
+                let Ok(raw) = tokio::fs::read(home.join(rel)).await else {
                     continue;
                 };
                 let Ok(b) = store.open(raw).await else {
                     continue;
                 };
-                self.put(
-                    name,
-                    format!("data:{};base64,{}", image_mime(name), b64(&b)),
-                );
+                self.put(&key, format!("data:{mime};base64,{}", b64(&b)));
             }
         }
     }
@@ -586,6 +613,11 @@ pub fn tool_outcome(v: &Value, label: &str) -> ToolOutcome {
     {
         relay = Some(see_image_message(label, img.clone()));
     }
+    if relay.is_none()
+        && let Some(vid) = v.get("vision_video").filter(|i| i.is_object())
+    {
+        relay = Some(see_video_message(label, vid.clone()));
+    }
     ToolOutcome {
         result: s("result"),
         diff: v
@@ -613,6 +645,20 @@ pub fn see_image_message(label: &str, img: Value) -> Message {
     Message {
         role: "user".into(),
         content: Some(json!([{"type": "text", "text": text}, img])),
+        ..Default::default()
+    }
+}
+
+/// `seeVideoMessage` : la vidéo relayée au modèle.
+pub fn see_video_message(label: &str, vid: Value) -> Message {
+    let text = if label.is_empty() {
+        "Vidéo :".to_string()
+    } else {
+        format!("Vidéo demandée ({label}) :")
+    };
+    Message {
+        role: "user".into(),
+        content: Some(json!([{"type": "text", "text": text}, vid])),
         ..Default::default()
     }
 }
@@ -749,6 +795,45 @@ impl GoTurnHost {
                     relay,
                     ..Default::default()
                 };
+            }
+        }
+        // see_video (chat_video_tool.go) : comme see_image, dans le dossier de
+        // la discussion ; la vidéo relayée au modèle, toujours éphémère.
+        if name == "see_video" {
+            let cfg = self.shared.store.config().await;
+            let vision = crate::system::vision_enabled(&cfg);
+            let st = crate::tools::GoToolState {
+                store: self.shared.store.clone(),
+                caps: self.caps.clone(),
+            };
+            match crate::tools::ToolState::context(&st).await {
+                Ok(ctx) => {
+                    let home = self.shared.images.home();
+                    let vcfg = cfg.clone();
+                    let video_ok = tokio::task::spawn_blocking(move || {
+                        crate::imagetools::video_input_supported(&vcfg, &home)
+                    })
+                    .await
+                    .unwrap_or(false);
+                    let sees = self.shared.vision.sees(&self.shared.store, &cfg);
+                    let (result, vid) = crate::imagetools::see_video(
+                        label,
+                        &ctx.cwd,
+                        &ctx.target,
+                        vision,
+                        video_ok,
+                        sees,
+                    )
+                    .await;
+                    return ToolOutcome {
+                        result,
+                        relay: vid.map(|v| see_video_message(label, v)),
+                        ..Default::default()
+                    };
+                }
+                Err(e) => {
+                    eprintln!("[outils] contexte indisponible, see_video par le Go : {e}")
+                }
             }
         }
         // Navigateur piloté (lot 44) : la session est ici ; aperçu de la page

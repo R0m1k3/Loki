@@ -152,10 +152,19 @@ func attachNote(files []attachInfo) string {
 		head = "Fichiers joints à ce message, déposés dans ton dossier de travail :"
 	}
 	var lines []string
+	video := false
 	for _, f := range files {
 		lines = append(lines, fmt.Sprintf("- %s (%s)", f.Path, humanBytes(f.Size)))
+		video = video || videoMime(f.Name) != ""
 	}
-	return head + "\n" + strings.Join(lines, "\n") + "\n\n"
+	note := head + "\n" + strings.Join(lines, "\n") + "\n"
+	// Vidéo jointe que le moteur ne sait pas lire (chat_video.go) : dire comment
+	// la regarder quand même, au lieu de laisser le modèle tâtonner — Strata et
+	// les API externes ignoraient la vidéo en silence.
+	if video && visionEnabled() && !videoInputSupported() {
+		note += videoFallbackNote
+	}
+	return note + "\n"
 }
 
 // imageMimes : les extensions qu'on peut ENVOYER AU MODÈLE comme image (contenu
@@ -189,9 +198,11 @@ func visionEnabled() bool {
 
 // userMessageContent construit le champ Content du message utilisateur. Cas
 // courant : une simple chaîne (note des fichiers joints + texte). Quand la vision
-// est active ET qu'au moins une pièce jointe est une image, on renvoie le format
-// multimodal d'OpenAI — une partie `text` suivie d'une partie `image_url` par
-// image (data URI base64) — que llama-server comprend une fois --mmproj chargé :
+// est active ET qu'au moins une pièce jointe est une image (ou une vidéo que le
+// moteur sait lire), on renvoie le format multimodal d'OpenAI — une partie
+// `text` suivie d'une partie `image_url` par image (data URI base64) et d'une
+// partie `input_video` par vidéo — que llama-server comprend une fois --mmproj
+// chargé :
 // le modèle VOIT alors l'image au lieu de devoir l'ouvrir comme un fichier binaire.
 // Les images ainsi intégrées sortent de la note textuelle (inutile de dire au
 // modèle d'aller ouvrir un fichier qu'il a déjà sous les yeux) ; les autres
@@ -209,31 +220,43 @@ func userMessageContent(files []attachInfo, prompt string) any {
 	if err != nil {
 		return attachNote(files) + prompt
 	}
-	var imgParts []map[string]any
+	var imgParts, vidParts []map[string]any
 	var textFiles []attachInfo
 	for _, f := range files {
-		mime := imageMime(f.Name)
-		if mime == "" {
-			textFiles = append(textFiles, f)
+		if mime := imageMime(f.Name); mime != "" {
+			b, err := os.ReadFile(filepath.Join(dir, f.Name))
+			if err != nil {
+				textFiles = append(textFiles, f) // illisible ici : au moins l'annoncer comme fichier
+				continue
+			}
+			// Photo prise au téléphone : l'orientation vit dans un tag EXIF que le
+			// projecteur ignore (il voit les pixels bruts, donc l'image couchée), et
+			// une image de plusieurs milliers de pixels ne fait que gonfler le base64
+			// — voir prepareImageForModel (web_upload_orient.go).
+			b, mime = prepareImageForModel(b, mime)
+			imgParts = append(imgParts, imageURLPart(b, mime))
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(dir, f.Name))
-		if err != nil {
-			textFiles = append(textFiles, f) // illisible ici : au moins l'annoncer comme fichier
+		// Vidéo : seulement si le moteur sait la lire (chat_video.go) ; sinon
+		// elle reste un fichier, annoncé avec la marche à suivre (attachNote).
+		// Pas de redimensionnement : le moteur échantillonne les images lui-même.
+		if mime := videoMime(f.Name); mime != "" && videoInputSupported() {
+			b, err := os.ReadFile(filepath.Join(dir, f.Name))
+			if err != nil || len(b) == 0 || len(b) > maxVideoBytes {
+				textFiles = append(textFiles, f)
+				continue
+			}
+			vidParts = append(vidParts, videoPart(b, mime))
 			continue
 		}
-		// Photo prise au téléphone : l'orientation vit dans un tag EXIF que le
-		// projecteur ignore (il voit les pixels bruts, donc l'image couchée), et
-		// une image de plusieurs milliers de pixels ne fait que gonfler le base64
-		// — voir prepareImageForModel (web_upload_orient.go).
-		b, mime = prepareImageForModel(b, mime)
-		imgParts = append(imgParts, imageURLPart(b, mime))
+		textFiles = append(textFiles, f)
 	}
-	if len(imgParts) == 0 {
+	if len(imgParts) == 0 && len(vidParts) == 0 {
 		return attachNote(files) + prompt
 	}
 	parts := []map[string]any{{"type": "text", "text": attachNote(textFiles) + prompt}}
-	return append(parts, imgParts...)
+	parts = append(parts, imgParts...)
+	return append(parts, vidParts...)
 }
 
 // workspaceRel dit si `abs` se trouve DANS le dossier de travail de l'agent et,

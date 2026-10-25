@@ -621,7 +621,7 @@ pub fn tool_call_label(name: &str, args: &Map<String, Value>) -> String {
     match name {
         "mem_search" | "web_search" | "web_images" | "recall_search" => arg_str(args, "query"),
         "mem_read" | "mem_add" | "mem_edit" | "edit" | "write" | "read" | "git_diff"
-        | "see_image" => arg_str(args, "file"),
+        | "see_image" | "see_video" => arg_str(args, "file"),
         "recall" | "bash_tail" => arg_str(args, "id"),
         "tracker" => (go_str(args.get("action")) + " " + &go_str(args.get("name")))
             .trim()

@@ -163,7 +163,8 @@ func engineSeesImages() bool {
 // ne garde que la légende (« Capture … », « Image demandée (x.png) : ») et le
 // modèle n'a plus aucun indice qu'il A VU une image — il la redécrit de mémoire
 // au lieu d'y revenir. Même raison que dans msgText, autre bout de la chaîne.
-// Vaut pour toutes les provenances : capture, pièce jointe, see_image.
+// Vaut pour toutes les provenances : capture, pièce jointe, see_image — et pour
+// les vidéos jointes (input_video), marquées par videoLostMarker.
 func stripImageParts(msgs []Message) []Message {
 	for i, m := range msgs {
 		parts, ok := m.Content.([]any)
@@ -171,22 +172,33 @@ func stripImageParts(msgs []Message) []Message {
 			continue
 		}
 		var texts []string
-		dropped := false
+		dropped, droppedVid := false, false
 		for _, p := range parts {
 			pm, ok := p.(map[string]any)
 			if !ok {
 				continue
 			}
-			if pm["type"] == "image_url" {
+			switch pm["type"] {
+			case "image_url":
 				dropped = true
+				continue
+			case "input_video": // vidéo jointe (chat_video.go) : même sort
+				droppedVid = true
 				continue
 			}
 			if t, ok := pm["text"].(string); ok {
 				texts = append(texts, t)
 			}
 		}
-		if dropped {
-			msgs[i].Content = strings.Join(texts, "\n") + imageLostMarker
+		if dropped || droppedVid {
+			text := strings.Join(texts, "\n")
+			if dropped {
+				text += imageLostMarker
+			}
+			if droppedVid {
+				text += videoLostMarker
+			}
+			msgs[i].Content = text
 		}
 	}
 	return msgs

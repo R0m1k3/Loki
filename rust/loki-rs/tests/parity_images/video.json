@@ -1,0 +1,245 @@
+{
+  "files": {
+    "CLIP.MOV": "AAAAFGZ0eXBxdCAgIG1vdg==",
+    "anim.webm": "GkXfoyB3ZWJt",
+    "clip.mp4": "AAAAGGZ0eXBtcDQyIGZhdXNzZSB2aWTDqW8=",
+    "film.mkv": "GkXfoyBtYXRyb3NrYQ==",
+    "sous/court.mp4": "ZnR5cCBzb3VzLWRvc3NpZXI=",
+    "texte.txt": "cGFzIHVuZSB2aWTDqW8=",
+    "vide.mp4": "",
+    "vieux.avi": "UklGRhAAAABBVkkgTElTVA=="
+  },
+  "steps": [
+    {
+      "name": "sans vision",
+      "video": true,
+      "args": {
+        "file": "clip.mp4"
+      },
+      "label": "clip.mp4",
+      "result": "[erreur] la vision n'est pas active sur ce preset (aucun projecteur MMPROJ configuré) — impossible de voir une vidéo",
+      "probes": 0
+    },
+    {
+      "name": "chemin manquant",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": ""
+      },
+      "label": "",
+      "result": "[erreur] chemin de fichier manquant",
+      "probes": 0
+    },
+    {
+      "name": "sans argument",
+      "vision": true,
+      "video": true,
+      "args": {},
+      "label": "",
+      "result": "[erreur] chemin de fichier manquant",
+      "probes": 0
+    },
+    {
+      "name": "moteur sans vidéo",
+      "vision": true,
+      "sees": true,
+      "args": {
+        "file": "clip.mp4"
+      },
+      "label": "clip.mp4",
+      "result": "[erreur] Le moteur actif ne lit pas la vidéo directement. Pour en voir le contenu, extrais quelques images avec ffmpeg (par exemple `ffmpeg -i <vidéo> -vf fps=1 frame_%03d.jpg`) puis regarde-les avec see_image ; si ffmpeg est absent, dis-le plutôt que de deviner le contenu.",
+      "probes": 0
+    },
+    {
+      "name": "pas une vidéo",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "texte.txt"
+      },
+      "label": "texte.txt",
+      "result": "[erreur] format non reconnu comme vidéo (attendu : mp4, webm, mov, mkv, avi) : texte.txt",
+      "probes": 0
+    },
+    {
+      "name": "image",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "photo.png"
+      },
+      "label": "photo.png",
+      "result": "[erreur] format non reconnu comme vidéo (attendu : mp4, webm, mov, mkv, avi) : photo.png",
+      "probes": 0
+    },
+    {
+      "name": "introuvable",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "absente.mp4"
+      },
+      "label": "absente.mp4",
+      "result": "[erreur] fichier introuvable : absente.mp4",
+      "probes": 0
+    },
+    {
+      "name": "dossier",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "dossier.mp4"
+      },
+      "label": "dossier.mp4",
+      "result": "[erreur] c'est un dossier, pas une vidéo : dossier.mp4",
+      "probes": 0
+    },
+    {
+      "name": "trop lourde",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "lourd.mp4"
+      },
+      "label": "lourd.mp4",
+      "result": "[erreur] vidéo trop lourde (200 Mo, max 200 Mo) — coupe-la en un clip plus court : lourd.mp4",
+      "probes": 0
+    },
+    {
+      "name": "le moteur ne voit pas",
+      "vision": true,
+      "video": true,
+      "args": {
+        "file": "clip.mp4"
+      },
+      "label": "clip.mp4",
+      "result": "[erreur] le moteur en service ne traite pas les images (projecteur non chargé ?) — impossible de voir clip.mp4",
+      "probes": 1
+    },
+    {
+      "name": "vide",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "vide.mp4"
+      },
+      "label": "vide.mp4",
+      "result": "[erreur] fichier vide : vide.mp4",
+      "probes": 1
+    },
+    {
+      "name": "voir clip.mp4",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "clip.mp4"
+      },
+      "label": "clip.mp4",
+      "result": "[ok] vidéo chargée : clip.mp4\n[relais] Vidéo demandée (clip.mp4) :",
+      "part": {
+        "mime": "video/mp4",
+        "same_as": "clip.mp4"
+      },
+      "probes": 1
+    },
+    {
+      "name": "voir CLIP.MOV",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "CLIP.MOV"
+      },
+      "label": "CLIP.MOV",
+      "result": "[ok] vidéo chargée : CLIP.MOV\n[relais] Vidéo demandée (CLIP.MOV) :",
+      "part": {
+        "mime": "video/quicktime",
+        "same_as": "CLIP.MOV"
+      },
+      "probes": 1
+    },
+    {
+      "name": "voir anim.webm",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "anim.webm"
+      },
+      "label": "anim.webm",
+      "result": "[ok] vidéo chargée : anim.webm\n[relais] Vidéo demandée (anim.webm) :",
+      "part": {
+        "mime": "video/webm",
+        "same_as": "anim.webm"
+      },
+      "probes": 1
+    },
+    {
+      "name": "voir film.mkv",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "film.mkv"
+      },
+      "label": "film.mkv",
+      "result": "[ok] vidéo chargée : film.mkv\n[relais] Vidéo demandée (film.mkv) :",
+      "part": {
+        "mime": "video/x-matroska",
+        "same_as": "film.mkv"
+      },
+      "probes": 1
+    },
+    {
+      "name": "voir vieux.avi",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "vieux.avi"
+      },
+      "label": "vieux.avi",
+      "result": "[ok] vidéo chargée : vieux.avi\n[relais] Vidéo demandée (vieux.avi) :",
+      "part": {
+        "mime": "video/x-msvideo",
+        "same_as": "vieux.avi"
+      },
+      "probes": 1
+    },
+    {
+      "name": "voir sous/court.mp4",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "sous/court.mp4"
+      },
+      "label": "sous/court.mp4",
+      "result": "[ok] vidéo chargée : court.mp4\n[relais] Vidéo demandée (sous/court.mp4) :",
+      "part": {
+        "mime": "video/mp4",
+        "same_as": "sous/court.mp4"
+      },
+      "probes": 1
+    },
+    {
+      "name": "chemin absolu",
+      "vision": true,
+      "sees": true,
+      "video": true,
+      "args": {
+        "file": "{{FICHIERS}}/clip.mp4"
+      },
+      "label": "{{FICHIERS}}/clip.mp4",
+      "result": "[ok] vidéo chargée : clip.mp4\n[relais] Vidéo demandée ({{FICHIERS}}/clip.mp4) :",
+      "part": {
+        "mime": "video/mp4",
+        "same_as": "clip.mp4"
+      },
+      "probes": 1
+    }
+  ]
+}

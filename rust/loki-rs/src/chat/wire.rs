@@ -60,6 +60,10 @@ pub const TOOLS_OFF_HINT: &str = "Do not call any more tools. Answer now, direct
 /// `imgRefScheme` : adresse d'une image rangée sur disque (chat_images.go).
 pub const IMG_REF_SCHEME: &str = "loki-img:";
 
+/// `vidRefScheme` : adresse d'une vidéo jointe rangée sur disque
+/// (chat_video.go).
+pub const VID_REF_SCHEME: &str = "loki-vid:";
+
 /// Préfixes des messages système propres au projet ou à la conversation
 /// (`isProjectSystem`).
 pub const PROJECT_CONTEXT_PREFIX: &str = "Project context";
@@ -308,35 +312,61 @@ pub fn part_image_url(p: &Map<String, Value>) -> &str {
         .unwrap_or("")
 }
 
-/// `expandImageRefs` : COPIE des messages prête pour le modèle — chaque
-/// référence `loki-img:` redevient sa data-URL (`image_data_url`, qui tient
-/// lieu de `chatImageDataURL` : disque, cache, déchiffrement). Les messages
-/// sans référence sont repris tels quels ; aucune référence : pas de copie.
-/// Une image introuvable devient une mention textuelle.
+/// `partVideoURL` : l'adresse d'une partie `input_video` (`url`, sinon
+/// `data`), "" pour toute autre partie (chat_video.go).
+pub fn part_video_url(p: &Map<String, Value>) -> &str {
+    if p.get("type").and_then(Value::as_str) != Some("input_video") {
+        return "";
+    }
+    let Some(iv) = p.get("input_video").and_then(Value::as_object) else {
+        return "";
+    };
+    match iv.get("url").and_then(Value::as_str).unwrap_or("") {
+        "" => iv.get("data").and_then(Value::as_str).unwrap_or(""),
+        u => u,
+    }
+}
+
+/// `expandVideoRefs(expandImageRefs(…))` : COPIE des messages prête pour le
+/// modèle — chaque référence `loki-img:` ou `loki-vid:` redevient sa
+/// data-URL (`image_data_url`, qui tient lieu de `chatImageDataURL` et
+/// `chatVideoDataURL` : disque, cache, déchiffrement). Les messages sans
+/// référence sont repris tels quels ; aucune référence : pas de copie. Un
+/// média introuvable devient une mention textuelle.
 pub fn expand_image_refs<'a>(
     msgs: &'a [Message],
     image_data_url: &dyn Fn(&str) -> Option<String>,
 ) -> Cow<'a, [Message]> {
+    let is_ref = |p: &Map<String, Value>| {
+        part_image_url(p).starts_with(IMG_REF_SCHEME)
+            || part_video_url(p).starts_with(VID_REF_SCHEME)
+    };
     let mut out: Option<Vec<Message>> = None;
     for (i, m) in msgs.iter().enumerate() {
         let parts = content_parts(m.content.as_ref());
-        if !parts
-            .iter()
-            .any(|p| part_image_url(p).starts_with(IMG_REF_SCHEME))
-        {
+        if !parts.iter().any(|p| is_ref(p)) {
             continue;
         }
         let mut np: Vec<Value> = Vec::with_capacity(parts.len());
         for p in parts {
-            let u = part_image_url(p);
-            if !u.starts_with(IMG_REF_SCHEME) {
+            if !is_ref(p) {
                 np.push(Value::Object(p.clone()));
                 continue;
             }
-            match image_data_url(u) {
-                Some(d) => np.push(json!({"type": "image_url", "image_url": {"url": d}})),
+            let u = part_image_url(p);
+            if u.starts_with(IMG_REF_SCHEME) {
+                match image_data_url(u) {
+                    Some(d) => np.push(json!({"type": "image_url", "image_url": {"url": d}})),
+                    None => np.push(
+                        json!({"type": "text", "text": "[image indisponible : fichier supprimé]"}),
+                    ),
+                }
+                continue;
+            }
+            match image_data_url(part_video_url(p)) {
+                Some(d) => np.push(json!({"type": "input_video", "input_video": {"url": d}})),
                 None => np.push(
-                    json!({"type": "text", "text": "[image indisponible : fichier supprimé]"}),
+                    json!({"type": "text", "text": "[vidéo indisponible : fichier supprimé]"}),
                 ),
             }
         }
@@ -1805,6 +1835,51 @@ mod tests {
             expand_image_refs(&set[1..], &no_images),
             Cow::Borrowed(_)
         ));
+    }
+
+    // --- chat_video_test.go (partie envoi) ----------------------------------
+
+    #[test]
+    fn video_refs_round_trip() {
+        let url = "data:video/mp4;base64,AAAAGGZ0eXA=";
+        let reference = format!("{VID_REF_SCHEME}0123abcd.mp4");
+        let img_ref = format!("{IMG_REF_SCHEME}ab.png");
+        let set = vec![Message {
+            role: "user".into(),
+            content: Some(json!([
+                {"type": "text", "text": "regarde"},
+                {"type": "image_url", "image_url": {"url": img_ref}},
+                {"type": "input_video", "input_video": {"url": reference}},
+                {"type": "input_video", "input_video": {"data": "data:video/webm;base64,AA=="}}
+            ])),
+            ..Default::default()
+        }];
+        let resolver = |r: &str| {
+            if r == reference {
+                Some(url.to_string())
+            } else if r == img_ref {
+                Some("data:image/png;base64,AA==".to_string())
+            } else {
+                None
+            }
+        };
+        let out = expand_image_refs(&set, &resolver);
+        let parts = content_parts(out[0].content.as_ref());
+        assert_eq!(part_image_url(parts[1]), "data:image/png;base64,AA==");
+        assert_eq!(part_video_url(parts[2]), url);
+        assert_eq!(parts[2]["type"], "input_video");
+        // Vidéo déjà en ligne (champ data) : reprise telle quelle.
+        assert_eq!(part_video_url(parts[3]), "data:video/webm;base64,AA==");
+        let first = content_parts(set[0].content.as_ref());
+        assert!(
+            part_video_url(first[2]).starts_with(VID_REF_SCHEME),
+            "l'historique n'est pas touché"
+        );
+        let out = expand_image_refs(&set, &|_: &str| None);
+        assert_eq!(
+            content_parts(out[0].content.as_ref())[2]["text"],
+            json!("[vidéo indisponible : fichier supprimé]")
+        );
     }
 
     // --- chat_compact_cont_test.go ------------------------------------------

@@ -84,5 +84,9 @@ func toolStepExtras(name, label string, res toolExecResult) (image, shot string,
 		m := seeImageMessage(label, res.VisionImg)
 		relay = &m
 	}
+	if res.VisionVideo != nil {
+		m := seeVideoMessage(label, res.VisionVideo)
+		relay = &m
+	}
 	return image, shot, relay
 }
