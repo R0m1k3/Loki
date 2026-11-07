@@ -11,6 +11,10 @@
 //! la conversion d'une page et la lecture des résultats DuckDuckGo restent
 //! au Go (`/internal/v1/web/fetch`, `/internal/v1/web/search`), sans état.
 //! `web_screenshot` reste au Go (navigateur piloté).
+//!
+//! Quand DuckDuckGo refuse la recherche (défi anti-bot) ou ne trouve rien,
+//! `web_search` passe à Brave Search, joint en HTTP direct et lu comme le
+//! fait AJEAN (`web_search_engines.go`, MIT) ; le Go n'a pas ce secours.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,6 +39,12 @@ const MAX_BYTES: usize = 8 << 20;
 const FETCH_TIMEOUT: Duration = Duration::from_secs(30);
 /// Délai d'un appel à Crawl4AI.
 const CRAWL_TIMEOUT: Duration = Duration::from_secs(60);
+/// `searchTimeout` (AJEAN) : délai du moteur de secours.
+const FALLBACK_TIMEOUT: Duration = Duration::from_secs(10);
+/// `searchSnippetMax` (AJEAN) : les extraits de Brave peuvent être longs.
+const SNIPPET_MAX: usize = 400;
+/// Le moteur de secours, tel qu'annoncé au modèle.
+const FALLBACK_NAME: &str = "Brave Search";
 
 /// `autoDismissJS` : bandeaux cookies et consentement fermés dans la page.
 pub const AUTO_DISMISS_JS: &str = r#"(() => { try {
@@ -133,6 +143,11 @@ pub struct Web {
     jar: std::sync::Mutex<Vec<(String, String, String)>>,
     /// `ddgImagesBase`.
     pub ddg_base: String,
+    /// `ddgHTMLBase` : la recherche texte de DuckDuckGo (lue par Crawl4AI).
+    pub ddg_html_base: String,
+    /// `braveSearchURL` sans `/search` : le moteur de secours, joint en
+    /// direct ; vide, pas de secours (comme le Go).
+    pub fallback_base: String,
     /// Avance de l'horloge du cache (tests).
     skew: std::sync::Mutex<Duration>,
 }
@@ -161,8 +176,22 @@ impl Web {
                 .unwrap_or_default(),
             jar: Default::default(),
             ddg_base: base.trim_end_matches('/').to_string(),
+            ddg_html_base: "https://html.duckduckgo.com".into(),
+            fallback_base: "https://search.brave.com".into(),
             skew: Default::default(),
         }
+    }
+
+    /// Pour les tests : un faux DuckDuckGo de la recherche texte.
+    pub fn with_ddg_html_base(mut self, base: &str) -> Self {
+        self.ddg_html_base = base.trim_end_matches('/').to_string();
+        self
+    }
+
+    /// Pour les tests : un faux moteur de secours ; vide, pas de secours.
+    pub fn with_fallback_base(mut self, base: &str) -> Self {
+        self.fallback_base = base.trim_end_matches('/').to_string();
+        self
     }
 
     /// Avance l'horloge du cache (tests).
@@ -199,7 +228,7 @@ impl Web {
     async fn tool_search(&self, store: &Store, args: &Map<String, Value>) -> String {
         let query = arg_str(args, "query");
         let limit = arg_int(args, "limit").unwrap_or(8).clamp(1, 20) as usize;
-        let results = match self.search(store, &query, limit).await {
+        let (results, engine) = match self.search(store, &query, limit).await {
             Ok(r) => r,
             Err(e) => return format!("❌ Recherche échouée : {e}"),
         };
@@ -207,7 +236,7 @@ impl Web {
             return format!("Aucun résultat pour « {query} »");
         }
         let mut b = format!(
-            "# Recherche : {query}\n{} résultat(s) DuckDuckGo\n\n",
+            "# Recherche : {query}\n{} résultat(s) {engine}\n\n",
             results.len()
         );
         for (i, r) in results.iter().enumerate() {
@@ -520,8 +549,39 @@ impl Web {
 
     // --- Recherche ----------------------------------------------------------
 
-    /// `duckduckgoSearch`.
+    /// `web_search` : DuckDuckGo, puis le moteur de secours (Brave Search,
+    /// joint en direct) quand DuckDuckGo refuse la requête (défi anti-bot)
+    /// ou ne trouve rien. Rend les résultats et le moteur qui a répondu,
+    /// tel qu'annoncé au modèle. Une panne de Crawl4AI ou du Go n'est pas
+    /// un refus : elle remonte telle quelle.
     async fn search(
+        &self,
+        store: &Store,
+        query: &str,
+        limit: usize,
+    ) -> Result<(Vec<SearchResult>, String), String> {
+        let ddg = self.ddg_search(store, query, limit).await;
+        let why = match &ddg {
+            Ok(r) if r.is_empty() => "DuckDuckGo sans résultat",
+            Err(e) if e.contains("anti-bot") => "DuckDuckGo a refusé la requête",
+            _ => "",
+        };
+        if why.is_empty() || self.fallback_base.is_empty() {
+            return ddg.map(|r| (r, "DuckDuckGo".into()));
+        }
+        match self.brave_search(query, limit).await {
+            Ok(r) => Ok((r, format!("{FALLBACK_NAME} (secours : {why})"))),
+            // DuckDuckGo a répondu, sans rien : « aucun résultat ».
+            Err(_) if ddg.is_ok() => ddg.map(|r| (r, "DuckDuckGo".into())),
+            Err(e) => Err(format!(
+                "{} ; secours {FALLBACK_NAME} : {e}. Aucun moteur de recherche ne répond pour l'instant : ne relance pas la recherche ; ouvre une URL que tu connais avec web_open, ou réponds avec ce que tu sais en disant que ce n'est pas vérifié",
+                ddg.err().unwrap_or_default()
+            )),
+        }
+    }
+
+    /// `duckduckgoSearch`.
+    async fn ddg_search(
         &self,
         store: &Store,
         query: &str,
@@ -532,7 +592,8 @@ impl Web {
             return go_search(store, query, limit).await;
         }
         let url = format!(
-            "https://html.duckduckgo.com/html/?q={}",
+            "{}/html/?q={}",
+            self.ddg_html_base,
             go_query_escape(query.as_bytes())
         );
         let md = self
@@ -548,6 +609,53 @@ impl Web {
             )
             .await?;
         parse_ddg_markdown(&md, limit)
+    }
+
+    /// `braveEngineSearch` (AJEAN) : la page de résultats de Brave Search,
+    /// en HTTP direct (pas de navigateur). HTTP 202, 403, 429 ou une page
+    /// captcha sans résultat : un refus.
+    async fn brave_search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, String> {
+        let target = format!(
+            "{}/search?q={}",
+            self.fallback_base,
+            go_query_escape(query.as_bytes())
+        );
+        let rq = self
+            .http
+            .get(&target)
+            .header("User-Agent", UA)
+            .header(
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            )
+            .header("Accept-Language", "fr-FR,fr;q=0.9,en;q=0.8");
+        let call = async {
+            let resp = rq.send().await.map_err(|e| {
+                if e.is_timeout() {
+                    "pas de réponse à temps".to_string()
+                } else {
+                    "injoignable".to_string()
+                }
+            })?;
+            let status = resp.status().as_u16();
+            let mut body = resp.bytes().await.map_err(|e| e.to_string())?.to_vec();
+            body.truncate(MAX_BYTES);
+            Ok::<_, String>((status, body))
+        };
+        let (status, body) = tokio::time::timeout(FALLBACK_TIMEOUT, call)
+            .await
+            .map_err(|_| "pas de réponse à temps".to_string())??;
+        match status {
+            202 | 403 | 429 => return Err(format!("HTTP {status} (refusé)")),
+            s if s >= 400 => return Err(format!("HTTP {s}")),
+            _ => {}
+        }
+        let body = String::from_utf8_lossy(&body);
+        let rs = parse_brave_html(&body, limit);
+        if rs.is_empty() && body.contains("captcha") {
+            return Err("contrôle anti-robot".into());
+        }
+        Ok(rs)
     }
 
     /// `duckduckgoImages` : le jeton vqd de la page de recherche, puis i.js.
@@ -1076,6 +1184,66 @@ pub fn parse_ddg_markdown(md: &str, limit: usize) -> Result<Vec<SearchResult>, S
         i += 1;
     }
     Ok(results)
+}
+
+/// `searchInline` (AJEAN) : le texte d'un fragment HTML, sur une ligne.
+fn search_inline(s: &str) -> String {
+    let text = go_re(r"(?s)<[^>]+>").replace_all(s, "");
+    decode_html_entities(&text)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// `clipSearchSnippet` (AJEAN).
+fn clip_snippet(s: String) -> String {
+    match s.char_indices().nth(SNIPPET_MAX) {
+        Some((i, _)) => format!("{} …", &s[..i]),
+        None => s,
+    }
+}
+
+/// `braveLayout` (AJEAN) : les résultats d'une page de Brave Search. Chaque
+/// résultat est le texte d'une marque `data-type="web"` à la suivante (un
+/// résultat sans extrait ne décale pas les autres) ; scripts, styles et
+/// SVG ôtés d'abord. Les liens qui ne sont pas http(s) et les doublons
+/// sont écartés.
+pub fn parse_brave_html(body: &str, limit: usize) -> Vec<SearchResult> {
+    let body = go_re(r"(?is)<script\b.*?</script>|<style\b.*?</style>|<svg\b.*?</svg>")
+        .replace_all(body, "");
+    let start = go_re(r#"<div class="snippet[^"]*" data-pos="\d+" data-type="web""#);
+    let link = go_re(
+        r#"(?s)<a href="([^"]+)"[^>]*>.*?<div class="title search-snippet-title[^"]*"[^>]*>(.*?)</div>"#,
+    );
+    let snippet = go_re(
+        r#"(?s)<div class="(?:content|inline-qa-question|inline-qa-answer|product-review)[ "][^>]*>(.*?)</div>"#,
+    );
+    let starts: Vec<usize> = start.find_iter(&body).map(|m| m.start()).collect();
+    let mut out: Vec<SearchResult> = Vec::new();
+    for (i, &at) in starts.iter().enumerate() {
+        if out.len() >= limit {
+            break;
+        }
+        let end = starts.get(i + 1).copied().unwrap_or(body.len());
+        let block = &body[at..end];
+        let Some(m) = link.captures(block) else {
+            continue;
+        };
+        let u = decode_html_entities(&m[1]);
+        if !u.starts_with("http") || out.iter().any(|r| r.url == u) {
+            continue;
+        }
+        let snippet = snippet
+            .captures(block)
+            .map(|s| clip_snippet(search_inline(&s[1])))
+            .unwrap_or_default();
+        out.push(SearchResult {
+            title: search_inline(&m[2]),
+            url: u,
+            snippet,
+        });
+    }
+    out
 }
 
 /// Le markdown du premier résultat d'une réponse de Crawl4AI : `{results:

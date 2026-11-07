@@ -208,7 +208,8 @@ async fn outils_web_comme_le_go() {
         go.web_search.lock().unwrap().insert(k.clone(), v.clone());
     }
 
-    let web = Web::with_ddg_base(&ddg);
+    // Le Go n'a pas de moteur de secours : le journal est rejoué sans.
+    let web = Web::with_ddg_base(&ddg).with_fallback_base("");
     for c in fx["calls"].as_array().unwrap() {
         let name = s(&c["name"]);
         for (k, v) in c["setup"].as_object().into_iter().flatten() {
@@ -288,4 +289,228 @@ async fn moteur_integre_injoignable() {
         "{got}"
     );
     assert_eq!(web.exec(&store, "web_screenshot", &args).await, None);
+}
+
+// --- Moteur de secours de web_search ------------------------------------------
+
+/// Le faux Crawl4AI de la recherche : le markdown rangé pour la requête
+/// (`q`) de l'URL demandée, qui est notée.
+async fn crawl_by_query(pages: Vec<(&'static str, &'static str)>, log: Log) -> String {
+    serve(move |_, _, _, body| {
+        let v: Value = serde_json::from_slice(&body).unwrap_or_default();
+        let target = s(&v["urls"][0]).to_string();
+        log.lock().unwrap().push(json!(target));
+        let q = target.split_once("?q=").map_or("", |(_, q)| q).to_string();
+        match pages.iter().find(|(k, _)| *k == q) {
+            Some((_, md)) => (
+                200,
+                vec![],
+                json!({"results": [{"markdown": md, "success": true}]}).to_string(),
+            ),
+            None => (500, vec![], "inconnu".into()),
+        }
+    })
+    .await
+}
+
+/// Le faux Brave Search : (statut, page) ; chaque requête est notée.
+async fn fake_brave(status: u16, page: &'static str, log: Log) -> String {
+    serve(move |_, uri, h, _| {
+        log.lock().unwrap().push(req(&[
+            ("path", uri),
+            ("ua", header(&h, "user-agent")),
+            ("lang", header(&h, "accept-language")),
+        ]));
+        (
+            status,
+            vec![("content-type".into(), "text/html; charset=utf-8".into())],
+            page.to_string(),
+        )
+    })
+    .await
+}
+
+const BRAVE_PAGE: &str = include_str!("search_fallback/brave.html");
+const DDG_OK: &str = "## [Loki DDG](//duckduckgo.com/l/?uddg=https%3A%2F%2Fddg.example%2F)\n\n[Trouvé par DuckDuckGo](x)";
+
+fn query(q: &str) -> Map<String, Value> {
+    json!({ "query": q }).as_object().unwrap().clone()
+}
+
+#[test]
+fn page_brave_lue() {
+    let got = loki_rs::webtools::parse_brave_html(BRAVE_PAGE, 8);
+    let want = [
+        (
+            "Loki & Rust",
+            "https://loki.example/rust?a=1&b=2",
+            "12 oct. 2026 - Un port en Rust étape par étape.",
+        ),
+        ("Deuxième résultat", "https://deux.example/", ""),
+        (
+            "Question 'Loki' sur un forum",
+            "https://forum.example/q/42",
+            "Comment lancer Loki ?",
+        ),
+    ];
+    let got: Vec<(&str, &str, &str)> = got
+        .iter()
+        .map(|r| (r.title.as_str(), r.url.as_str(), r.snippet.as_str()))
+        .collect();
+    assert_eq!(got, want);
+    assert_eq!(loki_rs::webtools::parse_brave_html(BRAVE_PAGE, 1).len(), 1);
+    // Un extrait trop long est coupé à 400 caractères.
+    let long = format!(
+        r#"<div class="snippet" data-pos="0" data-type="web"><a href="https://l.example/"><div class="title search-snippet-title">L</div></a><div class="content">{}</div>"#,
+        "é".repeat(500)
+    );
+    let r = loki_rs::webtools::parse_brave_html(&long, 8);
+    assert_eq!(r[0].snippet, format!("{} …", "é".repeat(400)));
+}
+
+/// DuckDuckGo refuse (défi anti-bot) ou ne trouve rien : Brave Search
+/// répond, et le modèle sait d'où viennent les résultats ; DuckDuckGo
+/// répond : Brave n'est pas appelé.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn recherche_de_secours() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, go, _stop) = fakego::start(tmp.path().to_path_buf()).await;
+    let backend = go.backend.lock().unwrap().unwrap();
+    let store = Store::new(backend, fakego::JETON.into());
+    let (crawl_log, brave_log): (Log, Log) = Default::default();
+    let crawl = crawl_by_query(
+        vec![
+            ("bloque", "<div class=\"anomaly-modal\">"),
+            ("rien", "# Rien\n\npas de résultat"),
+            ("ok", DDG_OK),
+        ],
+        crawl_log.clone(),
+    )
+    .await;
+    go.set("config", "WEB_ENGINE", "crawl4ai");
+    go.set("config", "CRAWL4AI_URL", &crawl);
+    let brave = fake_brave(200, BRAVE_PAGE, brave_log.clone()).await;
+    let web = Web::new()
+        .with_ddg_html_base("http://ddg.test/")
+        .with_fallback_base(&brave);
+    let take = |l: &Log| std::mem::take(&mut *l.lock().unwrap());
+
+    let got = web
+        .exec(&store, "web_search", &query("bloque"))
+        .await
+        .unwrap();
+    assert!(
+        got.starts_with(
+            "# Recherche : bloque\n3 résultat(s) Brave Search (secours : DuckDuckGo a refusé la requête)\n\n1. Loki & Rust\n   https://loki.example/rust?a=1&b=2\n   12 oct. 2026 - Un port en Rust étape par étape.\n\n2. "
+        ),
+        "{got}"
+    );
+    assert_eq!(
+        take(&crawl_log),
+        vec![json!("http://ddg.test/html/?q=bloque")]
+    );
+    let ua = loki_rs::webtools::UA.to_string();
+    assert_eq!(
+        take(&brave_log),
+        vec![json!({"path": "/search?q=bloque", "ua": ua, "lang": "fr-FR,fr;q=0.9,en;q=0.8"})]
+    );
+
+    let got = web
+        .exec(&store, "web_search", &query("rien"))
+        .await
+        .unwrap();
+    assert!(
+        got.starts_with("# Recherche : rien\n3 résultat(s) Brave Search (secours : DuckDuckGo sans résultat)\n\n"),
+        "{got}"
+    );
+    assert_eq!(take(&brave_log).len(), 1);
+
+    let got = web.exec(&store, "web_search", &query("ok")).await.unwrap();
+    assert_eq!(
+        got,
+        "# Recherche : ok\n1 résultat(s) DuckDuckGo\n\n1. Loki DDG\n   https://ddg.example/\n   Trouvé par DuckDuckGo"
+    );
+    assert!(take(&brave_log).is_empty(), "Brave appelé sans raison");
+
+    // Une panne de Crawl4AI n'est pas un refus de DuckDuckGo : pas de secours.
+    let got = web
+        .exec(&store, "web_search", &query("panne"))
+        .await
+        .unwrap();
+    assert!(
+        got.starts_with("❌ Recherche échouée : Crawl4AI HTTP 500"),
+        "{got}"
+    );
+    assert!(take(&brave_log).is_empty());
+
+    // Le moteur intégré (Go) refuse aussi : même secours.
+    go.set("config", "WEB_ENGINE", "go");
+    go.web_search.lock().unwrap().insert(
+        "bot|8".into(),
+        json!({"error": "DuckDuckGo a renvoyé un défi anti-bot"}),
+    );
+    let got = web.exec(&store, "web_search", &query("bot")).await.unwrap();
+    assert!(
+        got.contains("3 résultat(s) Brave Search (secours : DuckDuckGo a refusé la requête)"),
+        "{got}"
+    );
+    assert_eq!(take(&brave_log).len(), 1);
+}
+
+/// Les deux moteurs échouent : un message clair, qui dit de ne pas relancer.
+/// DuckDuckGo sans résultat et Brave en panne : « aucun résultat ».
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn recherche_sans_moteur() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, go, _stop) = fakego::start(tmp.path().to_path_buf()).await;
+    let backend = go.backend.lock().unwrap().unwrap();
+    let store = Store::new(backend, fakego::JETON.into());
+    let crawl = crawl_by_query(
+        vec![
+            ("bloque", "<div class=\"anomaly-modal\">"),
+            ("rien", "# Rien"),
+        ],
+        Default::default(),
+    )
+    .await;
+    go.set("config", "WEB_ENGINE", "crawl4ai");
+    go.set("config", "CRAWL4AI_URL", &crawl);
+    let limited = fake_brave(429, "Too Many Requests", Default::default()).await;
+    let captcha = fake_brave(
+        200,
+        "<html><body><div id=\"captcha\">Vérifiez que vous êtes humain</div></body></html>",
+        Default::default(),
+    )
+    .await;
+    let dead = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap();
+    for (base, why) in [
+        (limited.clone(), "HTTP 429 (refusé)"),
+        (captcha, "contrôle anti-robot"),
+        (format!("http://{dead}"), "injoignable"),
+    ] {
+        let web = Web::new()
+            .with_ddg_html_base("http://ddg.test")
+            .with_fallback_base(&base);
+        let got = web
+            .exec(&store, "web_search", &query("bloque"))
+            .await
+            .unwrap();
+        assert_eq!(
+            got,
+            format!(
+                "❌ Recherche échouée : DuckDuckGo a renvoyé un défi anti-bot ; secours Brave Search : {why}. Aucun moteur de recherche ne répond pour l'instant : ne relance pas la recherche ; ouvre une URL que tu connais avec web_open, ou réponds avec ce que tu sais en disant que ce n'est pas vérifié"
+            )
+        );
+    }
+    let web = Web::new()
+        .with_ddg_html_base("http://ddg.test")
+        .with_fallback_base(&limited);
+    let got = web
+        .exec(&store, "web_search", &query("rien"))
+        .await
+        .unwrap();
+    assert_eq!(got, "Aucun résultat pour « rien »");
 }
