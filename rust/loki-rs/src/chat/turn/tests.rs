@@ -32,6 +32,8 @@ struct Fake {
     efforts: Mutex<Vec<(String, String)>>,
     /// L'arrêt à déclencher pendant l'exécution d'un outil.
     stop_on_exec: Mutex<Option<watch::Sender<bool>>>,
+    /// Seul outil qui déclenche cet arrêt (tous si absent).
+    stop_only: Mutex<Option<&'static str>>,
     /// Verdict « préfixe instable » de la sonde (NUDGE_IN_TOOL).
     unstable: Mutex<bool>,
     /// Complétions signalées à la sonde : (outils, kwargs, effort).
@@ -125,7 +127,12 @@ impl TurnHost for Fake {
             .lock()
             .unwrap()
             .push(format!("{name} {}", Value::Object(args.clone())));
-        let stop = self.stop_on_exec.lock().unwrap().take();
+        let only = *self.stop_only.lock().unwrap();
+        let stop = if only.is_none_or(|n| n == name) {
+            self.stop_on_exec.lock().unwrap().take()
+        } else {
+            None
+        };
         if let Some(tx) = stop {
             let _ = tx.send(true);
             std::future::pending::<()>().await;
@@ -324,6 +331,13 @@ async fn run(host: &Fake, tc: &TurnConfig, cancel: &Cancel) -> (TurnResult, Vec<
     };
     let r = run_turn(host, tc, vec![um("question")], cancel, &mut cb).await;
     (r, evs)
+}
+
+fn msg_str(m: &Message) -> &str {
+    m.content
+        .as_ref()
+        .and_then(Value::as_str)
+        .unwrap_or_default()
 }
 
 fn text(evs: &[StreamEvent]) -> String {
@@ -810,8 +824,49 @@ async fn arret_pendant_un_outil() {
     *host.stop_on_exec.lock().unwrap() = Some(tx);
     let (r, evs) = run(&host, &config(&["bash"]), &cancel).await;
     assert_eq!(r.err, None, "un arrêt n'est pas une erreur");
-    assert_eq!(roles(&r.extra), ["assistant"]);
+    // L'appel interrompu reçoit sa réponse : l'historique reste apparié.
+    assert_eq!(roles(&r.extra), ["assistant", "tool"]);
+    assert_eq!(r.extra[1].tool_call_id, "c1");
     assert!(!evs.iter().any(|e| matches!(e, StreamEvent::Err(_))));
+}
+
+/// Arrêt au milieu d'une série de trois appels : le premier a répondu, les
+/// deux autres (celui en cours et le suivant) reçoivent « [interrompu] ».
+#[tokio::test]
+async fn arret_en_pleine_serie_apparie_chaque_appel() {
+    let calls = json!({"choices":[{"delta":{"tool_calls":[
+        {"index":0,"id":"c1","type":"function","function":{"name":"read","arguments":"{\"file\":\"a\"}"}},
+        {"index":1,"id":"c2","type":"function","function":{"name":"bash","arguments":"{\"command\":\"x\"}"}},
+        {"index":2,"id":"c3","type":"function","function":{"name":"read","arguments":"{\"file\":\"b\"}"}}
+    ]}}]});
+    let host = Fake::new(vec![Script::Ok(vec![
+        format!("data: {calls}"),
+        finish("tool_calls"),
+    ])]);
+    let (tx, cancel) = Cancel::new();
+    *host.stop_on_exec.lock().unwrap() = Some(tx);
+    // read (c1) répond ; l'arrêt part pendant bash (c2).
+    *host.stop_only.lock().unwrap() = Some("bash");
+    host.tools
+        .lock()
+        .unwrap()
+        .insert("read".into(), "contenu".into());
+    let (r, _) = run(&host, &config(&["read", "bash"]), &cancel).await;
+    assert_eq!(
+        host.execs.lock().unwrap().len(),
+        2,
+        "c3 exécuté après l'arrêt"
+    );
+    assert_eq!(r.err, None);
+    assert_eq!(roles(&r.extra), ["assistant", "tool", "tool", "tool"]);
+    let ids: Vec<&str> = r.extra[1..]
+        .iter()
+        .map(|m| m.tool_call_id.as_str())
+        .collect();
+    assert_eq!(ids, ["c1", "c2", "c3"]);
+    assert_eq!(msg_str(&r.extra[1]), "contenu");
+    assert_eq!(msg_str(&r.extra[2]), TOOL_INTERRUPTED);
+    assert_eq!(msg_str(&r.extra[3]), TOOL_INTERRUPTED);
 }
 
 #[tokio::test(start_paused = true)]
@@ -903,6 +958,24 @@ async fn telemetrie_incomplete() {
 }
 
 // ── KEEP_TURN_IMAGES (lot 32, cas de chat_keep_images_test.go) ──
+
+/// L'appel see_image auquel répond [`tool_res`] (sans lui, la réponse serait
+/// orpheline et retirée de la requête).
+fn see_call() -> Message {
+    Message {
+        role: "assistant".into(),
+        tool_calls: vec![ToolCall {
+            id: "v1".into(),
+            kind: "function".into(),
+            function: ToolCallFunc {
+                name: "see_image".into(),
+                arguments: "{}".into(),
+            },
+            ..Default::default()
+        }],
+        ..Default::default()
+    }
+}
 
 fn tool_res(s: &str) -> Message {
     Message {
@@ -1006,6 +1079,7 @@ async fn images_retirees_en_cours_de_tour() {
     tc.compact.ctx_window = 2000;
     let hist = vec![
         um("q"),
+        see_call(),
         tool_res("[ok]"),
         kept_relay(1000),
         text_msg("assistant", "vu"),
@@ -1025,15 +1099,15 @@ async fn images_retirees_en_cours_de_tour() {
         .expect("historique publié");
     assert_eq!(published.len(), hist.len() + 2);
     assert_eq!(
-        published[2].content,
+        published[3].content,
         Some(json!(format!(
             "Voici la capture demandée.{}",
             crate::chat::compact::IMAGE_LOST_MARKER
         )))
     );
     assert_eq!(
-        host.body(1)["messages"][2]["content"],
-        published[2].content.clone().unwrap()
+        host.body(1)["messages"][3]["content"],
+        published[3].content.clone().unwrap()
     );
     assert!(r.extra.is_empty(), "{:?}", r.extra);
 }
@@ -1052,15 +1126,21 @@ async fn images_retirees_avant_le_filet_reactif() {
     *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
     let mut tc = config(&[]);
     tc.compact.ctx_window = 2000;
-    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let hist = vec![
+        um("q"),
+        see_call(),
+        tool_res("[ok]"),
+        kept_relay(1000),
+        um("suite"),
+    ];
     let (r, evs) = run_hist(&host, &tc, hist.clone()).await;
     assert_eq!(r.err, None);
     assert_eq!(host.sent(), 2);
     assert!(host.phases.lock().unwrap().is_empty(), "pas de résumé");
     assert!(evs.iter().any(
-        |e| matches!(e, StreamEvent::NewHistory(h) if h.len() == hist.len() && h[2].img_tokens == 0)
+        |e| matches!(e, StreamEvent::NewHistory(h) if h.len() == hist.len() && h[3].img_tokens == 0)
     ));
-    assert!(host.body(1)["messages"][2]["content"].is_string());
+    assert!(host.body(1)["messages"][3]["content"].is_string());
 }
 
 /// Coupée par une fenêtre pleine : les images gardées d'abord ; leur retrait
@@ -1073,7 +1153,13 @@ async fn images_retirees_fenetre_pleine() {
     *host.compacted.lock().unwrap() = Some(vec![um("résumé")]);
     let mut tc = config(&[]);
     tc.compact.ctx_window = 2000;
-    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let hist = vec![
+        um("q"),
+        see_call(),
+        tool_res("[ok]"),
+        kept_relay(1000),
+        um("suite"),
+    ];
     let (r, evs) = run_hist(&host, &tc, hist).await;
     assert_eq!(r.err, None);
     assert_eq!(host.sent(), 2);
@@ -1149,7 +1235,13 @@ async fn bloc_projet_rafraichi_par_la_compaction() {
         answer_u("fini", 0),
     ]);
     *host.snap_on.lock().unwrap() = true;
-    let hist = vec![um("q"), tool_res("[ok]"), kept_relay(1000), um("suite")];
+    let hist = vec![
+        um("q"),
+        see_call(),
+        tool_res("[ok]"),
+        kept_relay(1000),
+        um("suite"),
+    ];
     let (r, _) = run_hist(&host, &config(&[]), hist).await;
     assert_eq!(r.err, None);
     assert_eq!(*host.refreshes.lock().unwrap(), 0);

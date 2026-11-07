@@ -36,7 +36,7 @@ use std::sync::Mutex;
 
 use serde_json::{Map, Value, json};
 
-use super::types::{Message, ReasoningEcho, Tool};
+use super::types::{Message, ReasoningEcho, Tool, ToolCall};
 use crate::engstatus::is_external;
 
 // ---------------------------------------------------------------------------
@@ -129,7 +129,10 @@ pub fn wire_messages<'a>(
     tool_choice_none: bool,
     pol: &EchoPolicy,
 ) -> (Cow<'a, [Message]>, usize) {
-    let sent = normalize_system_messages(messages);
+    // Paires appel / réponse d'outil réparées d'abord : l'historique enregistré
+    // peut dater d'une version qui laissait des appels sans réponse.
+    let sent = then(Cow::Borrowed(messages), repair_tool_pairs);
+    let sent = then(sent, normalize_system_messages);
     // Marque de relais d'image (KEEP_TURN_IMAGES) : propre à Loki, jamais au
     // moteur. Sans la clé, aucune : la tranche repart telle quelle.
     let mut sent = then(sent, strip_relay_tags);
@@ -146,6 +149,133 @@ pub fn wire_messages<'a>(
             };
             (Cow::Owned(changed.unwrap_or(v)), n)
         }
+    }
+}
+
+/// Réponse d'un appel d'outil qui n'a jamais été exécuté (arrêt demandé en
+/// pleine série, ou trou dans un historique ancien). Même registre que
+/// « [erreur] » : le modèle doit comprendre que l'appel n'a pas abouti.
+pub const TOOL_INTERRUPTED: &str = "[interrompu] l'appel n'a pas été exécuté (arrêt demandé)";
+
+/// Appariement assistant(tool_calls) / tool exigé par les gabarits stricts
+/// (llama.cpp, endpoints OpenAI) : chaque assistant porteur d'appels est suivi,
+/// avant le prochain message qui n'est pas une réponse d'outil, d'une réponse
+/// par appel. Une réponse manquante reçoit [`TOOL_INTERRUPTED`] (insérée à la
+/// fin du bloc, dans l'ordre des appels) ; une réponse sans appel
+/// correspondant dans son bloc est retirée. Les messages `user` relayés au
+/// milieu du bloc (images d'outil) restent à leur place. Idée d'AJEAN v0.18.12
+/// (`repairToolPairs`). Historique déjà apparié : tranche empruntée.
+pub fn repair_tool_pairs(msgs: &[Message]) -> Cow<'_, [Message]> {
+    let mut open: Option<Block> = None;
+    let mut fixes: Vec<Fix> = Vec::new();
+    for (i, m) in msgs.iter().enumerate() {
+        if m.role == "tool" {
+            let id = m.tool_call_id.as_str();
+            match open.as_mut() {
+                Some(b) if b.calls.iter().any(|c| c.id == id) && !b.seen.contains(id) => {
+                    b.seen.insert(id);
+                    b.last = i;
+                }
+                // Orpheline (ou doublon) : plus de sens pour le moteur.
+                _ => fixes.push(Fix::Drop(i)),
+            }
+            continue;
+        }
+        if open.is_some() && is_relay_like(m) {
+            continue;
+        }
+        if let Some(b) = open.take() {
+            b.close(&mut fixes);
+        }
+        if m.role == "assistant" && !m.tool_calls.is_empty() {
+            open = Some(Block {
+                calls: &m.tool_calls,
+                seen: HashSet::new(),
+                last: i,
+            });
+        }
+    }
+    if let Some(b) = open.take() {
+        b.close(&mut fixes);
+    }
+    if fixes.is_empty() {
+        return Cow::Borrowed(msgs);
+    }
+    // Stable : les insertions d'un même bloc gardent l'ordre des appels.
+    fixes.sort_by_key(Fix::at);
+    let mut out = Vec::with_capacity(msgs.len() + fixes.len());
+    let mut fx = fixes.into_iter().peekable();
+    for (i, m) in msgs.iter().enumerate() {
+        let mut drop = false;
+        while let Some(f) = fx.next_if(|f| f.at() == i) {
+            match f {
+                Fix::Insert(_, id) => out.push(interrupted_msg(id)),
+                Fix::Drop(_) => drop = true,
+            }
+        }
+        if !drop {
+            out.push(m.clone());
+        }
+    }
+    out.extend(fx.filter_map(|f| match f {
+        Fix::Insert(_, id) => Some(interrupted_msg(id)),
+        Fix::Drop(_) => None,
+    }));
+    Cow::Owned(out)
+}
+
+/// Bloc d'appels en cours d'appariement : ses appels, les ids déjà répondus,
+/// la position de l'assistant ou de sa dernière réponse.
+struct Block<'a> {
+    calls: &'a [ToolCall],
+    seen: HashSet<&'a str>,
+    last: usize,
+}
+
+impl Block<'_> {
+    /// Une réponse synthétique par appel resté sans réponse, juste après la
+    /// dernière réponse du bloc (avant un éventuel message relayé). Un id vide
+    /// ne peut pas être apparié : ignoré.
+    fn close(self, fixes: &mut Vec<Fix>) {
+        let mut added: HashSet<&str> = HashSet::new();
+        for c in self.calls {
+            if !c.id.is_empty() && !self.seen.contains(c.id.as_str()) && added.insert(&c.id) {
+                fixes.push(Fix::Insert(self.last + 1, c.id.clone()));
+            }
+        }
+    }
+}
+
+/// Correction de [`repair_tool_pairs`], par position dans la tranche
+/// d'origine (les insertions passent AVANT le message à cette position).
+enum Fix {
+    Insert(usize, String),
+    Drop(usize),
+}
+
+impl Fix {
+    fn at(&self) -> usize {
+        match self {
+            Fix::Insert(i, _) | Fix::Drop(i) => *i,
+        }
+    }
+}
+
+/// Message relayé par un outil au milieu d'un bloc : marqué (KEEP_TURN_IMAGES)
+/// ou `user` multimodal (image éphémère de see_image).
+fn is_relay_like(m: &Message) -> bool {
+    m.img_relay
+        || m.role == "user"
+            && matches!(&m.content, Some(Value::Array(parts))
+                if parts.iter().any(|p| p.get("type").and_then(Value::as_str) == Some("image_url")))
+}
+
+fn interrupted_msg(id: String) -> Message {
+    Message {
+        role: "tool".into(),
+        tool_call_id: id,
+        content: Some(Value::String(TOOL_INTERRUPTED.into())),
+        ..Default::default()
     }
 }
 
@@ -2042,6 +2172,106 @@ mod tests {
             msg_text(&out[1]),
             format!("q\n\n{LOKI_NOTE_PREFIX}{TOOLS_OFF_HINT}")
         );
+    }
+
+    fn tr(id: &str, s: &str) -> Message {
+        Message {
+            tool_call_id: id.into(),
+            ..txt("tool", s)
+        }
+    }
+    fn amulti(ids: &[&str]) -> Message {
+        Message {
+            role: "assistant".into(),
+            tool_calls: ids
+                .iter()
+                .map(|id| tc(id, "function", "bash", "{}"))
+                .collect(),
+            ..Default::default()
+        }
+    }
+    /// (rôle, id d'appel ou texte) de chaque message, pour comparer d'un coup.
+    fn shape(m: &[Message]) -> Vec<(String, String)> {
+        m.iter()
+            .map(|m| {
+                let what = if m.role == "tool" {
+                    format!("{}={}", m.tool_call_id, msg_text(m))
+                } else if !m.tool_calls.is_empty() {
+                    let ids: Vec<&str> = m.tool_calls.iter().map(|c| c.id.as_str()).collect();
+                    ids.join(",")
+                } else {
+                    msg_text(m)
+                };
+                (m.role.clone(), what)
+            })
+            .collect()
+    }
+
+    /// Historique ancien : appels sans réponse complétés (dans l'ordre, juste
+    /// après la dernière réponse du bloc), réponses orphelines retirées.
+    #[test]
+    fn paires_d_outils_reparees() {
+        let i = TOOL_INTERRUPTED;
+        let relay = Message {
+            role: "user".into(),
+            content: Some(json!([{"type": "image_url", "image_url": {"url": "data:x"}}])),
+            ..Default::default()
+        };
+        let msgs = vec![
+            um("q"),
+            amulti(&["a", "b", "c"]),
+            tr("b", "rb"),
+            relay.clone(),
+            um("suite"),
+            tr("zz", "orpheline"),
+            amulti(&["d"]),
+            tr("d", "rd"),
+            tr("d", "doublon"),
+            amulti(&["e"]),
+        ];
+        let (out, _) = wire_messages(&msgs, false, &EchoPolicy::default());
+        let s = |r: &str, w: &str| (r.to_string(), w.to_string());
+        assert_eq!(
+            shape(&out),
+            vec![
+                s("user", "q"),
+                s("assistant", "a,b,c"),
+                s("tool", "b=rb"),
+                s("tool", &format!("a={i}")),
+                s("tool", &format!("c={i}")),
+                s("user", ""),
+                s("user", "suite"),
+                s("assistant", "d"),
+                s("tool", "d=rd"),
+                s("assistant", "e"),
+                s("tool", &format!("e={i}")),
+            ]
+        );
+        // Idempotente, et l'entrée n'est pas touchée.
+        assert!(matches!(repair_tool_pairs(&out), Cow::Borrowed(_)));
+        assert_eq!(msgs.len(), 10);
+    }
+
+    /// Historique apparié (image relayée entre deux réponses comprise) :
+    /// rien à copier.
+    #[test]
+    fn paires_d_outils_valides_intactes() {
+        let relay = Message {
+            img_relay: true,
+            ..um("image")
+        };
+        let msgs = vec![
+            um("q"),
+            amulti(&["a", "b"]),
+            tr("a", "ra"),
+            relay,
+            tr("b", "rb"),
+            am("fini"),
+        ];
+        assert!(matches!(repair_tool_pairs(&msgs), Cow::Borrowed(_)));
+        let (out, n) = wire_messages(&msgs[..3], false, &EchoPolicy::default());
+        assert_eq!(out.len(), 4, "réponse de b ajoutée");
+        assert_eq!(n, 0);
     }
 
     #[test]
