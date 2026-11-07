@@ -52,6 +52,24 @@ et le **chiffrement de la mémoire** (`mem_crypto.go`, `mem_vault.go`,
 **pas** reprise : elle vise ajean.link, le service de l'auteur amont. Loki
 expose à la place un export/import de paquet chiffré en fichier local.
 
+Reprises des versions 0.18.6 à 0.18.12 d'AJEAN, réécrites dans la façade Rust :
+la **réparation des arguments d'outils** presque valides (jamais sur une
+réponse coupée par la longueur), les **paires appel/réponse complétées** après
+un arrêt au milieu d'une série d'outils, la **sortie des commandes** qui garde
+le début et la fin et écrase les barres de progression, la **recherche de
+secours** sur Brave Search quand DuckDuckGo bloque ou ne trouve rien, et les
+correctifs du **navigateur piloté** de la 0.18.11 (cases masquées, états
+coché/désactivé, texte de la page dans `browser_find`, alerte sur les pages de
+blocage, rappel de conclure après 25 actions).
+
+## Idées reprises d'opencode
+
+La **modification tolérante** de l'outil `edit` (replis espaces de fin,
+indentation souple, Unicode normalisé, ancrage sur la première et la dernière
+ligne, refus en cas d'ambiguïté) et l'option `replace_all` reprennent l'idée des
+stratégies de remplacement d'**[opencode](https://github.com/anomalyco/opencode)**
+(MIT), réimplémentées en Rust pour ce fork.
+
 ## Moteur Strata
 
 Le second moteur de Loki (`internal/loki/backend_strata.go`) est
