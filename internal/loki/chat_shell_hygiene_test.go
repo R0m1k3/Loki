@@ -45,6 +45,18 @@ func TestShellTailGardeLeCodeDeSortie(t *testing.T) {
 	}
 }
 
+// Une barre de progression redessinée avec \r ne rend que son dernier dessin.
+func TestShellBarreDeProgressionRepliee(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell POSIX")
+	}
+	withWorkspace(t)
+	out := runShell(context.Background(), `printf '1%%\r50%%\r100%%\n'`, 10)
+	if !strings.HasSuffix(out, "stdout:\n100%\n") {
+		t.Fatalf("sortie = %q", out)
+	}
+}
+
 // Au délai dépassé, la sortie déjà produite est rendue.
 func TestShellTimeoutGardeLaSortie(t *testing.T) {
 	if runtime.GOOS == "windows" {

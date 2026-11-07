@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -285,7 +287,7 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 			cmd.Dir = ws
 		}
 	}
-	var stdout, stderr strings.Builder
+	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	// ⚠️ WaitDelay borne l'attente APRÈS la fin (ou la mise à mort) du process.
@@ -305,15 +307,15 @@ func runShell(parent context.Context, command string, timeoutSec int) string {
 	if detached {
 		err = nil
 	}
-	// Sortie nettoyée (couleurs ANSI retirées), réduite à la fin si la commande
-	// demandait un tail.
+	// Sortie nettoyée (barres de progression repliées, couleurs ANSI retirées),
+	// réduite à la fin si la commande demandait un tail.
 	clean := func(s string) string { return tailOutput(stripANSI(s)) }
-	out := stdout.String()
+	out := string(collapseCR(stdout.Bytes()))
 	if keepLines > 0 {
 		out = tailLines(out, keepLines)
 	}
 	out = clean(out)
-	errOut := clean(stderr.String())
+	errOut := clean(string(collapseCR(stderr.Bytes())))
 	switch {
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		// La sortie déjà produite reste utile (où le build en était, quel test
@@ -462,16 +464,90 @@ func fileEdit(path, oldText, newText string) string {
 	return fmt.Sprintf("[ok] %s modifié (1 remplacement)", path)
 }
 
-// tailOutput garde la FIN d'une sortie de commande (toolMaxOutput runes) et dit
-// explicitement ce qui a été coupé (AJEAN 0.15.5). La coupe était silencieuse :
-// le modèle croyait voir toute la sortie, et la bulle affichait toujours
-// ~2004 tok sans qu'on sache pourquoi.
+// cmdOutputHead : part du budget gardée au début d'une sortie trop longue (le
+// reste : la fin).
+const cmdOutputHead = toolMaxOutput / 4
+
+// collapseCR replie, sur les octets bruts (avant tout décodage), une ligne
+// redessinée avec \r (barre de progression de npm, pip, curl) sur son dernier
+// dessin non vide. Le \r d'un « \r\n » reste une fin de ligne ordinaire ; un
+// \r final sans \n derrière part.
+func collapseCR(b []byte) []byte {
+	if bytes.IndexByte(b, '\r') < 0 {
+		return b
+	}
+	lines := bytes.Split(b, []byte{'\n'})
+	out := make([]byte, 0, len(b))
+	for i, line := range lines {
+		if i > 0 {
+			out = append(out, '\n')
+		}
+		body, crlf := line, false
+		if n := len(line); n > 0 && line[n-1] == '\r' {
+			body, crlf = line[:n-1], i < len(lines)-1
+		}
+		segs := bytes.Split(body, []byte{'\r'})
+		for j := len(segs) - 1; j >= 0; j-- {
+			if len(segs[j]) > 0 {
+				out = append(out, segs[j]...)
+				break
+			}
+		}
+		if crlf {
+			out = append(out, '\r')
+		}
+	}
+	return out
+}
+
+// runeByte : l'indice d'octet de la n-ième rune de s (len(s) au-delà).
+func runeByte(s string, n int) int {
+	k := 0
+	for i := range s {
+		if k == n {
+			return i
+		}
+		k++
+	}
+	return len(s)
+}
+
+// tailOutput borne une sortie de commande à toolMaxOutput runes : son DÉBUT
+// (un quart) et sa FIN (le reste), coupés entre deux lignes quand la coupe
+// garde au moins la moitié de sa part (sinon sur un bord de rune), avec le
+// nombre de lignes omises dit en clair entre les deux (la coupe silencieuse
+// d'autrefois laissait croire au modèle qu'il voyait tout ; la fin seule lui
+// cachait l'en-tête d'un build ou la première erreur).
 func tailOutput(s string) string {
-	n := len([]rune(s))
+	n := utf8.RuneCountInString(s)
 	if n <= toolMaxOutput {
 		return s
 	}
-	return fmt.Sprintf("[sortie tronquée : %d caractères au total, seuls les %d derniers sont gardés]\n", n, toolMaxOutput) + tailRunes(s, toolMaxOutput)
+	headEnd := runeByte(s, cmdOutputHead)
+	if i := strings.LastIndexByte(s[:headEnd], '\n'); i >= 0 && utf8.RuneCountInString(s[:i+1]) >= cmdOutputHead/2 {
+		headEnd = i + 1
+	}
+	tailShare := toolMaxOutput - cmdOutputHead
+	tailStart := runeByte(s, n-tailShare)
+	if i := strings.IndexByte(s[tailStart:], '\n'); i >= 0 && utf8.RuneCountInString(s[tailStart+i+1:]) >= tailShare/2 {
+		tailStart += i + 1
+	}
+	head, tail := s[:headEnd], s[tailStart:]
+	// Lignes touchées par la coupe, entières ou en partie.
+	mid := s[headEnd:tailStart]
+	omitted := strings.Count(mid, "\n")
+	if !strings.HasSuffix(mid, "\n") {
+		omitted++
+	}
+	what := "lignes omises"
+	if omitted == 1 {
+		what = "ligne omise"
+	}
+	sep := ""
+	if !strings.HasSuffix(head, "\n") {
+		sep = "\n"
+	}
+	return fmt.Sprintf("%s%s… %d %s …\n%s", head, sep, omitted, what, tail)
 }
 
 // tailRunes returns the last n runes of s (used to cap tool output).
