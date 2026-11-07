@@ -61,6 +61,8 @@ func Main() {
 		mustExit(cmdSetAPIKey(args))
 	case "set-web-key":
 		mustExit(cmdSetWebKey(args))
+	case "password":
+		mustExit(cmdPassword(args))
 	case "vram":
 		mustExit(showVram())
 	case "gpu":
@@ -157,8 +159,10 @@ Interface (loki-ui) :
   ui [start|stop|restart|status]  pilote le service d'interface
   web [PORT]                    sert l'interface au premier plan (défaut :8090) —
                                 ouvre aussi le tunnel si un jeton est enregistré
-  set-web-key [clé|show|off]    clé de l'API de pilotage (générée au 1er démarrage);
-                                vide = générer, show = afficher, off = retirer
+  password [--stdin]            choisir / remplacer le mot de passe de l'interface
+                                (mot de passe perdu : docker exec -it loki loki password)
+  set-web-key [clé|show|off]    clé de l'API de pilotage (scripts) ; en changer
+                                déconnecte tous les navigateurs ; off = retirer
 
 Interaction:
   chat [system-prompt]          chat terminal streamé

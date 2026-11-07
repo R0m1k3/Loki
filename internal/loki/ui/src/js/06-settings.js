@@ -247,11 +247,11 @@ const loadMem = loadAgent;
 
 // --- Chiffrement de la mémoire (pages, discussions, blocs archivés, trackers) -
 //
-// La clé de chiffrement EST la clé de pilotage (localStorage 'loki.key'), qui ne
-// vit que sur cet appareil — le serveur n'en garde qu'une empreinte, il ne peut
-// donc pas ouvrir le coffre seul. Une seule clé pour l'accès ET le chiffrement :
-// avoir l'interface sous les yeux suffit à déverrouiller, sans second secret à
-// retenir.
+// La clé de chiffrement EST la clé de pilotage (localStorage 'loki.key'), que
+// chaque navigateur reçoit en se connectant avec le mot de passe. Une seule clé
+// pour l'accès ET le chiffrement : être connecté suffit à déverrouiller, sans
+// second secret à retenir. Le serveur garde cette clé (state/web_key) : le
+// chiffrement protège le disque copié ou volé seul, pas d'un accès au serveur.
 let memUnlockDone=false; // tentative de déverrouillage déjà faite ce chargement
 async function loadMemEnc(){
   let h; try{ h=await jget('/api/mem/health'); }catch(e){ return; }
@@ -276,7 +276,7 @@ async function loadMemEnc(){
     if(apiKey){ const r=await jpost('/api/mem/unlock',{secret:apiKey}); if(r.ok){ loadMem(); return; } }
     // Boucle : une clé fausse redemande tout de suite (pas besoin de recharger).
     while(true){
-      const s2=await askPrompt('Saisis la clé de pilotage de cet appareil, ou la clé de récupération notée à l\'activation.',{title:'Mémoire verrouillée',placeholder:'clé de pilotage ou clé de récupération'});
+      const s2=await askPrompt('Saisis la clé de récupération notée à l\'activation, ou la clé de pilotage (docker exec -it loki loki set-web-key show).',{title:'Mémoire verrouillée',placeholder:'clé de récupération ou clé de pilotage'});
       if(!s2){ memUnlockDone=false; break; } // annulé : on redemandera au prochain chargement
       const r=await jpost('/api/mem/unlock',{secret:s2});
       if(r.ok){ loadMem(); return; }
@@ -324,7 +324,7 @@ async function backupImport(){
     const data = btoa(bin);
     // Boucle : une clé fausse redemande tout de suite.
     while(true){
-      const secret = await askPrompt("Clé de pilotage de la machine d'origine, ou clé de récupération.",{title:'Restaurer',placeholder:'clé'});
+      const secret = await askPrompt("Clé de récupération, ou clé de pilotage de la machine d'origine (loki set-web-key show sur cette machine).",{title:'Restaurer',placeholder:'clé'});
       if(!secret) return;
       toast('restauration…');
       let r; try{ r = await jpost('/api/backup/import',{data, secret}); }catch(e){ await askAlert('échec : '+e); return; }
@@ -342,7 +342,7 @@ async function toggleMemEncrypt(){
     let cur; try{ cur=await jget('/api/mem/health'); }catch(e){}
     if(cur && cur.encrypted){ memUnlockDone=false; await loadMemEnc(); return; }
     const apiKey=localStorage.getItem('loki.key')||'';
-    if(!apiKey){ await askAlert("Le chiffrement utilise la clé de pilotage de cet appareil, et il n'y en a pas. Règle-la d'abord (loki set-web-key), puis reviens.",{title:'Clé de pilotage requise'}); tog.checked=false; return; }
+    if(!apiKey){ await askAlert("Le chiffrement utilise la clé que ce navigateur reçoit à la connexion, et il n'en a pas. Protège d'abord l'interface par un mot de passe (loki password), reconnecte-toi, puis reviens.",{title:'Connexion requise'}); tog.checked=false; return; }
     const ok=await askConfirm("Les pages mémoire, les discussions, les blocs archivés et les trackers seront chiffrés sur le disque. La clé de cet appareil les ouvre ; une clé de récupération te sera donnée UNE fois — note-la, elle est ta seule porte de secours.",{title:'Chiffrer la mémoire ?',okText:'Chiffrer'});
     if(!ok){ tog.checked=false; return; }
     let r; try{ r=await jpost('/api/mem/encrypt',{password:apiKey}); }catch(e){ await askAlert('échec : '+e); tog.checked=false; return; }

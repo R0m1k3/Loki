@@ -57,19 +57,20 @@ func cmdWeb(args []string) error {
 	if sh := storageFuseHint(); sh != "" {
 		fmt.Println(yellow(sh))
 	}
-	if gen, err := ensureWebKey(); err != nil {
+	// La clé de pilotage reste le jeton de l'API, mais on ne la montre plus :
+	// le navigateur l'obtient avec le mot de passe (web_password.go).
+	if _, err := ensureWebKey(); err != nil {
 		fmt.Printf("%s clé de pilotage : %v\n", red("[!]"), err)
-	} else if gen != "" {
-		// Affichée UNE seule fois : l'interface la demande à la première visite
-		// et la garde dans le navigateur.
-		fmt.Printf("%s clé de pilotage générée (à saisir dans l'interface) : %s\n", green("[ok]"), bold(gen))
-		fmt.Printf("       pour la revoir : %s — pour en choisir une : %s\n", bold("loki set-web-key show"), bold("loki set-web-key <clé>"))
 	}
-	if readWebKey() == "" {
+	pw, _ := readWebPasswordErr()
+	switch {
+	case readWebKey() == "":
 		fmt.Printf("%s API de pilotage NON protégée (clé retirée par « loki set-web-key off »). Pour la protéger :\n", yellow("[!]"))
-		fmt.Printf("       %s\n", bold("loki set-web-key"))
-	} else {
-		fmt.Printf("%s API protégée par clé (Authorization: Bearer …)\n", green("[ok]"))
+		fmt.Printf("       %s\n", bold("loki password"))
+	case len(pw) == 0:
+		fmt.Printf("%s aucun mot de passe : ouvre l'interface pour le choisir (ou %s)\n", yellow("[!]"), bold("loki password"))
+	default:
+		fmt.Printf("%s interface protégée par mot de passe\n", green("[ok]"))
 	}
 	// Même avertissement pour la surface des complétions : depuis qu'elle est
 	// servie ici, elle est joignable partout où l'interface l'est.
@@ -106,8 +107,19 @@ func cmdWeb(args []string) error {
 	// SSE et les binaires passent tels quels (voir web_gzip.go).
 	// withInternalAPI : l'API interne de la façade Rust (web_internal.go) n'est
 	// branchée QUE sur cette écoute directe — le tunnel sert le mux nu.
-	srv := &http.Server{Handler: gzipHandler(withInternalAPI(mux)), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: gzipHandler(withInternalAPI(stripTunnelMark(mux))), ReadHeaderTimeout: 10 * time.Second}
 	return srv.Serve(ln)
+}
+
+// stripTunnelMark efface X-Loki-Via sur l'écoute directe. Cet en-tête marque le
+// trafic du tunnel (withLocalAuth le pose, sur le mux servi par le tunnel) et
+// dispense du contrôle d'hôte : venu d'un client de cette écoute, il est forcément
+// forgé.
+func stripTunnelMark(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del(viaTunnelHeader)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // webBindAddr renvoie l'adresse d'écoute de l'UI. LOKI_WEB_BIND (défaut
@@ -180,6 +192,11 @@ func newWebMux() *http.ServeMux {
 	// WebSocket par la clé d'appareil (Bearer) — le poste ne connaît pas la clé
 	// de pilotage. Voir node_api.go / node_server.go.
 	mux.HandleFunc("/api/node/enroll", handleNodeEnroll)
+	// Connexion par mot de passe (web_password.go) : publique, puisque le
+	// navigateur n'a pas encore la clé que le mot de passe lui donne.
+	mux.HandleFunc("/api/auth/state", handleAuth)
+	mux.HandleFunc("/api/auth/setup", handleAuth)
+	mux.HandleFunc("/api/auth/login", handleAuth)
 	mux.HandleFunc("/api/node/ws", handleNodeWS)
 	mux.HandleFunc("/marked.min.js", func(w http.ResponseWriter, r *http.Request) {
 		b, _ := uiFS.ReadFile("ui/marked.min.js")

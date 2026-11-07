@@ -22,9 +22,8 @@ services:
       - LOKI_MODEL=${LOKI_MODEL:-}
       - LOKI_CTX=${LOKI_CTX:-}
       - LOKI_NGL=${LOKI_NGL:-}
-      # Clé de pilotage : générée au premier démarrage et affichée UNE fois
-      # dans le journal (docker compose logs loki) — l'interface la demande.
-      # Revoir : docker exec -it loki loki set-web-key show
+      # Mot de passe : choisi à la première visite de l'interface.
+      # Perdu : docker exec -it loki loki password
       # LOKI_TRUSTED_HOSTS ne sert que si la clé a été retirée EXPRÈS
       # (loki set-web-key off) : nom(s) de domaine admis sans clé. Déconseillé.
       - LOKI_TRUSTED_HOSTS=${LOKI_TRUSTED_HOSTS:-}
