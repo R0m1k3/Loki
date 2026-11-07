@@ -692,6 +692,7 @@ fn tool_arg_aliases(tool: &str) -> Vec<(&'static str, &'static str)> {
                 ("new_str", "new"),
                 ("new_text", "new"),
                 ("replace", "new"),
+                ("replaceAll", "replace_all"),
             ],
         ]
         .concat(),

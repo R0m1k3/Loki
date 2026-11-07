@@ -130,7 +130,7 @@ func TestEditPreserveCRLF(t *testing.T) {
 	if err := os.WriteFile(path, []byte("un\r\ndeux\r\ntrois\r\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out := fileEdit(path, "deux", "DEUX")
+	out := fileEdit(path, "deux", "DEUX", false)
 	if !strings.HasPrefix(out, "[ok]") {
 		t.Fatalf("édition refusée : %s", out)
 	}
@@ -148,7 +148,7 @@ func TestEditCRLFMultiligne(t *testing.T) {
 	if err := os.WriteFile(path, []byte("a\r\nb\r\nc\r\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out := fileEdit(path, "a\nb", "a\nB")
+	out := fileEdit(path, "a\nb", "a\nB", false)
 	if !strings.HasPrefix(out, "[ok]") {
 		t.Fatalf("édition refusée : %s", out)
 	}

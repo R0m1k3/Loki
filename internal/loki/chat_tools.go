@@ -405,7 +405,9 @@ func fileWrite(path, content string) string {
 // fileEdit applies a single exact-text replacement to a file on disk: oldText
 // must appear EXACTLY once (otherwise it errors), so the model can patch a file
 // without rewriting it whole. Returns a short status string for the tool result.
-func fileEdit(path, oldText, newText string) string {
+// replaceAll : toutes les occurrences exactes (la façade Rust ajoute en plus des
+// correspondances approchées, que ce chemin Go ne fait pas).
+func fileEdit(path, oldText, newText string, replaceAll bool) string {
 	if strings.TrimSpace(path) == "" {
 		return "[erreur] chemin vide"
 	}
@@ -443,10 +445,13 @@ func fileEdit(path, oldText, newText string) string {
 		}
 		return "[erreur] old introuvable dans le fichier"
 	}
-	if n > 1 {
+	if n > 1 && !replaceAll {
 		return fmt.Sprintf("[erreur] old apparaît %d fois — ajoute du contexte pour le rendre unique", n)
 	}
 	updated := strings.Replace(search, oldN, newN, 1)
+	if replaceAll {
+		updated = strings.ReplaceAll(search, oldN, newN)
+	}
 	if search != content {
 		// La comparaison s'est faite en LF : on remet le fichier en CRLF.
 		updated = strings.ReplaceAll(updated, "\n", "\r\n")
@@ -458,6 +463,9 @@ func fileEdit(path, oldText, newText string) string {
 	}
 	if err := os.WriteFile(path, []byte(updated), mode); err != nil {
 		return "[erreur] " + err.Error()
+	}
+	if n > 1 {
+		return fmt.Sprintf("[ok] %s modifié (%d remplacements)", path, n)
 	}
 	return fmt.Sprintf("[ok] %s modifié (1 remplacement)", path)
 }

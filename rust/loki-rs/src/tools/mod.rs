@@ -196,6 +196,7 @@ pub async fn exec_local<S: ToolState>(
                 files::arg_str(args, "old").to_string(),
                 files::arg_str(args, "new").to_string(),
             );
+            let all = files::arg_bool(args, "replace_all");
             if let Some(msg) = code_write_guard(st, &ctx, label, false).await {
                 return Some(outcome(msg));
             }
@@ -207,7 +208,7 @@ pub async fn exec_local<S: ToolState>(
                 new.clone(),
             );
             let mut result =
-                match blocking(move || files::file_edit(&cwd, &mem, &l, &o2, &n2)).await {
+                match blocking(move || files::file_edit(&cwd, &mem, &l, &o2, &n2, all)).await {
                     Ok(r) => r,
                     Err(e) => return Some(outcome(e)),
                 };

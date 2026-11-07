@@ -156,7 +156,7 @@ func editTool() Tool {
 		Type: "function",
 		Function: ToolFunction{
 			Name:        "edit",
-			Description: "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+			Description: "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
 			Parameters: map[string]any{
 				"type": "object",
 				// Ordre voulu : le chemin d'abord (voir orderedProps).
@@ -164,6 +164,7 @@ func editTool() Tool {
 					{"file", map[string]any{"type": "string", "description": "Path"}},
 					{"old", map[string]any{"type": "string", "description": "Exact text to replace (unique)"}},
 					{"new", map[string]any{"type": "string", "description": "Replacement"}},
+					{"replace_all", map[string]any{"type": "boolean", "description": "Replace every exact occurrence of old (default false)"}},
 				},
 				"required": []string{"file", "old", "new"},
 			},
@@ -2708,12 +2709,13 @@ func execTool(ctx context.Context, name string, args map[string]any, label strin
 	case "edit":
 		oldText, _ := args["old"].(string)
 		newText, _ := args["new"].(string)
+		replaceAll, _ := args["replace_all"].(bool)
 		if tgt := agentTargetSlug(); tgt != "" {
 			result = nodeEditRemote(tgt, label, oldText, newText)
 		} else if msg := codeWriteGuard(caps, label, false); msg != "" {
 			result = msg
 		} else {
-			result = fileEdit(label, oldText, newText)
+			result = fileEdit(label, oldText, newText, replaceAll)
 			// Diff seulement si l'édition a réussi (sinon le fichier n'a pas bougé).
 			if !strings.HasPrefix(result, "[erreur]") {
 				diff, diffAdd, diffDel = lineDiff(oldText, newText)
