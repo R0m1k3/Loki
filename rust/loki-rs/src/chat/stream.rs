@@ -777,6 +777,120 @@ fn json_valid(s: &str) -> bool {
     serde_json::from_str::<serde::de::IgnoredAny>(s).is_ok()
 }
 
+/// Arguments d'appel « presque JSON » qu'un petit modèle écrit souvent,
+/// réparés au lieu d'être refusés (idée d'AJEAN v0.18.6, `repairToolArgs`) :
+/// chaque refus coûte un aller-retour et le modèle réécrit souvent l'appel de
+/// travers à l'identique. Réparations prudentes, en une passe :
+/// - bloc de code Markdown autour (```json … ```) retiré ;
+/// - virgule finale avant `}` ou `]` retirée ;
+/// - chaînes entre guillemets simples passées entre guillemets doubles,
+///   SEULEMENT quand le texte ne contient aucun guillemet double (sinon une
+///   apostrophe dans une valeur serait prise pour un délimiteur) ;
+/// - saut de ligne / tabulation bruts dans une chaîne échappés (la valeur
+///   décodée est identique) ;
+/// - accolades et crochets manquants refermés à la fin.
+///
+/// Le contenu des chaînes n'est jamais modifié. Refus (`None`) : chaîne encore
+/// ouverte à la fin (appel coupé), fermeture qui ne correspond pas, ou
+/// résultat qui n'est pas un objet JSON. Le résultat n'est pas re-sérialisé :
+/// les valeurs gardent leur écriture d'origine.
+pub fn repair_tool_args(raw: &str) -> Option<String> {
+    let s = strip_args_fence(raw.trim());
+    if s.is_empty() || !s.starts_with('{') {
+        return None;
+    }
+    let single_ok = !s.contains('"');
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut stack: Vec<char> = Vec::new();
+    // Délimiteur de la chaîne en cours (None hors chaîne).
+    let mut quote: Option<char> = None;
+    let mut chars = s.char_indices();
+    while let Some((i, c)) = chars.next() {
+        if let Some(q) = quote {
+            match c {
+                '\\' => {
+                    let (_, n) = chars.next()?;
+                    if q == '\'' && n == '\'' {
+                        // \' vaut ' dans une chaîne entre guillemets simples.
+                        out.push('\'');
+                    } else {
+                        out.push('\\');
+                        out.push(n);
+                    }
+                }
+                c if c == q => {
+                    out.push('"');
+                    quote = None;
+                }
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c => out.push(c),
+            }
+            continue;
+        }
+        match c {
+            '"' => {
+                quote = Some('"');
+                out.push('"');
+            }
+            '\'' if single_ok => {
+                quote = Some('\'');
+                out.push('"');
+            }
+            '{' => {
+                stack.push('}');
+                out.push(c);
+            }
+            '[' => {
+                stack.push(']');
+                out.push(c);
+            }
+            '}' | ']' => {
+                if stack.pop() != Some(c) {
+                    return None;
+                }
+                out.push(c);
+            }
+            ',' => {
+                // Virgule suivie (blancs mis à part) d'une fermeture.
+                let rest = s[i + 1..].trim_start();
+                if !(rest.starts_with('}') || rest.starts_with(']')) {
+                    out.push(c);
+                }
+            }
+            c => out.push(c),
+        }
+    }
+    if quote.is_some() {
+        return None;
+    }
+    let trimmed = out.trim_end().len();
+    out.truncate(trimmed);
+    if !stack.is_empty() && out.ends_with(',') {
+        out.pop();
+    }
+    while let Some(c) = stack.pop() {
+        out.push(c);
+    }
+    serde_json::from_str::<Map<String, Value>>(&out).ok()?;
+    Some(out)
+}
+
+/// Bloc de code Markdown autour des arguments retiré (étiquette de langage
+/// comprise) ; sans bloc, `s` tel quel.
+fn strip_args_fence(s: &str) -> &str {
+    let Some(rest) = s.strip_prefix("```") else {
+        return s;
+    };
+    let rest = match rest.find('\n') {
+        Some(nl) if !rest[..nl].contains(['{', '[', '"']) => &rest[nl + 1..],
+        _ => rest,
+    };
+    let rest = rest.trim_end();
+    rest.strip_suffix("```").unwrap_or(rest).trim()
+}
+
 /// Appels d'outils d'une complétion, prêts pour l'historique.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AssembledToolCalls {
@@ -785,16 +899,23 @@ pub struct AssembledToolCalls {
     /// Ids des appels dont les arguments étaient du JSON CASSÉ (non vide) :
     /// remplacés par `{}`, à NE PAS exécuter (`badArgs`).
     pub bad_args: HashSet<String>,
+    /// Ids des appels dont les arguments cassés ont été RÉPARÉS
+    /// ([`repair_tool_args`]) : exécutés normalement, signalés au journal.
+    pub repaired: HashSet<String>,
 }
 
 /// Assemblage des appels accumulés (llm_client.go ~l. 2262–2297) : tri par
 /// index, id de secours, arguments invalides neutralisés en `{}` (un vide
 /// n'est pas une faute : outil sans paramètre), [`repair_tool_call`] sinon.
-/// `iter` : rang de la complétion dans la boucle du tour.
+/// `iter` : rang de la complétion dans la boucle du tour. `truncated` : la
+/// complétion a été coupée par la limite de longueur (`finish_reason`
+/// « length ») ; ses arguments cassés ne sont alors JAMAIS réparés (refermé,
+/// un appel coupé écrirait la moitié d'un fichier).
 pub fn assemble_tool_calls(
     calls: &BTreeMap<i64, ToolCall>,
     iter: i64,
     tools: &[Tool],
+    truncated: bool,
 ) -> AssembledToolCalls {
     let mut out = AssembledToolCalls::default();
     for (i, tc) in calls.values().enumerate() {
@@ -802,7 +923,16 @@ pub fn assemble_tool_calls(
         if tc.id.is_empty() {
             tc.id = format!("call_{iter}_{i}");
         }
-        if !json_valid(&tc.function.arguments) {
+        let mut valid = json_valid(&tc.function.arguments);
+        if !valid
+            && !truncated
+            && let Some(fixed) = repair_tool_args(&tc.function.arguments)
+        {
+            tc.function.arguments = fixed;
+            out.repaired.insert(tc.id.clone());
+            valid = true;
+        }
+        if !valid {
             if !tc.function.arguments.trim().is_empty() {
                 out.bad_args.insert(tc.id.clone());
             }
@@ -1495,7 +1625,12 @@ impl StreamOutcome {
 
     /// [`assemble_tool_calls`] sur les appels de cette complétion.
     pub fn assemble_tool_calls(&self, iter: i64, tools: &[Tool]) -> AssembledToolCalls {
-        assemble_tool_calls(&self.tool_calls, iter, tools)
+        assemble_tool_calls(
+            &self.tool_calls,
+            iter,
+            tools,
+            self.finish_reason == "length",
+        )
     }
 }
 
@@ -2069,7 +2204,7 @@ fn go_marshal_object(o: &Map<String, Value>, out: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chat::types::ToolFunction;
+    use crate::chat::types::{ToolCallFunc, ToolFunction};
     use serde_json::json;
     use std::time::Duration;
 
@@ -3423,6 +3558,82 @@ mod tests {
             ]
         );
         assert_eq!(a.bad_args, HashSet::from(["call_4_0".to_string()]));
+    }
+
+    /// Arguments presque JSON : réparés (attendu) ou refusés (`None`).
+    #[test]
+    fn reparation_des_arguments() {
+        let ok: &[(&str, &str)] = &[
+            ("```json\n{\"a\":1}\n```", r#"{"a":1}"#),
+            ("```\n{\"a\":1}```", r#"{"a":1}"#),
+            ("```{\"a\":1}```", r#"{"a":1}"#),
+            (r#"{"a":1,}"#, r#"{"a":1}"#),
+            (r#"{"a":[1,2, ] , }"#, r#"{"a":[1,2 ]  }"#),
+            (
+                r#"{'file': 'a.txt', 'n': 2}"#,
+                r#"{"file": "a.txt", "n": 2}"#,
+            ),
+            (r#"{'s': 'l\'arbre'}"#, r#"{"s": "l'arbre"}"#),
+            (r#"{"a":{"b":[1"#, r#"{"a":{"b":[1]}}"#),
+            (r#"{"a":1,"#, r#"{"a":1}"#),
+            ("{\"cmd\":\"ls\n-l\"}", r#"{"cmd":"ls\n-l"}"#),
+            // Virgule et apostrophe DANS une valeur : intactes.
+            (r#"{"t":"a,}b l'x",}"#, r#"{"t":"a,}b l'x"}"#),
+        ];
+        for (raw, want) in ok {
+            assert_eq!(repair_tool_args(raw).as_deref(), Some(*want), "{raw}");
+        }
+        let refused = [
+            r#"{"file":"#,
+            r#"{"command":"python3 "#, // chaîne ouverte : appel coupé
+            r#"{"a":1]"#,              // fermeture qui ne correspond pas
+            r#"{"a":1}}"#,
+            r#"[1,2]"#, // pas un objet
+            "",
+            "texte",
+            r#"{'s': 'l'arbre'}"#, // apostrophe ambiguë
+            r#"{'a': "b"}"#,       // guillemets mêlés : pas de conversion
+            r#"{"a":1 "b":2}"#,    // virgule manquante : pas devinée
+            r#"{"a":"x\"#,
+        ];
+        for raw in refused {
+            assert_eq!(repair_tool_args(raw), None, "{raw}");
+        }
+    }
+
+    /// Réparé : exécuté et signalé ; coupé par la longueur : JAMAIS réparé.
+    #[test]
+    fn arguments_repares_sauf_coupure_par_la_longueur() {
+        let calls = BTreeMap::from([(
+            0,
+            ToolCall {
+                id: "c1".into(),
+                function: ToolCallFunc {
+                    name: "bash".into(),
+                    arguments: r#"{"command":"ls","#.into(),
+                },
+                ..Default::default()
+            },
+        )]);
+        let a = assemble_tool_calls(&calls, 0, &outils(&["bash"]), false);
+        assert_eq!(a.calls[0].function.arguments, r#"{"command":"ls"}"#);
+        assert!(a.bad_args.is_empty());
+        assert_eq!(a.repaired, HashSet::from(["c1".to_string()]));
+        let a = assemble_tool_calls(&calls, 0, &outils(&["bash"]), true);
+        assert_eq!(a.calls[0].function.arguments, "{}");
+        assert_eq!(a.bad_args, HashSet::from(["c1".to_string()]));
+        assert!(a.repaired.is_empty());
+        // Par le flux : finish_reason « length » transmis.
+        let out = StreamOutcome {
+            tool_calls: calls,
+            finish_reason: "length".into(),
+            ..Default::default()
+        };
+        assert!(
+            out.assemble_tool_calls(0, &outils(&["bash"]))
+                .repaired
+                .is_empty()
+        );
     }
 
     /// Le rappel qui refuse arrête tout : plus rien n'est lu ni émis, le

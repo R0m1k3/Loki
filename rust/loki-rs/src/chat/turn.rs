@@ -81,10 +81,10 @@ use super::types::{
     ToolCallFunc, ToolUsedEvent,
 };
 use super::wire::{
-    ChatEndpoint, ChatPayloadOpts, EchoPolicy, TOOLS_OFF_HINT, TurnReasoning, build_chat_payload,
-    echo_template_error, effort_from_rejection, log_effort_fallback, reasoning_active,
-    reasoning_echo_model, reasoning_template_kwargs, strip_reasoning, turn_echo_policy,
-    wire_messages, with_echo,
+    ChatEndpoint, ChatPayloadOpts, EchoPolicy, TOOL_INTERRUPTED, TOOLS_OFF_HINT, TurnReasoning,
+    build_chat_payload, echo_template_error, effort_from_rejection, log_effort_fallback,
+    reasoning_active, reasoning_echo_model, reasoning_template_kwargs, strip_reasoning,
+    turn_echo_policy, wire_messages, with_echo,
 };
 
 /// Reprises d'un flux coupé en cours de réponse (`maxStreamRetries`).
@@ -419,6 +419,23 @@ fn status_text(status: u16) -> String {
         .and_then(|s| s.canonical_reason())
         .unwrap_or("");
     format!("{status} {reason}").trim().to_string()
+}
+
+/// Arrêt demandé au milieu d'une série d'appels : chaque appel restant reçoit
+/// une réponse « interrompu », dans `messages` comme dans `extra`. Sans elle,
+/// l'assistant porteur des appels resterait à demi apparié et les gabarits
+/// stricts refuseraient (HTTP 400) toutes les requêtes suivantes.
+fn push_interrupted(messages: &mut Vec<Message>, extra: &mut Vec<Message>, rest: &[ToolCall]) {
+    for call in rest {
+        let m = Message {
+            role: "tool".into(),
+            tool_call_id: call.id.clone(),
+            content: Some(Value::String(TOOL_INTERRUPTED.into())),
+            ..Default::default()
+        };
+        messages.push(m.clone());
+        extra.push(m);
+    }
 }
 
 /// `fillToolResult` : aperçu pour l'UI, taille réelle, et l'id du résultat
@@ -986,14 +1003,25 @@ async fn run_turn_loop<H: TurnHost>(
         // Appels d'outils (même si finish_reason dit « stop »).
         if !out.tool_calls.is_empty() {
             let assembled = out.assemble_tool_calls(iter, &tc.tools);
+            for call in assembled
+                .calls
+                .iter()
+                .filter(|c| assembled.repaired.contains(&c.id))
+            {
+                eprintln!(
+                    "[llm] arguments de {} réparés (JSON presque valide) : {}",
+                    call.function.name, call.id
+                );
+            }
             let assistant = assistant_base(assembled.calls.clone());
             messages.push(assistant.clone());
             extra.push(assistant);
             // Début des résultats de CETTE étape, que le moteur n'a pas comptés.
             let step_start = messages.len();
             s.pattern_retries = 0;
-            for call in &assembled.calls {
+            for (k, call) in assembled.calls.iter().enumerate() {
                 if cancel.is_cancelled() {
+                    push_interrupted(&mut messages, &mut extra, &assembled.calls[k..]);
                     return TurnResult { extra, err: None };
                 }
                 s.tool_runs += 1;
@@ -1048,6 +1076,7 @@ async fn run_turn_loop<H: TurnHost>(
                     continue;
                 }
                 let Some(ex) = cancel.or_stop(host.exec_tool(name, &args, &label)).await else {
+                    push_interrupted(&mut messages, &mut extra, &assembled.calls[k..]);
                     return TurnResult { extra, err: None };
                 };
                 if let Some(ask) = ex.ask.clone() {
