@@ -1,3 +1,26 @@
+# Loki — prochaine version (en préparation)
+
+Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 à
+0.18.12 et d'opencode.
+
+- **`edit` tolérant** : quand `old` ne correspond pas à l'octet près, Loki
+  essaie, du plus strict au plus large, sans les espaces de fin, avec une
+  indentation souple, en Unicode normalisé, puis par ancrage sur la première et
+  la dernière ligne. Plusieurs candidats : refus, jamais de devinette. Le
+  résultat dit quelle correspondance a servi. Nouvelle option `replace_all`.
+- **Arguments d'outils réparés** : bloc Markdown, virgule en trop, guillemets
+  simples, accolade manquante. Une réponse coupée par la longueur n'est jamais
+  réparée : l'appel reste refusé et redemandé.
+- **Plus de discussion bloquée après un arrêt** : les appels restants reçoivent
+  « [interrompu] », et les historiques déjà enregistrés sont réparés à l'envoi.
+- **Sortie des commandes** : début et fin gardés (« … N lignes omises … »),
+  barres de progression écrasées.
+- **Recherche de secours** : Brave Search prend le relais quand DuckDuckGo
+  bloque ou ne trouve rien ; l'en-tête dit quel moteur a répondu.
+- **Navigateur piloté** : cases à cocher et boutons radio masqués, états
+  coché/désactivé, texte de la page dans `browser_find`, alerte sur les pages
+  de blocage, rappel de conclure après 25 actions.
+
 # Loki 0.15.0
 
 Une version entièrement consacrée à la vitesse, avec une règle tenue de bout en
