@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -61,6 +62,9 @@ type cdpSession struct {
 	lastNet  time.Time // dernier événement réseau
 
 	lastSnap string // dernier snapshot renvoyé, pour dé-dupliquer les états identiques
+	// repeatKey / repeatN : dernière action sans effet et son nombre de répétitions (cuRepeat).
+	repeatKey string
+	repeatN   int
 }
 
 type cdpMessage struct {
@@ -509,6 +513,10 @@ function ajName(el){var t=el.tagName.toLowerCase();var lbl=el.getAttribute('aria
 function ajActionable(el){var t=el.tagName.toLowerCase();if(t==='a')return !!el.getAttribute('href');if(t==='button'||t==='input'||t==='select'||t==='textarea'||t==='summary')return el.type!=='hidden';if(el.isContentEditable)return true;if(el.getAttribute('onclick'))return true;var r=(el.getAttribute('role')||'').toLowerCase();return {button:1,link:1,checkbox:1,radio:1,tab:1,menuitem:1,menuitemcheckbox:1,menuitemradio:1,option:1,'switch':1,combobox:1,textbox:1,searchbox:1,slider:1,spinbutton:1}[r]===1;}
 function ajVis(el){var r=el.getBoundingClientRect();if(r.width<3||r.height<3)return false;var s=getComputedStyle(el);if(s.visibility==='hidden'||s.display==='none'||s.opacity==='0')return false;if(r.bottom<0||r.top>innerHeight||r.right<0||r.left>innerWidth)return false;return true;}
 var ajSel='a[href],button,input,select,textarea,[role],[onclick],[tabindex],summary,[contenteditable="true"]';
+function ajToggle(el){var t=el.tagName.toLowerCase(),ty=(el.type||'').toLowerCase(),r=(el.getAttribute('role')||'').toLowerCase();return (t==='input'&&(ty==='radio'||ty==='checkbox'))||r==='radio'||r==='checkbox'||r==='switch';}
+function ajTarget(el){if(!ajToggle(el)||ajVis(el))return el;var c=[];if(el.labels)for(var i=0;i<el.labels.length;i++)c.push(el.labels[i]);if(el.id){try{var l=document.querySelector('label[for="'+CSS.escape(el.id)+'"]');if(l)c.push(l);}catch(e){}}var p=el.closest&&el.closest('label');if(p)c.push(p);var q=el.parentElement;for(var k=0;k<3&&q;k++,q=q.parentElement){if(q.querySelectorAll('input[type=radio],input[type=checkbox],[role=radio],[role=checkbox]').length===1)c.push(q);}for(var j=0;j<c.length;j++)if(ajVis(c[j]))return c[j];return el;}
+function ajOn(el){return !!(el.checked||el.getAttribute('aria-checked')==='true'||el.getAttribute('aria-pressed')==='true');}
+function ajState(el){var s='';if(ajOn(el))s+=' [coché]';else if(el.getAttribute('aria-selected')==='true')s+=' [sélectionné]';if(el.disabled||el.getAttribute('aria-disabled')==='true')s+=' [désactivé]';return s;}
 // Traversée du SHADOW DOM : les bandeaux cookies et composants web (usercentrics,
 // cookiebot…) vivent dans des shadow roots que querySelectorAll ne voit pas → le
 // modèle ne pouvait ni les lister ni les cliquer (test Lady Sushi). ajQueryAll /
@@ -523,12 +531,14 @@ function ajClear(){function w(r){var o=r.querySelectorAll('[data-loki-ref]');for
 // et renvoie {title,url,refs,above,below}. Compact volontairement.
 const cdpSnapshotJS = cdpHelpersJS + `(function(){
   ajClear();
-  var els=ajQueryAll().filter(function(el){return ajActionable(el)&&ajVis(el);});
+  // Case radio/à cocher cachée (site moderne : l'étiquette visible porte le clic) :
+  // gardée via sa cible visible, sinon les choix d'un configurateur n'existaient pas.
+  var els=ajQueryAll().filter(function(el){return ajActionable(el)&&ajVis(ajTarget(el));});
   var map={},refs=[],i=0;
   for(var k=0;k<els.length&&i<200;k++){var el=els[k];var nm=ajName(el),rl=ajRole(el);
-    i++;var r=el.getBoundingClientRect();map[i]={x:r.left+r.width/2,y:r.top+r.height/2};
+    i++;var r=ajTarget(el).getBoundingClientRect();map[i]={x:r.left+r.width/2,y:r.top+r.height/2};
     el.setAttribute('data-loki-ref',String(i));
-    refs.push('['+i+'] '+rl+(nm?' "'+nm+'"':''));
+    refs.push('['+i+'] '+rl+(nm?' "'+nm+'"':'')+ajState(el));
   }
   window.__lokiRefs=map;
   var de=document.documentElement;
@@ -616,10 +626,21 @@ const cdpFindJS = `function(q){
     var ref=el.getAttribute('data-loki-ref');
     if(!ref){maxRef++;ref=String(maxRef);el.setAttribute('data-loki-ref',ref);}
     if(!first)first=el;count++;
-    refs.push('['+ref+'] '+rl+(nm?' "'+nm+'"':''));
+    refs.push('['+ref+'] '+rl+(nm?' "'+nm+'"':'')+ajState(el));
   }
-  if(first)first.scrollIntoView({block:'center'});
-  return {refs:refs};
+  // Texte simple (non cliquable) : une date de livraison, un message d'erreur,
+  // un prix. Sans ça, le modèle ne pouvait lire ces informations qu'à la capture.
+  var texts=[],seen={};
+  if(q){var tw=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);var n;
+    while((n=tw.nextNode())&&texts.length<8){var v=(n.nodeValue||'');if(v.toLowerCase().indexOf(q)<0)continue;
+      var pe=n.parentElement;if(!pe||pe.closest('script,style,noscript'))continue;
+      var st2=getComputedStyle(pe);if(st2.display==='none'||st2.visibility==='hidden')continue;
+      var rr=pe.getBoundingClientRect();if(rr.width<1&&rr.height<1)continue;
+      var blk=pe;for(var u=0;u<3&&blk.parentElement&&(blk.innerText||'').length<60;u++)blk=blk.parentElement;
+      var tx=(blk.innerText||v).replace(/\s+/g,' ').trim();if(tx.length>240)tx=tx.slice(0,240)+'…';
+      if(seen[tx])continue;seen[tx]=1;texts.push(tx);if(!first)first=pe;}}
+  if(first)ajTarget(first).scrollIntoView({block:'center'});
+  return {refs:refs,texts:texts};
 }`
 
 func (s *cdpSession) find(query string) (string, error) {
@@ -629,17 +650,27 @@ func (s *cdpSession) find(query string) (string, error) {
 		return "", err
 	}
 	var r struct {
-		Refs []string `json:"refs"`
+		Refs  []string `json:"refs"`
+		Texts []string `json:"texts"`
 	}
 	if err := json.Unmarshal(val, &r); err != nil {
 		return "", fmt.Errorf("recherche illisible: %v", err)
 	}
-	if len(r.Refs) == 0 {
-		return fmt.Sprintf("Aucun élément contenant « %s » sur cette page. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien).", query), nil
+	if len(r.Refs) == 0 && len(r.Texts) == 0 {
+		return fmt.Sprintf("Rien ne contient « %s » sur cette page, ni élément ni texte. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien).", query), nil
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d élément(s) contenant « %s » (le 1er est amené dans la vue) — clique par numéro :\n", len(r.Refs), query)
-	b.WriteString(strings.Join(r.Refs, "\n"))
+	if len(r.Refs) > 0 {
+		fmt.Fprintf(&b, "%d élément(s) contenant « %s » (le 1er est amené dans la vue) — clique par numéro :\n", len(r.Refs), query)
+		b.WriteString(strings.Join(r.Refs, "\n"))
+	}
+	if len(r.Texts) > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n\n")
+		}
+		fmt.Fprintf(&b, "Texte de la page contenant « %s » (à lire, pas à cliquer) :\n- ", query)
+		b.WriteString(strings.Join(r.Texts, "\n- "))
+	}
 	return b.String(), nil
 }
 
@@ -729,38 +760,69 @@ func (s *cdpSession) navigate(url string) error {
 	return nil
 }
 
-// refCenter renvoie les coordonnées viewport (fraîches) d'un élément marqué, en
-// le faisant d'abord défiler au centre.
-func (s *cdpSession) refCenter(ref int) (float64, float64, error) {
-	expr := cdpHelpersJS + fmt.Sprintf(`(function(){var el=ajByRef(%d);if(!el){return null;}el.scrollIntoView({block:'center',inline:'center'});var r=el.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`, ref)
-	val, err := s.eval(expr)
-	if err != nil {
-		return 0, 0, err
-	}
-	if string(val) == "null" || len(val) == 0 {
-		return 0, 0, fmt.Errorf("élément [%d] introuvable — refais un browser_snapshot (la page a peut-être changé)", ref)
-	}
-	var p struct{ X, Y float64 }
-	if err := json.Unmarshal(val, &p); err != nil {
-		return 0, 0, err
-	}
-	return p.X, p.Y, nil
+// cuRefInfo : position et état d'un élément marqué.
+type cuRefInfo struct {
+	X, Y float64
+	Dis  bool `json:"dis"` // désactivé
+	Tog  bool `json:"tog"` // case radio / à cocher
+	On   bool `json:"on"`  // cochée
 }
 
-func (s *cdpSession) clickRef(ref int) error {
-	x, y, err := s.refCenter(ref)
+// refInfo fait défiler l'élément [ref] au centre (sa cible visible : l'étiquette
+// d'une case cachée) et renvoie sa position et son état.
+func (s *cdpSession) refInfo(ref int) (cuRefInfo, error) {
+	expr := cdpHelpersJS + fmt.Sprintf(`(function(){var el=ajByRef(%d);if(!el){return null;}var t=ajTarget(el);t.scrollIntoView({block:'center',inline:'center'});var r=t.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,dis:!!(el.disabled||el.getAttribute('aria-disabled')==='true'),tog:ajToggle(el),on:ajOn(el)};})()`, ref)
+	val, err := s.eval(expr)
 	if err != nil {
-		return err
+		return cuRefInfo{}, err
+	}
+	var p cuRefInfo
+	if string(val) == "null" || len(val) == 0 {
+		return p, fmt.Errorf("élément [%d] introuvable — refais un browser_snapshot (la page a peut-être changé)", ref)
+	}
+	if err := json.Unmarshal(val, &p); err != nil {
+		return p, err
+	}
+	return p, nil
+}
+
+// errCUDisabled : clic sur un élément désactivé. Vu sur un configurateur : le
+// modèle recliquait sans fin un « Continuer » grisé faute d'un choix obligatoire.
+var errCUDisabled = errors.New("élément désactivé : le site attend d'abord autre chose (un choix obligatoire non coché, un champ vide). Cherche les options sans [coché] au-dessus (browser_find), ne reclique pas")
+
+// clickRef clique l'élément [ref]. Renvoie une note quand une case n'a pas pris
+// le clic (« » si tout va bien).
+func (s *cdpSession) clickRef(ref int) (string, error) {
+	in, err := s.refInfo(ref)
+	if err != nil {
+		return "", err
+	}
+	if in.Dis {
+		return "", errCUDisabled
 	}
 	for _, typ := range []string{"mousePressed", "mouseReleased"} {
 		if _, err := s.call("Input.dispatchMouseEvent", map[string]any{
-			"type": typ, "x": x, "y": y, "button": "left", "clickCount": 1,
+			"type": typ, "x": in.X, "y": in.Y, "button": "left", "clickCount": 1,
 		}); err != nil {
-			return err
+			return "", err
 		}
 	}
 	s.waitLoad()
-	return nil
+	if !in.Tog || in.On {
+		return "", nil
+	}
+	// Case qui devait se cocher : on vérifie, et sinon on la coche par le DOM
+	// (un clic de souris peut tomber sur un voile ou une étiquette décorative).
+	after, err := s.refInfo(ref)
+	if err != nil || after.On {
+		return "", nil
+	}
+	_, _ = s.eval(cdpHelpersJS + fmt.Sprintf(`(function(){var el=ajByRef(%d);if(el)el.click();})()`, ref))
+	s.waitLoad()
+	if again, err := s.refInfo(ref); err == nil && again.On {
+		return " (coché au second essai)", nil
+	}
+	return " — ATTENTION : la case ne s'est PAS cochée, le site ne l'a pas prise en compte", nil
 }
 
 // clickXY clique à des coordonnées pixel du VIEWPORT (lues sur le screenshot).

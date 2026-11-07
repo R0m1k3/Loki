@@ -57,7 +57,7 @@
         "Page.navigate {\"url\":\"https://exemple.test\"}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -68,7 +68,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -84,7 +84,7 @@
         "Page.navigate {\"url\":\"https://exemple.test/\"}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -105,7 +105,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -119,7 +119,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -133,7 +133,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -147,7 +147,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -161,7 +161,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -187,7 +187,7 @@
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,600);'ok'\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -214,7 +214,7 @@
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,-600);'ok'\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -228,7 +228,7 @@
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(-600,0);'ok'\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -240,7 +240,7 @@
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"window.scrollBy(0,600);'ok'\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -280,11 +280,11 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:d543b8f1c16e]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:2e4b1df04aaa]\",\"returnByValue\":true}",
         "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":640,\"y\":412.5}",
         "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":640,\"y\":412.5}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -310,7 +310,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:22298800a28a]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:df9e0004caeb]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -353,8 +353,125 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[3557:d1528b7be679]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:03046e05f4bf]\",\"returnByValue\":true}",
         "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":1,\"y\":2}"
+      ]
+    },
+    {
+      "name": "clic désactivé",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "center": {
+          "dis": true,
+          "x": 5,
+          "y": 6
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 3
+      },
+      "result": "[refusé] [3] élément désactivé : le site attend d'abord autre chose (un choix obligatoire non coché, un champ vide). Cherche les options sans [coché] au-dessus (browser_find), ne reclique pas",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:24f14c1cc86a]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "clic désactivé répété",
+      "tool": "browser_click",
+      "args": {
+        "ref": 3
+      },
+      "result": "[refusé] [3] élément désactivé : le site attend d'abord autre chose (un choix obligatoire non coché, un champ vide). Cherche les options sans [coché] au-dessus (browser_find), ne reclique pas\n\n⚠ Même action sans effet 2 fois de suite : tu tournes en rond. Change d'approche (une option obligatoire non cochée ? browser_find sur les choix ; un autre bouton ; ou dis à l'utilisateur ce qui bloque).",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:24f14c1cc86a]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "clic sur une case cochée",
+      "scene": {
+        "snap": {
+          "above": 600,
+          "below": 10,
+          "refs": [
+            "[4] link \"Mentions\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "center": {
+          "on": true,
+          "tog": true,
+          "x": 5,
+          "y": 6
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 4
+      },
+      "result": "[ok] cliqué [4]\n\n(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:b201fa5d33ab]\",\"returnByValue\":true}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":5,\"y\":6}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":5,\"y\":6}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "case qui ne se coche pas",
+      "scene": {
+        "snap": {
+          "above": 0,
+          "below": 900,
+          "refs": [
+            "[1] link \"Accueil\"",
+            "[2] button \"Créer un compte\"",
+            "[3] textbox \"Nom = Jean\""
+          ],
+          "title": "Exemple",
+          "url": "https://exemple.test/"
+        },
+        "center": {
+          "tog": true,
+          "x": 5,
+          "y": 6
+        }
+      },
+      "tool": "browser_click",
+      "args": {
+        "ref": 4
+      },
+      "result": "[ok] cliqué [4] — ATTENTION : la case ne s'est PAS cochée, le site ne l'a pas prise en compte\n\n# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:b201fa5d33ab]\",\"returnByValue\":true}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":5,\"y\":6}",
+        "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":5,\"y\":6}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:b201fa5d33ab]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4539:8f7d6c16df37]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4784:b201fa5d33ab]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -377,14 +494,14 @@
         "x": 100.4,
         "y": 250.5
       },
-      "result": "[ok] clic en (100, 250)\n\n# Exemple\nhttps://exemple.test/\n\n3 élément(s) interactif(s) VISIBLE(s) — clique par numéro avec browser_click(ref) :\n[1] link \"Accueil\"\n[2] button \"Créer un compte\"\n[3] textbox \"Nom = Jean\"\n\n↓ encore ~900 px sous la vue — browser_scroll(down) pour révéler d'autres éléments.",
+      "result": "[ok] clic en (100, 250)\n\n(page inchangée depuis le dernier affichage — les mêmes numéros restent valides)",
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mousePressed\",\"x\":100.4,\"y\":250.5}",
         "Input.dispatchMouseEvent {\"button\":\"left\",\"clickCount\":1,\"type\":\"mouseReleased\",\"x\":100.4,\"y\":250.5}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -419,7 +536,7 @@
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Input.insertText {\"text\":\"bonjour \\u003cmonde\\u003e \\u0026 co\"}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -447,9 +564,9 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4147:bba886791418]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5265:811b7e7716eb]\",\"returnByValue\":true}",
         "Input.insertText {\"text\":\"Jean\"}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -475,8 +592,8 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4149:abf8fb89d6ea]\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5267:2fff225d52de]\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -493,7 +610,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4147:5fd2e2486627]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5265:61426afd7d2c]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -510,7 +627,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4144:04f4774b7d77]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5262:e92f81465749]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -539,7 +656,7 @@
         "Input.dispatchKeyEvent {\"code\":\"Enter\",\"key\":\"Enter\",\"nativeVirtualKeyCode\":13,\"type\":\"rawKeyDown\",\"windowsVirtualKeyCode\":13}",
         "Input.dispatchKeyEvent {\"code\":\"Enter\",\"key\":\"Enter\",\"nativeVirtualKeyCode\":13,\"type\":\"keyUp\",\"windowsVirtualKeyCode\":13}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -555,7 +672,7 @@
         "Input.dispatchKeyEvent {\"code\":\"Escape\",\"key\":\"Escape\",\"nativeVirtualKeyCode\":27,\"type\":\"rawKeyDown\",\"windowsVirtualKeyCode\":27}",
         "Input.dispatchKeyEvent {\"code\":\"Escape\",\"key\":\"Escape\",\"nativeVirtualKeyCode\":27,\"type\":\"keyUp\",\"windowsVirtualKeyCode\":27}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -609,7 +726,51 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4257:2e4488312149]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[6337:8ac2546d1294]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "recherche de texte",
+      "scene": {
+        "find": {
+          "refs": [
+            "[4] radio \"256 Go\" [coché]"
+          ],
+          "texts": [
+            "Livraison estimée : 12 nov.",
+            "256 Go — 999 €"
+          ]
+        }
+      },
+      "tool": "browser_find",
+      "args": {
+        "text": "256"
+      },
+      "result": "1 élément(s) contenant « 256 » (le 1er est amené dans la vue) — clique par numéro :\n[4] radio \"256 Go\" [coché]\n\nTexte de la page contenant « 256 » (à lire, pas à cliquer) :\n- Livraison estimée : 12 nov.\n- 256 Go — 999 €",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[6320:97b95b2d733c]\",\"returnByValue\":true}"
+      ]
+    },
+    {
+      "name": "texte seul",
+      "scene": {
+        "find": {
+          "texts": [
+            "Livraison estimée : 12 nov."
+          ]
+        }
+      },
+      "tool": "browser_find",
+      "args": {
+        "text": "livraison"
+      },
+      "result": "Texte de la page contenant « livraison » (à lire, pas à cliquer) :\n- Livraison estimée : 12 nov.",
+      "saved": [],
+      "calls": [
+        "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[6326:bf25f0506bed]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -623,11 +784,11 @@
       "args": {
         "text": "zzz"
       },
-      "result": "Aucun élément contenant « zzz » sur cette page. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien).",
+      "result": "Rien ne contient « zzz » sur cette page, ni élément ni texte. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien).",
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4240:c7d0f581011e]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[6320:66b0a2bd8881]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -717,7 +878,7 @@
         "Page.navigate {\"url\":\"https://dl.test/f.zip\"}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"location.href\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -744,7 +905,7 @@
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"history.back();'ok'\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -759,7 +920,7 @@
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"history.forward();'ok'\",\"returnByValue\":true}",
         "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"document.readyState\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     },
     {
@@ -1075,7 +1236,7 @@
       "saved": [],
       "calls": [
         "Runtime.evaluate {\"expression\":\"1\",\"returnByValue\":true}",
-        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[4073:d76a42af8356]\",\"returnByValue\":true}"
+        "Runtime.evaluate {\"awaitPromise\":true,\"expression\":\"\\nfunction ajRole(el){var r=el.getAttribu…[5399:e749de5f8d50]\",\"returnByValue\":true}"
       ]
     }
   ]

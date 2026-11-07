@@ -263,6 +263,11 @@ func TestPariteNavigateur(t *testing.T) {
 		}
 		calls = nil
 		mu.Unlock()
+		// Le journal porte la sortie des outils, sans les rappels du compte
+		// d'actions (cuGuard) : la façade les ajoute dans son tour.
+		cuBudget.Lock()
+		cuBudget.n = 0
+		cuBudget.Unlock()
 		if st.Vision {
 			_ = SetConfigKey("MMPROJ", "vision.gguf")
 		} else {
@@ -328,6 +333,10 @@ func TestPariteNavigateur(t *testing.T) {
 	run(parityBrowserStep{Name: "clic sans ref", Tool: "browser_click", Args: a("ref", "2")})
 	run(parityBrowserStep{Name: "clic refusé", Scene: &parityCDPScene{Snap: snapPage, Center: map[string]any{"x": 1, "y": 2},
 		Errors: map[string]string{"Input.dispatchMouseEvent": "Cannot dispatch"}}, Tool: "browser_click", Args: a("ref", 1.0)})
+	run(parityBrowserStep{Name: "clic désactivé", Scene: &parityCDPScene{Snap: snapPage, Center: map[string]any{"x": 5, "y": 6, "dis": true}}, Tool: "browser_click", Args: a("ref", 3.0)})
+	run(parityBrowserStep{Name: "clic désactivé répété", Tool: "browser_click", Args: a("ref", 3.0)})
+	run(parityBrowserStep{Name: "clic sur une case cochée", Scene: &parityCDPScene{Snap: snapScrolled, Center: map[string]any{"x": 5, "y": 6, "tog": true, "on": true}}, Tool: "browser_click", Args: a("ref", 4.0)})
+	run(parityBrowserStep{Name: "case qui ne se coche pas", Scene: &parityCDPScene{Snap: snapPage, Center: map[string]any{"x": 5, "y": 6, "tog": true}}, Tool: "browser_click", Args: a("ref", 4.0)})
 	run(parityBrowserStep{Name: "clic en coordonnées", Scene: &parityCDPScene{Snap: snapPage}, Tool: "browser_click_xy", Args: a("x", 100.4, "y", 250.5)})
 	run(parityBrowserStep{Name: "coordonnées manquantes", Tool: "browser_click_xy", Args: a("x", 10.0)})
 	run(parityBrowserStep{Name: "saisie libre", Scene: &parityCDPScene{Snap: snapScrolled}, Tool: "browser_type", Args: a("text", "bonjour <monde> & co")})
@@ -341,6 +350,8 @@ func TestPariteNavigateur(t *testing.T) {
 	run(parityBrowserStep{Name: "recherche vide", Tool: "browser_find", Args: a("text", "")})
 	run(parityBrowserStep{Name: "recherche", Scene: &parityCDPScene{Snap: snapPage, Find: map[string]any{"refs": []any{`[2] button "Créer un compte"`, `[7] link "Créer"`}}},
 		Tool: "browser_find", Args: a("text", "créer <b>")})
+	run(parityBrowserStep{Name: "recherche de texte", Scene: &parityCDPScene{Find: map[string]any{"refs": []any{`[4] radio "256 Go" [coché]`}, "texts": []any{"Livraison estimée : 12 nov.", "256 Go — 999 €"}}}, Tool: "browser_find", Args: a("text", "256")})
+	run(parityBrowserStep{Name: "texte seul", Scene: &parityCDPScene{Find: map[string]any{"texts": []any{"Livraison estimée : 12 nov."}}}, Tool: "browser_find", Args: a("text", "livraison")})
 	run(parityBrowserStep{Name: "recherche sans résultat", Scene: &parityCDPScene{Find: map[string]any{"refs": []any{}}}, Tool: "browser_find", Args: a("text", "zzz")})
 	run(parityBrowserStep{Name: "navigation en échec", Scene: &parityCDPScene{Snap: snapPage, Href: "https://nulle-part.test/", NavError: "net::ERR_NAME_NOT_RESOLVED"},
 		Tool: "browser_open", Args: a("url", "nulle-part.test")})

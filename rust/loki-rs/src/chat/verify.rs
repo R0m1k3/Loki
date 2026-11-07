@@ -489,6 +489,7 @@ impl ChatService {
                 super::perf::KIND_MAIN
             },
             side_slot: Default::default(),
+            browser_actions: Default::default(),
             projsnap: snap_turn,
             snap_refreshed: Default::default(),
             // Le builder relancé délègue comme dans son tour ; la

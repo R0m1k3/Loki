@@ -70,6 +70,130 @@ pub fn cap_output(s: &str) -> String {
     }
 }
 
+/// `errCUDisabled` : clic sur un élément désactivé. Vu sur un configurateur :
+/// le modèle recliquait sans fin un « Continuer » grisé faute d'un choix
+/// obligatoire.
+pub const CLICK_DISABLED: &str = "élément désactivé : le site attend d'abord autre chose (un choix obligatoire non coché, un champ vide). Cherche les options sans [coché] au-dessus (browser_find), ne reclique pas";
+
+/// `cuRefInfo` : position et état d'un élément marqué.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+struct RefInfo {
+    x: f64,
+    y: f64,
+    /// Désactivé.
+    dis: bool,
+    /// Case radio / à cocher.
+    tog: bool,
+    /// Cochée.
+    on: bool,
+}
+
+/// `cuRepeat` : garde-fou anti-boucle. Une même action qui ne change rien,
+/// plusieurs fois de suite, reçoit un avertissement clair (vu : plus de 60
+/// actions sur un bouton grisé, « page inchangée » à chaque fois).
+#[derive(Debug, Default)]
+pub struct Repeat {
+    key: String,
+    n: usize,
+}
+
+impl Repeat {
+    /// Note le résultat `out` de l'action `key` et y ajoute l'avertissement
+    /// à partir de la deuxième répétition sans effet.
+    pub fn note(&mut self, key: &str, mut out: String) -> String {
+        let no_effect = out.contains("page inchangée") || out.starts_with("[refusé]");
+        if !no_effect {
+            self.key.clear();
+            self.n = 0;
+            return out;
+        }
+        if key == self.key {
+            self.n += 1;
+        } else {
+            self.key = key.to_string();
+            self.n = 1;
+        }
+        if self.n >= 2 {
+            out.push_str(&format!(
+                "\n\n⚠ Même action sans effet {} fois de suite : tu tournes en rond. Change d'approche (une option obligatoire non cochée ? browser_find sur les choix ; un autre bouton ; ou dis à l'utilisateur ce qui bloque).",
+                self.n
+            ));
+        }
+        out
+    }
+}
+
+/// Le texte de `browser_find` : les éléments (cliquables) puis les passages
+/// de texte simple (à lire) qui contiennent la requête.
+pub fn format_find(query: &str, refs: &[String], texts: &[String]) -> String {
+    if refs.is_empty() && texts.is_empty() {
+        return format!(
+            "Rien ne contient « {query} » sur cette page, ni élément ni texte. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien)."
+        );
+    }
+    let mut b = String::new();
+    if !refs.is_empty() {
+        b.push_str(&format!(
+            "{} élément(s) contenant « {query} » (le 1er est amené dans la vue) — clique par numéro :\n{}",
+            refs.len(),
+            refs.join("\n")
+        ));
+    }
+    if !texts.is_empty() {
+        if !b.is_empty() {
+            b.push_str("\n\n");
+        }
+        b.push_str(&format!(
+            "Texte de la page contenant « {query} » (à lire, pas à cliquer) :\n- {}",
+            texts.join("\n- ")
+        ));
+    }
+    b
+}
+
+// --- Garde-fous de fin de tâche -------------------------------------------------
+//
+// Vu sur une boutique qui refuse les navigateurs automatiques : le modèle
+// configurait tout correctement, tombait sur une page d'erreur au moment de
+// commander, puis recommençait tout le parcours et tentait des adresses
+// devinées, sans jamais répondre. Deux signaux l'aident à conclure ; le tour
+// les ajoute (il tient le compte de ses actions), après la coupe de
+// [`cap_output`] pour qu'ils ne soient jamais tronqués.
+
+/// `cuActionBudget` : actions du navigateur dans un tour avant le rappel de
+/// conclure.
+pub const ACTION_BUDGET: usize = 25;
+
+/// `cuErrorTitle` : titre (`# …`) d'une page d'erreur ou de blocage.
+fn error_title(line: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| {
+        regex::Regex::new(r"(?i)^# .*(not found|page introuvable|introuvable|404|403|access denied|accès refusé|forbidden|robot|captcha|are you human|unusual traffic|blocked|bloqué)")
+            .expect("motif des pages de blocage")
+    })
+    .is_match(line)
+}
+
+/// Le résultat semble-t-il une page d'erreur ou de blocage (titre dans les
+/// premières lignes) ?
+pub fn looks_blocked(out: &str) -> bool {
+    out.splitn(6, '\n').any(|l| error_title(l.trim()))
+}
+
+/// `cuGuard` : les rappels ajoutés au résultat de la `n`-ième action du
+/// navigateur du tour.
+pub fn guard(mut out: String, n: usize) -> String {
+    if looks_blocked(&out) {
+        out.push_str("\n\n⚠ Le site a répondu par une page d'erreur ou de blocage. Après une action normale, cela veut souvent dire qu'il refuse les navigateurs automatiques. Ne refais pas le même parcours : une seule autre piste simple au plus, sinon réponds à l'utilisateur avec ce que tu as vu et ce qui bloque.");
+    }
+    if n >= ACTION_BUDGET {
+        out.push_str(&format!(
+            "\n\n⏱ {n} actions dans le navigateur pour cette tâche. Si tu n'approches pas clairement du but, arrête et réponds avec ce que tu sais (ce que tu as vérifié, ce qui bloque)."
+        ));
+    }
+    out
+}
+
 /// Un nombre comme `json.Marshal` l'écrit (`640`, pas `640.0`).
 fn go_num(f: f64) -> Value {
     if f.is_finite() && f.fract() == 0.0 && f.abs() < 1e15 {
@@ -94,6 +218,9 @@ pub struct Session {
     /// Requêtes réseau en vol et dernier événement réseau (`settle`).
     net: Arc<Mutex<(i64, Option<Instant>)>>,
     last_snap: Mutex<String>,
+    /// `repeatKey` / `repeatN` : dernière action sans effet et son nombre de
+    /// répétitions (`cuRepeat`).
+    repeat: Mutex<Repeat>,
     closed: Arc<AtomicBool>,
     tasks: Mutex<Vec<tokio::task::JoinHandle<()>>>,
 }
@@ -329,6 +456,7 @@ impl Session {
             next: AtomicI64::new(0),
             net,
             last_snap: Mutex::new(String::new()),
+            repeat: Mutex::new(Repeat::default()),
             closed,
             tasks: Mutex::new(vec![writer, reader]),
         });
@@ -490,26 +618,18 @@ impl Session {
             crate::gojson::marshal(query)
         );
         let val = self.eval(&expr).await?;
-        let refs: Vec<String> = match val {
-            None => return Err("recherche illisible: unexpected end of JSON input".into()),
-            Some(v) => v
-                .get("refs")
+        let Some(v) = val else {
+            return Err("recherche illisible: unexpected end of JSON input".into());
+        };
+        let list = |k: &str| -> Vec<String> {
+            v.get(k)
                 .and_then(Value::as_array)
                 .into_iter()
                 .flatten()
                 .map(|r| r.as_str().unwrap_or("").to_string())
-                .collect(),
+                .collect()
         };
-        if refs.is_empty() {
-            return Ok(format!(
-                "Aucun élément contenant « {query} » sur cette page. Essaie un autre mot, ou c'est peut-être ailleurs (autre page/lien)."
-            ));
-        }
-        Ok(format!(
-            "{} élément(s) contenant « {query} » (le 1er est amené dans la vue) — clique par numéro :\n{}",
-            refs.len(),
-            refs.join("\n")
-        ))
+        Ok(format_find(query, &list("refs"), &list("texts")))
     }
 
     /// `waitLoad` : chargement fini, puis réseau au calme.
@@ -591,10 +711,11 @@ impl Session {
         Ok(())
     }
 
-    /// `refCenter` : le centre d'un élément marqué, amené au milieu.
-    async fn ref_center(&self, r: i64) -> Result<(f64, f64), String> {
+    /// `refInfo` : l'élément [ref] amené au centre (sa cible visible :
+    /// l'étiquette d'une case cachée), sa position et son état.
+    async fn ref_info(&self, r: i64) -> Result<RefInfo, String> {
         let expr = format!(
-            "{}(function(){{var el=ajByRef({r});if(!el){{return null;}}el.scrollIntoView({{block:'center',inline:'center'}});var r=el.getBoundingClientRect();return {{x:r.left+r.width/2,y:r.top+r.height/2}};}})()",
+            "{}(function(){{var el=ajByRef({r});if(!el){{return null;}}var t=ajTarget(el);t.scrollIntoView({{block:'center',inline:'center'}});var r=t.getBoundingClientRect();return {{x:r.left+r.width/2,y:r.top+r.height/2,dis:!!(el.disabled||el.getAttribute('aria-disabled')==='true'),tog:ajToggle(el),on:ajOn(el)}};}})()",
             js::HELPERS_JS
         );
         let val = self.eval(&expr).await?;
@@ -606,19 +727,25 @@ impl Session {
             }
             Some(p) => p,
         };
-        let f = |k: &str| {
-            p.as_object()
-                .and_then(|o| {
-                    o.get(k).or_else(|| {
-                        o.iter()
-                            .find(|(n, _)| n.eq_ignore_ascii_case(k))
-                            .map(|(_, v)| v)
-                    })
+        // Champs sans casse, comme `json.Unmarshal` dans une struct Go.
+        let field = |k: &str| {
+            p.as_object().and_then(|o| {
+                o.get(k).or_else(|| {
+                    o.iter()
+                        .find(|(n, _)| n.eq_ignore_ascii_case(k))
+                        .map(|(_, v)| v)
                 })
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0)
+            })
         };
-        Ok((f("x"), f("y")))
+        let f = |k: &str| field(k).and_then(Value::as_f64).unwrap_or(0.0);
+        let b = |k: &str| field(k).and_then(Value::as_bool).unwrap_or(false);
+        Ok(RefInfo {
+            x: f("x"),
+            y: f("y"),
+            dis: b("dis"),
+            tog: b("tog"),
+            on: b("on"),
+        })
     }
 
     async fn mouse_click(&self, x: f64, y: f64) -> Result<(), String> {
@@ -633,10 +760,42 @@ impl Session {
         Ok(())
     }
 
-    /// `clickRef`.
-    pub async fn click_ref(&self, r: i64) -> Result<(), String> {
-        let (x, y) = self.ref_center(r).await?;
-        self.mouse_click(x, y).await
+    /// `clickRef` : clique l'élément [ref] ; `Ok` porte une note quand une
+    /// case n'a pas pris le clic (vide si tout va bien). Un élément désactivé
+    /// est refusé ([`CLICK_DISABLED`]).
+    pub async fn click_ref(&self, r: i64) -> Result<String, String> {
+        let info = self.ref_info(r).await?;
+        if info.dis {
+            return Err(CLICK_DISABLED.into());
+        }
+        self.mouse_click(info.x, info.y).await?;
+        if !info.tog || info.on {
+            return Ok(String::new());
+        }
+        // Case qui devait se cocher : on vérifie, et sinon on la coche par le
+        // DOM (un clic de souris peut tomber sur un voile ou une étiquette
+        // décorative).
+        match self.ref_info(r).await {
+            Ok(a) if !a.on => {}
+            _ => return Ok(String::new()),
+        }
+        let _ = self
+            .eval(&format!(
+                "{}(function(){{var el=ajByRef({r});if(el)el.click();}})()",
+                js::HELPERS_JS
+            ))
+            .await;
+        self.wait_load().await;
+        Ok(match self.ref_info(r).await {
+            Ok(a) if a.on => " (coché au second essai)".into(),
+            _ => " — ATTENTION : la case ne s'est PAS cochée, le site ne l'a pas prise en compte"
+                .into(),
+        })
+    }
+
+    /// `cuRepeat` pour cette session.
+    fn repeat(&self, key: &str, out: String) -> String {
+        lock(&self.repeat).note(key, out)
     }
 
     /// `clickXY`.
@@ -937,11 +1096,14 @@ impl Browser {
             Ok(s) => s,
             Err(e) => return format!("[erreur] {e}"),
         };
-        if let Err(e) = s.click_ref(r).await {
-            return format!("[erreur] {e}");
-        }
+        let key = format!("click {r}");
+        let note = match s.click_ref(r).await {
+            Ok(n) => n,
+            Err(e) if e == CLICK_DISABLED => return s.repeat(&key, format!("[refusé] [{r}] {e}")),
+            Err(e) => return format!("[erreur] {e}"),
+        };
         let snap = s.snapshot_dedup().await.unwrap_or_default();
-        format!("[ok] cliqué [{r}]\n\n{snap}")
+        s.repeat(&key, format!("[ok] cliqué [{r}]{note}\n\n{snap}"))
     }
 
     async fn tool_type(&self, args: &Map<String, Value>) -> String {
@@ -989,7 +1151,10 @@ impl Browser {
             return format!("[erreur] {e}");
         }
         let snap = s.snapshot_dedup().await.unwrap_or_default();
-        format!("[ok] clic en ({x:.0}, {y:.0})\n\n{snap}")
+        s.repeat(
+            &format!("xy {x:.0} {y:.0}"),
+            format!("[ok] clic en ({x:.0}, {y:.0})\n\n{snap}"),
+        )
     }
 
     async fn tool_scroll(&self, args: &Map<String, Value>) -> String {
