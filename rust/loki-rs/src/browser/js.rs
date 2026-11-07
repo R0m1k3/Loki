@@ -17,6 +17,10 @@ function ajName(el){var t=el.tagName.toLowerCase();var lbl=el.getAttribute('aria
 function ajActionable(el){var t=el.tagName.toLowerCase();if(t==='a')return !!el.getAttribute('href');if(t==='button'||t==='input'||t==='select'||t==='textarea'||t==='summary')return el.type!=='hidden';if(el.isContentEditable)return true;if(el.getAttribute('onclick'))return true;var r=(el.getAttribute('role')||'').toLowerCase();return {button:1,link:1,checkbox:1,radio:1,tab:1,menuitem:1,menuitemcheckbox:1,menuitemradio:1,option:1,'switch':1,combobox:1,textbox:1,searchbox:1,slider:1,spinbutton:1}[r]===1;}
 function ajVis(el){var r=el.getBoundingClientRect();if(r.width<3||r.height<3)return false;var s=getComputedStyle(el);if(s.visibility==='hidden'||s.display==='none'||s.opacity==='0')return false;if(r.bottom<0||r.top>innerHeight||r.right<0||r.left>innerWidth)return false;return true;}
 var ajSel='a[href],button,input,select,textarea,[role],[onclick],[tabindex],summary,[contenteditable="true"]';
+function ajToggle(el){var t=el.tagName.toLowerCase(),ty=(el.type||'').toLowerCase(),r=(el.getAttribute('role')||'').toLowerCase();return (t==='input'&&(ty==='radio'||ty==='checkbox'))||r==='radio'||r==='checkbox'||r==='switch';}
+function ajTarget(el){if(!ajToggle(el)||ajVis(el))return el;var c=[];if(el.labels)for(var i=0;i<el.labels.length;i++)c.push(el.labels[i]);if(el.id){try{var l=document.querySelector('label[for="'+CSS.escape(el.id)+'"]');if(l)c.push(l);}catch(e){}}var p=el.closest&&el.closest('label');if(p)c.push(p);var q=el.parentElement;for(var k=0;k<3&&q;k++,q=q.parentElement){if(q.querySelectorAll('input[type=radio],input[type=checkbox],[role=radio],[role=checkbox]').length===1)c.push(q);}for(var j=0;j<c.length;j++)if(ajVis(c[j]))return c[j];return el;}
+function ajOn(el){return !!(el.checked||el.getAttribute('aria-checked')==='true'||el.getAttribute('aria-pressed')==='true');}
+function ajState(el){var s='';if(ajOn(el))s+=' [coché]';else if(el.getAttribute('aria-selected')==='true')s+=' [sélectionné]';if(el.disabled||el.getAttribute('aria-disabled')==='true')s+=' [désactivé]';return s;}
 // Traversée du SHADOW DOM : les bandeaux cookies et composants web (usercentrics,
 // cookiebot…) vivent dans des shadow roots que querySelectorAll ne voit pas → le
 // modèle ne pouvait ni les lister ni les cliquer (test Lady Sushi). ajQueryAll /
@@ -29,12 +33,14 @@ function ajClear(){function w(r){var o=r.querySelectorAll('[data-loki-ref]');for
 /// La fin de `cdpSnapshotJS` (préfixée de [`HELPERS_JS`]).
 pub const SNAPSHOT_TAIL_JS: &str = r#"(function(){
   ajClear();
-  var els=ajQueryAll().filter(function(el){return ajActionable(el)&&ajVis(el);});
+  // Case radio/à cocher cachée (site moderne : l'étiquette visible porte le clic) :
+  // gardée via sa cible visible, sinon les choix d'un configurateur n'existaient pas.
+  var els=ajQueryAll().filter(function(el){return ajActionable(el)&&ajVis(ajTarget(el));});
   var map={},refs=[],i=0;
   for(var k=0;k<els.length&&i<200;k++){var el=els[k];var nm=ajName(el),rl=ajRole(el);
-    i++;var r=el.getBoundingClientRect();map[i]={x:r.left+r.width/2,y:r.top+r.height/2};
+    i++;var r=ajTarget(el).getBoundingClientRect();map[i]={x:r.left+r.width/2,y:r.top+r.height/2};
     el.setAttribute('data-loki-ref',String(i));
-    refs.push('['+i+'] '+rl+(nm?' "'+nm+'"':''));
+    refs.push('['+i+'] '+rl+(nm?' "'+nm+'"':'')+ajState(el));
   }
   window.__lokiRefs=map;
   var de=document.documentElement;
@@ -57,10 +63,21 @@ pub const FIND_JS: &str = r#"function(q){
     var ref=el.getAttribute('data-loki-ref');
     if(!ref){maxRef++;ref=String(maxRef);el.setAttribute('data-loki-ref',ref);}
     if(!first)first=el;count++;
-    refs.push('['+ref+'] '+rl+(nm?' "'+nm+'"':''));
+    refs.push('['+ref+'] '+rl+(nm?' "'+nm+'"':'')+ajState(el));
   }
-  if(first)first.scrollIntoView({block:'center'});
-  return {refs:refs};
+  // Texte simple (non cliquable) : une date de livraison, un message d'erreur,
+  // un prix. Sans ça, le modèle ne pouvait lire ces informations qu'à la capture.
+  var texts=[],seen={};
+  if(q){var tw=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);var n;
+    while((n=tw.nextNode())&&texts.length<8){var v=(n.nodeValue||'');if(v.toLowerCase().indexOf(q)<0)continue;
+      var pe=n.parentElement;if(!pe||pe.closest('script,style,noscript'))continue;
+      var st2=getComputedStyle(pe);if(st2.display==='none'||st2.visibility==='hidden')continue;
+      var rr=pe.getBoundingClientRect();if(rr.width<1&&rr.height<1)continue;
+      var blk=pe;for(var u=0;u<3&&blk.parentElement&&(blk.innerText||'').length<60;u++)blk=blk.parentElement;
+      var tx=(blk.innerText||v).replace(/\s+/g,' ').trim();if(tx.length>240)tx=tx.slice(0,240)+'…';
+      if(seen[tx])continue;seen[tx]=1;texts.push(tx);if(!first)first=pe;}}
+  if(first)ajTarget(first).scrollIntoView({block:'center'});
+  return {refs:refs,texts:texts};
 }"#;
 
 /// `cdpSnapshotJS`.

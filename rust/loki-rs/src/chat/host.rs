@@ -28,7 +28,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -422,6 +422,9 @@ pub struct GoTurnHost {
     /// La requête qui part va sur le second slot (posé par `engine_slot`,
     /// lu par `send` pour le ticket « en vol »).
     pub side_slot: AtomicBool,
+    /// Actions du navigateur piloté dans ce tour (rappel de conclure au bout
+    /// de `browser::ACTION_BUDGET`).
+    pub browser_actions: AtomicUsize,
     /// PROJ_SNAPSHOT : la clé et le système du tour (`None` sans la clé), et
     /// l'instantané posé par un rafraîchissement en cours de tour.
     pub projsnap: Option<SnapTurn>,
@@ -771,9 +774,17 @@ impl GoTurnHost {
                     } else {
                         String::new()
                     };
+                // Page de blocage, rappel de conclure : après la coupe ; la
+                // capture n'est pas comptée (comme `capCUOutput`).
+                let result = if name == "browser_screenshot" {
+                    o.result
+                } else {
+                    let n = self.browser_actions.fetch_add(1, Ordering::Relaxed) + 1;
+                    crate::browser::guard(o.result, n)
+                };
                 return ToolOutcome {
                     relay: o.image.map(|img| see_image_message(label, img)),
-                    result: o.result,
+                    result,
                     live_shot,
                     ..Default::default()
                 };

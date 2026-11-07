@@ -176,6 +176,7 @@ pub async fn run(parent: &GoTurnHost, sub: &SubTurn, args: &Map<String, Value>) 
         deltas: parent.deltas.clone(),
         perf_kind: super::perf::KIND_SUBAGENT,
         side_slot: Default::default(),
+        browser_actions: Default::default(),
         projsnap: None,
         snap_refreshed: Default::default(),
         sub: None,
