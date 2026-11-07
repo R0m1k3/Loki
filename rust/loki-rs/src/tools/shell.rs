@@ -4,7 +4,8 @@
 //! La commande part dans `/bin/bash -c` (`cmd /C` sous Windows), dans le
 //! dossier de la discussion, délai borné. Ce qu'elle rend au modèle est
 //! nettoyé : « | tail -N » final retiré (le code de sortie serait celui de
-//! tail) puis appliqué ici, séquences ANSI retirées, sortie bornée à sa fin.
+//! tail) puis appliqué ici après repli des barres de progression (`\r`),
+//! séquences ANSI retirées, sortie bornée à son début et à sa fin.
 //!
 //! L'arrêt du tour abandonne le futur : le process est tué (`kill_on_drop`).
 
@@ -75,21 +76,75 @@ pub fn tail_lines(s: &str, n: usize) -> String {
     lines[lines.len().saturating_sub(n)..].join("\n")
 }
 
-/// `tailOutput` : la FIN d'une sortie (`TOOL_MAX_OUTPUT` caractères), avec ce
-/// qui a été coupé dit en clair.
+/// Part du budget gardée au début d'une sortie trop longue (le reste : la fin).
+const HEAD_SHARE: usize = TOOL_MAX_OUTPUT / 4;
+
+/// Barres de progression repliées, sur les octets bruts (avant décodage) :
+/// une ligne redessinée avec `\r` ne garde que son dernier dessin non vide.
+/// Le `\r` d'un « \r\n » reste une fin de ligne ordinaire.
+pub fn collapse_cr(b: &[u8]) -> std::borrow::Cow<'_, [u8]> {
+    if !b.contains(&b'\r') {
+        return b.into();
+    }
+    let lines: Vec<&[u8]> = b.split(|&c| c == b'\n').collect();
+    let last_line = lines.len() - 1;
+    let mut out = Vec::with_capacity(b.len());
+    for (i, line) in lines.into_iter().enumerate() {
+        if i > 0 {
+            out.push(b'\n');
+        }
+        // Un `\r` final sans `\n` derrière (dernier dessin d'une barre) part.
+        let (body, crlf) = match line.strip_suffix(b"\r") {
+            Some(body) => (body, i < last_line),
+            None => (line, false),
+        };
+        let last = body
+            .split(|&c| c == b'\r')
+            .rfind(|seg| !seg.is_empty())
+            .unwrap_or_default();
+        out.extend_from_slice(last);
+        if crlf {
+            out.push(b'\r');
+        }
+    }
+    out.into()
+}
+
+/// Indice d'octet du `n`-ième caractère de `s` (`s.len()` au-delà).
+fn char_byte(s: &str, n: usize) -> usize {
+    s.char_indices().nth(n).map_or(s.len(), |(i, _)| i)
+}
+
+/// `tailOutput` : une sortie bornée à `TOOL_MAX_OUTPUT` caractères — son
+/// DÉBUT (un quart) et sa FIN (le reste), coupés entre deux lignes quand la
+/// coupe garde au moins la moitié de sa part, avec le nombre de lignes
+/// omises dit en clair entre les deux.
 pub fn tail_output(s: &str) -> String {
     let n = s.chars().count();
     if n <= TOOL_MAX_OUTPUT {
         return s.to_string();
     }
-    let start = s
-        .char_indices()
-        .nth(n - TOOL_MAX_OUTPUT)
-        .map_or(0, |(i, _)| i);
-    format!(
-        "[sortie tronquée : {n} caractères au total, seuls les {TOOL_MAX_OUTPUT} derniers sont gardés]\n{}",
-        &s[start..]
-    )
+    let head_raw = char_byte(s, HEAD_SHARE);
+    let head_end = match s[..head_raw].rfind('\n') {
+        Some(i) if s[..=i].chars().count() >= HEAD_SHARE / 2 => i + 1,
+        _ => head_raw,
+    };
+    let tail_share = TOOL_MAX_OUTPUT - HEAD_SHARE;
+    let tail_raw = char_byte(s, n - tail_share);
+    let tail_start = match s[tail_raw..].find('\n') {
+        Some(i) if s[tail_raw + i + 1..].chars().count() >= tail_share / 2 => tail_raw + i + 1,
+        _ => tail_raw,
+    };
+    let (head, tail) = (&s[..head_end], &s[tail_start..]);
+    // Lignes touchées par la coupe, entières ou en partie.
+    let omitted = s[head_end..tail_start].split_inclusive('\n').count();
+    let what = if omitted == 1 {
+        "ligne omise"
+    } else {
+        "lignes omises"
+    };
+    let sep = if head.ends_with('\n') { "" } else { "\n" };
+    format!("{head}{sep}… {omitted} {what} …\n{tail}")
 }
 
 /// `time.Duration.String()` d'une durée arrondie à 100 ms (« 0s », « 300ms »,
@@ -201,7 +256,8 @@ pub async fn run_shell(cwd: &Path, memory_dir: &Path, command: &str, timeout_sec
     .await
     .is_ok();
     let take = |b: &Arc<Mutex<Vec<u8>>>| {
-        String::from_utf8_lossy(&b.lock().unwrap_or_else(|e| e.into_inner())).into_owned()
+        String::from_utf8_lossy(&collapse_cr(&b.lock().unwrap_or_else(|e| e.into_inner())))
+            .into_owned()
     };
     let clean = |s: &str| tail_output(&strip_ansi(s));
     let mut out = take(&out_buf);
@@ -280,10 +336,59 @@ mod tests {
 
     #[test]
     fn sortie_bornee() {
-        let s = "x".repeat(TOOL_MAX_OUTPUT + 5);
-        let t = tail_output(&s);
-        assert!(t.starts_with("[sortie tronquée : 8005 caractères au total"));
         assert_eq!(tail_lines("a\nb\nc\n", 2), "b\nc");
+        // Courte : inchangée.
+        let court = "un\ndeux\n".repeat(10);
+        assert_eq!(tail_output(&court), court);
+        let pile = "y".repeat(TOOL_MAX_OUTPUT);
+        assert_eq!(tail_output(&pile), pile);
+        // Longue : début et fin, lignes entières, compte exact des omises.
+        let s: String = (1..=3000).map(|i| format!("{i}\n")).collect();
+        let t = tail_output(&s);
+        let (head, rest) = t.split_once("… ").unwrap();
+        let (marker, tail) = rest.split_once(" …\n").unwrap();
+        assert!(
+            head.starts_with("1\n2\n") && head.ends_with('\n'),
+            "{head:?}"
+        );
+        assert!(tail.ends_with("2999\n3000\n"), "{tail:?}");
+        let first_kept: usize = tail.lines().next().unwrap().parse().unwrap();
+        let last_head: usize = head.lines().last().unwrap().parse().unwrap();
+        assert_eq!(
+            marker,
+            format!("{} lignes omises", first_kept - last_head - 1)
+        );
+        assert!(t.chars().count() <= TOOL_MAX_OUTPUT + 40);
+        assert!(head.chars().count() <= HEAD_SHARE && head.chars().count() > HEAD_SHARE / 2);
+    }
+
+    #[test]
+    fn sortie_bornee_sans_lignes_ni_coupe_de_caractere() {
+        // Une seule ligne géante en caractères multi-octets : coupe sur un
+        // bord de caractère, au quart et aux trois quarts du budget.
+        let s = "é€".repeat(TOOL_MAX_OUTPUT);
+        let t = tail_output(&s);
+        let (head, tail) = t.split_once("\n… 1 ligne omise …\n").unwrap();
+        assert_eq!(head.chars().count(), HEAD_SHARE);
+        assert_eq!(tail.chars().count(), TOOL_MAX_OUTPUT - HEAD_SHARE);
+        assert!(head.starts_with('é') && tail.ends_with('€'));
+        // Multi-octets aux bords des lignes coupées.
+        let s: String = (0..2000).map(|i| format!("ligne {i} — ç\n")).collect();
+        let t = tail_output(&s);
+        assert!(t.contains(" lignes omises …\nligne "), "{}", &t[..200]);
+        assert!(t.ends_with("ligne 1999 — ç\n"));
+    }
+
+    #[test]
+    fn barres_de_progression_repliees() {
+        let b = b"debut\n 10%\r 50%\r100%\nfin\r\nok\r\n";
+        assert_eq!(&*collapse_cr(b), b"debut\n100%\nfin\r\nok\r\n");
+        // Dernier dessin non vide, \r final sans saut de ligne retiré.
+        assert_eq!(&*collapse_cr(b"a\rb\r\r\nc\rd\r"), b"b\r\nd");
+        assert_eq!(&*collapse_cr(b"rien\n"), b"rien\n");
+        // Sur les octets : un \r ne coupe jamais un caractère multi-octets.
+        let b = "étape 1\rétape 2 — fini\n".as_bytes();
+        assert_eq!(&*collapse_cr(b), "étape 2 — fini\n".as_bytes());
     }
 
     #[cfg(unix)]
@@ -296,6 +401,8 @@ mod tests {
         assert!(r.ends_with("stdout:\nun\n\n\nstderr:\ndeux\n"), "{r:?}");
         let r = run_shell(d.path(), &mem, "printf 'a\\nb\\nc\\n' | tail -2", 5).await;
         assert!(r.ends_with("stdout:\nb\nc"), "{r:?}");
+        let r = run_shell(d.path(), &mem, "printf '1%%\\r50%%\\r100%%\\n'", 5).await;
+        assert!(r.ends_with("stdout:\n100%\n"), "{r:?}");
         let r = run_shell(d.path(), &mem, "pwd", 5).await;
         assert!(r.contains(&d.path().display().to_string()), "{r}");
         let r = run_shell(d.path(), &mem, "echo avant; sleep 5", 1).await;
