@@ -62,6 +62,10 @@ function _openAsk(kind, message, opts){
   document.getElementById('ask-title').textContent = opts.title || (kind==='alert'?'Info':kind==='prompt'?'Saisie':'Confirmation');
   document.getElementById('ask-msg').textContent = message||'';
   const inp=document.getElementById('ask-input');
+  // opts.password : 'new' (choix d'un mot de passe) ou 'current' (connexion) —
+  // champ masqué, que les gestionnaires de mots de passe reconnaissent.
+  inp.type = opts.password ? 'password' : 'text';
+  inp.autocomplete = opts.password==='new' ? 'new-password' : opts.password ? 'current-password' : 'off';
   if(kind==='prompt'){ inp.style.display=''; inp.value=opts.default||''; inp.placeholder=opts.placeholder||''; }
   else inp.style.display='none';
   // Case facultative (ex. « supprimer aussi le fichier .gguf »).

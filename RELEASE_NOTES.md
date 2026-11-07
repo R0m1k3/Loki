@@ -20,6 +20,16 @@ Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 �
 - **Navigateur piloté** : cases à cocher et boutons radio masqués, états
   coché/désactivé, texte de la page dans `browser_find`, alerte sur les pages
   de blocage, rappel de conclure après 25 actions.
+- **Connexion par mot de passe** : plus de clé à lire dans le journal. À la
+  première visite (y compris juste après cette mise à jour), l'interface fait
+  choisir un mot de passe, demandé ensuite une fois par appareil. Perdu :
+  `docker exec -it loki loki password`. La clé de pilotage existante est
+  gardée : navigateurs déjà connectés, scripts, tunnel et mémoire chiffrée
+  continuent sans rien faire. Revenir à une version antérieure : se connecter
+  avec `loki set-web-key show`.
+- **Sécurité** : l'en-tête `X-Loki-Via` (trafic du tunnel) est effacé sur
+  l'écoute directe, où un client pouvait le forger pour échapper au contrôle
+  d'hôte.
 
 # Loki 0.15.0
 

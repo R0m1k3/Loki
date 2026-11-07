@@ -57,8 +57,8 @@ docker compose up --build   # quelques minutes : llama-server vient précompilé
 
 Interface : http://localhost:8090 — installe un modèle depuis la recherche
 Hugging Face intégrée (voir ci-dessous), il démarre tout seul.
-La clé de pilotage demandée à la première visite est affichée dans le journal
-(`docker compose logs loki`) — voir « Sécurité / clé de pilotage ».
+À la première visite, l'interface te fait choisir un **mot de passe** ; il est
+ensuite demandé une fois sur chaque appareil — voir « Sécurité / mot de passe ».
 
 ## Installer un modèle
 
@@ -244,7 +244,7 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `HF_TOKEN` | jeton Hugging Face, pour les dépôts à accès restreint (repli : le jeton réglé dans l'UI prime) | — |
 | `LOKI_CHROME` | binaire du navigateur piloté (contrôle du navigateur) ; par défaut le Chromium de Playwright de l'image | — |
 | `LOKI_CU_HEADFUL` | `1` : ouvre une vraie fenêtre au lieu du mode headless (machine avec écran) | — |
-| `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** clé de pilotage (reverse proxy), séparés par des virgules — ne sert que si la clé a été retirée exprès (`loki set-web-key off`) | — |
+| `LOKI_TRUSTED_HOSTS` | noms de domaine autorisés à servir l'UI **sans** mot de passe ni clé de pilotage (reverse proxy), séparés par des virgules — ne sert que si la clé a été retirée exprès (`loki set-web-key off`) | — |
 | `LOKI_AUTO_UPDATE` | `0` : pas de mise à jour des binaires au démarrage | `1` |
 | `LOKI_FACADE` | `0` : sans façade Rust, le Go sert directement le port public (porte de sortie) | `1` |
 | `LOKI_GO_PORT` | port local (127.0.0.1) du serveur Go derrière la façade | `8091` |
@@ -272,23 +272,27 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 En CLI dans le conteneur : `docker exec -it loki loki status` (aussi :
 `logs`, `restart`, `config`, `bench`, `tune`, `test`…).
 
-### Sécurité / clé de pilotage
+### Sécurité / mot de passe
 
 L'API de pilotage (`/api/*`) permet, entre autres, de lancer des commandes sur
 la machine (serveurs MCP, compilation de llama.cpp, agent). Elle est donc
-**toujours protégée par une clé** : au premier démarrage (ou au premier
-démarrage d'une installation qui n'en avait pas), Loki génère une clé
-aléatoire et l'affiche **une seule fois** dans le journal :
+**toujours protégée**, par un **mot de passe** :
 
-```
-[ok] clé de pilotage générée (à saisir dans l'interface) : loki-web-…
-```
+- **Première visite** (installation neuve, ou première visite après la mise à
+  jour) : l'interface demande de choisir le mot de passe (8 caractères
+  minimum). Le premier qui ouvre l'interface le choisit : ouvre-la juste après
+  le démarrage, ou définis-le avant d'exposer le port avec
+  `docker exec -it loki loki password`.
+- **Ensuite** : il est demandé une fois sur chaque appareil, qui reste connecté.
+- **Perdu** : `docker exec -it loki loki password` en définit un nouveau
+  (`--stdin` pour un script). Rien d'autre n'est touché.
 
-L'interface la demande à la première visite et la garde dans le navigateur.
-Pour la revoir : `docker exec -it loki loki set-web-key show` ; pour en
-générer une nouvelle : `docker exec -it loki loki set-web-key` ; pour choisir
-la sienne : `docker exec -it loki loki set-web-key <clé>`. Une clé déjà
-définie n'est jamais modifiée.
+Le serveur ne garde qu'un hachage Argon2id du mot de passe. Un mot de passe
+juste donne au navigateur la **clé de pilotage**, qu'il envoie ensuite en
+`Authorization: Bearer …` — la même clé sert aux scripts et clients tiers
+(`docker exec -it loki loki set-web-key show` pour la lire). En changer
+(`loki set-web-key`) déconnecte tous les navigateurs : ils redemandent le mot
+de passe.
 
 Retirer la clé (`loki set-web-key off`, déconseillé dès que le port est
 joignable par d'autres machines) rouvre l'API : elle n'accepte alors que les
@@ -427,9 +431,11 @@ Héritées d'AJEAN :
   discussions, blocs archivés au compactage et trackers chiffrés en
   **AES-256-GCM** sur le disque. Chiffrement à enveloppe : une clé de données
   (DEK) tirée une fois, enfermée dans un coffre par une clé dérivée en
-  **Argon2id**. Ce qui ouvre le coffre : la **clé de pilotage de l'appareil**
-  (le serveur n'en garde qu'une empreinte — il ne peut pas ouvrir le coffre
-  seul) ou une **clé de récupération** affichée une seule fois à l'activation.
+  **Argon2id**. Ce qui ouvre le coffre : la **clé de pilotage**, que chaque
+  navigateur reçoit en se connectant avec le mot de passe, ou une **clé de
+  récupération** affichée une seule fois à l'activation. Le serveur garde la
+  clé de pilotage : le chiffrement protège un disque copié ou volé, pas d'un
+  accès au serveur lui-même.
   La DEK ne vit qu'en RAM : après un redémarrage à froid, la mémoire est
   verrouillée jusqu'à ce qu'un navigateur se reconnecte — verrouillée, Loki
   n'écrit jamais de clair par-dessus du chiffré, il refuse d'écrire. Règle

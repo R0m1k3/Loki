@@ -396,11 +396,10 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
             <option value="off">désactivée</option>
           </select>
         </label>
-        <!-- Chiffrement au repos. La clé est celle de pilotage de CET appareil
-             (localStorage) : le serveur n'en a que l'empreinte, il ne peut pas
-             ouvrir le coffre seul. Couvre les pages, les discussions, les blocs
+        <!-- Chiffrement au repos. La clé est celle de pilotage, que chaque
+             navigateur reçoit en se connectant avec le mot de passe. Couvre les pages, les discussions, les blocs
              archivés au compactage et les trackers. -->
-        <label class="switchrow"><span class="switch"><input type="checkbox" id="mem-enc-toggle" onchange="toggleMemEncrypt()"><span class="slider"></span></span> chiffrer la mémoire sur le disque<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Chiffre en <b>AES-256-GCM</b> les pages mémoire, les discussions, les blocs archivés et les trackers sous <code>/data</code>. La clé de données est enfermée dans un coffre (Argon2id) ouvert par la <b>clé de pilotage de cet appareil</b> ou par une <b>clé de récupération</b> donnée une seule fois à l'activation. Un <b>snapshot</b> est pris avant chaque bascule, et rien n'est supprimé avant relecture vérifiée.</span></span></label>
+        <label class="switchrow"><span class="switch"><input type="checkbox" id="mem-enc-toggle" onchange="toggleMemEncrypt()"><span class="slider"></span></span> chiffrer la mémoire sur le disque<span class="help" tabindex="0" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('open')">?<span class="tip">Chiffre en <b>AES-256-GCM</b> les pages mémoire, les discussions, les blocs archivés et les trackers sous <code>/data</code>. La clé de données est enfermée dans un coffre (Argon2id) ouvert par la <b>clé que ton navigateur reçoit à la connexion</b> ou par une <b>clé de récupération</b> donnée une seule fois à l'activation. Un <b>snapshot</b> est pris avant chaque bascule, et rien n'est supprimé avant relecture vérifiée.</span></span></label>
         <div class="rowbody"><div id="mem-enc-status" class="muted" style="font-size:11px"></div></div>
         <!-- Sauvegarde : le MÊME paquet chiffré que l'amont envoie à son relais,
              mais en fichier local — rien ne quitte la machine sans qu'on le
