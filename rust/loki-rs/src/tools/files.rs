@@ -99,6 +99,15 @@ pub fn arg_str<'a>(args: &'a Map<String, Value>, k: &str) -> &'a str {
     args.get(k).and_then(Value::as_str).unwrap_or("")
 }
 
+/// Booléen d'un argument JSON ; un modèle envoie parfois `"true"` en texte.
+pub fn arg_bool(args: &Map<String, Value>, k: &str) -> bool {
+    match args.get(k) {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::String(s)) => s.trim().eq_ignore_ascii_case("true"),
+        _ => false,
+    }
+}
+
 /// Ce qu'un outil fichier rend : le résultat, et le chemin LU à noter dans
 /// le suivi (read réussi).
 pub struct ReadOut {
@@ -593,9 +602,22 @@ pub fn file_write(cwd: &Path, memory_dir: &Path, path: &str, content: &str) -> S
     format!("[ok] {} {verb} ({} octets)", path.display(), content.len())
 }
 
-/// `fileEdit` : UN remplacement exact (`old` doit apparaître une seule fois).
+/// `fileEdit` : UN remplacement exact (`old` doit apparaître une seule fois),
+/// ou toutes les occurrences exactes avec `replace_all`.
 /// Un fichier en CRLF est comparé en LF et réécrit en CRLF.
-pub fn file_edit(cwd: &Path, memory_dir: &Path, path: &str, old: &str, new: &str) -> String {
+///
+/// Sans correspondance exacte (et sans `replace_all`), des correspondances
+/// approchées sont tentées de la plus stricte à la plus lâche (voir
+/// [`Strategie`]) sur un fichier UTF-8 ; à chaque niveau, plusieurs candidats
+/// = refus, un seul = remplacement. « Déjà à jour » ne vient qu'après.
+pub fn file_edit(
+    cwd: &Path,
+    memory_dir: &Path,
+    path: &str,
+    old: &str,
+    new: &str,
+    replace_all_occ: bool,
+) -> String {
     if path.trim().is_empty() {
         return "[erreur] chemin vide".into();
     }
@@ -614,6 +636,7 @@ pub fn file_edit(cwd: &Path, memory_dir: &Path, path: &str, old: &str, new: &str
         Ok(b) => b,
         Err(e) => return e,
     };
+    let (old_s, new_s) = (old, new);
     let (old, new) = (old.as_bytes(), new.as_bytes());
     let crlf = contains(&content, b"\r\n");
     let search = if crlf && !contains(old, b"\r\n") {
@@ -623,25 +646,280 @@ pub fn file_edit(cwd: &Path, memory_dir: &Path, path: &str, old: &str, new: &str
     };
     let n = count(&search, old);
     if n == 0 {
-        if !new.is_empty() && contains(&search, new) {
+        if !replace_all_occ && let Ok(text) = std::str::from_utf8(&content) {
+            match edition_approchee(text, old_s, new_s, crlf) {
+                Approche::Aucune => {}
+                Approche::Ambigue(s, n) => {
+                    return format!(
+                        "[erreur] old introuvable tel quel ; en correspondance {} il apparaît {n} fois — ajoute du contexte pour le rendre unique",
+                        s.nom()
+                    );
+                }
+                Approche::Appliquee(s, updated) => {
+                    if let Err(e) = write_file(&path, updated.as_bytes()) {
+                        return e;
+                    }
+                    return format!(
+                        "[ok] {} modifié (1 remplacement, correspondance : {})",
+                        path.display(),
+                        s.nom()
+                    );
+                }
+            }
+        }
+        if deja_a_jour(&search, old_s, new_s) {
             return "[ok] déjà à jour — le fichier contient déjà cette modification".into();
+        }
+        if replace_all_occ {
+            return "[erreur] old introuvable dans le fichier (replace_all exige une correspondance exacte)".into();
         }
         return "[erreur] old introuvable dans le fichier".into();
     }
-    if n > 1 {
+    if n > 1 && !replace_all_occ {
         return format!(
             "[erreur] old apparaît {n} fois — ajoute du contexte pour le rendre unique"
         );
     }
-    let i = find(&search, old).unwrap_or(0);
-    let mut updated = [&search[..i], new, &search[i + old.len()..]].concat();
+    let mut updated = if replace_all_occ {
+        replace_all(&search, old, new)
+    } else {
+        let i = find(&search, old).unwrap_or(0);
+        [&search[..i], new, &search[i + old.len()..]].concat()
+    };
     if search != content {
         updated = replace_all(&updated, b"\n", b"\r\n");
     }
     if let Err(e) = write_file(&path, &updated) {
         return e;
     }
-    format!("[ok] {} modifié (1 remplacement)", path.display())
+    if n == 1 {
+        format!("[ok] {} modifié (1 remplacement)", path.display())
+    } else {
+        format!("[ok] {} modifié ({n} remplacements)", path.display())
+    }
+}
+
+/// « Déjà à jour » : `new` est dans le fichier ET ce constat dit quelque chose.
+/// Un `new` contenu dans `old` (suppression, « } ») ou sans lettre ni chiffre
+/// se trouve partout : on rend alors l'erreur « introuvable ».
+fn deja_a_jour(search: &[u8], old: &str, new: &str) -> bool {
+    !new.is_empty()
+        && !old.contains(new)
+        && new.chars().any(char::is_alphanumeric)
+        && contains(search, new.as_bytes())
+}
+
+/// Correspondances approchées de `file_edit`, de la plus stricte à la plus
+/// lâche (idée des « replacers » d'opencode). Toutes travaillent par lignes
+/// entières : la zone trouvée est une suite contiguë de lignes du fichier, de
+/// même nombre que celles de `old`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Strategie {
+    /// Espaces de fin de ligne ignorés.
+    EspacesFin,
+    /// Lignes comparées sans leur indentation (ni espaces de fin) ; `new` est
+    /// réindenté sur le bloc trouvé.
+    Indentation,
+    /// Comme `Indentation`, après normalisation Unicode (guillemets
+    /// typographiques, tirets, espaces insécables).
+    Unicode,
+    /// `old` de 3 lignes au moins : première et dernière lignes égales
+    /// (normalisées), lignes intermédiaires proches en moyenne (similarité de
+    /// Levenshtein normalisée ≥ [`SEUIL_ANCRES`]).
+    Ancres,
+}
+
+const STRATEGIES: [Strategie; 4] = [
+    Strategie::EspacesFin,
+    Strategie::Indentation,
+    Strategie::Unicode,
+    Strategie::Ancres,
+];
+
+/// Similarité moyenne minimale des lignes intermédiaires (stratégie Ancres) :
+/// 1 − distance/longueur max, moyennée sur les lignes du milieu.
+const SEUIL_ANCRES: f64 = 0.7;
+
+impl Strategie {
+    fn nom(self) -> &'static str {
+        match self {
+            Strategie::EspacesFin => "espaces de fin ignorés",
+            Strategie::Indentation => "indentation souple",
+            Strategie::Unicode => "Unicode normalisé",
+            Strategie::Ancres => "ancres de bloc",
+        }
+    }
+
+    /// Le bloc `f` (lignes du fichier) correspond-il à `o` (lignes de old) ?
+    fn accepte(self, f: &Lignes, o: &Lignes, at: usize) -> bool {
+        let k = o.raw.len();
+        let fr = &f.raw[at..at + k];
+        let fnorm = &f.norm[at..at + k];
+        match self {
+            Strategie::EspacesFin => fr
+                .iter()
+                .zip(&o.raw)
+                .all(|(a, b)| a.trim_end() == b.trim_end()),
+            Strategie::Indentation => fr.iter().zip(&o.raw).all(|(a, b)| a.trim() == b.trim()),
+            Strategie::Unicode => fnorm.iter().zip(&o.norm).all(|(a, b)| a == b),
+            Strategie::Ancres => {
+                if k < 3 {
+                    return false;
+                }
+                let (premiere, derniere) = (&o.norm[0], &o.norm[k - 1]);
+                if premiere.is_empty()
+                    || derniere.is_empty()
+                    || fnorm[0] != *premiere
+                    || fnorm[k - 1] != *derniere
+                {
+                    return false;
+                }
+                let somme: f64 = (1..k - 1).map(|i| similarite(&fnorm[i], &o.norm[i])).sum();
+                somme / (k - 2) as f64 >= SEUIL_ANCRES
+            }
+        }
+    }
+}
+
+/// Lignes brutes et leur forme normalisée (Unicode puis `trim`).
+struct Lignes<'a> {
+    raw: Vec<&'a str>,
+    norm: Vec<String>,
+}
+
+impl<'a> Lignes<'a> {
+    fn new(raw: Vec<&'a str>) -> Self {
+        let norm = raw
+            .iter()
+            .map(|l| normalise(l).trim().to_string())
+            .collect();
+        Lignes { raw, norm }
+    }
+}
+
+/// Guillemets typographiques → ASCII, tirets → `-`, espaces insécables → espace.
+fn normalise(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '\u{2018}' | '\u{2019}' | '\u{201A}' | '\u{201B}' => '\'',
+            '\u{201C}' | '\u{201D}' | '\u{201E}' | '\u{201F}' => '"',
+            '\u{2010}' | '\u{2011}' | '\u{2012}' | '\u{2013}' | '\u{2014}' | '\u{2015}'
+            | '\u{2212}' => '-',
+            '\u{00A0}' | '\u{2007}' | '\u{202F}' => ' ',
+            c => c,
+        })
+        .collect()
+}
+
+/// 1 − distance de Levenshtein / longueur max (en caractères) ; 1 si vides.
+fn similarite(a: &str, b: &str) -> f64 {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let max = a.len().max(b.len());
+    if max == 0 {
+        return 1.0;
+    }
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.iter().enumerate() {
+        let mut cur = vec![i + 1; b.len() + 1];
+        for (j, cb) in b.iter().enumerate() {
+            let sub = prev[j] + usize::from(ca != cb);
+            cur[j + 1] = sub.min(prev[j + 1] + 1).min(cur[j] + 1);
+        }
+        prev = cur;
+    }
+    1.0 - prev[b.len()] as f64 / max as f64
+}
+
+enum Approche {
+    Aucune,
+    Ambigue(Strategie, usize),
+    Appliquee(Strategie, String),
+}
+
+/// Tente les [`STRATEGIES`] dans l'ordre sur `text` (fichier UTF-8). Le
+/// travail se fait en LF ; un fichier CRLF est réécrit en CRLF.
+fn edition_approchee(text: &str, old: &str, new: &str, crlf: bool) -> Approche {
+    let lf = |s: &str| s.replace("\r\n", "\n");
+    let (text, old, new) = (lf(text), lf(old), lf(new));
+    // Un saut de ligne final de old ne compte pas comme une ligne vide de plus ;
+    // celui de new tombe avec lui (la zone remplacée garde son propre saut).
+    let (old_body, new_body) = match old.strip_suffix('\n') {
+        Some(o) => (o, new.strip_suffix('\n').unwrap_or(&new)),
+        None => (old.as_str(), new.as_str()),
+    };
+    let o = Lignes::new(old_body.split('\n').collect());
+    if o.raw.iter().all(|l| l.trim().is_empty()) {
+        return Approche::Aucune;
+    }
+    let f = Lignes::new(text.split('\n').collect());
+    let k = o.raw.len();
+    if k > f.raw.len() {
+        return Approche::Aucune;
+    }
+    for s in STRATEGIES {
+        let trouves: Vec<usize> = (0..=f.raw.len() - k)
+            .filter(|&at| s.accepte(&f, &o, at))
+            .collect();
+        match trouves[..] {
+            [] => continue,
+            [at] => {
+                let updated = remplace_lignes(
+                    &text,
+                    &f.raw,
+                    at,
+                    k,
+                    &reindente(new_body, &o.raw, &f.raw[at..at + k]),
+                );
+                let updated = if crlf {
+                    updated.replace('\n', "\r\n")
+                } else {
+                    updated
+                };
+                return Approche::Appliquee(s, updated);
+            }
+            _ => return Approche::Ambigue(s, trouves.len()),
+        }
+    }
+    Approche::Aucune
+}
+
+/// Remplace les lignes `at..at+k` de `text` par `by` ; un `by` vide retire
+/// les lignes avec leur saut de ligne.
+fn remplace_lignes(text: &str, lines: &[&str], at: usize, k: usize, by: &str) -> String {
+    // Début en octets de chaque ligne (`split('\n')` : un octet par séparateur).
+    let debut = |i: usize| lines[..i].iter().map(|l| l.len() + 1).sum::<usize>();
+    let mut start = debut(at);
+    let mut end = debut(at + k - 1) + lines[at + k - 1].len();
+    if by.is_empty() {
+        if at + k < lines.len() {
+            end += 1;
+        } else {
+            start = start.saturating_sub(1);
+        }
+    }
+    [&text[..start], by, &text[end..]].concat()
+}
+
+/// Réindente `new` sur le bloc trouvé : l'indentation de la première ligne
+/// non vide de old est remplacée par celle de la ligne correspondante du
+/// fichier, sur chaque ligne de `new` qui commence par elle (les autres
+/// restent telles quelles).
+fn reindente(new: &str, old: &[&str], bloc: &[&str]) -> String {
+    let lead = |l: &str| l.len() - l.trim_start().len();
+    let Some(i) = old.iter().position(|l| !l.trim().is_empty()) else {
+        return new.to_string();
+    };
+    let (oi, fi) = (&old[i][..lead(old[i])], &bloc[i][..lead(bloc[i])]);
+    if oi == fi {
+        return new.to_string();
+    }
+    new.split('\n')
+        .map(|l| match l.strip_prefix(oi) {
+            Some(rest) if !l.trim().is_empty() => format!("{fi}{rest}"),
+            _ => l.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn find(h: &[u8], n: &[u8]) -> Option<usize> {
@@ -769,7 +1047,7 @@ mod tests {
         let mem = d.path().join("memory");
         fs::write(d.path().join("w.txt"), "a\r\nb\r\n").unwrap();
         assert_eq!(
-            file_edit(d.path(), &mem, "w.txt", "a\nb", "a\nc"),
+            file_edit(d.path(), &mem, "w.txt", "a\nb", "a\nc", false),
             format!(
                 "[ok] {} modifié (1 remplacement)",
                 d.path().join("w.txt").display()
@@ -779,7 +1057,238 @@ mod tests {
             fs::read_to_string(d.path().join("w.txt")).unwrap(),
             "a\r\nc\r\n"
         );
-        assert!(file_edit(d.path(), &mem, "w.txt", "a\nb", "a\nc").starts_with("[ok] déjà à jour"));
+        assert!(
+            file_edit(d.path(), &mem, "w.txt", "a\nb", "a\nc", false)
+                .starts_with("[ok] déjà à jour")
+        );
         assert!(file_write(d.path(), &mem, "memory/x.md", "x").starts_with("[refusé]"));
+    }
+
+    /// Cas d'édition : (nom, fichier avant, old, new, replace_all, début du
+    /// résultat attendu, fichier après — `None` : inchangé).
+    type CasEdition = (
+        &'static str,
+        &'static [u8],
+        &'static str,
+        &'static str,
+        bool,
+        &'static str,
+        Option<&'static [u8]>,
+    );
+
+    #[test]
+    fn edition_tolerante() {
+        let cas: &[CasEdition] = &[
+            (
+                "exacte inchangée",
+                b"a\nb\nc\n",
+                "b",
+                "B",
+                false,
+                "[ok] {P} modifié (1 remplacement)",
+                Some(b"a\nB\nc\n"),
+            ),
+            (
+                "espaces de fin",
+                b"fn a() {  \n    x();\t\n}\n",
+                "fn a() {\n    x();\n}",
+                "fn a() {\n    y();\n}",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : espaces de fin ignorés)",
+                Some(b"fn a() {\n    y();\n}\n"),
+            ),
+            (
+                "espaces de fin ambigus",
+                b"x \ny\nx\t\ny\n",
+                "x\ny",
+                "z",
+                false,
+                "[erreur] old introuvable tel quel ; en correspondance espaces de fin ignorés il apparaît 2 fois",
+                None,
+            ),
+            (
+                "indentation réindentée",
+                b"mod m {\n        if a {\n            b();\n        }\n}\n",
+                "if a {\n    b();\n}",
+                "if a {\n    c();\n    d();\n}",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : indentation souple)",
+                Some(
+                    b"mod m {\n        if a {\n            c();\n            d();\n        }\n}\n",
+                ),
+            ),
+            (
+                "indentation ambiguë",
+                b"  a();\n  b();\n\ta();\n\tb();\n",
+                "a();\nb();",
+                "c();",
+                false,
+                "[erreur] old introuvable tel quel ; en correspondance indentation souple il apparaît 2 fois",
+                None,
+            ),
+            (
+                "unicode normalisé",
+                "say(\u{201C}l\u{2019}\u{e9}t\u{e9}\u{201D}) \u{2014} ok\u{a0}\nz\n".as_bytes(),
+                "say(\"l'été\") - ok",
+                "say(\"hiver\")",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : Unicode normalisé)",
+                Some(b"say(\"hiver\")\nz\n"),
+            ),
+            (
+                "unicode ambigu",
+                "\u{2018}a\u{2019}\n\u{201C}x\u{201D}\n\u{2018}a\u{2019}\n".as_bytes(),
+                "'a'",
+                "b",
+                false,
+                "[erreur] old introuvable tel quel ; en correspondance Unicode normalisé il apparaît 2 fois",
+                None,
+            ),
+            (
+                "ancres de bloc",
+                b"fn f() {\n    let total = compute(a, b);\n    log(total);\n}\nfin\n",
+                "fn f() {\n    let total = compute(a, c);\n    log(totals);\n}",
+                "fn f() {}",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : ancres de bloc)",
+                Some(b"fn f() {}\nfin\n"),
+            ),
+            (
+                "ancres trop éloignées",
+                b"fn f() {\n    tout autre chose ici\n    vraiment\n}\n",
+                "fn f() {\n    let total = compute(a, c);\n    log(totals);\n}",
+                "fn f() {}",
+                false,
+                "[erreur] old introuvable dans le fichier",
+                None,
+            ),
+            (
+                "ancres ambiguës",
+                b"{\n  a = 1;\n}\n{\n  a = 2;\n}\n",
+                "{\n  a = 3;\n}",
+                "{}",
+                false,
+                "[erreur] old introuvable tel quel ; en correspondance ancres de bloc il apparaît 2 fois",
+                None,
+            ),
+            (
+                "ancres sous 3 lignes",
+                b"fn x() {\n  foo();\n}\n",
+                "fn x() {\n}",
+                "fn x() {}",
+                false,
+                "[erreur] old introuvable dans le fichier",
+                None,
+            ),
+            (
+                // « } » est partout : ce n'est pas un « déjà à jour ».
+                "new court pas déjà à jour",
+                b"fn a() {\n  x();\n}\n",
+                "y();",
+                "}",
+                false,
+                "[erreur] old introuvable dans le fichier",
+                None,
+            ),
+            (
+                "déjà à jour après les replis",
+                b"let v = 2;\n",
+                "let v = 1;",
+                "let v = 2;",
+                false,
+                "[ok] déjà à jour",
+                None,
+            ),
+            (
+                "crlf avec repli",
+                b"  a  \r\n  b\r\nc\r\n",
+                "a\nb",
+                "a\nB",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : indentation souple)",
+                Some(b"  a\r\n  B\r\nc\r\n"),
+            ),
+            (
+                "suppression de lignes",
+                b"a\n  b  \nc\n",
+                "b\n",
+                "",
+                false,
+                "[ok] {P} modifié (1 remplacement, correspondance : indentation souple)",
+                Some(b"a\nc\n"),
+            ),
+            (
+                "replace_all",
+                b"x=1; x=1;\nx=1\n",
+                "x=1",
+                "x=2",
+                true,
+                "[ok] {P} modifié (3 remplacements)",
+                Some(b"x=2; x=2;\nx=2\n"),
+            ),
+            (
+                "replace_all sans repli",
+                b"a  \nb\n",
+                "a\nb",
+                "c",
+                true,
+                "[erreur] old introuvable dans le fichier (replace_all exige une correspondance exacte)",
+                None,
+            ),
+            (
+                "ambiguïté exacte",
+                b"x\nx\n",
+                "x",
+                "y",
+                false,
+                "[erreur] old apparaît 2 fois",
+                None,
+            ),
+            (
+                "hors utf-8 exacte",
+                b"caf\xe9\nligne\n",
+                "ligne",
+                "LIGNE",
+                false,
+                "[ok] {P} modifié (1 remplacement)",
+                Some(b"caf\xe9\nLIGNE\n"),
+            ),
+            (
+                "hors utf-8 sans repli",
+                b"caf\xe9\nligne  \nz\n",
+                "ligne\nz",
+                "y",
+                false,
+                "[erreur] old introuvable dans le fichier",
+                None,
+            ),
+        ];
+        for (nom, avant, old, new, all, want, apres) in cas {
+            let d = tempfile::tempdir().unwrap();
+            let mem = d.path().join("memory");
+            let f = d.path().join("f.txt");
+            fs::write(&f, avant).unwrap();
+            let got = file_edit(d.path(), &mem, "f.txt", old, new, *all);
+            let want = want.replace("{P}", &f.display().to_string());
+            assert!(got.starts_with(&want), "{nom} : {got}");
+            let now = fs::read(&f).unwrap();
+            assert_eq!(&now[..], apres.unwrap_or(avant), "{nom}");
+        }
+    }
+
+    #[test]
+    fn similarite_levenshtein() {
+        assert_eq!(similarite("", ""), 1.0);
+        assert_eq!(similarite("abc", "abc"), 1.0);
+        assert_eq!(similarite("abc", ""), 0.0);
+        assert!((similarite("kitten", "sitting") - (1.0 - 3.0 / 7.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn booleen_d_argument() {
+        assert!(arg_bool(&args(json!({"r": true})), "r"));
+        assert!(arg_bool(&args(json!({"r": "True"})), "r"));
+        assert!(!arg_bool(&args(json!({"r": 1})), "r"));
+        assert!(!arg_bool(&args(json!({})), "r"));
     }
 }

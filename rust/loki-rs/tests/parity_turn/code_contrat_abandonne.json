@@ -161,7 +161,7 @@
       },
       {
         "function": {
-          "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+          "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
           "name": "edit",
           "parameters": {
             "properties": {
@@ -176,6 +176,10 @@
               "old": {
                 "description": "Exact text to replace (unique)",
                 "type": "string"
+              },
+              "replace_all": {
+                "description": "Replace every exact occurrence of old (default false)",
+                "type": "boolean"
               }
             },
             "required": [
@@ -883,7 +887,7 @@
           },
           {
             "function": {
-              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
               "name": "edit",
               "parameters": {
                 "properties": {
@@ -898,6 +902,10 @@
                   "old": {
                     "description": "Exact text to replace (unique)",
                     "type": "string"
+                  },
+                  "replace_all": {
+                    "description": "Replace every exact occurrence of old (default false)",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1418,7 +1426,7 @@
           },
           {
             "function": {
-              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
               "name": "edit",
               "parameters": {
                 "properties": {
@@ -1433,6 +1441,10 @@
                   "old": {
                     "description": "Exact text to replace (unique)",
                     "type": "string"
+                  },
+                  "replace_all": {
+                    "description": "Replace every exact occurrence of old (default false)",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1961,7 +1973,7 @@
           },
           {
             "function": {
-              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
               "name": "edit",
               "parameters": {
                 "properties": {
@@ -1976,6 +1988,10 @@
                   "old": {
                     "description": "Exact text to replace (unique)",
                     "type": "string"
+                  },
+                  "replace_all": {
+                    "description": "Replace every exact occurrence of old (default false)",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -2713,7 +2729,7 @@
           },
           {
             "function": {
-              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
               "name": "edit",
               "parameters": {
                 "properties": {
@@ -2728,6 +2744,10 @@
                   "old": {
                     "description": "Exact text to replace (unique)",
                     "type": "string"
+                  },
+                  "replace_all": {
+                    "description": "Replace every exact occurrence of old (default false)",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -3473,7 +3493,7 @@
           },
           {
             "function": {
-              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique). Prefer this over rewriting a whole file.",
+              "description": "Patch a file by exact replacement: old → new. old must appear EXACTLY once (add context to make it unique), or set replace_all to replace every occurrence. Prefer this over rewriting a whole file.",
               "name": "edit",
               "parameters": {
                 "properties": {
@@ -3488,6 +3508,10 @@
                   "old": {
                     "description": "Exact text to replace (unique)",
                     "type": "string"
+                  },
+                  "replace_all": {
+                    "description": "Replace every exact occurrence of old (default false)",
+                    "type": "boolean"
                   }
                 },
                 "required": [
