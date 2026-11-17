@@ -628,6 +628,54 @@ Retirées par ce fork :
   sa route n'avait aucun consommateur et son repli embarqué datait de 2024. La
   recherche Hugging Face le remplace.
 
+## Brancher un agent externe (Hermes Agent, Open WebUI…)
+
+Loki se branche comme n'importe quel fournisseur compatible OpenAI. Pas de
+compte à part ni de mémoire partagée : le client garde la sienne.
+
+- **Adresse** : `https://<ton-domaine>/v1` (ou `http://<ip>:8090/v1` en local).
+- **Clé** : la clé API des complétions (Réglages, ou
+  `docker exec -it loki loki set-api-key`), envoyée en
+  `Authorization: Bearer <clé>`. Sans clé, `/v1` est ouvert à tous.
+- **`GET /v1/models`** liste les presets **locaux** d'au moins 64 000 jetons de
+  contexte (le plancher de Hermes Agent), avec leur fenêtre (`context_length`)
+  et le preset en service (`"active": true`). Les presets d'API externe et les
+  petits contextes n'y figurent pas.
+- **Changer de modèle** : une complétion dont le champ `model` nomme un autre
+  preset de la liste fait basculer Loki sur ce preset, puis la requête part.
+  Le chargement prend de quelques secondes à quelques minutes. Garde-fous :
+  - seulement si une clé est posée ;
+  - seulement si Loki est libre : pas de tour de discussion, de tâche, de
+    bench, d'optimisation ni d'autre requête `/v1` en cours ;
+  - au plus une bascule par minute ;
+  - sinon : `503` avec `Retry-After` et un code clair (`engine_busy`,
+    `requests_in_flight`, `switch_cooldown`, `model_switching`,
+    `engine_not_ready`).
+
+  Le moteur est unique : la bascule change aussi le modèle de l'interface. Un
+  autre nom (`gpt-4o`, un preset sous 64K…) va au modèle déjà chargé, sans
+  bascule.
+- **`SIDE_SLOT` conseillé** dans ces presets : les requêtes du client passent
+  sur le second slot et ne vident pas le cache de ta discussion. Il double le
+  cache KV en VRAM, vérifie que le preset tient encore.
+- **Hermes Agent** : fournisseur personnalisé avec `base_url` ci-dessus et la
+  clé dans ses secrets. Le premier appel après une bascule peut attendre le
+  chargement : monte son délai de flux muet, et garde ses modèles auxiliaires
+  (résumé, titre) sur le même id pour éviter des bascules :
+
+  ```yaml
+  providers:
+    loki:
+      request_timeout_seconds: 900
+      stale_timeout_seconds: 600
+  ```
+- **Reverse proxy** : n'expose que `/v1/` vers Loki:8090 (tout le reste en
+  403, sinon l'interface et son shell sont publics), avec un délai de lecture
+  d'au moins 300 s (`proxy_read_timeout 300s;` sous Nginx / NPM) et sans
+  tampon de réponse, pour le flux.
+- **`LOKI_FACADE=0`** (Go seul) garde l'ancien `/v1` : tout est relayé au
+  moteur, qui ne connaît que le modèle chargé.
+
 ## Performance
 
 Le but : des tours plus courts **sans dénaturer le modèle**. Rien ici ne
