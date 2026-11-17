@@ -1,14 +1,14 @@
-﻿//! Surface compatible OpenAI (`/v1/*`), relayÃ©e par la faÃ§ade directement au
-//! moteur (lot 5) â€” port de `mountOAI`, `requireCompletionKey` et
+//! Surface compatible OpenAI (`/v1/*`), relayée par la façade directement au
+//! moteur (lot 5) — port de `mountOAI`, `requireCompletionKey` et
 //! `oaiHandler` (`llm_oai.go`, `web_auth.go`).
 //!
-//! Les DÃ‰CISIONS restent au Go (`web_internal_oai.go`), qui tient l'Ã©tat de
-//! la conversation : il dit oÃ¹ router (`route`), compte la requÃªte Â« en vol Â»
+//! Les DÉCISIONS restent au Go (`web_internal_oai.go`), qui tient l'état de
+//! la conversation : il dit où router (`route`), compte la requête « en vol »
 //! et refuse pendant un benchmark ou une optimisation (`begin`), puis apprend
-//! sa fin (`end`) â€” Ã  la fin du flux ou quand le client part.
+//! sa fin (`end`) — à la fin du flux ou quand le client part.
 //!
-//! Comme le Go : on NE touche PAS Ã  `Authorization` (llama-server revÃ©rifie
-//! la clÃ©, `--api-key`), on ne bufferise rien (les jetons arrivent un par
+//! Comme le Go : on NE touche PAS à `Authorization` (llama-server revérifie
+//! la clé, `--api-key`), on ne bufferise rien (les jetons arrivent un par
 //! un), et les `X-Forwarded-*` entrants ne passent pas au moteur.
 
 use bytes::Bytes;
@@ -30,7 +30,7 @@ use crate::store::Store;
 pub type OutBody = BoxBody<Bytes, hyper::Error>;
 pub type EngineClient = Client<HttpConnector, OutBody>;
 
-/// RÃ©ponse d'erreur au format OpenAI (`sendOAIError`) : les SDK lisent
+/// Réponse d'erreur au format OpenAI (`sendOAIError`) : les SDK lisent
 /// `body.error.message`.
 pub fn oai_error(status: StatusCode, msg: &str, typ: &str, code: &str) -> Response<Body> {
     auth::json(
@@ -60,19 +60,19 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
             eprintln!("[loki-rs] /v1 : route illisible : {e}");
             return oai_error(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
+                "configuration illisible — réessaie dans un instant",
                 "api_error",
                 "service_unavailable",
             );
         }
     };
 
-    // requireCompletionKey : un prÃ©flight CORS ne porte jamais d'Authorization.
+    // requireCompletionKey : un préflight CORS ne porte jamais d'Authorization.
     if method != Method::OPTIONS {
         if route["key_ok"] != Value::Bool(true) {
             return oai_error(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
+                "configuration illisible — réessaie dans un instant",
                 "api_error",
                 "service_unavailable",
             );
@@ -81,7 +81,7 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
         if !key.is_empty() && !auth::check_bearer(req.headers(), key) {
             let mut r = oai_error(
                 StatusCode::UNAUTHORIZED,
-                "ClÃ© API invalide ou absente â€” envoie l'en-tÃªte Authorization: Bearer <clÃ©>.",
+                "Clé API invalide ou absente — envoie l'en-tête Authorization: Bearer <clé>.",
                 "invalid_request_error",
                 "invalid_api_key",
             );
@@ -98,7 +98,7 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     let side_live = route["side_live"] == Value::Bool(true);
     let max_body = route["max_body"].as_u64().unwrap_or(0) as usize;
 
-    // SIDE_SLOT : la complÃ©tion d'un client passe par le second slot.
+    // SIDE_SLOT : la complétion d'un client passe par le second slot.
     let (mut parts, body) = req.into_parts();
     let post_v1 = method == Method::POST && path.starts_with("/v1/");
     let (body, side): (OutBody, bool) = if post_v1 && side_live {
@@ -146,12 +146,12 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
             v["ticket"].as_u64()
         }
         Err(e) => {
-            // Sans ticket, le Go ne saurait pas qu'une requÃªte occupe le moteur :
+            // Sans ticket, le Go ne saurait pas qu'une requête occupe le moteur :
             // il pourrait effacer le slot en plein calcul. On refuse.
             eprintln!("[loki-rs] /v1 : begin : {e}");
             return oai_error(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
+                "configuration illisible — réessaie dans un instant",
                 "api_error",
                 "service_unavailable",
             );
@@ -218,9 +218,9 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     }
 }
 
-/// `sideSlotProxyRewrite` : lit le corps (bornÃ©), pose `id_slot: 1` si c'est
-/// un objet JSON. Les valeurs sont gardÃ©es telles quelles (RawValue) ; les
-/// clÃ©s ressortent triÃ©es, comme `json.Marshal` d'une map Go.
+/// `sideSlotProxyRewrite` : lit le corps (borné), pose `id_slot: 1` si c'est
+/// un objet JSON. Les valeurs sont gardées telles quelles (RawValue) ; les
+/// clés ressortent triées, comme `json.Marshal` d'une map Go.
 async fn side_slot_body(body: Incoming, max: usize) -> Result<(Bytes, bool), Box<Response<Body>>> {
     let raw = match http_body_util::Limited::new(body, max + 1).collect().await {
         Ok(c) => c.to_bytes(),
@@ -231,7 +231,7 @@ async fn side_slot_body(body: Incoming, max: usize) -> Result<(Bytes, bool), Box
             return Err(Box::new(if too_big {
                 oai_error(
                     StatusCode::PAYLOAD_TOO_LARGE,
-                    "corps trop gros pour Ãªtre routÃ© vers le slot des clients",
+                    "corps trop gros pour être routé vers le slot des clients",
                     "invalid_request_error",
                     "side_slot",
                 )
@@ -258,7 +258,7 @@ pub fn rewrite_id_slot(raw: &[u8]) -> Option<Vec<u8>> {
     serde_json::to_vec(&obj).ok()
 }
 
-/// Rend le ticket au Go quand la rÃ©ponse est finie ou abandonnÃ©e.
+/// Rend le ticket au Go quand la réponse est finie ou abandonnée.
 struct TicketGuard {
     store: Store,
     ticket: Option<u64>,
@@ -287,8 +287,8 @@ impl Drop for TicketGuard {
     }
 }
 
-/// Corps de rÃ©ponse du moteur, relayÃ© trame par trame ; le ticket est rendu
-/// quand il est lÃ¢chÃ© (flux terminÃ© ou client parti).
+/// Corps de réponse du moteur, relayé trame par trame ; le ticket est rendu
+/// quand il est lâché (flux terminé ou client parti).
 struct Guarded {
     inner: Incoming,
     _guard: TicketGuard,
