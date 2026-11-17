@@ -45,6 +45,9 @@ func (c *Conversation) benchLease(cancel context.CancelFunc) (func(), error) {
 // ou optimiseur (backend_tune_job.go) — why étant le refus que reçoivent les
 // autres pendant ce temps.
 func (c *Conversation) measureLease(cancel context.CancelFunc, why error) (func(), error) {
+	if err := oaiSwitchGuard(); err != nil {
+		return nil, err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.Generating {
@@ -96,6 +99,9 @@ var benchRunner = runBench
 // benchStart lance un benchmark en arrière-plan. code : le statut HTTP à
 // renvoyer en cas de refus.
 func benchStart(opts benchOpts) (id string, code int, err error) {
+	if err := oaiSwitchGuard(); err != nil {
+		return "", http.StatusConflict, err
+	}
 	// Hors verrou : healthCheck peut attendre le moteur quelques secondes, le
 	// suivi de progression ne doit pas rester bloqué derrière.
 	if externalActive() {

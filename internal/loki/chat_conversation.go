@@ -560,6 +560,11 @@ var errModelLoading = fmt.Errorf("⏳ Le modèle est encore en train de charger 
 // MODÈLE en tête du message, mais rendues comme pastilles dans la bulle : le fil
 // doit montrer ce que l'utilisateur a écrit, pas la consigne qu'on ajoute pour lui.
 func (c *Conversation) StartTurn(text string, files []attachInfo, caps Caps, temperature float64) error {
+	// Bascule de modèle demandée par un client /v1 (web_internal_oai.go) : le
+	// moteur redémarre, même si un Reset a rendu le verrou.
+	if err := oaiSwitchGuard(); err != nil {
+		return err
+	}
 	// Optimisation en cours (backend_tune_lock.go) : le vrai moteur est arrêté,
 	// « le modèle charge » serait faux — on dit pourquoi.
 	if err := tuneGuard(); err != nil {
@@ -1124,6 +1129,9 @@ func (c *Conversation) ctxNowLocked(msgs []Message, local bool) int {
 // événements passent par le flux d'abonnement, donc tous les appareils voient la
 // progression. Renvoie ErrBusy si un tour est déjà en cours.
 func (c *Conversation) CompactNow() error {
+	if err := oaiSwitchGuard(); err != nil {
+		return err
+	}
 	if err := tuneGuard(); err != nil {
 		return err
 	}

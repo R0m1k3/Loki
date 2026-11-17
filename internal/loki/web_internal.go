@@ -131,6 +131,8 @@ func withInternalAPI(next http.Handler) http.Handler {
 			handleInternalConvDropped(w, r)
 		case "/internal/v1/conv/workspace":
 			handleInternalConvWorkspace(w, r)
+		case "/internal/v1/oai/switch":
+			handleInternalOAISwitch(w, r)
 		case "/internal/v1/preset/apply":
 			handleInternalPresetApply(w, r)
 		case "/internal/v1/tune/guard":

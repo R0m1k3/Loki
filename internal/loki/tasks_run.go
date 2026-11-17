@@ -30,6 +30,9 @@ import (
 // lastReport est le compte-rendu du passage précédent (vide au premier) : il est
 // réinjecté pour donner à l'IA une continuité d'une exécution à l'autre.
 func (c *Conversation) RunAutonomous(ctx context.Context, taskID, taskName, prompt, lastReport string, caps Caps, temperature float64) (string, error) {
+	if err := oaiSwitchGuard(); err != nil {
+		return "", err
+	}
 	if err := tuneGuard(); err != nil {
 		return "", err
 	}
@@ -169,6 +172,9 @@ func runTask(t Task) {
 	// du modèle). Vide = on garde le preset actif. Un échec de bascule est un vrai
 	// échec de la tâche : la faire tourner sur le mauvais modèle serait pire.
 	if err := ensureTaskPreset(t.Preset); err != nil {
+		if errors.Is(err, errOAISwitchBusy) {
+			return // bascule /v1 en cours : réessayée au tick suivant
+		}
 		recordTaskEnd(t.ID, start, "", fmt.Errorf("changement de preset : %w", err))
 		return
 	}
@@ -192,7 +198,7 @@ func runTask(t Task) {
 	// Occupé, ou modèle pas encore prêt : ce n'est pas un échec de la tâche, juste
 	// un mauvais moment. On ne touche pas à son état (NextRun reste dans le passé)
 	// pour qu'elle soit réessayée au tick suivant.
-	if err == ErrBusy || err == errModelLoading {
+	if err == ErrBusy || err == errModelLoading || err == errOAISwitchBusy {
 		return
 	}
 	recordTaskEnd(t.ID, start, report, err)
@@ -235,6 +241,10 @@ func taskCaps(t Task) Caps {
 func ensureTaskPreset(id string) error {
 	if id == "" {
 		return nil
+	}
+	// Une bascule /v1 relance le moteur : ne pas en lancer une autre par-dessus.
+	if err := oaiSwitchGuard(); err != nil {
+		return err
 	}
 	list, err := ListPresets()
 	if err != nil {

@@ -70,6 +70,9 @@ func (c *Conversation) extLeaseClearLocked() {
 // extLeaseAcquire prend le verrou de génération pour la façade ; why : voir
 // extLeaseState.
 func (c *Conversation) extLeaseAcquire(ttl time.Duration, why error) (string, error) {
+	if err := oaiSwitchGuard(); err != nil {
+		return "", err
+	}
 	if err := tuneGuard(); err != nil {
 		return "", err
 	}
