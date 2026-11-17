@@ -109,7 +109,7 @@ async fn relais_et_ticket() {
     let r = send(
         f,
         "GET",
-        "/v1/models",
+        "/v1/models/x",
         &[("host", "loki.exemple.fr"), ("x-forwarded-for", "6.6.6.6")],
         "",
     )
@@ -196,7 +196,7 @@ async fn cle_des_completions() {
     let r = send(
         f,
         "GET",
-        "/v1/models",
+        "/v1/models/x",
         &[("authorization", "Bearer cle-oai")],
         "",
     )
@@ -232,7 +232,7 @@ async fn moteur_absent() {
         .unwrap()
         .port();
     *go.engine_port.lock().unwrap() = mort;
-    let r = send(f, "GET", "/v1/models", &[], "").await;
+    let r = send(f, "GET", "/v1/models/x", &[], "").await;
     assert_eq!(r.status(), StatusCode::BAD_GATEWAY);
     attendre_end(&go).await;
     assert!(

@@ -47,6 +47,20 @@ var facadePresetsRoutes = map[string]bool{
 // preset. Variable pour les tests (aucun moteur n'y tourne).
 var presetServiceAction = serviceAction
 
+// presetPathCheck : le chemin absolu d'un preset, refusé s'il sort du dossier
+// des presets ou ne finit pas par .env.
+func presetPathCheck(path string) (string, error) {
+	root, err := filepath.Abs(presetsDir())
+	if err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil || !strings.HasPrefix(abs, root+string(filepath.Separator)) || !strings.HasSuffix(abs, ".env") {
+		return "", fmt.Errorf("preset hors du dossier des presets")
+	}
+	return abs, nil
+}
+
 // presetApply applique un preset (chemin dans presets/) à la configuration
 // vivante, comme les handlers d'origine :
 //
@@ -56,13 +70,9 @@ var presetServiceAction = serviceAction
 //	apply  : preset externe en service modifié (handlePresetExternalSave) —
 //	         configuration seule.
 func presetApply(path, mode string) error {
-	root, err := filepath.Abs(presetsDir())
+	abs, err := presetPathCheck(path)
 	if err != nil {
 		return err
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil || !strings.HasPrefix(abs, root+string(filepath.Separator)) || !strings.HasSuffix(abs, ".env") {
-		return fmt.Errorf("preset hors du dossier des presets")
 	}
 	switch mode {
 	case "switch":

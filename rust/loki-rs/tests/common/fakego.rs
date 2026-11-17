@@ -42,6 +42,13 @@ pub struct FakeGo {
     pub side_live: Mutex<bool>,
     pub refuse: Mutex<Option<serde_json::Value>>,
     pub oai_log: Mutex<Vec<String>>,
+    /// Bascules /v1 (`/internal/v1/oai/switch`) : une ligne « switch <fichier> »
+    /// par appel, délai et refus imposés ; appels de `oai/route` comptés à part
+    /// (hors `oai_log`, que des tests vérifient à l'identique).
+    pub switch_log: Mutex<Vec<String>>,
+    pub switch_delay_ms: Mutex<u64>,
+    pub switch_refuse: Mutex<Option<serde_json::Value>>,
+    pub route_calls: std::sync::atomic::AtomicUsize,
     /// Mémoire verrouillée : seal/open répondent 423.
     pub locked: Mutex<bool>,
     /// Bail du moteur : bail courant, stop signalé, détenteur Go, journal.
@@ -635,22 +642,7 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
                 return resp(500, r#"{"error":"application refusée"}"#);
             }
             if *st.apply_presets.lock().unwrap() {
-                let text = std::fs::read_to_string(&path).unwrap_or_default();
-                let mut next = loki_rs::presets::parse_env(&text);
-                let mut store = st.store.lock().unwrap();
-                let cur = store.entry("config".into()).or_default();
-                for k in loki_rs::presets::PRESERVED_KEYS {
-                    if let Some(v) = cur.get(*k) {
-                        next.insert(k.to_string(), String::from_utf8_lossy(v).into_owned());
-                    }
-                }
-                if let Some(bin) = cur.get("BIN").filter(|v| !v.is_empty()) {
-                    next.insert("BIN".into(), String::from_utf8_lossy(bin).into_owned());
-                }
-                for (k, v) in st.apply_extra.lock().unwrap().iter() {
-                    next.insert(k.clone(), v.clone());
-                }
-                *cur = next.into_iter().map(|(k, v)| (k, v.into_bytes())).collect();
+                apply_preset_file(&st, &path);
             }
             st.preset_applies.lock().unwrap().push((path, mode));
             resp(204, "")
@@ -752,7 +744,28 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             }
             resp(200, out.to_string())
         }
+        "/internal/v1/oai/switch" => {
+            let body = req.into_body().collect().await.unwrap().to_bytes();
+            let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+            let path = v["path"].as_str().unwrap_or("").to_string();
+            let name = std::path::Path::new(&path)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            st.switch_log.lock().unwrap().push(format!("switch {name}"));
+            let delay = *st.switch_delay_ms.lock().unwrap();
+            if delay > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+            }
+            if let Some(r) = st.switch_refuse.lock().unwrap().clone() {
+                return resp(200, serde_json::json!({ "refuse": r }).to_string());
+            }
+            apply_preset_file(&st, &path);
+            resp(200, r#"{"ok":true}"#)
+        }
         "/internal/v1/oai/route" => {
+            st.route_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let key = st.get("state", "api_key").unwrap_or_default();
             let v = serde_json::json!({
                 "port": *st.engine_port.lock().unwrap(),
@@ -913,6 +926,27 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
 
 /// Lance le faux Go puis la façade devant lui ; rend (adresse de la façade,
 /// état du faux Go, garde d'arrêt).
+/// Remplace le seau `config` par le preset `path`, réglages « appareil »,
+/// `BIN` de la machine et `apply_extra` gardés — comme `applyPresetFile`.
+fn apply_preset_file(st: &FakeGo, path: &str) {
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let mut next = loki_rs::presets::parse_env(&text);
+    let mut store = st.store.lock().unwrap();
+    let cur = store.entry("config".into()).or_default();
+    for k in loki_rs::presets::PRESERVED_KEYS {
+        if let Some(v) = cur.get(*k) {
+            next.insert(k.to_string(), String::from_utf8_lossy(v).into_owned());
+        }
+    }
+    if let Some(bin) = cur.get("BIN").filter(|v| !v.is_empty()) {
+        next.insert("BIN".into(), String::from_utf8_lossy(bin).into_owned());
+    }
+    for (k, v) in st.apply_extra.lock().unwrap().iter() {
+        next.insert(k.clone(), v.clone());
+    }
+    *cur = next.into_iter().map(|(k, v)| (k, v.into_bytes())).collect();
+}
+
 pub async fn start(home: std::path::PathBuf) -> (SocketAddr, Arc<FakeGo>, oneshot::Sender<()>) {
     let (f, st, tx, _) = start_with(home, Opts::default()).await;
     (f, st, tx)

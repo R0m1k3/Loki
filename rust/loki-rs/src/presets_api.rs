@@ -303,10 +303,7 @@ pub fn preset_imposes_engine(home: &Path, p: &str) -> bool {
     }
     let img = std::env::var("LOKI_ENGINE_BIN").unwrap_or_default();
     let img = trim(&img);
-    if !img.is_empty() && serve::run::same_path(p, img) {
-        return false;
-    }
-    true
+    img.is_empty() || !serve::run::same_path(p, img)
 }
 
 /// `newPresetSeed` : BIN (backend personnalisé seulement), HOST, PORT.
@@ -849,12 +846,12 @@ pub(crate) async fn preset_apply(store: &Store, path: &Path, mode: &str) -> Resu
         .unwrap_or_else(|| format!("application du preset : {code}")))
 }
 
-struct Live {
-    cfg: Cfg,
-    order: Vec<String>,
+pub(crate) struct Live {
+    pub(crate) cfg: Cfg,
+    pub(crate) order: Vec<String>,
 }
 
-async fn live(store: &Store) -> Live {
+pub(crate) async fn live(store: &Store) -> Live {
     Live {
         cfg: store.config().await,
         order: parse_preset_order(

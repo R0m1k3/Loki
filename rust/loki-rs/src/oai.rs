@@ -1,14 +1,14 @@
-﻿//! Surface compatible OpenAI (`/v1/*`), relayÃ©e par la faÃ§ade directement au
-//! moteur (lot 5) â€” port de `mountOAI`, `requireCompletionKey` et
+//! Surface compatible OpenAI (`/v1/*`), relayée par la façade directement au
+//! moteur (lot 5) — port de `mountOAI`, `requireCompletionKey` et
 //! `oaiHandler` (`llm_oai.go`, `web_auth.go`).
 //!
-//! Les DÃ‰CISIONS restent au Go (`web_internal_oai.go`), qui tient l'Ã©tat de
-//! la conversation : il dit oÃ¹ router (`route`), compte la requÃªte Â« en vol Â»
+//! Les DÉCISIONS restent au Go (`web_internal_oai.go`), qui tient l'état de
+//! la conversation : il dit où router (`route`), compte la requête « en vol »
 //! et refuse pendant un benchmark ou une optimisation (`begin`), puis apprend
-//! sa fin (`end`) â€” Ã  la fin du flux ou quand le client part.
+//! sa fin (`end`) — à la fin du flux ou quand le client part.
 //!
-//! Comme le Go : on NE touche PAS Ã  `Authorization` (llama-server revÃ©rifie
-//! la clÃ©, `--api-key`), on ne bufferise rien (les jetons arrivent un par
+//! Comme le Go : on NE touche PAS à `Authorization` (llama-server revérifie
+//! la clé, `--api-key`), on ne bufferise rien (les jetons arrivent un par
 //! un), et les `X-Forwarded-*` entrants ne passent pas au moteur.
 
 use bytes::Bytes;
@@ -21,6 +21,7 @@ use serde_json::{Value, json, value::RawValue};
 use std::collections::BTreeMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use crate::api::Ctx;
 use crate::auth;
@@ -30,7 +31,7 @@ use crate::store::Store;
 pub type OutBody = BoxBody<Bytes, hyper::Error>;
 pub type EngineClient = Client<HttpConnector, OutBody>;
 
-/// RÃ©ponse d'erreur au format OpenAI (`sendOAIError`) : les SDK lisent
+/// Réponse d'erreur au format OpenAI (`sendOAIError`) : les SDK lisent
 /// `body.error.message`.
 pub fn oai_error(status: StatusCode, msg: &str, typ: &str, code: &str) -> Response<Body> {
     auth::json(
@@ -39,49 +40,133 @@ pub fn oai_error(status: StatusCode, msg: &str, typ: &str, code: &str) -> Respon
     )
 }
 
-pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> Response<Body> {
-    let method = req.method().clone();
-    let path = req.uri().path().to_string();
-    let route = match ctx
-        .store
+/// Lit `route` auprès du Go : port du moteur, Strata, clé, second slot.
+async fn fetch_route(ctx: &Ctx, method: &Method, path: &str) -> Result<Value, Box<Response<Body>>> {
+    ctx.store
         .internal_json(
             Method::GET,
             &format!(
                 "/internal/v1/oai/route?method={}&path={}",
                 crate::store::enc(method.as_str()),
-                crate::store::enc(&path)
+                crate::store::enc(path)
             ),
             None,
         )
         .await
-    {
-        Ok(v) => v,
-        Err(e) => {
+        .map_err(|e| {
             eprintln!("[loki-rs] /v1 : route illisible : {e}");
-            return oai_error(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
-                "api_error",
-                "service_unavailable",
-            );
+            Box::new(unavailable())
+        })
+}
+
+fn unavailable() -> Response<Body> {
+    oai_error(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "configuration illisible — réessaie dans un instant",
+        "api_error",
+        "service_unavailable",
+    )
+}
+
+/// Traduit un refus du Go (`{"status","message","type","code","retry_after"}`)
+/// en erreur OpenAI ; un `retry_after` vide ne pose pas d'en-tête.
+fn refusal_response(refus: &Value) -> Response<Body> {
+    let status = StatusCode::from_u16(refus["status"].as_u64().unwrap_or(503) as u16)
+        .unwrap_or(StatusCode::SERVICE_UNAVAILABLE);
+    let mut r = oai_error(
+        status,
+        refus["message"].as_str().unwrap_or(""),
+        refus["type"].as_str().unwrap_or("server_error"),
+        refus["code"].as_str().unwrap_or(""),
+    );
+    if let Some(ra) = refus["retry_after"].as_str().filter(|s| !s.is_empty())
+        && let Ok(v) = HeaderValue::from_str(ra)
+    {
+        r.headers_mut().insert(header::RETRY_AFTER, v);
+    }
+    r
+}
+
+/// Chemins dont le champ `model` peut demander une bascule de preset.
+fn is_completion(path: &str) -> bool {
+    matches!(path, "/v1/chat/completions" | "/v1/completions")
+}
+
+/// Le champ `model` (chaîne de premier niveau) d'un corps JSON.
+fn body_model(raw: &[u8]) -> Option<String> {
+    let obj: serde_json::Map<String, Value> = serde_json::from_slice(raw).ok()?;
+    obj.get("model")?.as_str().map(str::to_string)
+}
+
+/// `GET /v1/models` : les presets locaux d'au moins `OAI_MIN_CTX` jetons, au
+/// format OpenAI, avec leur fenêtre (`context_length`, lue par Hermes Agent).
+async fn models_list(ctx: &Ctx, head: bool) -> Response<Body> {
+    let lv = crate::presets_api::live(&ctx.store).await;
+    let data: Vec<Value> = crate::presets::oai_models(&ctx.engine.home, &lv.cfg, &lv.order)
+        .into_iter()
+        .map(|m| {
+            json!({
+                "id": m.id, "object": "model", "created": 0, "owned_by": "loki",
+                "name": m.name, "context_length": m.ctx, "active": m.active,
+            })
+        })
+        .collect();
+    let mut r = auth::json(StatusCode::OK, &json!({ "object": "list", "data": data }));
+    if head {
+        *r.body_mut() = Full::new(Bytes::new()).map_err(|n| match n {}).boxed();
+    }
+    r
+}
+
+/// Bascule sur le preset `m` par le Go (`/internal/v1/oai/switch`), qui prend
+/// le verrou de génération, refuse si quoi que ce soit tourne, relance le
+/// moteur et attend qu'il réponde.
+async fn switch_to(ctx: &Ctx, m: &crate::presets::OaiModel) -> Result<(), Box<Response<Body>>> {
+    let res = ctx
+        .store
+        .internal_post_within(
+            "/internal/v1/oai/switch",
+            &json!({ "path": m.path.to_string_lossy() }),
+            Duration::from_secs(240),
+        )
+        .await;
+    match res {
+        Ok((code, v)) if code == StatusCode::OK => {
+            if let Some(refus) = v.get("refuse").filter(|r| r.is_object()) {
+                return Err(Box::new(refusal_response(refus)));
+            }
+            eprintln!("[loki-rs] /v1 : bascule vers le preset {}", m.id);
+            Ok(())
         }
+        Ok((code, v)) => {
+            eprintln!("[loki-rs] /v1 : bascule refusée ({code}) : {v}");
+            Err(Box::new(unavailable()))
+        }
+        Err(e) => {
+            eprintln!("[loki-rs] /v1 : bascule : {e}");
+            Err(Box::new(unavailable()))
+        }
+    }
+}
+
+pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> Response<Body> {
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+    let mut route = match fetch_route(ctx, &method, &path).await {
+        Ok(v) => v,
+        Err(r) => return *r,
     };
 
-    // requireCompletionKey : un prÃ©flight CORS ne porte jamais d'Authorization.
+    // requireCompletionKey : un préflight CORS ne porte jamais d'Authorization.
     if method != Method::OPTIONS {
         if route["key_ok"] != Value::Bool(true) {
-            return oai_error(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
-                "api_error",
-                "service_unavailable",
-            );
+            return unavailable();
         }
         let key = route["key"].as_str().unwrap_or("");
         if !key.is_empty() && !auth::check_bearer(req.headers(), key) {
             let mut r = oai_error(
                 StatusCode::UNAUTHORIZED,
-                "ClÃ© API invalide ou absente â€” envoie l'en-tÃªte Authorization: Bearer <clÃ©>.",
+                "Clé API invalide ou absente — envoie l'en-tête Authorization: Bearer <clé>.",
                 "invalid_request_error",
                 "invalid_api_key",
             );
@@ -93,27 +178,100 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
         }
     }
 
-    let port = route["port"].as_u64().unwrap_or(8080);
-    let strata = route["strata"] == Value::Bool(true);
-    let side_live = route["side_live"] == Value::Bool(true);
-    let max_body = route["max_body"].as_u64().unwrap_or(0) as usize;
+    // La liste des modèles est celle des presets, pas celle du moteur.
+    if path == "/v1/models" && (method == Method::GET || method == Method::HEAD) {
+        return models_list(ctx, method == Method::HEAD).await;
+    }
 
-    // SIDE_SLOT : la complÃ©tion d'un client passe par le second slot.
-    let (mut parts, body) = req.into_parts();
     let post_v1 = method == Method::POST && path.starts_with("/v1/");
-    let (body, side): (OutBody, bool) = if post_v1 && side_live {
-        match side_slot_body(body, max_body).await {
-            Ok((b, side)) => {
-                parts
-                    .headers
-                    .insert(header::CONTENT_LENGTH, HeaderValue::from(b.len()));
-                parts.headers.remove(header::TRANSFER_ENCODING);
-                (Full::new(b).map_err(|n| match n {}).boxed(), side)
-            }
+    let (mut parts, body) = req.into_parts();
+    // Tout POST /v1 est lu (borné) : le champ `model` peut demander une
+    // bascule, et le second slot réécrit le corps.
+    let (raw, raw_body): (Option<Bytes>, Option<Incoming>) = if post_v1 {
+        let max = route["max_body"].as_u64().unwrap_or(0) as usize;
+        match read_body_limited(body, max).await {
+            Ok(b) => (Some(b), None),
             Err(r) => return *r,
         }
     } else {
-        (body.boxed(), false)
+        (None, Some(body))
+    };
+
+    // Bascule de modèle : seulement avec une clé (sinon n'importe qui
+    // rechargerait les modèles), pour l'id exact d'un preset annoncé. Le
+    // verrou tient jusqu'au `begin` : le ticket de cette requête existe alors,
+    // et une autre bascule sera refusée tant qu'il vit.
+    let key_set = !route["key"].as_str().unwrap_or("").is_empty();
+    let mut _switch_guard = None;
+    if let Some(b) = raw.as_ref()
+        && key_set
+        && is_completion(&path)
+        && let Some(model) = body_model(b)
+    {
+        let listed = |lv: &crate::presets_api::Live| {
+            crate::presets::oai_models(&ctx.engine.home, &lv.cfg, &lv.order)
+                .into_iter()
+                .find(|m| m.id == model)
+        };
+        if listed(&crate::presets_api::live(&ctx.store).await).is_some() {
+            let guard = match tokio::time::timeout(
+                Duration::from_secs(2),
+                ctx.oai_switch.clone().lock_owned(),
+            )
+            .await
+            {
+                Ok(g) => g,
+                Err(_) => {
+                    let mut r = oai_error(
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        "changement de modèle en cours — réessaie dans un moment",
+                        "server_error",
+                        "model_switching",
+                    );
+                    r.headers_mut()
+                        .insert(header::RETRY_AFTER, HeaderValue::from_static("30"));
+                    return r;
+                }
+            };
+            if let Some(m) = listed(&crate::presets_api::live(&ctx.store).await)
+                && !m.active
+                && let Err(r) = switch_to(ctx, &m).await
+            {
+                return *r;
+            }
+            // Une autre requête a pu basculer pendant l'attente : port,
+            // second slot et Strata suivent le preset en service.
+            route = match fetch_route(ctx, &method, &path).await {
+                Ok(v) => v,
+                Err(r) => return *r,
+            };
+            _switch_guard = Some(guard);
+        }
+    }
+
+    let port = route["port"].as_u64().unwrap_or(8080);
+    let strata = route["strata"] == Value::Bool(true);
+    let side_live = route["side_live"] == Value::Bool(true);
+
+    // SIDE_SLOT : la complétion d'un client passe par le second slot.
+    let (body, side): (OutBody, bool) = match (raw, raw_body) {
+        (Some(b), _) => {
+            let (b, side) = if side_live {
+                match rewrite_id_slot(&b) {
+                    Some(nb) => (Bytes::from(nb), true),
+                    None => (b, false),
+                }
+            } else {
+                (b, false)
+            };
+            parts
+                .headers
+                .insert(header::CONTENT_LENGTH, HeaderValue::from(b.len()));
+            parts.headers.remove(header::TRANSFER_ENCODING);
+            (Full::new(b).map_err(|n| match n {}).boxed(), side)
+        }
+        (None, Some(body)) => (body.boxed(), false),
+        (None, None) => unreachable!("corps lu ou gardé tel quel"),
     };
 
     let read = method == Method::GET || method == Method::HEAD;
@@ -125,36 +283,19 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
             Some(&json!({ "read": read, "side": side, "post_v1": post_v1 })),
         )
         .await;
+    drop(_switch_guard);
     let ticket = match begin {
         Ok(v) => {
             if let Some(refus) = v.get("refuse").filter(|r| r.is_object()) {
-                let status = StatusCode::from_u16(refus["status"].as_u64().unwrap_or(503) as u16)
-                    .unwrap_or(StatusCode::SERVICE_UNAVAILABLE);
-                let mut r = oai_error(
-                    status,
-                    refus["message"].as_str().unwrap_or(""),
-                    refus["type"].as_str().unwrap_or("server_error"),
-                    refus["code"].as_str().unwrap_or(""),
-                );
-                if let Some(ra) = refus["retry_after"].as_str()
-                    && let Ok(v) = HeaderValue::from_str(ra)
-                {
-                    r.headers_mut().insert(header::RETRY_AFTER, v);
-                }
-                return r;
+                return refusal_response(refus);
             }
             v["ticket"].as_u64()
         }
         Err(e) => {
-            // Sans ticket, le Go ne saurait pas qu'une requÃªte occupe le moteur :
+            // Sans ticket, le Go ne saurait pas qu'une requête occupe le moteur :
             // il pourrait effacer le slot en plein calcul. On refuse.
             eprintln!("[loki-rs] /v1 : begin : {e}");
-            return oai_error(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "configuration illisible â€” rÃ©essaie dans un instant",
-                "api_error",
-                "service_unavailable",
-            );
+            return unavailable();
         }
     };
     let guard = TicketGuard {
@@ -218,37 +359,31 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     }
 }
 
-/// `sideSlotProxyRewrite` : lit le corps (bornÃ©), pose `id_slot: 1` si c'est
-/// un objet JSON. Les valeurs sont gardÃ©es telles quelles (RawValue) ; les
-/// clÃ©s ressortent triÃ©es, comme `json.Marshal` d'une map Go.
-async fn side_slot_body(body: Incoming, max: usize) -> Result<(Bytes, bool), Box<Response<Body>>> {
-    let raw = match http_body_util::Limited::new(body, max + 1).collect().await {
-        Ok(c) => c.to_bytes(),
+/// Lit le corps d'une requête, borné à `max` octets.
+async fn read_body_limited(body: Incoming, max: usize) -> Result<Bytes, Box<Response<Body>>> {
+    match http_body_util::Limited::new(body, max + 1).collect().await {
+        Ok(c) => Ok(c.to_bytes()),
         Err(e) => {
             let too_big = e
                 .downcast_ref::<http_body_util::LengthLimitError>()
                 .is_some();
-            return Err(Box::new(if too_big {
+            Err(Box::new(if too_big {
                 oai_error(
                     StatusCode::PAYLOAD_TOO_LARGE,
-                    "corps trop gros pour Ãªtre routÃ© vers le slot des clients",
+                    &format!("corps trop gros (plus de {max} octets)"),
                     "invalid_request_error",
-                    "side_slot",
+                    "body_too_large",
                 )
             } else {
                 oai_error(
                     StatusCode::BAD_REQUEST,
                     &format!("corps illisible : {e}"),
                     "invalid_request_error",
-                    "side_slot",
+                    "bad_request",
                 )
-            }));
+            }))
         }
-    };
-    Ok(match rewrite_id_slot(&raw) {
-        Some(b) => (Bytes::from(b), true),
-        None => (raw, false),
-    })
+    }
 }
 
 /// Corps avec `id_slot: 1`, ou `None` si ce n'est pas un objet JSON.
@@ -258,7 +393,7 @@ pub fn rewrite_id_slot(raw: &[u8]) -> Option<Vec<u8>> {
     serde_json::to_vec(&obj).ok()
 }
 
-/// Rend le ticket au Go quand la rÃ©ponse est finie ou abandonnÃ©e.
+/// Rend le ticket au Go quand la réponse est finie ou abandonnée.
 struct TicketGuard {
     store: Store,
     ticket: Option<u64>,
@@ -287,8 +422,8 @@ impl Drop for TicketGuard {
     }
 }
 
-/// Corps de rÃ©ponse du moteur, relayÃ© trame par trame ; le ticket est rendu
-/// quand il est lÃ¢chÃ© (flux terminÃ© ou client parti).
+/// Corps de réponse du moteur, relayé trame par trame ; le ticket est rendu
+/// quand il est lâché (flux terminé ou client parti).
 struct Guarded {
     inner: Incoming,
     _guard: TicketGuard,

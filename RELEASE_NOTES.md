@@ -20,6 +20,12 @@ Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 �
 - **Navigateur piloté** : cases à cocher et boutons radio masqués, états
   coché/désactivé, texte de la page dans `browser_find`, alerte sur les pages
   de blocage, rappel de conclure après 25 actions.
+- **Agent externe branché comme modèle (Hermes Agent…)** : `/v1/models` liste
+  les presets locaux d'au moins 64 000 jetons avec leur fenêtre, et une
+  complétion qui nomme un autre preset fait basculer Loki dessus, seulement
+  avec une clé, si Loki est libre et au plus une fois par minute (sinon 503 et
+  `Retry-After`). Mode d'emploi : section « Brancher un agent externe » du
+  README.
 - **Connexion par mot de passe** : plus de clé à lire dans le journal. À la
   première visite (y compris juste après cette mise à jour), l'interface fait
   choisir un mot de passe, demandé ensuite une fois par appareil. Perdu :

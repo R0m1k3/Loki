@@ -167,6 +167,7 @@ pub async fn serve(
             bench: cfg.bench,
             tune: cfg.tune,
             internal_token: cfg.internal_token.clone(),
+            oai_switch: Default::default(),
         },
     });
     // Le planificateur des tâches tenues ici, arrêté avec la façade.
