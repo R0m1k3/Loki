@@ -60,7 +60,7 @@ use super::host::{
 use super::journal::Delta;
 use super::keepimg::{has_kept_images, keep_turn_images_on};
 use super::lease::{EngineLease, LEASE_TTL, LeaseError, LeaseSignal, engine_stop};
-use super::persist::ProjSnapshot;
+use super::persist::{BK_CHAT, ProjSnapshot};
 use super::sessions::{GoSessionHooks, Sessions};
 use super::turn::{Cancel, TurnConfig, run_turn};
 use super::types::{Message, ReasoningEcho, StreamEvent, Tool};
@@ -722,6 +722,12 @@ impl ChatService {
     /// verrou rendu, file vidée, fichiers de la discussion effacés.
     pub async fn reset(&self) {
         let conv = self.sessions.conv();
+        // Fil vide : Claude Code repart sans session.
+        let _ = self
+            .shared
+            .store
+            .del(BK_CHAT, &crate::harness::sid_key(&conv.id()))
+            .await;
         conv.reset();
         self.queue().items.clear();
         let body = json!({ "id": conv.id(), "files_only": true });
@@ -921,6 +927,21 @@ impl ChatService {
             lease.release().await;
             return;
         };
+        // Mode Code confié à Claude Code : sa boucle, son contexte, sa
+        // compaction ; rien de la boucle de Loki ci-dessous.
+        if prep.cap("Code")
+            && self
+                .shared
+                .store
+                .get_str(BK_CHAT, &crate::harness::harness_key(&conv_id))
+                .await
+                == "claude"
+        {
+            drop(msgs);
+            self.generate_claude(&prep, epoch, &cancel, &cancel_tx, lease, turn_start, &env)
+                .await;
+            return;
+        }
         // KEEP_TURN_IMAGES : images gardées retirées d'abord si le contexte le
         // demande ou si elles ne doivent plus partir.
         let (mut msgs, ctx_used) = self
@@ -1224,6 +1245,144 @@ impl ChatService {
             .await;
         }
         self.finish(epoch, &cancel, lease, turn_start).await;
+    }
+
+    /// Un tour du mode Code par Claude Code (`harness::claude`) : refus
+    /// éventuel, lancement (reprise de la session de la discussion), deltas
+    /// du journal, réponse finale rangée, jauge estimée.
+    #[allow(clippy::too_many_arguments)]
+    async fn generate_claude(
+        self: &Arc<Self>,
+        prep: &Prepared,
+        epoch: i64,
+        cancel: &Cancel,
+        cancel_tx: &Arc<watch::Sender<bool>>,
+        mut lease: EngineLease,
+        turn_start: Instant,
+        env: &TurnEnv,
+    ) {
+        use super::harness_turn as ht;
+        use crate::harness::{claude, install};
+        use crate::tools::ToolState;
+        let conv = self.sessions.conv().clone();
+        let conv_id = conv.id();
+        let store = self.shared.store.clone();
+        let loki_home = self.shared.images.home();
+
+        let tool_ctx = crate::tools::GoToolState {
+            store: store.clone(),
+            caps: prep.turn_caps.clone(),
+        }
+        .context()
+        .await;
+        let bin = install::bin(&loki_home);
+        if bin.is_none() {
+            tokio::spawn(install::install(loki_home.clone()));
+        }
+        let route = crate::oai::route_for(&store, &hyper::Method::POST, "/v1/messages").await;
+        if let Some(why) = ht::claude_refusal(
+            env.ep.external,
+            env.ccfg.ctx_window,
+            &tool_ctx,
+            bin.is_some(),
+            &route,
+        ) {
+            conv.append_delta(epoch, obj("error", why));
+            self.finish(epoch, cancel, lease, turn_start).await;
+            return;
+        }
+        let (Ok(tc), Some(bin), Ok(route)) = (tool_ctx, bin, route) else {
+            unreachable!("refus ci-dessus");
+        };
+        let lv = crate::presets_api::live(&store).await;
+        let model = crate::presets::oai_models(&loki_home, &lv.cfg, &lv.order)
+            .into_iter()
+            .find(|m| m.active)
+            .map(|m| m.id)
+            .unwrap_or_else(|| "local".into());
+        let key = route["key"].as_str().unwrap_or("");
+        let port: u16 = std::env::var("LOKI_WEB_PORT")
+            .ok()
+            .and_then(|p| p.trim().parse().ok())
+            .unwrap_or(8090);
+        let sid_key = crate::harness::sid_key(&conv_id);
+        let session = Some(store.get_str(BK_CHAT, &sid_key).await).filter(|s| !s.is_empty());
+        let (msgs, text) = conv
+            .with_state_if(epoch, |st| st.messages.clone())
+            .map(|m| (m, ht::prompt_text(&prep.content)))
+            .unwrap_or_default();
+        let context = ht::recent_context(&msgs);
+        let turn = claude::ClaudeTurn {
+            bin,
+            home: install::home(&loki_home),
+            cwd: tc.cwd,
+            memory_dir: tc.memory_dir,
+            prompt: String::new(),
+            session,
+            base_url: format!("http://127.0.0.1:{port}"),
+            token: if key.is_empty() {
+                "local".into()
+            } else {
+                key.to_string()
+            },
+            model,
+            ctx_window: env.ccfg.ctx_window,
+            auto_update: crate::harness::auto_update(),
+        };
+
+        let launch = |t: claude::ClaudeTurn| {
+            let conv = conv.clone();
+            let cancel = cancel.clone();
+            async move {
+                let mut cb = |ev: StreamEvent| -> bool {
+                    let d = match ev {
+                        StreamEvent::Err(e) => obj("error", e),
+                        StreamEvent::ToolUsed(t) => tool_used_delta(&t),
+                        StreamEvent::Stats(s) => {
+                            obj("stats", serde_json::to_value(&s).unwrap_or_default())
+                        }
+                        StreamEvent::Reasoning(r) if !r.is_empty() => obj("reasoning_content", r),
+                        StreamEvent::Content(c) if !c.is_empty() => obj("content", c),
+                        _ => return true,
+                    };
+                    conv.append_delta(epoch, d);
+                    true
+                };
+                claude::run(&t, &cancel, &mut cb).await
+            }
+        };
+        let forget = || {
+            let store = store.clone();
+            let k = sid_key.clone();
+            async move {
+                let _ = store.del(BK_CHAT, &k).await;
+            }
+        };
+        let out = {
+            let run = ht::run_with_resume(turn, &text, &context, launch, forget);
+            tokio::pin!(run);
+            tokio::select! {
+                o = &mut run => o,
+                sig = lease.interrupted() => {
+                    if sig == LeaseSignal::Lost {
+                        eprintln!("[chat] bail du moteur perdu en plein tour : arrêt");
+                    }
+                    let _ = cancel_tx.send(true);
+                    run.await
+                }
+            }
+        };
+        if !out.session_id.is_empty() {
+            let _ = store
+                .put(BK_CHAT, &sid_key, out.session_id.clone().into_bytes())
+                .await;
+        }
+        if let Some(est) = conv.with_state_if(epoch, |st| {
+            ht::claude_finish(st, &out.final_text, &env.echo)
+        }) {
+            conv.append_delta(epoch, obj("ctx_used", est));
+        }
+        self.finish(epoch, cancel, lease, turn_start).await;
     }
 
     /// Fin d'un tour (le `defer` de `generate`).

@@ -2136,6 +2136,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #mode-seg button{border:0;background:transparent;color:var(--dim);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;cursor:pointer;font-family:inherit}
 #mode-seg button.on{background:var(--accent-bg);color:var(--accent)}
 #mode-seg button:not(.on):hover{color:var(--text)}
+#harness-seg{display:inline-flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex:none}
+#harness-seg button{border:0;background:transparent;color:var(--dim);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;cursor:pointer;font-family:inherit}
+#harness-seg button.on{background:var(--accent-bg);color:var(--accent)}
+#harness-seg button:not(.on):hover{color:var(--text)}
+#harness-seg button.busy{opacity:.6}
 
 /* Bandeaux du composeur (chrono du tour, puce mode code, critères). Ils vivent
    DANS #composer — qui est en position:absolute — et suivent donc sa colonne
@@ -2412,6 +2417,12 @@ html[data-files="1"] #files-btn{color:var(--accent)}
       <div id="mode-seg" role="group" aria-label="Mode de la discussion">
         <button type="button" data-mode="chat" class="on" onclick="setMode('chat')">Chat</button>
         <button type="button" data-mode="code" onclick="setMode('code')">Code</button>
+      </div>
+      <!-- Harnais du mode Code : la boucle de Loki, ou Claude Code (installé à
+           la demande dans LOKI_HOME). Visible en mode Code seulement. -->
+      <div id="harness-seg" role="group" aria-label="Harnais du mode Code" style="display:none">
+        <button type="button" data-harness="loki" class="on" onclick="setHarness('loki')">Loki</button>
+        <button type="button" data-harness="claude" onclick="setHarness('claude')">Claude Code</button>
       </div>
       <div id="ctxtrack"><div id="ctx-fill"></div></div>
       <span id="status-preset" class="muted" style="font-size:10px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
@@ -8340,6 +8351,7 @@ function handleDelta(d){
   if(d.reset!==undefined){ if(typeof d.id==='string') CONV_ID=d.id; queueClear(); HIST_FULL=false; smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
+  if(d.harness!==undefined){ if(typeof applyHarnessDelta==='function') applyHarnessDelta(d.harness); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
   if(d.criteria!==undefined){ if(typeof renderCriteria==='function') renderCriteria(d.criteria); return; }
   // Bascule de rôle (mode code) : les blocs en cours appartiennent au rôle
@@ -10786,6 +10798,73 @@ function paintMode(){
   // Le panneau des critères n'a de sens qu'en mode code.
   const box = document.getElementById('criteria-box');
   if(box && CURRENT_MODE!=='code') box.style.display='none';
+  paintHarness();
+}
+
+// --- Harnais du mode Code (Loki | Claude Code) -------------------------------
+// Par discussion, côté façade (/api/chat/harness). HARNESS_OK=false : route
+// absente (Go seul) ou illisible, le sélecteur reste caché.
+let CURRENT_HARNESS = 'loki';
+let HARNESS_OK = false;
+let HARNESS_INFO = {state:'', version:'', error:''};
+let HARNESS_POLL = null;
+
+function paintHarness(){
+  const seg = document.getElementById('harness-seg');
+  if(!seg) return;
+  seg.style.display = (HARNESS_OK && CURRENT_MODE==='code') ? '' : 'none';
+  const cl = seg.querySelector('[data-harness="claude"]');
+  seg.querySelector('[data-harness="loki"]').classList.toggle('on', CURRENT_HARNESS!=='claude');
+  cl.classList.toggle('on', CURRENT_HARNESS==='claude');
+  const st = HARNESS_INFO.state;
+  const busy = st==='installing' || st==='updating';
+  cl.classList.toggle('busy', CURRENT_HARNESS==='claude' && busy);
+  cl.textContent = (CURRENT_HARNESS==='claude' && busy)
+    ? (st==='installing' ? 'Claude Code…' : 'Claude Code ↻') : 'Claude Code';
+  cl.title = st==='ready' ? ('Claude Code '+HARNESS_INFO.version)
+    : st==='failed' ? ('installation ratée : '+HARNESS_INFO.error)
+    : st==='installing' ? 'installation de Claude Code…'
+    : st==='updating' ? 'mise à jour de Claude Code…'
+    : 'Claude Code (installé au premier choix)';
+}
+
+function harnessInfo(j){
+  CURRENT_HARNESS = j.harness==='claude' ? 'claude' : 'loki';
+  HARNESS_INFO = {state:j.state||'', version:j.version||'', error:j.error||''};
+  paintHarness();
+  // Installation en cours : on suit son état toutes les 3 s.
+  const busy = HARNESS_INFO.state==='installing' || HARNESS_INFO.state==='updating';
+  if(busy && !HARNESS_POLL){
+    HARNESS_POLL = setInterval(harnessRefresh, 3000);
+  }else if(!busy && HARNESS_POLL){
+    clearInterval(HARNESS_POLL); HARNESS_POLL = null;
+    if(HARNESS_INFO.state==='failed' && CURRENT_HARNESS==='claude') toast('Claude Code : '+HARNESS_INFO.error);
+  }
+}
+
+async function harnessRefresh(){
+  try{
+    const r = await jfetch('/api/chat/harness');
+    const j = await r.json();
+    HARNESS_OK = !!j.ok;
+    if(j.ok) harnessInfo(j); else paintHarness();
+  }catch(e){ HARNESS_OK = false; paintHarness(); }
+}
+
+async function setHarness(h){
+  if(h===CURRENT_HARNESS) return;
+  try{
+    const r = await jfetch('/api/chat/harness', {method:'POST', body: JSON.stringify({harness:h})});
+    const j = await r.json();
+    if(j.ok) harnessInfo(j); else toast('harnais : '+(j.error||'refusé'));
+  }catch(e){ toast('bascule impossible : '+e); }
+}
+
+// Bascule reçue du serveur : l'état d'installation suit par la route.
+function applyHarnessDelta(h){
+  CURRENT_HARNESS = h==='claude' ? 'claude' : 'loki';
+  paintHarness();
+  harnessRefresh();
 }
 
 // Bascule demandée depuis CE navigateur.
@@ -10816,6 +10895,7 @@ async function modeOnConvChange(){
     renderCriteria(j.criteria||[]);
     hideCodeHint();
   }catch(e){}
+  harnessRefresh();
 }
 
 // --- Puce « passer en mode Code ? » -----------------------------------------

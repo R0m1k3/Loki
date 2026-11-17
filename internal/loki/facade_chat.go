@@ -89,6 +89,8 @@ var facadeChatRoutes = map[string]bool{
 	"/api/chat/export":   true,
 	"/api/chat/mode":     true,
 	"/api/chat/criteria": true,
+	// Harnais du mode Code (Claude Code) : la façade seule le connaît.
+	"/api/chat/harness": true,
 	// Lot 39 : l'anneau de télémétrie est celui de la façade.
 	"/api/perf/summary": true,
 	// Lot 44 : les aperçus du navigateur piloté, tenu par la façade.

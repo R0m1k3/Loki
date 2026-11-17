@@ -430,6 +430,7 @@ func newWebMux() *http.ServeMux {
 	api("/api/conversations/delete", handleConvDelete)
 	api("/api/chat/mode", handleChatMode)         // GET mode+critères / POST bascule Chat|Code
 	api("/api/chat/criteria", handleChatCriteria) // édition manuelle des critères (mode code)
+	api("/api/chat/harness", handleChatHarnessGo) // harnais du mode Code : façade Rust seulement
 	api("/api/chat/compact", handleChatCompact)   // compaction manuelle du contexte
 	api("/api/chat/state", handleChatState)       // instantané léger {seq, generating, ctx_used}
 	api("/api/chat/export", handleChatExport)     // téléchargement du fil (?format=md|json)

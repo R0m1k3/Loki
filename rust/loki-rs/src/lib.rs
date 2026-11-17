@@ -28,6 +28,7 @@ pub mod engineimg;
 pub mod engstatus;
 pub mod gguf;
 pub mod gojson;
+pub mod harness;
 pub mod hf;
 pub mod imagetools;
 pub mod mcp;

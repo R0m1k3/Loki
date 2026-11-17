@@ -2101,6 +2101,11 @@ html[data-files="1"] #files-btn{color:var(--accent)}
 #mode-seg button{border:0;background:transparent;color:var(--dim);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;cursor:pointer;font-family:inherit}
 #mode-seg button.on{background:var(--accent-bg);color:var(--accent)}
 #mode-seg button:not(.on):hover{color:var(--text)}
+#harness-seg{display:inline-flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex:none}
+#harness-seg button{border:0;background:transparent;color:var(--dim);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;cursor:pointer;font-family:inherit}
+#harness-seg button.on{background:var(--accent-bg);color:var(--accent)}
+#harness-seg button:not(.on):hover{color:var(--text)}
+#harness-seg button.busy{opacity:.6}
 
 /* Bandeaux du composeur (chrono du tour, puce mode code, critères). Ils vivent
    DANS #composer — qui est en position:absolute — et suivent donc sa colonne

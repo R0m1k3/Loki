@@ -1730,6 +1730,31 @@ async fn routes_du_chat_par_la_facade() {
             .contains(&"/api/chat/mode".to_string())
     );
     assert_eq!(deltas(&chat, "mode"), [serde_json::json!("code")]);
+    // Harnais du mode Code : façade seule ; Loki par défaut, valeur inconnue
+    // refusée. (« claude » lancerait le vrai installeur : tests/harness.rs.)
+    let (code, v) = call(facade, "GET", "/api/chat/harness", "").await;
+    assert_eq!(
+        (code, v["harness"].clone()),
+        (200, serde_json::json!("loki"))
+    );
+    let (code, v) = call(
+        facade,
+        "POST",
+        "/api/chat/harness",
+        r#"{"harness":"codex"}"#,
+    )
+    .await;
+    assert_eq!(code, 400, "{v}");
+    let (code, v) = call(facade, "POST", "/api/chat/harness", r#"{"harness":"loki"}"#).await;
+    assert_eq!((code, v["ok"].clone()), (200, serde_json::json!(true)));
+    assert!(v["state"].is_string(), "{v}");
+    assert_eq!(deltas(&chat, "harness"), [serde_json::json!("loki")]);
+    assert!(
+        !go.relayed
+            .lock()
+            .unwrap()
+            .contains(&"/api/chat/harness".to_string())
+    );
     // Le Go pousse encore ses propres événements (indice de code, outil
     // criteria) par l'API interne de la façade (jeton interne exigé).
     let (code, _) = call(

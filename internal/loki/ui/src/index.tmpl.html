@@ -154,6 +154,12 @@ document.documentElement.setAttribute('data-side',localStorage.getItem('loki-sid
         <button type="button" data-mode="chat" class="on" onclick="setMode('chat')">Chat</button>
         <button type="button" data-mode="code" onclick="setMode('code')">Code</button>
       </div>
+      <!-- Harnais du mode Code : la boucle de Loki, ou Claude Code (installé à
+           la demande dans LOKI_HOME). Visible en mode Code seulement. -->
+      <div id="harness-seg" role="group" aria-label="Harnais du mode Code" style="display:none">
+        <button type="button" data-harness="loki" class="on" onclick="setHarness('loki')">Loki</button>
+        <button type="button" data-harness="claude" onclick="setHarness('claude')">Claude Code</button>
+      </div>
       <div id="ctxtrack"><div id="ctx-fill"></div></div>
       <span id="status-preset" class="muted" style="font-size:10px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
       <!-- Pied de carte, à droite : le décompte de contexte, compacter, puis le

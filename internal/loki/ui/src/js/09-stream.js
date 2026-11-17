@@ -553,6 +553,7 @@ function handleDelta(d){
   if(d.reset!==undefined){ if(typeof d.id==='string') CONV_ID=d.id; queueClear(); HIST_FULL=false; smoothReset(); cancelRender(); stopWorkTimer(); resetConvSpeed(); const tc=document.getElementById('turn-clock'); if(tc) tc.remove(); PENDING=null; document.getElementById('chat').innerHTML=''; newTurn(); setCtxUsed(0); lastSeq=0; setBusy(false); if(typeof loadConversations==='function') loadConversations(); if(typeof filesOnConvChange==='function') filesOnConvChange(); if(typeof modeOnConvChange==='function') modeOnConvChange(); return; }
   // --- Mode code (20-mode.js) -----------------------------------------------
   if(d.mode!==undefined){ if(typeof applyModeDelta==='function') applyModeDelta(d.mode); return; }
+  if(d.harness!==undefined){ if(typeof applyHarnessDelta==='function') applyHarnessDelta(d.harness); return; }
   if(d.code_hint){ if(typeof showCodeHint==='function') showCodeHint(); return; }
   if(d.criteria!==undefined){ if(typeof renderCriteria==='function') renderCriteria(d.criteria); return; }
   // Bascule de rôle (mode code) : les blocs en cours appartiennent au rôle

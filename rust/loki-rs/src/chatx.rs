@@ -8,7 +8,10 @@
 //! - `/api/chat/mode` — `handleChatMode` (`code_mode.go`) : mode de la
 //!   discussion ouverte (`chat/mode:<id>`) et ses critères ;
 //! - `/api/chat/criteria` — `handleChatCriteria` : critères édités à la main
-//!   (`chat/crit:<id>`, scellés comme le contenu des discussions).
+//!   (`chat/crit:<id>`, scellés comme le contenu des discussions) ;
+//! - `/api/chat/harness` — propre à la façade : le harnais du mode Code de la
+//!   discussion (`chat/harness:<id>` : Loki, ou Claude Code installé à la
+//!   demande, voir [`crate::harness`]).
 //!
 //! Les changements partent sur le fil de la façade (deltas `mode`,
 //! `criteria`), comme le Go les lui envoyait. Le reste du mode Code (indice,
@@ -616,7 +619,7 @@ fn now_ms() -> i64 {
 pub fn handles(path: &str) -> bool {
     matches!(
         path,
-        "/api/chat/export" | "/api/chat/mode" | "/api/chat/criteria"
+        "/api/chat/export" | "/api/chat/mode" | "/api/chat/criteria" | "/api/chat/harness"
     )
 }
 
@@ -760,8 +763,75 @@ pub async fn serve(
             };
             send_json(StatusCode::OK, &json!({ "ok": true, "criteria": out }))
         }
+        "/api/chat/harness" => {
+            let home = ctx.engine.home.clone();
+            if parts.method == Method::POST {
+                let raw = read().await;
+                let want = serde_json::from_slice::<Value>(&raw)
+                    .ok()
+                    .and_then(|v| v["harness"].as_str().map(str::to_string))
+                    .unwrap_or_default();
+                if want != "loki" && want != "claude" {
+                    return fail(StatusCode::BAD_REQUEST, "harnais inconnu (loki|claude)");
+                }
+                let key = crate::harness::harness_key(&conv_id);
+                let before = ctx.store.get_str(BK_CHAT, &key).await;
+                let res = if want == "claude" {
+                    ctx.store.put(BK_CHAT, &key, b"claude".to_vec()).await
+                } else {
+                    ctx.store.del(BK_CHAT, &key).await
+                };
+                if let Err(e) = res {
+                    return fail(StatusCode::INTERNAL_SERVER_ERROR, e);
+                }
+                let now = if want == "claude" { "claude" } else { "" };
+                if before != now {
+                    // Une autre boucle : la session Claude Code ne vaut plus.
+                    let _ = ctx
+                        .store
+                        .del(BK_CHAT, &crate::harness::sid_key(&conv_id))
+                        .await;
+                }
+                if want == "claude" {
+                    use crate::harness::install::State;
+                    if matches!(
+                        crate::harness::install::state(&home).await,
+                        State::Absent | State::Failed(_)
+                    ) {
+                        tokio::spawn(crate::harness::install::install(home.clone()));
+                    }
+                }
+                let mut d = Map::new();
+                d.insert("harness".into(), json!(want));
+                chat.push_delta(d);
+            }
+            let claude = ctx
+                .store
+                .get_str(BK_CHAT, &crate::harness::harness_key(&conv_id))
+                .await
+                == "claude";
+            send_json(StatusCode::OK, &harness_status(claude, &home).await)
+        }
         _ => fail(StatusCode::NOT_FOUND, "route inconnue"),
     }
+}
+
+/// Réponse de `/api/chat/harness` : harnais choisi et état de Claude Code.
+async fn harness_status(claude: bool, home: &std::path::Path) -> Value {
+    use crate::harness::install::State;
+    let st = crate::harness::install::state(home).await;
+    let (version, error) = match &st {
+        State::Ready(v) => (v.clone(), String::new()),
+        State::Failed(e) => (String::new(), e.clone()),
+        _ => (String::new(), String::new()),
+    };
+    json!({
+        "ok": true,
+        "harness": if claude { "claude" } else { "loki" },
+        "state": st.name(),
+        "version": version,
+        "error": error,
+    })
 }
 
 #[cfg(test)]

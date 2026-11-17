@@ -87,7 +87,7 @@ func TestFacadeRelaieLesRoutesDuChat(t *testing.T) {
 		t.Fatalf("reçu par la façade : %v", got)
 	}
 	// Mode Code, critères, export : à la façade aussi (lot 19).
-	for _, p := range []string{"/api/chat/mode", "/api/chat/criteria", "/api/chat/export"} {
+	for _, p := range []string{"/api/chat/mode", "/api/chat/criteria", "/api/chat/export", "/api/chat/harness"} {
 		w = httptest.NewRecorder()
 		withFacadeChat(p, local)(w, httptest.NewRequest("POST", p, nil))
 		if w.Body.String() != f.reply {
@@ -104,7 +104,7 @@ func TestFacadeRelaieLesRoutesDuChat(t *testing.T) {
 	t.Setenv(facadeChatEnv, "")
 	w = httptest.NewRecorder()
 	withFacadeChat("/api/chat/send", local)(w, httptest.NewRequest("POST", "/api/chat/send", nil))
-	if w.Body.String() != "go" || len(f.recu()) != 5 {
+	if w.Body.String() != "go" || len(f.recu()) != 6 {
 		t.Fatalf("relayé sans la variable : %q", w.Body.String())
 	}
 }

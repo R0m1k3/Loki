@@ -15,6 +15,73 @@ function paintMode(){
   // Le panneau des critères n'a de sens qu'en mode code.
   const box = document.getElementById('criteria-box');
   if(box && CURRENT_MODE!=='code') box.style.display='none';
+  paintHarness();
+}
+
+// --- Harnais du mode Code (Loki | Claude Code) -------------------------------
+// Par discussion, côté façade (/api/chat/harness). HARNESS_OK=false : route
+// absente (Go seul) ou illisible, le sélecteur reste caché.
+let CURRENT_HARNESS = 'loki';
+let HARNESS_OK = false;
+let HARNESS_INFO = {state:'', version:'', error:''};
+let HARNESS_POLL = null;
+
+function paintHarness(){
+  const seg = document.getElementById('harness-seg');
+  if(!seg) return;
+  seg.style.display = (HARNESS_OK && CURRENT_MODE==='code') ? '' : 'none';
+  const cl = seg.querySelector('[data-harness="claude"]');
+  seg.querySelector('[data-harness="loki"]').classList.toggle('on', CURRENT_HARNESS!=='claude');
+  cl.classList.toggle('on', CURRENT_HARNESS==='claude');
+  const st = HARNESS_INFO.state;
+  const busy = st==='installing' || st==='updating';
+  cl.classList.toggle('busy', CURRENT_HARNESS==='claude' && busy);
+  cl.textContent = (CURRENT_HARNESS==='claude' && busy)
+    ? (st==='installing' ? 'Claude Code…' : 'Claude Code ↻') : 'Claude Code';
+  cl.title = st==='ready' ? ('Claude Code '+HARNESS_INFO.version)
+    : st==='failed' ? ('installation ratée : '+HARNESS_INFO.error)
+    : st==='installing' ? 'installation de Claude Code…'
+    : st==='updating' ? 'mise à jour de Claude Code…'
+    : 'Claude Code (installé au premier choix)';
+}
+
+function harnessInfo(j){
+  CURRENT_HARNESS = j.harness==='claude' ? 'claude' : 'loki';
+  HARNESS_INFO = {state:j.state||'', version:j.version||'', error:j.error||''};
+  paintHarness();
+  // Installation en cours : on suit son état toutes les 3 s.
+  const busy = HARNESS_INFO.state==='installing' || HARNESS_INFO.state==='updating';
+  if(busy && !HARNESS_POLL){
+    HARNESS_POLL = setInterval(harnessRefresh, 3000);
+  }else if(!busy && HARNESS_POLL){
+    clearInterval(HARNESS_POLL); HARNESS_POLL = null;
+    if(HARNESS_INFO.state==='failed' && CURRENT_HARNESS==='claude') toast('Claude Code : '+HARNESS_INFO.error);
+  }
+}
+
+async function harnessRefresh(){
+  try{
+    const r = await jfetch('/api/chat/harness');
+    const j = await r.json();
+    HARNESS_OK = !!j.ok;
+    if(j.ok) harnessInfo(j); else paintHarness();
+  }catch(e){ HARNESS_OK = false; paintHarness(); }
+}
+
+async function setHarness(h){
+  if(h===CURRENT_HARNESS) return;
+  try{
+    const r = await jfetch('/api/chat/harness', {method:'POST', body: JSON.stringify({harness:h})});
+    const j = await r.json();
+    if(j.ok) harnessInfo(j); else toast('harnais : '+(j.error||'refusé'));
+  }catch(e){ toast('bascule impossible : '+e); }
+}
+
+// Bascule reçue du serveur : l'état d'installation suit par la route.
+function applyHarnessDelta(h){
+  CURRENT_HARNESS = h==='claude' ? 'claude' : 'loki';
+  paintHarness();
+  harnessRefresh();
 }
 
 // Bascule demandée depuis CE navigateur.
@@ -45,6 +112,7 @@ async function modeOnConvChange(){
     renderCriteria(j.criteria||[]);
     hideCodeHint();
   }catch(e){}
+  harnessRefresh();
 }
 
 // --- Puce « passer en mode Code ? » -----------------------------------------
