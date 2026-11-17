@@ -190,17 +190,18 @@ async fn claude_code_garde_le_slot_de_la_discussion() {
         "POST",
         "/v1/messages",
         &[("x-loki-harness", secret)],
-        r#"{"model":"m"}"#,
+        r#"{"model":"m","output_config":{"effort":"high"}}"#,
     )
     .await;
     assert_eq!(r.status(), StatusCode::OK);
-    // Faux secret : client ordinaire, second slot.
+    // Faux secret : client ordinaire, second slot, effort intact. Claude Code :
+    // effort retiré (le preset décide).
     let r = send(
         f,
         "POST",
         "/v1/messages",
         &[("x-loki-harness", "faux")],
-        r#"{"model":"m"}"#,
+        r#"{"model":"m","output_config":{"effort":"high"}}"#,
     )
     .await;
     assert_eq!(r.status(), StatusCode::OK);
@@ -212,7 +213,7 @@ async fn claude_code_garde_le_slot_de_la_discussion() {
     );
     assert!(!vu[0].contains("x-loki-harness"), "{}", vu[0]);
     assert!(
-        vu[1].contains(r#"body: {"id_slot":1,"model":"m"}"#),
+        vu[1].contains(r#"body: {"id_slot":1,"model":"m","output_config":{"effort":"high"}}"#),
         "{}",
         vu[1]
     );

@@ -1,7 +1,18 @@
-# Loki — prochaine version (en préparation)
+# Loki 0.16.0
 
-Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 à
-0.18.12 et d'opencode.
+Claude Code comme harnais du mode Code, fiabilité des outils avec les petits
+modèles locaux, reprises d'AJEAN 0.18.6 à 0.18.12 et d'opencode.
+
+- **Claude Code dans le mode Code** : un sélecteur **Loki | Claude Code**, par
+  discussion, confie le tour à Claude Code branché sur le **modèle local** (par
+  le relais `/v1`, rien ne part vers Anthropic pour la génération ; télémétrie
+  coupée). Installé à la demande dans `/data/harness/claude` par l'installeur
+  officiel (non redistribué : logiciel propriétaire), mis à jour à chaque
+  démarrage (`LOKI_HARNESS_AUTO_UPDATE=0` fige la version). Ses outils
+  s'affichent avec les cartes habituelles, la session est reprise au tour
+  suivant. Il faut un preset d'au moins 32 000 jetons (64 000 conseillés). Le
+  niveau de réflexion est celui du preset (`REASONING_EFFORT`), pas celui que
+  Claude Code demande : certains gabarits refusaient son « high ».
 
 - **`edit` tolérant** : quand `old` ne correspond pas à l'octet près, Loki
   essaie, du plus strict au plus large, sans les espaces de fin, avec une

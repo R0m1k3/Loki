@@ -1247,6 +1247,14 @@ impl ChatService {
         self.finish(epoch, &cancel, lease, turn_start).await;
     }
 
+    /// Le raisonnement du preset pour les requêtes de Claude Code (relais
+    /// `/v1`) : mêmes `chat_template_kwargs` que la boucle de Loki, replis
+    /// appris compris. `None` : rien à imposer (défaut du gabarit).
+    pub async fn harness_reasoning(&self) -> Option<Map<String, Value>> {
+        let cfg = self.shared.store.config().await;
+        turn_reasoning(&cfg, &self.shared.effort).kwargs
+    }
+
     /// Un tour du mode Code par Claude Code (`harness::claude`) : refus
     /// éventuel, lancement (reprise de la session de la discussion), deltas
     /// du journal, réponse finale rangée, jauge estimée.

@@ -264,6 +264,24 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
         }
     }
 
+    // Claude Code impose son niveau de réflexion (`output_config.effort`,
+    // « high » par défaut) que le gabarit du modèle peut refuser : on le
+    // remplace par le réglage du preset, comme pour la boucle de Loki.
+    let raw = match raw {
+        Some(b) if from_harness => {
+            let kwargs = match ctx.chat.as_ref() {
+                Some(c) => c.harness_reasoning().await,
+                None => None,
+            };
+            Some(
+                rewrite_harness_body(&b, kwargs.as_ref())
+                    .map(Bytes::from)
+                    .unwrap_or(b),
+            )
+        }
+        r => r,
+    };
+
     let port = route["port"].as_u64().unwrap_or(8080);
     let side_live = route["side_live"] == Value::Bool(true);
 
@@ -409,6 +427,36 @@ pub fn rewrite_id_slot(raw: &[u8], slot: u8) -> Option<Vec<u8>> {
     serde_json::to_vec(&obj).ok()
 }
 
+/// Corps d'une requête de Claude Code : `output_config.effort` retiré, le
+/// raisonnement du preset (`kwargs`) posé dans `chat_template_kwargs`.
+/// `None` si ce n'est pas un objet JSON.
+pub fn rewrite_harness_body(
+    raw: &[u8],
+    kwargs: Option<&serde_json::Map<String, Value>>,
+) -> Option<Vec<u8>> {
+    let mut obj: serde_json::Map<String, Value> = serde_json::from_slice(raw).ok()?;
+    if let Some(Value::Object(oc)) = obj.get_mut("output_config") {
+        oc.remove("effort");
+        if oc.is_empty() {
+            obj.remove("output_config");
+        }
+    }
+    if let Some(k) = kwargs {
+        let ctk = obj
+            .entry("chat_template_kwargs")
+            .or_insert_with(|| Value::Object(Default::default()));
+        if !ctk.is_object() {
+            *ctk = Value::Object(Default::default());
+        }
+        if let Value::Object(m) = ctk {
+            for (key, v) in k {
+                m.insert(key.clone(), v.clone());
+            }
+        }
+    }
+    serde_json::to_vec(&obj).ok()
+}
+
 /// Rend le ticket au Go quand la réponse est finie ou abandonnée.
 struct TicketGuard {
     store: Store,
@@ -476,6 +524,21 @@ mod tests {
             r#"{"id_slot":1,"model":"x","stream":true,"temperature":0.10000000000000001}"#
         );
         assert!(rewrite_id_slot(b"[1,2]", 1).is_none());
+        // Claude Code : effort retiré, raisonnement du preset posé.
+        let raw =
+            br#"{"model":"m","output_config":{"effort":"high"},"chat_template_kwargs":{"a":1}}"#;
+        let k: serde_json::Map<String, Value> =
+            serde_json::from_str(r#"{"reasoning_effort":"medium"}"#).unwrap();
+        let v: Value =
+            serde_json::from_slice(&rewrite_harness_body(raw, Some(&k)).unwrap()).unwrap();
+        assert_eq!(
+            v,
+            json!({"model":"m","chat_template_kwargs":{"a":1,"reasoning_effort":"medium"}})
+        );
+        let raw = br#"{"output_config":{"effort":"high","format":{"type":"json"}}}"#;
+        let v: Value = serde_json::from_slice(&rewrite_harness_body(raw, None).unwrap()).unwrap();
+        assert_eq!(v, json!({"output_config":{"format":{"type":"json"}}}));
+        assert!(rewrite_harness_body(b"[]", None).is_none());
         assert!(rewrite_id_slot(b"pas du json", 1).is_none());
         let out =
             String::from_utf8(rewrite_id_slot(br#"{"id_slot":1,"m":2}"#, 0).unwrap()).unwrap();
