@@ -180,9 +180,6 @@ func tunePreflight(ctx context.Context, inWeb bool) error {
 	if externalActive() {
 		return errors.New("optimisation indisponible : le preset actif est une API externe")
 	}
-	if strataActive() {
-		return errors.New("optimisation indisponible : le preset actif tourne sur Strata, réglé par sa propre fenêtre")
-	}
 	if err := tuneGuard(); err != nil {
 		return err
 	}

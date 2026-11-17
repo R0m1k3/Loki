@@ -8,7 +8,7 @@
 //! (binaires précompilés ; compilation depuis les sources — install, update,
 //! install-custom — sous Linux et macOS depuis le lot 41, [`build`]) et ceux
 //! que le Go fait encore tourner — compilation sous Windows, moteur de
-//! l'image, Strata — qui lui rapportent chaque étape par l'API interne
+//! l'image — qui lui rapportent chaque étape par l'API interne
 //! (`/internal/facade/v1/build-job/*`).
 
 pub mod build;

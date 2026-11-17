@@ -815,15 +815,6 @@ async fn refus_d_entree() {
         )
     );
     tn.go.del("config", "EXTERNAL");
-    tn.go.set("config", "ENGINE", "strata");
-    assert_eq!(
-        tn.call("POST", "/api/tune", "{}").await,
-        refus(
-            409,
-            "optimisation indisponible : le preset actif tourne sur Strata, réglé par sa propre fenêtre"
-        )
-    );
-    tn.go.del("config", "ENGINE");
     tn.go.set("config", "CTX", "4096");
     assert_eq!(
         tn.call("POST", "/api/tune", "{}").await,

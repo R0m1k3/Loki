@@ -180,10 +180,6 @@ func visionEnabled() bool {
 	if externalActive() {
 		return externalVisionActive() // modèle distant déclaré multimodal
 	}
-	// Strata : l'encodeur d'images est installé avec le modèle, sans MMPROJ.
-	if strataVisionActive() {
-		return true
-	}
 	return strings.TrimSpace(ReadConfig()["MMPROJ"]) != ""
 }
 

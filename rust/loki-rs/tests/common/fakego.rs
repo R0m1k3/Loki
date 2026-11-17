@@ -769,7 +769,6 @@ async fn handle(st: Arc<FakeGo>, req: Request<Incoming>) -> Response<Full<Bytes>
             let key = st.get("state", "api_key").unwrap_or_default();
             let v = serde_json::json!({
                 "port": *st.engine_port.lock().unwrap(),
-                "strata": false,
                 "key": key,
                 "key_ok": true,
                 "max_body": 1024,
@@ -998,7 +997,6 @@ pub struct Opts {
     pub update: bool,
     pub backends: Option<Arc<loki_rs::backends::Backends>>,
     pub engineimg: Option<Arc<loki_rs::engineimg::EngineImg>>,
-    pub strata: Option<Arc<loki_rs::strata::api::Strata>>,
     pub tasks: Option<Arc<loki_rs::tasks::Tasks>>,
     pub bench: Option<Arc<loki_rs::bench::job::Bench>>,
     pub tune: Option<Arc<loki_rs::tune::job::Tune>>,
@@ -1115,7 +1113,6 @@ pub async fn start_with(
         update: opts.update,
         backends: opts.backends,
         engineimg: opts.engineimg,
-        strata: opts.strata,
         tasks: opts.tasks,
         bench: opts.bench,
         tune: opts.tune,

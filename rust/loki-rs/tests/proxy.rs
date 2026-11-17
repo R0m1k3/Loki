@@ -114,7 +114,6 @@ async fn facade(backend: SocketAddr) -> (SocketAddr, oneshot::Sender<()>) {
         update: false,
         backends: None,
         engineimg: None,
-        strata: None,
         tasks: None,
         bench: None,
         tune: None,

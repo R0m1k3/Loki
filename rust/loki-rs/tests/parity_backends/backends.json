@@ -361,10 +361,10 @@
         "after": "{\"action\":\"update\",\"phase\":\"interrompu\",\"compiled\":3,\"running\":false,\"error\":\"interrompu : le service a redémarré pendant l'opération — relancez-la\",\"started_at\":\"{{T}}\",\"ended_at\":\"{{T}}\",\"old\":\"abc\",\"new\":\"\"}"
       },
       {
-        "state": "{\"action\":\"strata\",\"running\":true}",
+        "state": "{\"action\":\"custom\",\"running\":true}",
         "log": null,
         "out": {
-          "action": "strata",
+          "action": "custom",
           "compiled": 0,
           "ended_at": "{{T}}",
           "error": "interrompu : le service a redémarré pendant l'opération — relancez-la",
@@ -379,7 +379,7 @@
           "running": false,
           "started_at": 0
         },
-        "after": "{\"action\":\"strata\",\"phase\":\"interrompu\",\"compiled\":0,\"running\":false,\"error\":\"interrompu : le service a redémarré pendant l'opération — relancez-la\",\"started_at\":0,\"ended_at\":\"{{T}}\",\"old\":\"\",\"new\":\"\"}"
+        "after": "{\"action\":\"custom\",\"phase\":\"interrompu\",\"compiled\":0,\"running\":false,\"error\":\"interrompu : le service a redémarré pendant l'opération — relancez-la\",\"started_at\":0,\"ended_at\":\"{{T}}\",\"old\":\"\",\"new\":\"\"}"
       },
       {
         "state": "{\"action\":\"engine\",\"running\":false}",

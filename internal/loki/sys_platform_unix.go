@@ -72,6 +72,9 @@ func openBrowser(url string) error {
 	return exec.Command(bin, url).Start()
 }
 
+// meminfoPath : la RAM lue sur la machine (totalRAMGB), remplaçable par les tests.
+var meminfoPath = "/proc/meminfo"
+
 // totalRAMGB renvoie la RAM physique totale en Go (Linux: /proc/meminfo,
 // macOS: sysctl hw.memsize).
 func totalRAMGB() float64 {

@@ -104,89 +104,6 @@ la recherche qu'au téléchargement. À défaut, la variable d'environnement
 priorité. Un jeton en **lecture** suffit (huggingface.co/settings/tokens), et il
 n'est envoyé qu'aux adresses Hugging Face.
 
-## Choisir son moteur : llama.cpp ou Strata
-
-Loki a deux moteurs, et le choix se fait **par preset** (clé `ENGINE`) :
-
-- **llama.cpp** (par défaut) — n'importe quel GGUF, réglages complets dans
-  l'éditeur de preset.
-- **[Strata](https://github.com/Niko1221/Strata)** — spécialisé dans
-  **Qwen3.8 Flash Next** (MoE de 125 B) : les experts sont répartis entre
-  VRAM, RAM et disque pour faire tourner ce modèle sur une carte de joueur.
-  Intégration reprise d'AJEAN (paquet figé « AJEAN MoE 1.1 », vérifié par
-  SHA-256).
-
-**Paramètres → Moteur → Strata** : la fenêtre lit la machine (cartes, RAM,
-disque), propose la version (Classique ou Swift 1.5) et la qualité qui tient,
-puis installe et active le modèle en un clic (téléchargement de 66 à 84 Go dans
-`/data/strata`). Le modèle installé devient un preset comme les autres :
-basculer dessus lance Strata, basculer sur un autre preset revient à llama.cpp.
-Son engrenage ouvre les réglages propres à Strata (contexte jusqu'à 262 144,
-cache KV fp16/8 bits, prédiction MTP, lecture des images, seconde carte).
-
-La seconde carte a trois réglages : **non utilisée**, **aide aux experts** (le
-défaut : elle garde et calcule une part des experts) ou **partage des couches**
-(les deux cartes se répartissent les couches du modèle). Le partage est souvent
-plus rapide avec deux cartes identiques (+50 % en génération mesuré par un
-utilisateur d'AJEAN sur deux RTX 3060) ; sur deux cartes très différentes,
-l'aide aux experts reste le meilleur choix. En partage des couches, le mode
-« hors RAM » n'est jamais choisi : la seconde carte n'y garde pas d'experts.
-
-Depuis le paquet 1.1, la carte d'appoint calcule elle-même ses experts à la
-lecture des prompts (au lieu de les recopier vers la principale) : les ajouts
-de 100 à 200 jetons se lisent ~30 à 40 % plus vite (mesures d'AJEAN). Un modèle
-installé avec la 1.0 passe à la 1.1 **à son premier lancement**, sans
-réinstallation : Loki télécharge le nouveau paquet (~340 Mo), reprend
-l'environnement Python et la configuration de la 1.0 (le dossier
-`/data/strata/ajean-moe-1.0` doit donc rester en place) et réécrit le preset.
-En cas d'échec, la 1.0 continue de tourner et la raison est dans le journal du
-moteur. En mode « hors RAM », le contexte est plafonné à 131 072 jetons (au-delà,
-le cache KV verrouillé en RAM ne tient plus).
-
-Pré-requis : Linux + NVIDIA RTX 20 ou plus récente (8 Go de VRAM minimum, une
-deuxième carte est utilisée comme carte d'appoint), environ 46 Go de RAM pour
-la plus petite qualité, pilote compatible CUDA 12.8. Le conteneur doit pouvoir
-verrouiller la mémoire : `ulimits: memlock: -1` (déjà présent dans les
-fichiers compose fournis). Le benchmark et l'optimiseur ne s'appliquent qu'à
-llama.cpp.
-
-### Strata sur un SSD dédié (Unraid)
-
-Strata range **tout** dans `/data/strata` : moteur, environnement Python (~10
-Go), modèle (66 à 84 Go), et, quand la RAM ne suffit pas à garder les experts
-(mode « lus depuis le disque »), il les relit en continu depuis ce dossier. Un
-SSD de 250 Go dédié lui suffit largement (quelle que soit la qualité choisie)
-et c'est lui qui fait la vitesse en mode disque : un NVMe vaut mieux qu'un SATA,
-et un disque dur de l'array est à proscrire.
-
-1. **Le SSD en pool Unraid.** Array arrêté : *Main → Add Pool*, nom `strata`,
-   1 emplacement, assigne le SSD. Démarre l'array, clique le pool, *File
-   system type* = `xfs` (ou `btrfs`), puis *Format* en bas de la page Main.
-   Le SSD est alors monté en `/mnt/strata`.
-   (Avec le plugin *Unassigned Devices* à la place : monte-le, il apparaît en
-   `/mnt/disks/<nom>` — même suite en remplaçant le chemin.)
-2. **Le dossier** (terminal Unraid) : `mkdir -p /mnt/strata/loki`.
-   Vérifie avec `df -h /mnt/strata` que c'est bien le SSD (~230 Go) et pas
-   `rootfs` : un `/mnt/<pool>` qui n'existe pas est dans la RAM d'Unraid.
-3. **Ce qui existe déjà.** Si une installation de Strata avait commencé dans
-   `/mnt/user/appdata/loki/data/strata`, *Compose Down* puis, au choix :
-   `rsync -a /mnt/user/appdata/loki/data/strata/ /mnt/strata/loki/` (on garde,
-   les presets restent valides : le chemin vu par le conteneur ne change pas),
-   ou supprime ce dossier pour repartir de zéro. Sinon il reste caché sous le
-   montage et occupe de la place pour rien.
-4. **Le compose** : décommente dans `docker-compose.unraid.yml` la ligne
-   ```yaml
-   - /mnt/strata/loki:/data/strata
-   ```
-   (sous les deux volumes existants), puis *Compose Up*.
-5. **Installer** : *Paramètres → Moteur → Strata*. La fenêtre affiche
-   maintenant l'espace libre **du SSD** ; choisis la version et la qualité
-   proposées, puis installe.
-
-Pas de partage `/mnt/user/…` pour ce montage : la couche FUSE d'Unraid
-ralentit fortement la lecture des experts en mmap. Et rien à faire côté mover
-ou cache : le pool `strata` n'est lié à aucun partage.
-
 ## Installation sur Unraid
 
 L'image est construite et publiée par GitHub Actions sur GHCR
@@ -255,12 +172,11 @@ redémarrages (volume `/data`). Variables d'environnement du conteneur :
 | `LOKI_FILES` | `rust` : les fichiers de la discussion — dépôt, panneau Fichiers, archive .zip, téléchargement, images et vignettes — sont servis par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_PUSH` | `rust` : les notifications Web Push (clé VAPID, abonnements, envoi « réponse prête ») sont tenues par la façade Rust (expérimental, migration en cours) | Go |
 | `LOKI_MEM` | `rust` : la mémoire (éditeur des pages, index, déplacement entre projets, trackers, mode mémoire, interrupteurs du mode agent), et les outils mémoire de l'agent (mem_search, mem_read, mem_add, mem_edit, tracker) dans les tours de la façade, sont tenus par la façade Rust ; le chiffrement reste au Go (expérimental, migration en cours) | Go |
-| `LOKI_SERVE` | `rust` : la ligne de commande de llama-server est composée par la façade Rust (`loki-rs engine serve`) au lieu de `loki serve` ; Strata et l'optimiseur restent au Go (expérimental, migration en cours) | Go |
+| `LOKI_SERVE` | `rust` : la ligne de commande de llama-server est composée par la façade Rust (`loki-rs engine serve`) au lieu de `loki serve` ; l'optimiseur reste au Go (expérimental, migration en cours) | Go |
 | `LOKI_PRESETS` | `rust` : les presets (liste, éditeur et aperçus, suppression, placement auto, presets externes, bascule) sont tenus par la façade Rust ; l'application au moteur reste au Go (expérimental, migration en cours) | Go |
 | `LOKI_UPDATE` | `rust` : la mise à jour de Loki (`/api/update`, `/api/update/apply`) est servie par la façade Rust ; en conteneur, l'image se met à jour par Docker (expérimental, migration en cours) | Go |
 | `LOKI_MCP` | `rust` : les serveurs MCP — configuration, catalogue, état, pool de sessions stdio et HTTP — sont tenus par la façade Rust ; le Go lui demande les outils MCP de l'agent et leurs appels ; les tours de la façade appellent son pool directement (expérimental, migration en cours) | Go |
-| `LOKI_BACKENDS` | `rust` : les backends llama.cpp — statut, vérification git, binaires précompilés, bascule fast/opt, backends custom, GPU vus par un moteur — et le job des moteurs sont tenus par la façade Rust, qui compile aussi llama.cpp depuis les sources sous Linux et macOS ; les jobs du Go (compilation sous Windows, moteur de l'image, Strata) lui rapportent leurs étapes (expérimental, migration en cours) | Go |
-| `LOKI_STRATA` | `rust` (avec `LOKI_BACKENDS=rust`) : l'écran de Strata — machine, ce qui y tient, recommandation, modèles installés —, ses réglages et son installation sont tenus par la façade Rust ; le lancement reste au Go (expérimental, migration en cours) | Go |
+| `LOKI_BACKENDS` | `rust` : les backends llama.cpp — statut, vérification git, binaires précompilés, bascule fast/opt, backends custom, GPU vus par un moteur — et le job des moteurs sont tenus par la façade Rust, qui compile aussi llama.cpp depuis les sources sous Linux et macOS ; les jobs du Go (compilation sous Windows, moteur de l'image) lui rapportent leurs étapes (expérimental, migration en cours) | Go |
 | `LOKI_TASKS` | `rust` : les tâches planifiées — liste, enregistrement, bascule, interrupteur maître, lancement, arrêt —, le planificateur et les tâches « script seul » sont tenus par la façade Rust ; les outils task_* de l'agent aussi, dans les tours de la façade ; une tâche IA reste exécutée par le Go, à la demande de la façade (expérimental, migration en cours) | Go |
 | `LOKI_BENCH` | `rust` : le banc d'essai — lancement, progression, annulation, dernière mesure, mode rapide et mode complet en profondeur — est tenu par la façade Rust ; le verrou de génération reste celui du Go, pris par le bail du moteur (expérimental, migration en cours) | Go |
 | `LOKI_TUNE` | `rust` : l'optimiseur — lancement, essais, progression, annulation, application dans une copie ou dans le preset, dernier résultat — est tenu par la façade Rust, sous Unix ; le verrou reste le fichier `tune.lock` lu par le Go, les essais des « loki serve » du Go (expérimental, migration en cours) | Go |

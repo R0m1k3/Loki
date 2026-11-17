@@ -278,14 +278,6 @@ func cmdServe(args []string) error {
 		fmt.Println("[info] preset externe actif : pas de moteur local à lancer")
 		return nil
 	}
-	// Preset ENGINE=strata (backend_strata.go) : un autre moteur, lancé par son
-	// propre serveur. L'optimiseur ne règle que llama-server.
-	if isStrataConfig(cfg) {
-		if trialDir != "" {
-			return fmt.Errorf("l'optimiseur ne s'applique pas à un preset Strata")
-		}
-		return serveStrata(cfg)
-	}
 	bin := cfg["BIN"]
 	if bin == "" {
 		return fmt.Errorf("BIN non défini — lance « loki edit »")

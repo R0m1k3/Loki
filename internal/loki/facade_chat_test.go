@@ -904,7 +904,7 @@ func TestFacadeMiseAJour(t *testing.T) {
 }
 
 // Lot 22 : les routes des backends partent à la façade, et les jobs du Go
-// (compilation, moteur de l'image, Strata) lui rapportent chaque étape — le
+// (compilation, moteur de l'image) lui rapportent chaque étape — le
 // job vit chez elle.
 func TestFacadeBackends(t *testing.T) {
 	testHome(t)
@@ -1012,7 +1012,7 @@ func TestFacadeBackends(t *testing.T) {
 		t.Fatalf("job tenu par le Go : %+v", lcCur)
 	}
 	// Un second job : la façade le refuse, le Go le dit.
-	if err := startLcJob("strata", func() { t.Error("ne doit pas tourner") }); err == nil || err.Error() != "un job engine est déjà en cours" {
+	if err := startLcJob("annexe", func() { t.Error("ne doit pas tourner") }); err == nil || err.Error() != "un job engine est déjà en cours" {
 		t.Fatalf("refus : %v", err)
 	}
 	// La vue du job (statut du moteur de l'image) vient de la façade.

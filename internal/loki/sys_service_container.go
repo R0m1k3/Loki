@@ -131,7 +131,7 @@ func userCheckStarted(pid int) error {
 
 func userSvcStop(verbose bool) error {
 	pid := readServicePID()
-	// Le chef parti, ses enfants peuvent tourner encore (moteur de Strata) :
+	// Le chef parti, ses enfants peuvent tourner encore (llama-server) :
 	// on ne conclut « rien à arrêter » que si l'arbre entier est vide.
 	if pid <= 0 || len(procTreeOf(procTable(), pid, os.Getpid())) == 0 {
 		_ = os.Remove(pidFilePath())
@@ -141,7 +141,7 @@ func userSvcStop(verbose bool) error {
 		return nil
 	}
 	// Setsid a fait de l'enfant un chef de session : tout ce qu'il a lancé
-	// (llama-server, serveur et moteur de Strata) s'arrête avec lui, et on
+	// (llama-server) s'arrête avec lui, et on
 	// attend qu'il soit VRAIMENT parti — la relance qui suit en a besoin pour
 	// trouver la VRAM et la RAM libres.
 	left := stopProcTree(pid, 4*time.Second, 20*time.Second)

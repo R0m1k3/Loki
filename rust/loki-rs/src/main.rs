@@ -165,7 +165,7 @@ fn serve() -> ExitCode {
             && loki_rs::sysupdate::usable(std::env::var("LOKI_CONTAINER").ok().as_deref());
         // LOKI_BACKENDS=rust : les backends llama.cpp (statut, précompilé,
         // bascule, GPU) et LE job des moteurs, auquel les jobs du Go
-        // (compilation, moteur de l'image, Strata) rapportent leurs étapes.
+        // (compilation, moteur de l'image) rapportent leurs étapes.
         let backends_rust = held_by_facade("LOKI_BACKENDS");
         // LOKI_ENGINE_IMAGE=rust : le panneau « moteur de l'image » (mise à
         // jour depuis le registre officiel), avec les backends seulement : sa
@@ -173,12 +173,6 @@ fn serve() -> ExitCode {
         let engineimg_rust = held_by_facade("LOKI_ENGINE_IMAGE") && backends_rust;
         if held_by_facade("LOKI_ENGINE_IMAGE") && !backends_rust {
             eprintln!("[loki-rs] moteur de l'image tenu par le Go (LOKI_BACKENDS=rust requis)");
-        }
-        // LOKI_STRATA=rust : l'écran de Strata, ses réglages et son
-        // installation (un job des moteurs : avec les backends seulement).
-        let strata_rust = held_by_facade("LOKI_STRATA") && backends_rust;
-        if held_by_facade("LOKI_STRATA") && !backends_rust {
-            eprintln!("[loki-rs] Strata tenu par le Go (LOKI_BACKENDS=rust requis)");
         }
         // LOKI_TASKS=rust : les tâches planifiées (routes, planificateur,
         // tâches script) ; une tâche IA reste exécutée par le Go.
@@ -226,7 +220,6 @@ fn serve() -> ExitCode {
             ("LOKI_UPDATE", update_rust),
             ("LOKI_BACKENDS", backends_rust),
             ("LOKI_ENGINE_IMAGE", engineimg_rust),
-            ("LOKI_STRATA", strata_rust),
             ("LOKI_TASKS", tasks_rust),
             ("LOKI_BENCH", bench_rust),
             ("LOKI_TUNE", tune_rust),
@@ -371,12 +364,6 @@ fn serve() -> ExitCode {
                 ],
             ))
         });
-        let strata = strata_rust.then(|| {
-            std::sync::Arc::new(loki_rs::strata::api::Strata::new(
-                engine_paths.home.clone(),
-                loki_rs::backends::probe::Probe::system(),
-            ))
-        });
         let bench = bench_rust
             .then(|| std::sync::Arc::new(loki_rs::bench::job::Bench::new(engine_paths.clone())));
         let tune = tune_rust.then(|| {
@@ -404,7 +391,6 @@ fn serve() -> ExitCode {
             update: update_rust,
             backends,
             engineimg,
-            strata,
             tasks,
             bench,
             tune,

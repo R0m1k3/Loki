@@ -345,9 +345,7 @@ func TestPariteBench(t *testing.T) {
 			Method: "POST", Path: "/api/bench", Body: `{"mode":"full"}`, Wait: true},
 		{Name: "annulation pendant la profondeur", Engine: &parityBenchEngine{NCtx: 16384, SlowHotMs: 20000},
 			Method: "POST", Path: "/api/bench", Body: `{"mode":"full"}`, Again: true, CancelAt: "tour 1/"},
-		{Name: "preset Strata", Config: map[string]string{"ENGINE": "strata"}, Engine: &parityBenchEngine{NCtx: 16384},
-			Method: "POST", Path: "/api/bench", Body: `{}`, Wait: true},
-		{Name: "dernier bench, inchangé", Config: map[string]string{"ENGINE": ""}, Method: "GET", Path: "/api/bench/last"},
+		{Name: "dernier bench, inchangé", Method: "GET", Path: "/api/bench/last"},
 	} {
 		run(st)
 	}

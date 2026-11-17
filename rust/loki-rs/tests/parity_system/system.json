@@ -755,56 +755,10 @@
       "probes": []
     },
     {
-      "name": "vision strata",
-      "config": {
-        "ENGINE": "strata",
-        "EXTERNAL": ""
-      },
-      "method": "GET",
-      "path": "/api/computer",
-      "status": 200,
-      "out": {
-        "browser": "/opt/faux/chrome",
-        "browser_ok": true,
-        "enabled": false,
-        "ok": true,
-        "vision": true
-      },
-      "after": {
-        "config/CRAWL4AI_URL": " {{DOWN}}// ",
-        "config/WEB_ENGINE": "crawl4ai",
-        "state/internet": "1"
-      },
-      "probes": []
-    },
-    {
-      "name": "strata sans vision",
-      "config": {
-        "MMPROJ": "",
-        "STRATA_VISION": "0"
-      },
-      "method": "GET",
-      "path": "/api/computer",
-      "status": 200,
-      "out": {
-        "browser": "/opt/faux/chrome",
-        "browser_ok": true,
-        "enabled": false,
-        "ok": true,
-        "vision": false
-      },
-      "after": {
-        "config/CRAWL4AI_URL": " {{DOWN}}// ",
-        "config/WEB_ENGINE": "crawl4ai",
-        "state/internet": "1"
-      },
-      "probes": []
-    },
-    {
       "name": "navigateur éteint",
       "config": {
-        "ENGINE": "",
-        "STRATA_VISION": ""
+        "EXTERNAL": "",
+        "MMPROJ": ""
       },
       "method": "POST",
       "path": "/api/computer",

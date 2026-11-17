@@ -70,18 +70,6 @@ ligne, refus en cas d'ambiguïté) et l'option `replace_all` reprennent l'idée 
 stratégies de remplacement d'**[opencode](https://github.com/anomalyco/opencode)**
 (MIT), réimplémentées en Rust pour ce fork.
 
-## Moteur Strata
-
-Le second moteur de Loki (`internal/loki/backend_strata.go`) est
-**[Strata](https://github.com/Niko1221/Strata)** (MIT), spécialisé dans
-Qwen3.8-Flash-Next. Son intégration est reprise d'AJEAN (« AJEAN MoE 1.1 »,
-`backend_moe.go`) : Loki télécharge le paquet figé publié par AJEAN sur sa
-release `moe-v1.1` (sources de Strata et binaire Linux CUDA 12 compilé, avec
-les modifications d'AJEAN), vérifié par SHA-256 avec les empreintes publiées
-par AJEAN. La reprise automatique d'une installation 1.0 (`strataMigrate`) est
-reprise d'AJEAN (`moeMigrate`). Ni Strata ni le modèle ne sont inclus dans
-l'image : ils sont téléchargés à la demande.
-
 ## Services externes
 
 Le tunnel d'accès distant continue de pointer vers **ajean.link**, le relais

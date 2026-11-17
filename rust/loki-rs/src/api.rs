@@ -59,9 +59,6 @@ pub struct Ctx {
     /// Panneau « moteur de l'image » tenu par la façade
     /// (`LOKI_ENGINE_IMAGE=rust`, avec les backends).
     pub engineimg: Option<std::sync::Arc<crate::engineimg::EngineImg>>,
-    /// Strata (écran, réglages, installation) tenu par la façade
-    /// (`LOKI_STRATA=rust`, avec les backends).
-    pub strata: Option<std::sync::Arc<crate::strata::api::Strata>>,
     /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
     /// façade (`LOKI_TASKS=rust`).
     pub tasks: Option<std::sync::Arc<crate::tasks::Tasks>>,
@@ -95,7 +92,6 @@ impl Ctx {
             || self.update
             || self.backends.is_some()
             || self.engineimg.is_some()
-            || self.strata.is_some()
             || self.tasks.is_some()
             || self.bench.is_some()
             || self.tune.is_some()

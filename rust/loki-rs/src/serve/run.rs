@@ -3,10 +3,10 @@
 //! variables), compose la ligne par [`super::build_serve_args`], puis cède la
 //! place à llama-server (`exec`).
 //!
-//! Ce qui reste au Go : un preset Strata et le moteur d'essai de
-//! l'optimiseur (`LOKI_TUNE_TRIAL`) — `loki serve` est alors lancé à notre
-//! place, à l'identique. Sans accès à l'API interne (lancement à la main hors
-//! de la façade), même repli.
+//! Ce qui reste au Go : le moteur d'essai de l'optimiseur
+//! (`LOKI_TUNE_TRIAL`) — `loki serve` est alors lancé à notre place, à
+//! l'identique. Sans accès à l'API interne (lancement à la main hors de la
+//! façade), même repli.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write as _;
@@ -818,8 +818,8 @@ fn same_file(a: &str, b: &str) -> bool {
     }
 }
 
-/// Lance `loki serve` (Go) à notre place : Strata, essai de l'optimiseur,
-/// pas d'API interne.
+/// Lance `loki serve` (Go) à notre place : essai de l'optimiseur, pas d'API
+/// interne.
 fn delegate_to_go(go_bin: &Path) -> ExitCode {
     #[cfg(unix)]
     {
@@ -845,10 +845,8 @@ pub fn run(go_bin: &Path, home: &Path) -> ExitCode {
     let Some(st) = GoStore::from_env() else {
         return delegate_to_go(go_bin);
     };
-    match st.config() {
-        Ok(cfg) if is_strata(&cfg) => return delegate_to_go(go_bin),
-        Ok(_) => {}
-        Err(_) => return delegate_to_go(go_bin),
+    if st.config().is_err() {
+        return delegate_to_go(go_bin);
     }
     let ready = match prepare(&st, home) {
         Ok(Some(r)) => r,

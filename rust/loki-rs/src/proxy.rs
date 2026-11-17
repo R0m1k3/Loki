@@ -100,9 +100,6 @@ pub struct Config {
     /// registre, bascules, rendu du gabarit) tenu par la façade
     /// (`LOKI_ENGINE_IMAGE=rust`) ; `None` : au Go.
     pub engineimg: Option<Arc<crate::engineimg::EngineImg>>,
-    /// Strata (machine, réglages, installation) tenu par la façade
-    /// (`LOKI_STRATA=rust`) ; `None` : au Go.
-    pub strata: Option<Arc<crate::strata::api::Strata>>,
     /// Tâches planifiées (routes, planificateur, tâches script) tenues par la
     /// façade (`LOKI_TASKS=rust`) ; `None` : au Go.
     pub tasks: Option<Arc<crate::tasks::Tasks>>,
@@ -125,7 +122,7 @@ impl Drop for AbortOnDrop {
 
 struct Proxy {
     client: Client<HttpConnector, Incoming>,
-    /// Vers le moteur (llama-server / Strata), pour `/v1`.
+    /// Vers le moteur (llama-server), pour `/v1`.
     engine: oai::EngineClient,
     backend: SocketAddr,
     ctx: api::Ctx,
@@ -162,7 +159,6 @@ pub async fn serve(
             update: cfg.update,
             backends: cfg.backends,
             engineimg: cfg.engineimg,
-            strata: cfg.strata,
             tasks: cfg.tasks,
             bench: cfg.bench,
             tune: cfg.tune,
@@ -283,11 +279,6 @@ impl Proxy {
             && crate::engineimg::handles(path)
         {
             return crate::engineimg::serve(&self.ctx, e, req, from_go).await;
-        }
-        if let Some(s) = &self.ctx.strata
-            && crate::strata::api::handles(path)
-        {
-            return crate::strata::api::serve(&self.ctx, s, req, from_go).await;
         }
         if let Some(t) = &self.ctx.tasks
             && crate::tasks::handles(path)

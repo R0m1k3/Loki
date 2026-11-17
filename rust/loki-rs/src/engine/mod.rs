@@ -2,7 +2,7 @@
 //! (lot 3 de la migration).
 //!
 //! `loki-rs engine start|stop|restart|status` lance `loki serve` (Go : il
-//! construit toujours la ligne de commande de llama-server ou de Strata) en
+//! construit toujours la ligne de commande de llama-server) en
 //! chef de session, détaché, et l'arrête avec tout son arbre. Fichier PID et
 //! journal aux MÊMES chemins que le Go (`$LOKI_HOME/<service>.pid|.log`) :
 //! `serviceIsActive`, l'UI et `loki logs` lisent les mêmes fichiers.
@@ -194,8 +194,8 @@ mod imp {
         } else {
             Vec::new()
         };
-        // Le chef parti, ses enfants peuvent tourner encore (moteur de
-        // Strata) : « rien à arrêter » seulement si l'arbre entier est vide.
+        // Le chef parti, ses enfants peuvent tourner encore (llama-server) :
+        // « rien à arrêter » seulement si l'arbre entier est vide.
         if tree.is_empty() {
             let _ = std::fs::remove_file(paths.pid());
             if verbose {

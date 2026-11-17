@@ -465,7 +465,7 @@ async fn lancement_de_bout_en_bout() {
     assert!(String::from_utf8_lossy(&st.stdout).contains("preset externe"));
 }
 
-/// Strata, essai de l'optimiseur, pas d'API interne : `loki serve` (Go) est
+/// Essai de l'optimiseur, pas d'API interne : `loki serve` (Go) est
 /// lancé à notre place.
 #[cfg(unix)]
 #[tokio::test]
@@ -501,23 +501,8 @@ async fn delegation_au_go() {
         .await
         .unwrap();
     assert!(st.status.success());
-    // Preset Strata.
-    let (_facade, go, _stop) = common::fakego::start(home.clone()).await;
-    go.set("config", "ENGINE", "strata");
-    let backend = go.backend.lock().unwrap().unwrap();
-    let st = tokio::process::Command::new(exe)
-        .args(["engine", "serve"])
-        .env("LOKI_HOME", &home)
-        .env("LOKI_GO_BIN", &go_bin)
-        .env("MARK", &mark)
-        .env("LOKI_GO_ADDR", backend.to_string())
-        .env("LOKI_INTERNAL_TOKEN", common::fakego::JETON)
-        .output()
-        .await
-        .unwrap();
-    assert!(st.status.success());
     assert_eq!(
         std::fs::read_to_string(&mark).unwrap(),
-        "go serve\ngo serve\ngo serve\n"
+        "go serve\ngo serve\n"
     );
 }

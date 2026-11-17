@@ -40,7 +40,7 @@ pub fn oai_error(status: StatusCode, msg: &str, typ: &str, code: &str) -> Respon
     )
 }
 
-/// Lit `route` auprès du Go : port du moteur, Strata, clé, second slot.
+/// Lit `route` auprès du Go : port du moteur, clé, second slot.
 async fn fetch_route(ctx: &Ctx, method: &Method, path: &str) -> Result<Value, Box<Response<Body>>> {
     ctx.store
         .internal_json(
@@ -239,8 +239,8 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
             {
                 return *r;
             }
-            // Une autre requête a pu basculer pendant l'attente : port,
-            // second slot et Strata suivent le preset en service.
+            // Une autre requête a pu basculer pendant l'attente : port et
+            // second slot suivent le preset en service.
             route = match fetch_route(ctx, &method, &path).await {
                 Ok(v) => v,
                 Err(r) => return *r,
@@ -250,7 +250,6 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     }
 
     let port = route["port"].as_u64().unwrap_or(8080);
-    let strata = route["strata"] == Value::Bool(true);
     let side_live = route["side_live"] == Value::Bool(true);
 
     // SIDE_SLOT : la complétion d'un client passe par le second slot.
@@ -303,7 +302,7 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
         ticket,
     };
 
-    // Vers le moteur : Host d'origine, sauf Strata qui refuse un Host inconnu.
+    // Vers le moteur : Host d'origine.
     let engine_host = format!("127.0.0.1:{port}");
     let pq = parts
         .uri
@@ -329,9 +328,6 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
         "forwarded",
     ] {
         parts.headers.remove(h);
-    }
-    if strata && let Ok(v) = HeaderValue::from_str(&engine_host) {
-        parts.headers.insert(header::HOST, v);
     }
     let out = Request::from_parts(parts, body);
     match engine.request(out).await {
