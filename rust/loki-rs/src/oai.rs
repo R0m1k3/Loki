@@ -428,13 +428,15 @@ pub fn rewrite_id_slot(raw: &[u8], slot: u8) -> Option<Vec<u8>> {
 }
 
 /// Corps d'une requête de Claude Code : `output_config.effort` retiré, le
-/// raisonnement du preset (`kwargs`) posé dans `chat_template_kwargs`.
+/// raisonnement du preset (`kwargs`) posé dans `chat_template_kwargs`, et les
+/// messages `system` glissés dans `messages` repliés ([`fold_system_messages`]).
 /// `None` si ce n'est pas un objet JSON.
 pub fn rewrite_harness_body(
     raw: &[u8],
     kwargs: Option<&serde_json::Map<String, Value>>,
 ) -> Option<Vec<u8>> {
     let mut obj: serde_json::Map<String, Value> = serde_json::from_slice(raw).ok()?;
+    fold_system_messages(&mut obj);
     if let Some(Value::Object(oc)) = obj.get_mut("output_config") {
         oc.remove("effort");
         if oc.is_empty() {
@@ -455,6 +457,102 @@ pub fn rewrite_harness_body(
         }
     }
     serde_json::to_vec(&obj).ok()
+}
+
+/// Texte d'un contenu Anthropic : chaîne, ou blocs `text` joints.
+fn anthropic_text(c: &Value) -> String {
+    match c {
+        Value::String(s) => s.clone(),
+        Value::Array(a) => a
+            .iter()
+            .filter(|b| b["type"] == "text")
+            .filter_map(|b| b["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        _ => String::new(),
+    }
+}
+
+/// Claude Code (2.1.3xx) met des messages `role: "system"` dans `messages`
+/// (son bloc « Environment »). llama-server les passe tels quels, et bien
+/// des gabarits refusent un système ailleurs qu'en tête (« System message
+/// must be at the beginning »). Ceux d'avant la première réponse rejoignent
+/// le champ `system` ; les suivants deviennent un bloc texte en tête du
+/// message utilisateur suivant (sinon du précédent, sinon du `system`).
+pub fn fold_system_messages(obj: &mut serde_json::Map<String, Value>) {
+    let Some(Value::Array(msgs)) = obj.get_mut("messages") else {
+        return;
+    };
+    if !msgs.iter().any(|m| m["role"] == "system") {
+        return;
+    }
+    let mut to_system: Vec<String> = Vec::new();
+    let mut out: Vec<Value> = Vec::with_capacity(msgs.len());
+    let mut pending: Vec<String> = Vec::new();
+    let mut seen_assistant = false;
+    for m in msgs.drain(..) {
+        if m["role"] == "system" {
+            let t = anthropic_text(&m["content"]);
+            if t.trim().is_empty() {
+                continue;
+            }
+            if seen_assistant {
+                pending.push(t);
+            } else {
+                to_system.push(t);
+            }
+            continue;
+        }
+        let mut m = m;
+        if m["role"] == "assistant" {
+            seen_assistant = true;
+        }
+        if m["role"] == "user" && !pending.is_empty() {
+            prepend_text(&mut m, &std::mem::take(&mut pending).join("\n\n"));
+        }
+        out.push(m);
+    }
+    if !pending.is_empty() {
+        let t = pending.join("\n\n");
+        match out.last_mut().filter(|m| m["role"] == "user") {
+            Some(m) => append_text(m, &t),
+            None => to_system.push(t),
+        }
+    }
+    *msgs = out;
+    if to_system.is_empty() {
+        return;
+    }
+    let extra = to_system.join("\n\n");
+    match obj.get_mut("system") {
+        Some(Value::Array(a)) => a.push(serde_json::json!({ "type": "text", "text": extra })),
+        Some(Value::String(s)) if !s.is_empty() => {
+            s.push_str("\n\n");
+            s.push_str(&extra);
+        }
+        _ => {
+            obj.insert("system".into(), Value::String(extra));
+        }
+    }
+}
+
+fn as_blocks(m: &mut Value) -> &mut Vec<Value> {
+    if let Some(Value::String(s)) = m.get("content") {
+        let s = s.clone();
+        m["content"] = serde_json::json!([{ "type": "text", "text": s }]);
+    }
+    if !m["content"].is_array() {
+        m["content"] = Value::Array(Vec::new());
+    }
+    m["content"].as_array_mut().expect("tableau")
+}
+
+fn prepend_text(m: &mut Value, t: &str) {
+    as_blocks(m).insert(0, serde_json::json!({ "type": "text", "text": t }));
+}
+
+fn append_text(m: &mut Value, t: &str) {
+    as_blocks(m).push(serde_json::json!({ "type": "text", "text": t }));
 }
 
 /// Rend le ticket au Go quand la réponse est finie ou abandonnée.
@@ -539,6 +637,52 @@ mod tests {
         let v: Value = serde_json::from_slice(&rewrite_harness_body(raw, None).unwrap()).unwrap();
         assert_eq!(v, json!({"output_config":{"format":{"type":"json"}}}));
         assert!(rewrite_harness_body(b"[]", None).is_none());
+    }
+
+    #[test]
+    fn messages_systeme_de_claude_code_replies() {
+        let fold = |v: Value| {
+            let mut o = v.as_object().unwrap().clone();
+            fold_system_messages(&mut o);
+            Value::Object(o)
+        };
+        // Cas réel : bloc Environment en 2e position, système en tableau.
+        let v = fold(json!({
+            "system": [{"type":"text","text":"S"}],
+            "messages": [
+                {"role":"user","content":[{"type":"text","text":"rappel"}]},
+                {"role":"system","content":"ENV"},
+                {"role":"assistant","content":"a"},
+                {"role":"system","content":[{"type":"text","text":"tard"}]},
+                {"role":"user","content":"q"}
+            ]
+        }));
+        assert_eq!(
+            v,
+            json!({
+                "system": [{"type":"text","text":"S"},{"type":"text","text":"ENV"}],
+                "messages": [
+                    {"role":"user","content":[{"type":"text","text":"rappel"}]},
+                    {"role":"assistant","content":"a"},
+                    {"role":"user","content":[{"type":"text","text":"tard"},{"type":"text","text":"q"}]}
+                ]
+            })
+        );
+        // Système absent ou chaîne ; système final sans utilisateur après.
+        let v = fold(
+            json!({"messages":[{"role":"system","content":"E"},{"role":"user","content":"q"}]}),
+        );
+        assert_eq!(
+            v,
+            json!({"system":"E","messages":[{"role":"user","content":"q"}]})
+        );
+        let v = fold(json!({"system":"S","messages":[
+            {"role":"user","content":"q"},{"role":"assistant","content":"a"},{"role":"system","content":"fin"}]}));
+        assert_eq!(v["system"], json!("S\n\nfin"));
+        assert_eq!(v["messages"].as_array().unwrap().len(), 2);
+        // Sans message système : intact.
+        let src = json!({"system":"S","messages":[{"role":"user","content":"q"}]});
+        assert_eq!(fold(src.clone()), src);
         assert!(rewrite_id_slot(b"pas du json", 1).is_none());
         let out =
             String::from_utf8(rewrite_id_slot(br#"{"id_slot":1,"m":2}"#, 0).unwrap()).unwrap();

@@ -1,3 +1,10 @@
+# Loki 0.16.1
+
+- **Claude Code** : ses requêtes ne cassent plus les gabarits stricts
+  (« System message must be at the beginning »). Claude Code glisse un message
+  système dans la conversation ; le relais `/v1` le replie dans le prompt
+  système.
+
 # Loki 0.16.0
 
 Claude Code comme harnais du mode Code, fiabilité des outils avec les petits
