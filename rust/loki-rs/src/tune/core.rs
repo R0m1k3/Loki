@@ -1127,7 +1127,7 @@ pub fn launch_key(l: &Launch) -> String {
     let mut i = 0;
     while i < l.args.len() {
         match l.args[i].as_str() {
-            "--host" | "--port" | "--api-key" | "--slot-save-path" => {
+            "--host" | "--port" | "--api-key" | "--slot-save-path" | "--sleep-idle-seconds" => {
                 i += 2;
                 continue;
             }

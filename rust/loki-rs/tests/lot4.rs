@@ -168,3 +168,74 @@ async fn emplacements_et_couches() {
         b"{\"error\":\"aucun mod\xc3\xa8le\",\"ok\":false}\n"
     );
 }
+
+/// Faux llama-server en veille : `/health` 200 sans clé, `/props` avec
+/// `is_sleeping` seulement sous la clé `k` (comme le vrai : seule `/health`
+/// est publique).
+async fn moteur_en_veille() -> u16 {
+    use bytes::Bytes;
+    use http_body_util::Full;
+    use hyper::{Request, Response, body::Incoming, service::service_fn};
+    use hyper_util::rt::TokioIo;
+    let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = l.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        while let Ok((s, _)) = l.accept().await {
+            tokio::spawn(async move {
+                let svc = service_fn(|req: Request<Incoming>| async move {
+                    let auth = req
+                        .headers()
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok())
+                        == Some("Bearer k");
+                    let (code, body): (u16, &'static [u8]) = match req.uri().path() {
+                        "/health" => (200, b"{\"status\":\"ok\"}"),
+                        "/props" if auth => (200, b"{\"is_sleeping\":true,\"total_slots\":1}"),
+                        "/props" => (401, b"{}"),
+                        _ => (404, b"{}"),
+                    };
+                    let mut r = Response::new(Full::new(Bytes::from_static(body)));
+                    *r.status_mut() = StatusCode::from_u16(code).unwrap();
+                    Ok::<_, std::convert::Infallible>(r)
+                });
+                let _ = hyper::server::conn::http1::Builder::new()
+                    .serve_connection(TokioIo::new(s), svc)
+                    .await;
+            });
+        }
+    });
+    port
+}
+
+#[tokio::test]
+async fn statut_modele_en_veille() {
+    let t = tempfile::tempdir().unwrap();
+    let (f, go, _stop) = fakego::start(t.path().into()).await;
+    // Moteur arrêté : pas en veille.
+    let (_, _, body) = fakego::get(f, "/api/status", &[]).await;
+    assert_eq!(json(&body)["sleeping"], false);
+    // Le moteur tourne (PID de ce processus) et dort.
+    std::fs::write(
+        t.path().join("loki-engine.pid"),
+        format!("{}\n", std::process::id()),
+    )
+    .unwrap();
+    go.set("config", "PORT", &moteur_en_veille().await.to_string());
+    go.set("state", "api_key", "k");
+    let (_, _, body) = fakego::get(f, "/api/status", &[]).await;
+    let v = json(&body);
+    assert_eq!(
+        (v["health"].clone(), v["sleeping"].clone()),
+        (true.into(), true.into()),
+        "{v}"
+    );
+    // Sans la bonne clé, /props refuse : « pas en veille », jamais d'erreur.
+    go.set("state", "api_key", "autre");
+    let (_, _, body) = fakego::get(f, "/api/status", &[]).await;
+    let v = json(&body);
+    assert_eq!(
+        (v["health"].clone(), v["sleeping"].clone()),
+        (true.into(), false.into()),
+        "{v}"
+    );
+}

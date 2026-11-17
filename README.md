@@ -654,6 +654,7 @@ un redémarrage du moteur.
 | `NUDGE_IN_TOOL` | off | le rappel de budget d'outils part au bout du dernier résultat d'outil | **zone grise** : un modèle peut moins bien suivre une consigne lue dans un outil |
 | `SIDE_SLOT` | off (moteur relancé) | second slot pour les travaux annexes, la discussion garde le sien | cache KV et état récurrent en double en VRAM |
 | `SLOT_PERSIST` | off | état du slot gardé sur disque à la bascule de preset, rechargé au retour | 2 fichiers de 8 Gio au plus ; refusé avec `SPEC` |
+| `IDLE_UNLOAD` | 5 (minutes) | le modèle quitte la VRAM après N minutes sans requête (veille de llama-server, `--sleep-idle-seconds`) et se recharge à la requête suivante ; `0` ou `off` : jamais ; réglage de machine ; moteur récent nécessaire | premier message plus lent (rechargement, contexte relu) ; des tâches plus fréquentes, ou un outil qui interroge `/slots`, empêchent la veille ; sous systemd, un rechargement raté (VRAM prise) relance le moteur en boucle : « Libérer la VRAM » avant de jouer |
 | `SPEC` | off (moteur relancé) | décodage spéculatif : `auto`, `mtp`, `ngram`, `mtp+ngram` | même distribution, pas le même texte au bit près ; MTP : 1 à 2 Go de VRAM |
 | `MODEL_DRAFT` | — | tête MTP publiée à part ou petit modèle brouillon | VRAM |
 | `SPEC_N_MAX` | moteur (3) | jetons anticipés par étape | — |

@@ -34,6 +34,7 @@ pub const PRESERVED_KEYS: &[&str] = &[
     "HOST",
     "CUDA_LAUNCH_QUEUES",
     "SLOT_PERSIST",
+    "IDLE_UNLOAD",
 ];
 
 /// Un preset. Son IDENTITÉ est le nom de fichier (sans `.env`), toujours
@@ -378,6 +379,20 @@ mod tests {
             }
         }
         next
+    }
+
+    /// IDLE_UNLOAD est un réglage de machine : il ne change pas l'empreinte
+    /// et survit à la bascule.
+    #[test]
+    fn idle_unload_reglage_de_machine() {
+        let dir = tempfile::tempdir().unwrap();
+        let id = write_test_preset(dir.path(), "a", "a.gguf");
+        let prev: HashMap<String, String> = [("IDLE_UNLOAD".to_string(), "off".to_string())].into();
+        let next = applied(dir.path(), &id, &prev);
+        assert_eq!(next["IDLE_UNLOAD"], "off");
+        let mut sans = next.clone();
+        sans.remove("IDLE_UNLOAD");
+        assert_eq!(config_fingerprint(&next), config_fingerprint(&sans));
     }
 
     #[test]

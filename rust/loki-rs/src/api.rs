@@ -256,6 +256,14 @@ async fn status(ctx: &Ctx, version: String) -> Response<Body> {
     if external {
         (active, state, health) = (true, "active", true);
     }
+    // Modèle en veille (--sleep-idle-seconds) : prêt, il se recharge à la
+    // requête suivante. La pastille le dit.
+    let sleeping = if health && !external {
+        let key = ctx.store.get_str(BK_STATE, "api_key").await;
+        engstatus::engine_sleeping(&cfg, &key).await
+    } else {
+        false
+    };
     let ctx_len = cfg
         .get("CTX")
         .and_then(|v| v.parse::<i64>().ok())
@@ -302,6 +310,7 @@ async fn status(ctx: &Ctx, version: String) -> Response<Body> {
             "load_error": load_err,
             "load_pct": load_pct,
             "external": external,
+            "sleeping": sleeping,
             "preset": preset,
             "hint": hint,
         }),

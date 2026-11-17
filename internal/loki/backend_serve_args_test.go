@@ -297,3 +297,42 @@ func TestServeKVTypes(t *testing.T) {
 		}
 	}
 }
+
+// Veille du modèle : --sleep-idle-seconds (llama.cpp #18228) vient
+// d'IDLE_UNLOAD (minutes), seulement si le moteur connaît l'option, juste
+// après --parallel.
+func TestBuildServeArgsVeille(t *testing.T) {
+	const bin, model = "/opt/llama/llama-server", "/models/m.gguf"
+	helpSleep := helpRecent + "\n--sleep-idle-seconds SECONDS   number of seconds of idleness after which the server will sleep\n"
+	base := []string{bin, "-m", model,
+		"-c", "32768", "-b", "2048", "-ub", "512",
+		"--host", "0.0.0.0", "--port", "8080", "--parallel", "1"}
+	with := func(tail ...string) []string { return append(append([]string{}, base...), tail...) }
+	for _, c := range []struct {
+		name, idle, extra, help string
+		want                    []string
+	}{
+		{"défaut : 5 minutes", "", "", helpSleep, with("--sleep-idle-seconds", "300", "-ngl", "28")},
+		{"10 minutes", "10", "", helpSleep, with("--sleep-idle-seconds", "600", "-ngl", "28")},
+		{"off", "off", "", helpSleep, with("-ngl", "28")},
+		{"OFF entouré d'espaces", " OFF ", "", helpSleep, with("-ngl", "28")},
+		{"0", "0", "", helpSleep, with("-ngl", "28")},
+		{"valeur illisible : 5 minutes", "abc", "", helpSleep, with("--sleep-idle-seconds", "300", "-ngl", "28")},
+		{"négatif : 5 minutes", "-3", "", helpSleep, with("--sleep-idle-seconds", "300", "-ngl", "28")},
+		{"plafond d'un an", "99999999", "", helpSleep, with("--sleep-idle-seconds", "31536000", "-ngl", "28")},
+		{"EXTRA_ARGS l'impose : pas doublé", "", "--sleep-idle-seconds 60", helpSleep, with("-ngl", "28", "--sleep-idle-seconds", "60")},
+		{"moteur ancien : rien", "", "", helpRecent, with("-ngl", "28")},
+		{"aide illisible : rien", "", "", "", with("-ngl", "28")},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := map[string]string{"NGL": "28", "IDLE_UNLOAD": c.idle, "EXTRA_ARGS": c.extra}
+			args, _, notes := buildServeArgs(cfg, splitArgs(c.extra), bin, serveSysInfo{Help: c.help, Model: model})
+			if !reflect.DeepEqual(args, c.want) {
+				t.Fatalf("args\n got %q\nwant %q", args, c.want)
+			}
+			if len(notes) != 0 {
+				t.Fatalf("notes = %q", notes)
+			}
+		})
+	}
+}

@@ -36,7 +36,8 @@ const (
 		"-fit, --fit [on|off]  -fitt, --fit-target MiB0,MiB1  --no-kv-unified  -cram, --cache-ram N  --slot-save-path PATH\n" +
 		"-ctxcp, --ctx-checkpoints N  -cms, --checkpoint-min-step N  --reasoning-preserve, --no-reasoning-preserve\n" +
 		"--spec-type {none,draft-simple,draft-mtp,ngram-mod}  --spec-draft-n-max N  --spec-draft-sampling {greedy,probabilistic}\n" +
-		"--spec-ngram-mod-n-match N  -sm, --split-mode {none,layer,row,tensor}  --context-shift, --no-context-shift\n"
+		"--spec-ngram-mod-n-match N  -sm, --split-mode {none,layer,row,tensor}  --context-shift, --no-context-shift\n" +
+		"--sleep-idle-seconds SECONDS\n"
 	parityHelpOld = "-ngl, --gpu-layers, --n-gpu-layers N   number of layers to store in VRAM\n" +
 		"--mlock  --no-mmap  --no-context-shift  --cache-ram N\n"
 )
@@ -141,6 +142,7 @@ func TestPariteServe(t *testing.T) {
 		{"EXTRA_ARGS": "-nkvo"}, {"EXTRA_ARGS": "--no-context-shift"}, {"EXTRA_ARGS": "-c 8192 -np 2", "SIDE_SLOT": "on"},
 		{"EXTERNAL": "1", "SIDE_SLOT": "on", "SPLIT_MODE": "tensor"},
 		{"MMPROJ": "x", "NGL": "999", "CTX": "40000", "KV_TYPE": "q4_0", "SPEC": "auto", "CACHE_RAM": "auto"},
+		{"IDLE_UNLOAD": "10"}, {"IDLE_UNLOAD": "off"}, {"EXTRA_ARGS": "--sleep-idle-seconds 60"},
 	}
 	helps := []string{parityHelpModern, parityHelpOld, ""}
 	argEnvs := []map[string]string{

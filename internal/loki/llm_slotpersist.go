@@ -205,6 +205,15 @@ func (s *slotPersistSnap) save() {
 	}
 	iso := s.iso
 	ctx := context.Background()
+	// Modèle en veille (--sleep-idle-seconds) : le cache est déjà libéré, et
+	// /slots réveillerait le modèle pour rien. /props, lui, ne le réveille pas.
+	var props struct {
+		Sleeping bool `json:"is_sleeping"`
+	}
+	if iso.get(ctx, "/props", &props) == nil && props.Sleeping {
+		slotPersistLog("état non gardé : modèle en veille, cache déjà libéré")
+		return
+	}
 	st, err := iso.slot0(ctx)
 	switch {
 	case err != nil:

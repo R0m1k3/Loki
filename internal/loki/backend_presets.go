@@ -257,7 +257,8 @@ func safePresetPath(name string) (string, error) {
 // SLOT_PERSIST (état du slot gardé à la bascule, backend_serve_persist.go) est
 // par nature un réglage de bascule : posé sur A seulement, il disparaîtrait en
 // passant sur B, dont le lancement effacerait l'état gardé de A.
-var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST", "CUDA_LAUNCH_QUEUES", "SLOT_PERSIST"}
+// IDLE_UNLOAD (veille du modèle) est un choix de machine, pas de modèle.
+var preservedKeys = []string{"MEM_MODE", "CRAWL4AI_URL", "WEB_ENGINE", "CUDA_VISIBLE_DEVICES", "HOST", "CUDA_LAUNCH_QUEUES", "SLOT_PERSIST", "IDLE_UNLOAD"}
 
 // softPreservedKeys : préservées SEULEMENT si le preset d'arrivée ne les définit
 // pas lui-même. CUDA_VISIBLE_DEVICES est dans ce cas : c'est d'ordinaire un

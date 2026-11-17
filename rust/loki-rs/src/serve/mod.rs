@@ -256,6 +256,40 @@ pub fn help_fits_layers_itself(help: &str) -> bool {
 
 const NGL_999_NOTE: &str = "NGL=999 (sentinelle « toutes les couches ») → -ngl auto : ce moteur mesure lui-même la VRAM libre. NGL=all pour forcer l'ancien comportement.";
 
+/// `idleUnloadSeconds` : `IDLE_UNLOAD` en minutes → secondes. Vide = 5 min ;
+/// 0/off/non/no/false = jamais ; entier n ≥ 1 = n minutes (au plus un an) ;
+/// autre valeur = 5 min.
+pub fn idle_unload_seconds(cfg: &Cfg) -> i64 {
+    let v = cfg
+        .get("IDLE_UNLOAD")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    match v.as_str() {
+        "" => return 300,
+        "0" | "off" | "non" | "no" | "false" => return 0,
+        _ => {}
+    }
+    match v.parse::<i64>() {
+        Ok(n) if n >= 1 => n.min(IDLE_UNLOAD_MAX_MINUTES) * 60,
+        _ => 300,
+    }
+}
+
+const IDLE_UNLOAD_MAX_MINUTES: i64 = 525_600;
+
+/// `idleSleepArgs` : veille de llama-server (`--sleep-idle-seconds`), si le
+/// moteur la connaît et qu'EXTRA_ARGS ne la donne pas déjà.
+pub fn idle_sleep_args(cfg: &Cfg, extra: &[String], help: &str) -> Vec<String> {
+    let s = idle_unload_seconds(cfg);
+    if s == 0
+        || has_any_flag(extra, &["--sleep-idle-seconds"])
+        || !help.contains("--sleep-idle-seconds")
+    {
+        return Vec::new();
+    }
+    vec!["--sleep-idle-seconds".into(), s.to_string()]
+}
+
 /// `nglArgs`.
 pub fn ngl_args(ngl: &str, fits_itself: bool) -> (Vec<String>, String) {
     let ngl = trim(ngl);
@@ -473,6 +507,7 @@ pub fn build_serve_args(cfg: &Cfg, extra: &[String], bin: &str, si: &SysInfo) ->
         args.push("--parallel".into());
         args.push(g("PARALLEL", "1"));
     }
+    args.extend(idle_sleep_args(cfg, extra, &si.help));
     let n = side_slot_note(side_ctx, side_mib, &side_why, ngl_forced(cfg, extra));
     if !n.is_empty() {
         notes.push(n);

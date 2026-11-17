@@ -133,7 +133,8 @@ pub fn slot_persist_key(
     };
     let mut i = 0;
     while i < args.len() {
-        if args[i] == "--api-key" {
+        // La veille (--sleep-idle-seconds) ne change pas le calcul du cache.
+        if args[i] == "--api-key" || args[i] == "--sleep-idle-seconds" {
             i += 2;
             continue;
         }
@@ -279,4 +280,37 @@ pub fn prepare_slot_dir(home: &Path, keep_persist: bool) -> String {
         }
     }
     dir.to_string_lossy().into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// La veille (--sleep-idle-seconds) et la clé d'API n'entrent pas dans
+    /// l'empreinte : changer IDLE_UNLOAD ne perd pas l'état gardé.
+    #[test]
+    fn empreinte_sans_la_veille() {
+        let si = SysInfo::default();
+        let env = std::collections::BTreeMap::new();
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let k0 = slot_persist_key(&a(&["/b", "-c", "32768"]), &env, &[], &si, "/b");
+        let k1 = slot_persist_key(
+            &a(&[
+                "/b",
+                "-c",
+                "32768",
+                "--sleep-idle-seconds",
+                "300",
+                "--api-key",
+                "k",
+            ]),
+            &env,
+            &[],
+            &si,
+            "/b",
+        );
+        assert_eq!(k0, k1);
+        let k2 = slot_persist_key(&a(&["/b", "-c", "65536"]), &env, &[], &si, "/b");
+        assert_ne!(k0, k2);
+    }
 }

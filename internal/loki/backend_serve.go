@@ -69,6 +69,39 @@ func helpSupportsLoadMode(help string) bool {
 	return strings.Contains(help, "--load-mode")
 }
 
+// idleUnloadSeconds : IDLE_UNLOAD en minutes, converti en secondes. Vide = 5
+// minutes ; 0/off/non/no/false = jamais ; entier n ≥ 1 = n minutes ; toute
+// autre valeur = 5 minutes (une faute de frappe ne coupe pas la veille).
+func idleUnloadSeconds(cfg map[string]string) int {
+	v := strings.ToLower(strings.TrimSpace(cfg["IDLE_UNLOAD"]))
+	switch v {
+	case "":
+		return 300
+	case "0", "off", "non", "no", "false":
+		return 0
+	}
+	if n, err := strconv.Atoi(v); err == nil && n >= 1 {
+		// Au plus un an : llama-server lit un entier 32 bits.
+		return min(n, idleUnloadMaxMinutes) * 60
+	}
+	return 300
+}
+
+const idleUnloadMaxMinutes = 525600
+
+// idleSleepArgs : la veille du modèle est celle de llama-server
+// (--sleep-idle-seconds, llama.cpp #18228) : après N secondes sans requête,
+// il libère le modèle et le cache KV, et la requête suivante le recharge
+// avant de passer. Seulement si le moteur connaît l'option (un ancien
+// refuserait de démarrer) et qu'EXTRA_ARGS ne la donne pas déjà.
+func idleSleepArgs(cfg map[string]string, extra []string, help string) []string {
+	s := idleUnloadSeconds(cfg)
+	if s == 0 || hasAnyFlag(extra, "--sleep-idle-seconds") || !strings.Contains(help, "--sleep-idle-seconds") {
+		return nil
+	}
+	return []string{"--sleep-idle-seconds", strconv.Itoa(s)}
+}
+
 // helpSupportsNGLAuto : « -ngl auto » laisse llama.cpp mesurer la VRAM libre et
 // choisir le nombre de couches. Imposer un nombre (999 compris) désarme ce
 // calcul — « n_gpu_layers already set by user to 999, abort » — et le moteur
@@ -656,6 +689,7 @@ func buildServeArgs(cfg map[string]string, extra []string, bin string, si serveS
 	} else if !hasAnyFlag(extra, "--parallel", "-np") {
 		args = append(args, "--parallel", get("PARALLEL", "1"))
 	}
+	args = append(args, idleSleepArgs(cfg, extra, si.Help)...)
 	if n := sideSlotNote(sideCtx, sideMiB, sideWhy, nglForced(cfg, extra)); n != "" {
 		notes = append(notes, n)
 	}
