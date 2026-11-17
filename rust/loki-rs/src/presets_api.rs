@@ -303,10 +303,7 @@ pub fn preset_imposes_engine(home: &Path, p: &str) -> bool {
     }
     let img = std::env::var("LOKI_ENGINE_BIN").unwrap_or_default();
     let img = trim(&img);
-    if !img.is_empty() && serve::run::same_path(p, img) {
-        return false;
-    }
-    true
+    img.is_empty() || !serve::run::same_path(p, img)
 }
 
 /// `newPresetSeed` : BIN (backend personnalisé seulement), HOST, PORT.
