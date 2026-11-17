@@ -216,9 +216,6 @@ pub fn vision_enabled(cfg: &Cfg) -> bool {
     if serve::is_external(cfg) {
         return serve::trim(serve::get(cfg, "EXTERNAL_VISION")) == "1";
     }
-    if serve::is_strata(cfg) && serve::get(cfg, "STRATA_VISION") != "0" {
-        return true;
-    }
     !serve::trim(serve::get(cfg, "MMPROJ")).is_empty()
 }
 

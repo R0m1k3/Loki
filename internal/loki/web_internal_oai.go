@@ -21,7 +21,7 @@ import (
 // ici, parce qu'elles dépendent de l'état de la conversation que ce process
 // tient en mémoire :
 //
-//   - route : ce qu'il faut pour router (port du moteur, Strata, clé des
+//   - route : ce qu'il faut pour router (port du moteur, clé des
 //     complétions, second slot en service) ;
 //   - begin : la requête entre « en vol » (engineRequestBeginSide : le slot de
 //     la discussion n'est pas effacé pendant ce temps, un préchauffage est
@@ -57,7 +57,6 @@ func handleInternalOAIRoute(w http.ResponseWriter, r *http.Request) {
 	key, err := effectiveAPIKeyErr()
 	out := map[string]any{
 		"port":     LLMPort(),
-		"strata":   strataActive(),
 		"key":      key,
 		"key_ok":   err == nil,
 		"max_body": sideSlotProxyMaxBody,

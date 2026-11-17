@@ -494,7 +494,7 @@ async fn api_interne_du_job() {
     .await;
     assert_eq!(c.as_u16(), 404);
     assert_eq!(post("start", r#"{"action":"engine"}"#).await.0, 200);
-    let (c, b) = post("start", r#"{"action":"strata"}"#).await;
+    let (c, b) = post("start", r#"{"action":"annexe"}"#).await;
     assert_eq!(
         (c, b.contains("un job engine est déjà en cours")),
         (409, true)

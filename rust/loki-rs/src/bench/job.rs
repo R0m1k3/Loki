@@ -286,9 +286,6 @@ impl Bench {
         if crate::engstatus::is_external(&cfg) {
             return Err("benchmark indisponible : le preset actif est une API externe".into());
         }
-        if crate::strata::is_strata(&cfg) {
-            return Err("benchmark indisponible : le preset actif tourne sur Strata (le débit s'affiche sous chaque réponse)".into());
-        }
         if let Some(e) = crate::backends::tune_busy(store).await {
             return Err(e);
         }

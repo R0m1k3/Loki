@@ -958,12 +958,6 @@ pub async fn serve(ctx: &Ctx, req: Request<Incoming>, from_go: bool) -> Response
                     if !trim(get(&cfg, "MMPROJ")).is_empty() {
                         item.insert("vision".into(), json!(true));
                     }
-                    if serve::is_strata(&cfg) {
-                        item.insert("strata".into(), json!(true));
-                        if get(&cfg, "STRATA_VISION") != "0" {
-                            item.insert("vision".into(), json!(true));
-                        }
-                    }
                     let qn = detect_quant(&content);
                     if !qn.is_empty() {
                         item.insert("quant".into(), json!(qn));

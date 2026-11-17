@@ -46,8 +46,8 @@ func TestProcTreeOf(t *testing.T) {
 	}
 }
 
-// Le chef meurt vite, son enfant (dans une autre session, comme le moteur de
-// Strata) traîne à s'arrêter : stopProcTree ne revient qu'une fois tout parti.
+// Le chef meurt vite, son enfant (dans une autre session, comme un moteur lancé
+// à part) traîne à s'arrêter : stopProcTree ne revient qu'une fois tout parti.
 func TestStopProcTreeWaitsForChildren(t *testing.T) {
 	// Le chef lance un enfant qui ignore SIGTERM dans sa propre session, écrit
 	// son PID, puis attend.

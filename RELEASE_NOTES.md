@@ -36,6 +36,16 @@ Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 �
 - **Sécurité** : l'en-tête `X-Loki-Via` (trafic du tunnel) est effacé sur
   l'écoute directe, où un client pouvait le forger pour échapper au contrôle
   d'hôte.
+- **Moteur Strata retiré** : llama.cpp reste le seul moteur. La fenêtre
+  Strata, ses routes et ses réglages disparaissent (Go, façade Rust,
+  interface). **Avant la mise à jour**, passe sur un autre preset : un preset
+  Strata resté actif n'a pas de `MODEL`, le moteur ne démarre plus (« MODEL non
+  défini ») et il faut en choisir un autre. Ensuite, deux commandes rendent la
+  place :
+  `docker exec loki sh -c 'grep -lE "^ENGINE=(strata|moe)" /data/presets/*.env | xargs -r rm'`
+  supprime les presets Strata, et `docker exec loki rm -rf /data/strata`
+  libère les 66 à 84 Go du moteur et du modèle (ou supprime le dossier monté
+  sur l'hôte, par exemple `/mnt/strata/loki`).
 
 # Loki 0.15.0
 

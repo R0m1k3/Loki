@@ -22,7 +22,7 @@ import (
 // La façade détient alors LE job des moteurs, et compile elle-même llama.cpp
 // depuis les sources sous Linux et macOS (install, update, install-custom ;
 // lot 41, backends/build.rs). Ceux que le Go fait encore tourner — compilation
-// sous Windows (chaîne MSVC), moteur de l'image, Strata — lui rapportent
+// sous Windows (chaîne MSVC), moteur de l'image — lui rapportent
 // chaque étape (/internal/facade/v1/build-job/*) : lcAppend, lcPhase, lcFail,
 // lcDone, startLcJob et lcJobSnapshot passent par elle, et le Go ne restaure
 // plus de job au démarrage (la façade s'en charge).

@@ -43,8 +43,7 @@ pub fn parse_proc_stat(s: &str) -> Option<ProcStat> {
 
 /// Le chef `root` et tout ce qui en descend : sa session et son groupe (il est
 /// lancé chef de session), plus les descendants par la filiation, pour un
-/// enfant qui aurait pris sa propre session (le serveur Python de Strata lance
-/// son moteur dans un processus à part). À relever AVANT tout signal : une
+/// enfant qui aurait pris sa propre session. À relever AVANT tout signal : une
 /// fois le chef mort, ses orphelins sont rattachés à PID 1 et la filiation est
 /// perdue. Les PID de `exclude` (l'appelant) n'en font jamais partie.
 pub fn proc_tree_of(table: &HashMap<i32, ProcStat>, root: i32, exclude: &[i32]) -> Vec<ProcRef> {
@@ -123,8 +122,8 @@ pub mod linux {
     }
 
     /// Arrête le service lancé chef de session (`pid`) et N'EN REVIENT QU'UNE
-    /// FOIS TOUT L'ARBRE PARTI. Attendre le seul chef ne suffit pas : avec
-    /// Strata, le moteur qui tient la VRAM finit de s'arrêter après lui, et la
+    /// FOIS TOUT L'ARBRE PARTI. Attendre le seul chef ne suffit pas : le
+    /// processus qui tient la VRAM peut finir de s'arrêter après lui, et la
     /// relance qui suivait démarrait sur une carte encore pleine.
     ///
     /// SIGTERM à tous, `grace` pour finir proprement, SIGKILL aux survivants,
@@ -199,8 +198,8 @@ mod tests {
     fn arbre_session_groupe_et_filiation() {
         let mut t = HashMap::new();
         t.insert(100, st(1, 100, 100)); // chef (loki serve, chef de session)
-        t.insert(101, st(100, 100, 100)); // llama-server / serveur Strata
-        t.insert(200, st(101, 200, 200)); // moteur Strata : sa propre session
+        t.insert(101, st(100, 100, 100)); // llama-server
+        t.insert(200, st(101, 200, 200)); // un moteur à part : sa propre session
         t.insert(201, st(200, 200, 200)); // et son enfant
         t.insert(300, st(1, 300, 300)); // étranger
         t.insert(102, st(100, 100, 100)); // l'appelant, dans l'arbre : exclu

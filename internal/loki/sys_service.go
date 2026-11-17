@@ -51,10 +51,6 @@ func preflightEngine() error {
 	if isExternalConfig(cfg) {
 		return nil
 	}
-	// Strata n'a ni BIN ni MODEL : son installeur a tout rangé (backend_strata.go).
-	if isStrataConfig(cfg) {
-		return strataPreflight(cfg)
-	}
 	bin := strings.TrimSpace(cfg["BIN"])
 	if bin == "" {
 		return fmt.Errorf("BIN non défini — installe un moteur : %s (ou renseigne BIN avec %s)",

@@ -197,29 +197,6 @@ where
     last
 }
 
-/// `strataPreflight`.
-fn strata_preflight(cfg: &Cfg) -> Result<(), String> {
-    let path = serve::trim(serve::get(cfg, "STRATA_CONFIG"));
-    if path.is_empty() {
-        return Err(
-            "STRATA_CONFIG non défini : réinstalle le modèle depuis Paramètres → Moteur → Strata"
-                .into(),
-        );
-    }
-    if std::fs::metadata(path).is_err() {
-        return Err(format!(
-            "configuration de Strata introuvable : {path} — réinstalle le modèle"
-        ));
-    }
-    let py = go_join(&[&go_dir(path), ".venv", "bin", "python"]);
-    if std::fs::metadata(&py).is_err() {
-        return Err(format!(
-            "environnement Python de Strata absent ({py}) : réinstalle le modèle"
-        ));
-    }
-    Ok(())
-}
-
 /// `preflightEngine` (message déjà débarrassé de ses couleurs, comme
 /// `plainErr` le rend à l'UI). Entrées/sorties bloquantes.
 ///
@@ -234,10 +211,6 @@ pub fn preflight_engine(
     // Preset externe : aucun llama-server local à lancer.
     if serve::is_external(cfg) {
         return Ok(());
-    }
-    // Strata n'a ni BIN ni MODEL : son installeur a tout rangé.
-    if serve::is_strata(cfg) {
-        return strata_preflight(cfg);
     }
     let mut bin = serve::trim(serve::get(cfg, "BIN")).to_string();
     if bin.is_empty() {

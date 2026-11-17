@@ -23,10 +23,6 @@ use crate::engine::Paths;
 /// `backend_serve_moe.go`), reconnue dans le journal du service.
 pub const LOAD_GUARD_MARKER: &str = "LOAD_GUARD=off pour lancer quand même";
 
-/// Première ligne d'un lancement de Strata (`strataServeMarker`,
-/// `backend_strata.go`).
-pub const STRATA_SERVE_MARKER: &str = "[loki serve] Strata";
-
 /// Clé de configuration d'un preset externe (`extKeyFlag`) : "1" = externe.
 pub const EXT_KEY_FLAG: &str = "EXTERNAL";
 
@@ -59,10 +55,7 @@ pub fn model_load_error_from(log: &str) -> String {
         }
         // Un lancement refusé par LOAD_GUARD s'arrête avant tout chargement :
         // c'est lui, la dernière tentative.
-        if l.contains("loading model")
-            || l.contains("load_model")
-            || l.contains(LOAD_GUARD_MARKER)
-            || l.contains(STRATA_SERVE_MARKER)
+        if l.contains("loading model") || l.contains("load_model") || l.contains(LOAD_GUARD_MARKER)
         {
             start = i;
         }
@@ -74,20 +67,8 @@ pub fn model_load_error_from(log: &str) -> String {
         let low = l.to_lowercase();
         let low = low.as_str();
         // Même ordre que le `switch` du Go : le premier cas vrai l'emporte.
-        if low.contains("model loaded")
-            || low.contains("server is listening")
-            || l.starts_with("ready: http://")
-        {
-            // serveur de Strata prêt
+        if low.contains("model loaded") || low.contains("server is listening") {
             loaded = true;
-        } else if l.contains("Traceback (most recent call last)") {
-            // Serveur de Strata (Python) : une trace = il s'est arrêté.
-            if reason.is_empty() {
-                reason = "le serveur de Strata s'est arrêté (trace Python dans le journal)";
-            }
-        } else if l.contains("[strata] config") {
-            reason =
-                "configuration de Strata refusée (détail dans le journal) — réinstalle le modèle";
         } else if low.contains("failed to create mtp context")
             || low.contains("failed to load draft model")
             || low.contains("failed to initialize speculative decoding context")
@@ -436,33 +417,7 @@ mod tests {
         assert_eq!(got, "", "refus ancien encore signalé");
     }
 
-    /// TestModelLoadErrorStrata (backend_strata_test.go).
-    #[test]
-    fn model_load_error_strata() {
-        let ok = format!(
-            "{STRATA_SERVE_MARKER} (paquet AJEAN MoE 1.0)\nloading the model (the first start takes a minute or two) ...\nready: http://127.0.0.1:8080/v1  (OpenAI: /v1/chat/completions)\n"
-        );
-        assert_eq!(
-            model_load_error_from(&ok),
-            "",
-            "Strata prêt signalé en échec"
-        );
-        let crash = format!(
-            "{STRATA_SERVE_MARKER}\nTraceback (most recent call last):\n  File \"server.py\", line 1\nRuntimeError: boom\n"
-        );
-        let got = model_load_error_from(&crash);
-        assert!(
-            got.contains("Strata"),
-            "trace Python non signalée : {got:?}"
-        );
-        // une trace d'un lancement PRÉCÉDENT ne compte pas
-        let got = model_load_error_from(&format!(
-            "{crash}{STRATA_SERVE_MARKER}\nloading the model ...\n"
-        ));
-        assert_eq!(got, "", "ancienne trace prise pour l'échec en cours");
-    }
-
-    /// TestModelLoadErrorOOMBeforeBacktrace (backend_strata_test.go).
+    /// TestModelLoadErrorOOMBeforeBacktrace (backend_serve_moe_test.go).
     #[test]
     fn model_load_error_oom_before_backtrace() {
         let log = "0.00.247.285 I srv    load_model: loading model '/data/models/Swift.gguf'\n"

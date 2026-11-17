@@ -49,8 +49,8 @@ type sinkWriter struct {
 	lastProg time.Time // dernière ligne de progression (\r) émise
 }
 
-// sinkProgressEvery : une barre de progression (tqdm, téléchargements de
-// l'installeur de Strata) se redessine sur place avec \r, sans jamais finir sa
+// sinkProgressEvery : une barre de progression (tqdm, téléchargements)
+// se redessine sur place avec \r, sans jamais finir sa
 // ligne. On en montre une version toutes les 10 s : sans elle, un téléchargement
 // de 76 Go laissait le journal figé pendant une heure ; toutes, elles le noieraient.
 const sinkProgressEvery = 10 * time.Second

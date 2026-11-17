@@ -26,18 +26,3 @@ func TestPreflightAcceptsExternalPreset(t *testing.T) {
 		t.Fatalf("pré-vol refusé sur un preset externe : %v", err)
 	}
 }
-
-// Strata : le pré-vol vérifie sa configuration à lui, pas BIN/MODEL.
-func TestPreflightStrataWithoutConfig(t *testing.T) {
-	testHome(t)
-	if err := WriteConfig(map[string]string{"ENGINE": "strata"}); err != nil {
-		t.Fatal(err)
-	}
-	err := preflightEngine()
-	if err == nil {
-		t.Fatal("un preset Strata sans STRATA_CONFIG devrait être refusé")
-	}
-	if want := "STRATA_CONFIG"; !contains(err.Error(), want) {
-		t.Fatalf("message attendu sur %s : %v", want, err)
-	}
-}

@@ -1,4 +1,4 @@
-//! Transport vers le moteur (llama-server local, Strata, ou API externe
+//! Transport vers le moteur (llama-server local ou API externe
 //! compatible OpenAI) — port de la partie HTTP de `runChatLoop`
 //! (`llm_client.go`) et de `llm_retry_net.go`.
 //!

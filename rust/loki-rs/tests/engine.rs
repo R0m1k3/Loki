@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// Faux binaire Go : `serve` lance un « llama-server » dans sa session et un
-/// « moteur Strata » qui prend SA PROPRE session (comme le vrai), puis attend.
+/// « moteur annexe » qui prend SA PROPRE session, puis attend.
 ///
 /// Écrit par un `sh` à part : si ce process tenait lui-même le fichier ouvert
 /// en écriture, un `fork` lancé au même moment par un test voisin (les tests
@@ -60,7 +60,7 @@ echo "serve lancé dans $(pwd)"
 sleep 300 &
 echo $! > llama.pid
 setsid sleep 300 &
-echo $! > strata.pid
+echo $! > annexe.pid
 wait"#,
     );
     let (p, o) = (paths(home), opts(go));
@@ -70,8 +70,8 @@ wait"#,
     assert!(pid_alive(chef));
     std::thread::sleep(Duration::from_millis(300));
     let llama = lire_pid(&home.join("llama.pid"));
-    let strata = lire_pid(&home.join("strata.pid"));
-    assert!(pid_alive(llama) && pid_alive(strata));
+    let annexe = lire_pid(&home.join("annexe.pid"));
+    assert!(pid_alive(llama) && pid_alive(annexe));
     let log = std::fs::read_to_string(p.log()).unwrap();
     assert!(log.contains("serve lancé"), "journal : {log}");
 
@@ -81,7 +81,7 @@ wait"#,
 
     engine::run("stop", &p, &o).unwrap();
     assert!(!p.pid().exists());
-    for (nom, pid) in [("chef", chef), ("llama", llama), ("strata", strata)] {
+    for (nom, pid) in [("chef", chef), ("llama", llama), ("annexe", annexe)] {
         assert!(!pid_alive(pid), "{nom} (PID {pid}) survit à l'arrêt");
     }
     // Rien à arrêter : pas d'erreur.

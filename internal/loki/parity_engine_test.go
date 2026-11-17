@@ -134,7 +134,7 @@ func TestPariteMoteur(t *testing.T) {
 		}
 	}
 	reset := func() {
-		for _, d := range []string{"bin", "models", "strata", "ailleurs", "disque"} {
+		for _, d := range []string{"bin", "models", "ailleurs", "disque"} {
 			_ = os.RemoveAll(filepath.Join(home, d))
 		}
 		cfg := ReadConfig()
@@ -155,12 +155,6 @@ func TestPariteMoteur(t *testing.T) {
 	for _, c := range []parityPreflight{
 		{Name: "externe", Config: map[string]string{"EXTERNAL": "1"}},
 		{Name: "externe sans BIN ni MODEL", Config: map[string]string{"EXTERNAL": " 1 ", "BIN": ""}},
-		{Name: "strata sans config", Config: map[string]string{"ENGINE": "strata"}},
-		{Name: "strata config absente", Config: map[string]string{"ENGINE": "Strata", "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"}},
-		{Name: "strata sans venv", Config: map[string]string{"ENGINE": "strata", "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"},
-			Files: []string{"strata/m/config.json"}},
-		{Name: "strata prêt", Config: map[string]string{"ENGINE": "moe", "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"},
-			Files: []string{"strata/m/config.json", "strata/m/.venv/bin/python"}},
 		{Name: "BIN vide", Config: map[string]string{"MODEL": "m.gguf"}},
 		{Name: "BIN espaces", Config: map[string]string{"BIN": "   ", "MODEL": "m.gguf"}},
 		{Name: "BIN relatif absent", Config: map[string]string{"BIN": "bin/absent", "MODEL": "m.gguf"}},

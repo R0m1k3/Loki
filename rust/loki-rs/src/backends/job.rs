@@ -3,7 +3,7 @@
 //!
 //! Quand la façade tient les backends, c'est elle qui détient le job : le
 //! sien (binaires précompilés) comme ceux que le Go fait encore tourner
-//! (compilation, moteur de l'image, Strata), qui lui rapportent chaque étape
+//! (compilation, moteur de l'image), qui lui rapportent chaque étape
 //! par l'API interne (`/internal/facade/v1/build-job/*`). L'entête vit en base
 //! (`state/build_job`), les lignes dans `$LOKI_HOME/loki-build.log`.
 

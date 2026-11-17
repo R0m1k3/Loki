@@ -73,8 +73,7 @@ func procTable() map[int]procStat {
 
 // procTreeOf : le chef root et tout ce qui en descend — sa session et son
 // groupe (Setsid au lancement du service), plus les descendants par la
-// filiation, pour un enfant qui aurait pris sa propre session (le serveur
-// Python de Strata lance son moteur dans un processus à part). À relever AVANT
+// filiation, pour un enfant qui aurait pris sa propre session. À relever AVANT
 // d'envoyer le moindre signal : une fois le chef mort, ses orphelins sont
 // rattachés à PID 1 et la filiation est perdue.
 func procTreeOf(t map[int]procStat, root, self int) []procRef {
@@ -121,12 +120,11 @@ func procRefsAlive(refs []procRef) []procRef {
 // stopProcTree arrête le service lancé avec Setsid (pid = chef de session) et
 // N'EN REVIENT QU'UNE FOIS TOUT L'ARBRE PARTI.
 //
-// Attendre le seul chef ne suffit pas : avec Strata, le chef est le serveur
-// Python, et le moteur qui tient la VRAM (cache d'experts, plusieurs Go) est un
-// autre processus qui finit de s'arrêter après lui. La relance qui suivait
-// 500 ms plus tard démarrait alors llama-server sur une carte encore pleine —
-// « cudaMalloc failed: out of memory » sur un modèle qui tient pourtant — et
-// Strata mesurait la RAM disponible avec l'ancien moteur encore chargé.
+// Attendre le seul chef ne suffit pas : le processus qui tient la VRAM peut
+// être un autre processus que le chef, qui finit de s'arrêter après lui. La
+// relance qui suivait 500 ms plus tard démarrait alors llama-server sur une
+// carte encore pleine — « cudaMalloc failed: out of memory » sur un modèle qui
+// tient pourtant.
 //
 // SIGTERM à tous, grace pour finir proprement, SIGKILL aux survivants, puis
 // settle au plus pour que le noyau les ait vraiment retirés (un processus

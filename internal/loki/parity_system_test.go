@@ -193,11 +193,7 @@ func TestPariteSysteme(t *testing.T) {
 			Method: "GET", Path: "/api/computer"},
 		{Name: "externe sans vision", Config: map[string]string{"EXTERNAL_VISION": "0", "MMPROJ": "m.gguf"},
 			Method: "GET", Path: "/api/computer"},
-		{Name: "vision strata", Config: map[string]string{"EXTERNAL": "", "ENGINE": "strata"},
-			Method: "GET", Path: "/api/computer"},
-		{Name: "strata sans vision", Config: map[string]string{"STRATA_VISION": "0", "MMPROJ": ""},
-			Method: "GET", Path: "/api/computer"},
-		{Name: "navigateur éteint", Config: map[string]string{"ENGINE": "", "STRATA_VISION": ""},
+		{Name: "navigateur éteint", Config: map[string]string{"EXTERNAL": "", "MMPROJ": ""},
 			Method: "POST", Path: "/api/computer", Body: `{"on":false}`},
 
 		// --- clé de complétion ---

@@ -114,7 +114,6 @@ async fn banc_avec(cle: Option<&str>, tenu: bool) -> Banc {
         update: false,
         backends: None,
         engineimg: None,
-        strata: None,
         tasks: None,
         bench: None,
         tune: None,

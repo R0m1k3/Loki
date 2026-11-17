@@ -641,9 +641,6 @@ impl Tune {
         if crate::engstatus::is_external(&cfg) {
             return Err("optimisation indisponible : le preset actif est une API externe".into());
         }
-        if crate::strata::is_strata(&cfg) {
-            return Err("optimisation indisponible : le preset actif tourne sur Strata, réglé par sa propre fenêtre".into());
-        }
         if self.lock.active().is_some() {
             return Err(ERR_TUNE_BUSY.into());
         }

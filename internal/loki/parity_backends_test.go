@@ -870,7 +870,7 @@ func parityJobScript(t *testing.T, home string) any {
 		{State: `{"action":""}`},
 		{State: `{"action":"prebuilt","phase":"fini","running":false,"started_at":5,"ended_at":6}`, Log: str("a\nb\n")},
 		{State: `{"action":"update","phase":"compilation… 3 fichiers","compiled":3,"running":true,"started_at":5,"old":"abc"}`, Log: str("x\n")},
-		{State: `{"action":"strata","running":true}`},
+		{State: `{"action":"custom","running":true}`},
 		{State: `{"action":"engine","running":false}`, Log: str("")},
 		{State: `{"action":"engine","running":false}`, Log: str("\n\n")},
 		{State: `pas du json`},

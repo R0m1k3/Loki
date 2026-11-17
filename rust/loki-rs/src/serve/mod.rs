@@ -219,14 +219,6 @@ pub fn is_external(cfg: &Cfg) -> bool {
     trim(get(cfg, "EXTERNAL")) == "1"
 }
 
-/// `isStrataConfig` (`engineOf`).
-pub fn is_strata(cfg: &Cfg) -> bool {
-    matches!(
-        trim(get(cfg, "ENGINE")).to_lowercase().as_str(),
-        "strata" | "moe"
-    )
-}
-
 pub(crate) fn s(v: &[&str]) -> Vec<String> {
     v.iter().map(|x| x.to_string()).collect()
 }

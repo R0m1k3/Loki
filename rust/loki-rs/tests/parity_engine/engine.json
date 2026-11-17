@@ -150,44 +150,6 @@
       "out": ""
     },
     {
-      "name": "strata sans config",
-      "config": {
-        "ENGINE": "strata"
-      },
-      "out": "STRATA_CONFIG non défini : réinstalle le modèle depuis Paramètres → Moteur → Strata"
-    },
-    {
-      "name": "strata config absente",
-      "config": {
-        "ENGINE": "Strata",
-        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
-      },
-      "out": "configuration de Strata introuvable : {{HOME}}/strata/m/config.json — réinstalle le modèle"
-    },
-    {
-      "name": "strata sans venv",
-      "config": {
-        "ENGINE": "strata",
-        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
-      },
-      "files": [
-        "strata/m/config.json"
-      ],
-      "out": "environnement Python de Strata absent ({{HOME}}/strata/m/.venv/bin/python) : réinstalle le modèle"
-    },
-    {
-      "name": "strata prêt",
-      "config": {
-        "ENGINE": "moe",
-        "STRATA_CONFIG": "{{HOME}}/strata/m/config.json"
-      },
-      "files": [
-        "strata/m/config.json",
-        "strata/m/.venv/bin/python"
-      ],
-      "out": ""
-    },
-    {
       "name": "BIN vide",
       "config": {
         "MODEL": "m.gguf"
