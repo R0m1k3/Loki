@@ -178,6 +178,50 @@ async fn second_slot_reecrit_le_corps() {
 }
 
 #[tokio::test]
+async fn claude_code_garde_le_slot_de_la_discussion() {
+    let t = tempfile::tempdir().unwrap();
+    let (f, go, _stop) = fakego::start(t.path().into()).await;
+    let vu = Arc::new(Mutex::new(Vec::new()));
+    *go.engine_port.lock().unwrap() = faux_moteur(vu.clone()).await;
+    *go.side_live.lock().unwrap() = true;
+    let secret = loki_rs::harness::secret();
+    let r = send(
+        f,
+        "POST",
+        "/v1/messages",
+        &[("x-loki-harness", secret)],
+        r#"{"model":"m"}"#,
+    )
+    .await;
+    assert_eq!(r.status(), StatusCode::OK);
+    // Faux secret : client ordinaire, second slot.
+    let r = send(
+        f,
+        "POST",
+        "/v1/messages",
+        &[("x-loki-harness", "faux")],
+        r#"{"model":"m"}"#,
+    )
+    .await;
+    assert_eq!(r.status(), StatusCode::OK);
+    let vu = vu.lock().unwrap().clone();
+    assert!(
+        vu[0].contains(r#"body: {"id_slot":0,"model":"m"}"#),
+        "{}",
+        vu[0]
+    );
+    assert!(!vu[0].contains("x-loki-harness"), "{}", vu[0]);
+    assert!(
+        vu[1].contains(r#"body: {"id_slot":1,"model":"m"}"#),
+        "{}",
+        vu[1]
+    );
+    assert!(!vu[1].contains("x-loki-harness"), "{}", vu[1]);
+    let log = go.oai_log.lock().unwrap().clone();
+    assert!(log.iter().any(|l| l.contains("side=false")), "{log:?}");
+}
+
+#[tokio::test]
 async fn cle_des_completions() {
     let t = tempfile::tempdir().unwrap();
     let (f, go, _stop) = fakego::start(t.path().into()).await;

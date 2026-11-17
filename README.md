@@ -410,6 +410,23 @@ Ajoutées par ce fork :
   les rôles délégués sont en **lecture seule** — ce qui modifie le dépôt reste
   dans le fil principal, sous tes yeux — et un sous-agent ne peut pas en
   appeler un autre.
+- **Claude Code comme harnais du mode Code** : en mode Code, un second
+  sélecteur **Loki | Claude Code** confie le tour à
+  [Claude Code](https://docs.anthropic.com/claude-code) au lieu de la boucle
+  d'outils de Loki. Claude Code parle au **modèle local** par le relais `/v1`
+  de Loki (llama-server sert l'API Anthropic `/v1/messages`) : rien ne part
+  vers Anthropic pour la génération, et la télémétrie et les rapports
+  d'erreur sont coupés. Il n'est pas dans l'image : l'installeur officiel le
+  pose dans `LOKI_HOME/harness/claude` (volume persistant) la première fois
+  qu'une discussion le choisit, puis `claude update` tourne à chaque
+  démarrage de la façade (`LOKI_HARNESS_AUTO_UPDATE=0` fige la version).
+  Ses outils (Bash, Edit, Write, Read, Grep, TodoWrite…) s'affichent avec les
+  cartes habituelles ; il travaille dans le dossier de la discussion, sans
+  pouvoir modifier le dossier mémoire avec Edit/Write, et reprend sa session
+  au tour suivant (`--resume`). Il faut le moteur local et un preset d'au
+  moins 32 000 jetons de contexte (64 000 conseillés : son prompt en pèse
+  ~20 000). Avec `SIDE_SLOT`, ses requêtes restent sur le slot de la
+  discussion. Les images jointes ne lui sont pas transmises.
 - **Catalogue MCP** : le panneau *Serveurs MCP* offre un bouton **catalogue** —
   une vingtaine de serveurs connus (filesystem, git, fetch, memory, sqlite,
   playwright, context7, github…) avec leur commande déjà renseignée, classés par

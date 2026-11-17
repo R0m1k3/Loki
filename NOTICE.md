@@ -70,6 +70,14 @@ ligne, refus en cas d'ambiguïté) et l'option `replace_all` reprennent l'idée 
 stratégies de remplacement d'**[opencode](https://github.com/anomalyco/opencode)**
 (MIT), réimplémentées en Rust pour ce fork.
 
+## Claude Code
+
+Le harnais **Claude Code** du mode Code est un logiciel **propriétaire
+d'Anthropic**. Il n'est ni inclus dans ce dépôt ni redistribué dans l'image :
+Loki lance l'installeur officiel (`https://claude.ai/install.sh`) sur la
+machine de l'utilisateur, à sa demande, et l'utilisation reste soumise aux
+conditions d'Anthropic.
+
 ## Services externes
 
 Le tunnel d'accès distant continue de pointer vers **ajean.link**, le relais

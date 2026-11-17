@@ -179,7 +179,12 @@ async fn export_par_la_route() {
 async fn sans_la_conversation_ces_routes_restent_au_go() {
     let tmp = tempfile::tempdir().unwrap();
     let (facade, _go, _stop) = fakego::start(tmp.path().to_path_buf()).await;
-    for p in ["/api/chat/export", "/api/chat/mode", "/api/chat/criteria"] {
+    for p in [
+        "/api/chat/export",
+        "/api/chat/mode",
+        "/api/chat/criteria",
+        "/api/chat/harness",
+    ] {
         let (_, _, b) = fakego::get(facade, p, &[]).await;
         assert_eq!(&b[..], format!("go:{p}").as_bytes());
     }

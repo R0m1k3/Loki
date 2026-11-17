@@ -334,6 +334,10 @@ fn serve() -> ExitCode {
             None
         };
 
+        // Claude Code (mode Code), s'il est installé : `claude update`, en
+        // fond, jamais bloquant (LOKI_HARNESS_AUTO_UPDATE=0 : rien).
+        tokio::spawn(loki_rs::harness::install::update(engine_paths.home.clone()));
+
         let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,

@@ -26,6 +26,7 @@ pub mod conv;
 pub mod crittool;
 pub mod engine;
 pub mod generate;
+pub mod harness_turn;
 pub mod history;
 pub mod host;
 pub mod journal;

@@ -42,7 +42,16 @@ pub fn oai_error(status: StatusCode, msg: &str, typ: &str, code: &str) -> Respon
 
 /// Lit `route` auprès du Go : port du moteur, clé, second slot.
 async fn fetch_route(ctx: &Ctx, method: &Method, path: &str) -> Result<Value, Box<Response<Body>>> {
-    ctx.store
+    route_for(&ctx.store, method, path).await.map_err(|e| {
+        eprintln!("[loki-rs] /v1 : route illisible : {e}");
+        Box::new(unavailable())
+    })
+}
+
+/// `route` du Go pour `method path` (aussi lu par le mode Code avec Claude
+/// Code : clé `/v1` et état de la clé).
+pub async fn route_for(store: &Store, method: &Method, path: &str) -> Result<Value, String> {
+    store
         .internal_json(
             Method::GET,
             &format!(
@@ -53,10 +62,7 @@ async fn fetch_route(ctx: &Ctx, method: &Method, path: &str) -> Result<Value, Bo
             None,
         )
         .await
-        .map_err(|e| {
-            eprintln!("[loki-rs] /v1 : route illisible : {e}");
-            Box::new(unavailable())
-        })
+        .map_err(|e| e.to_string())
 }
 
 fn unavailable() -> Response<Body> {
@@ -184,7 +190,16 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     }
 
     let post_v1 = method == Method::POST && path.starts_with("/v1/");
+    // Claude Code (mode Code) se fait reconnaître : sa discussion garde le
+    // slot 0 même avec SIDE_SLOT. L'en-tête n'ouvre aucun droit (la clé est
+    // déjà contrôlée) et ne va pas au moteur.
+    let from_harness = req
+        .headers()
+        .get(crate::harness::HEADER)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(crate::harness::matches);
     let (mut parts, body) = req.into_parts();
+    parts.headers.remove(crate::harness::HEADER);
     // Tout POST /v1 est lu (borné) : le champ `model` peut demander une
     // bascule, et le second slot réécrit le corps.
     let (raw, raw_body): (Option<Bytes>, Option<Incoming>) = if post_v1 {
@@ -252,12 +267,14 @@ pub async fn serve(ctx: &Ctx, engine: &EngineClient, req: Request<Incoming>) -> 
     let port = route["port"].as_u64().unwrap_or(8080);
     let side_live = route["side_live"] == Value::Bool(true);
 
-    // SIDE_SLOT : la complétion d'un client passe par le second slot.
+    // SIDE_SLOT : la complétion d'un client passe par le second slot ; celle
+    // de Claude Code, par le slot de la discussion.
     let (body, side): (OutBody, bool) = match (raw, raw_body) {
         (Some(b), _) => {
+            let slot = if from_harness { 0 } else { 1 };
             let (b, side) = if side_live {
-                match rewrite_id_slot(&b) {
-                    Some(nb) => (Bytes::from(nb), true),
+                match rewrite_id_slot(&b, slot) {
+                    Some(nb) => (Bytes::from(nb), slot == 1),
                     None => (b, false),
                 }
             } else {
@@ -382,10 +399,13 @@ async fn read_body_limited(body: Incoming, max: usize) -> Result<Bytes, Box<Resp
     }
 }
 
-/// Corps avec `id_slot: 1`, ou `None` si ce n'est pas un objet JSON.
-pub fn rewrite_id_slot(raw: &[u8]) -> Option<Vec<u8>> {
+/// Corps avec `id_slot: <slot>`, ou `None` si ce n'est pas un objet JSON.
+pub fn rewrite_id_slot(raw: &[u8], slot: u8) -> Option<Vec<u8>> {
     let mut obj: BTreeMap<String, Box<RawValue>> = serde_json::from_slice(raw).ok()?;
-    obj.insert("id_slot".into(), RawValue::from_string("1".into()).ok()?);
+    obj.insert(
+        "id_slot".into(),
+        RawValue::from_string(slot.to_string()).ok()?,
+    );
     serde_json::to_vec(&obj).ok()
 }
 
@@ -450,12 +470,15 @@ mod tests {
     #[test]
     fn id_slot_pose_cles_triees_valeurs_intactes() {
         let raw = br#"{"stream":true,"model":"x","temperature":0.10000000000000001,"id_slot":0}"#;
-        let out = String::from_utf8(rewrite_id_slot(raw).unwrap()).unwrap();
+        let out = String::from_utf8(rewrite_id_slot(raw, 1).unwrap()).unwrap();
         assert_eq!(
             out,
             r#"{"id_slot":1,"model":"x","stream":true,"temperature":0.10000000000000001}"#
         );
-        assert!(rewrite_id_slot(b"[1,2]").is_none());
-        assert!(rewrite_id_slot(b"pas du json").is_none());
+        assert!(rewrite_id_slot(b"[1,2]", 1).is_none());
+        assert!(rewrite_id_slot(b"pas du json", 1).is_none());
+        let out =
+            String::from_utf8(rewrite_id_slot(br#"{"id_slot":1,"m":2}"#, 0).unwrap()).unwrap();
+        assert_eq!(out, r#"{"id_slot":0,"m":2}"#);
     }
 }

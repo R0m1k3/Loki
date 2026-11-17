@@ -112,6 +112,13 @@ func codeHintDue(text string) bool {
 
 // handleChatMode — GET : {mode, criteria} de la discussion active ;
 // POST {"mode":"code"|"chat"} : bascule (et pousse le nouvel état aux abonnés).
+// handleChatHarnessGo : le harnais externe du mode Code (Claude Code) vit
+// dans la façade Rust ; quand le Go tient la conversation (LOKI_CHAT=go), seul
+// Loki est disponible.
+func handleChatHarnessGo(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, 200, map[string]any{"ok": false, "harness": "loki", "error": "harnais externe : façade Rust requise"})
+}
+
 func handleChatMode(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var body struct {
