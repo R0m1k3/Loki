@@ -849,12 +849,12 @@ pub(crate) async fn preset_apply(store: &Store, path: &Path, mode: &str) -> Resu
         .unwrap_or_else(|| format!("application du preset : {code}")))
 }
 
-struct Live {
-    cfg: Cfg,
-    order: Vec<String>,
+pub(crate) struct Live {
+    pub(crate) cfg: Cfg,
+    pub(crate) order: Vec<String>,
 }
 
-async fn live(store: &Store) -> Live {
+pub(crate) async fn live(store: &Store) -> Live {
     Live {
         cfg: store.config().await,
         order: parse_preset_order(

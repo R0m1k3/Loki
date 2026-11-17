@@ -252,15 +252,8 @@ pub fn active_preset_id(home: &Path, cfg: &HashMap<String, String>, order: &[Str
 /// pastille de la liste (« 32K », « 128K », « 1M »). `CTX` absent = 32768,
 /// le défaut de serve ; illisible ou ≤ 0 → `""`.
 pub fn preset_ctx(content: &str) -> String {
-    let env = parse_env(content);
-    let mut raw = env.get("CTX").map(|s| s.trim()).unwrap_or("");
-    if raw.is_empty() {
-        raw = "32768";
-    }
-    // strconv.Atoi : entier signé 64 bits, signe facultatif.
-    let n: i64 = match raw.parse() {
-        Ok(n) if n > 0 => n,
-        _ => return String::new(),
+    let Some(n) = preset_ctx_tokens(content) else {
+        return String::new();
     };
     if n >= 1024 && n % 1024 == 0 && n < 1 << 20 {
         return format!("{}K", n / 1024);
@@ -275,6 +268,79 @@ pub fn preset_ctx(content: &str) -> String {
         return format!("{}K", (n + 500) / 1000);
     }
     n.to_string()
+}
+
+/// La taille de contexte d'un preset en jetons : `CTX` absent = 32768 (le
+/// défaut de serve), illisible ou ≤ 0 → `None`.
+pub fn preset_ctx_tokens(content: &str) -> Option<i64> {
+    let env = parse_env(content);
+    let mut raw = env.get("CTX").map(|s| s.trim()).unwrap_or("");
+    if raw.is_empty() {
+        raw = "32768";
+    }
+    // strconv.Atoi : entier signé 64 bits, signe facultatif.
+    match raw.parse() {
+        Ok(n) if n > 0 => Some(n),
+        _ => None,
+    }
+}
+
+/// Fenêtre minimale d'un preset annoncé sur `/v1/models` : le plancher de
+/// Hermes Agent (`MINIMUM_CONTEXT_LENGTH = 64_000`), sous lequel il refuse
+/// un modèle.
+pub const OAI_MIN_CTX: i64 = 64_000;
+
+/// Un preset annoncé aux clients `/v1` (`GET /v1/models`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OaiModel {
+    pub id: String,
+    pub name: String,
+    pub ctx: i64,
+    pub active: bool,
+    pub path: PathBuf,
+}
+
+/// Le preset est-il celui qui tourne ? Mêmes affectations `K=V` que la
+/// configuration, réglages « appareil » et `BIN` mis à part : la bascule
+/// (`applyPresetFile`) remplace le `BIN` du preset par celui de la machine, et
+/// l'empreinte de [`list_presets`] ne reconnaîtrait jamais un tel preset —
+/// chaque requête relancerait une bascule.
+pub fn oai_same_config(preset: &str, cfg: &HashMap<String, String>) -> bool {
+    let keep = |k: &str| !is_preserved_key(k) && k != "BIN";
+    let p: HashMap<String, String> = parse_env(preset)
+        .into_iter()
+        .filter(|(k, _)| keep(k))
+        .collect();
+    let c: HashMap<&String, &String> = cfg.iter().filter(|(k, _)| keep(k)).collect();
+    p.len() == c.len() && p.iter().all(|(k, v)| c.get(k).is_some_and(|cv| *cv == v))
+}
+
+/// Les presets annoncés sur `/v1/models` : locaux (pas `EXTERNAL=1`), d'au
+/// moins [`OAI_MIN_CTX`] jetons, dans l'ordre de la liste. Erreur de lecture
+/// du dossier → liste vide.
+pub fn oai_models(home: &Path, cfg: &HashMap<String, String>, order: &[String]) -> Vec<OaiModel> {
+    let Ok(list) = list_presets(home, cfg, order) else {
+        return Vec::new();
+    };
+    list.into_iter()
+        .filter_map(|p| {
+            let content = String::from_utf8_lossy(&std::fs::read(&p.path).ok()?).into_owned();
+            if parse_env(&content)
+                .get("EXTERNAL")
+                .is_some_and(|v| v.trim() == "1")
+            {
+                return None;
+            }
+            let ctx = preset_ctx_tokens(&content).filter(|&n| n >= OAI_MIN_CTX)?;
+            Some(OaiModel {
+                active: oai_same_config(&content, cfg),
+                id: p.id,
+                name: p.name,
+                ctx,
+                path: p.path,
+            })
+        })
+        .collect()
 }
 
 /// SHA-1 (crate RustCrypto `sha1`), comme `crypto/sha1` côté Go.
@@ -533,5 +599,55 @@ mod tests {
         assert_eq!(m.get("D").map(String::as_str), Some("\"un"));
         assert_eq!(m.get("E").map(String::as_str), Some("--f \"/t.jinja\""));
         assert!(!m.contains_key("B") && !m.contains_key("F"));
+    }
+}
+
+#[cfg(test)]
+mod oai_tests {
+    use super::*;
+
+    #[test]
+    fn preset_ctx_tokens_cases() {
+        assert_eq!(preset_ctx_tokens("MODEL=x\n"), Some(32768));
+        assert_eq!(preset_ctx_tokens("CTX=\"131072\"\n"), Some(131072));
+        assert_eq!(preset_ctx_tokens("CTX=abc\n"), None);
+        assert_eq!(preset_ctx_tokens("CTX=0\n"), None);
+    }
+
+    #[test]
+    fn oai_models_filtre_et_actif() {
+        let home = tempfile::tempdir().unwrap();
+        let dir = presets_dir(home.path());
+        std::fs::create_dir_all(&dir).unwrap();
+        for (id, body) in [
+            ("a64", "MODEL=a.gguf\nCTX=64000\n"),
+            ("b32", "MODEL=b.gguf\nCTX=32768\n"),
+            ("ext", "EXTERNAL=1\nCTX=131072\n"),
+            ("defaut", "MODEL=d.gguf\n"),
+            (
+                "c65",
+                "# NAME=Grand\nMODEL=c.gguf\nCTX=65536\nBIN=/preset/llama\n",
+            ),
+        ] {
+            std::fs::write(dir.join(format!("{id}.env")), body).unwrap();
+        }
+        // Config issue de la bascule sur c65 : BIN de la machine, clé appareil.
+        let cfg = parse_env("MODEL=c.gguf\nCTX=65536\nBIN=/machine/llama\nMEM_MODE=always\n");
+        let got = oai_models(home.path(), &cfg, &[]);
+        let ids: Vec<_> = got
+            .iter()
+            .map(|m| (m.id.as_str(), m.ctx, m.active))
+            .collect();
+        // Tri par nom d'affichage, comme la liste : « Grand » avant « a64 ».
+        assert_eq!(ids, vec![("c65", 65536, true), ("a64", 64000, false)]);
+        assert_eq!(got[0].name, "Grand");
+    }
+
+    #[test]
+    fn oai_same_config_cases() {
+        let cfg = parse_env("MODEL=a.gguf\nCTX=65536\nBIN=/b\n");
+        assert!(oai_same_config("MODEL=a.gguf\nCTX=65536\nBIN=/a\n", &cfg));
+        assert!(!oai_same_config("MODEL=a.gguf\nCTX=131072\n", &cfg));
+        assert!(!oai_same_config("MODEL=a.gguf\n", &cfg));
     }
 }

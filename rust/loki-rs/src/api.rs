@@ -71,6 +71,9 @@ pub struct Ctx {
     pub tune: Option<std::sync::Arc<crate::tune::job::Tune>>,
     /// Jeton de l'API interne : une requête qui le porte vient du Go.
     pub internal_token: String,
+    /// Sérialise les bascules de modèle demandées par les clients `/v1`
+    /// (`oai.rs`) : propre à chaque instance de façade.
+    pub oai_switch: std::sync::Arc<tokio::sync::Mutex<()>>,
 }
 
 impl Ctx {
