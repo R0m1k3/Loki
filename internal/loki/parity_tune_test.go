@@ -218,6 +218,7 @@ func TestPariteTuneCore(t *testing.T) {
 			l.Args = append(l.Args, "--api-key", "s3cret", "--slot-save-path", "/tmp/x", "--port=9")
 		},
 		"cache-ram": func(l *tuneLaunch) { l.Args = append(l.Args, "-cram", "4096") },
+		"veille":    func(l *tuneLaunch) { l.Args = append(l.Args, "--sleep-idle-seconds", "300") },
 	}
 	names := make([]string, 0, len(muts))
 	for n := range muts {

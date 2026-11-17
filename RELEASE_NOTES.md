@@ -20,6 +20,12 @@ Fiabilité des outils avec les petits modèles locaux, reprises d'AJEAN 0.18.6 �
 - **Navigateur piloté** : cases à cocher et boutons radio masqués, états
   coché/désactivé, texte de la page dans `browser_find`, alerte sur les pages
   de blocage, rappel de conclure après 25 actions.
+- **Veille du modèle** : après 5 minutes sans requête, le modèle quitte la
+  VRAM, et le message, l'appel `/v1` ou la tâche suivante le rechargent sans
+  rien faire (veille de llama-server, `--sleep-idle-seconds`). La pastille
+  dit « en veille ». Réglage `IDLE_UNLOAD` (minutes, `off` = jamais), gardé
+  d'un preset à l'autre. Le premier message après la veille est plus lent.
+  « Libérer la VRAM » arrête toujours le moteur pour de bon.
 - **Agent externe branché comme modèle (Hermes Agent…)** : `/v1/models` liste
   les presets locaux d'au moins 64 000 jetons avec leur fenêtre, et une
   complétion qui nomme un autre preset fait basculer Loki dessus, seulement

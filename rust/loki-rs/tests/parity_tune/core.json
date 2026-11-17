@@ -25598,6 +25598,80 @@
       "denature_optin": "",
       "name": "spéculation",
       "same_key": false
+    },
+    {
+      "base": {
+        "bin": "",
+        "args": [
+          "/bin/llama-server",
+          "-m",
+          "/m.gguf",
+          "-c",
+          "65536",
+          "-b",
+          "2048",
+          "-ub",
+          "512",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "41000",
+          "--parallel",
+          "1",
+          "-ctk",
+          "q8_0",
+          "-ot",
+          "exps=CPU,per_layer_token_embd=CPU",
+          "--cache-ram",
+          "8192",
+          "--flash-attn",
+          "on"
+        ],
+        "env": {
+          "CUDA_SCALE_LAUNCH_QUEUES": "4x",
+          "CUDA_VISIBLE_DEVICES": "1,0"
+        }
+      },
+      "cand": {
+        "bin": "",
+        "args": [
+          "/bin/llama-server",
+          "-m",
+          "/m.gguf",
+          "-c",
+          "65536",
+          "-b",
+          "4096",
+          "-ub",
+          "2048",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "41001",
+          "--parallel",
+          "1",
+          "-ctk",
+          "q8_0",
+          "-ot",
+          "per_layer_token_embd=CPU",
+          "--cache-ram",
+          "12000",
+          "--flash-attn",
+          "on",
+          "-t",
+          "7",
+          "--sleep-idle-seconds",
+          "300"
+        ],
+        "env": {
+          "CUDA_VISIBLE_DEVICES": "1,0",
+          "GGML_OP_OFFLOAD_MIN_BATCH": "128"
+        }
+      },
+      "denature": "ligne de commande différente hors réglages permis (« --sleep-idle-seconds » au lieu de «  »)",
+      "denature_optin": "ligne de commande différente hors réglages permis (« --sleep-idle-seconds » au lieu de «  »)",
+      "name": "veille",
+      "same_key": false
     }
   ],
   "extra": [

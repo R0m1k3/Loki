@@ -841,7 +841,7 @@ func tuneLaunchKey(l tuneLaunch) string {
 	full := make([]string, 0, len(l.Args))
 	for i := 0; i < len(l.Args); i++ {
 		switch l.Args[i] {
-		case "--host", "--port", "--api-key", "--slot-save-path":
+		case "--host", "--port", "--api-key", "--slot-save-path", "--sleep-idle-seconds":
 			i++
 			continue
 		}

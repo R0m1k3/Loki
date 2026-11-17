@@ -212,6 +212,49 @@ pub async fn health_check(cfg: &HashMap<String, String>) -> bool {
     health_probe(&format!("http://localhost:{port}/health")).await
 }
 
+/// Le modèle dort-il (`--sleep-idle-seconds`) ? `GET /props` ne le réveille
+/// pas et rend `is_sleeping` ; il demande la clé d'API comme les autres routes
+/// (seule `/health` est publique). Toute erreur = « non ».
+pub async fn engine_sleeping(cfg: &HashMap<String, String>, key: &str) -> bool {
+    use bytes::Bytes;
+    use http_body_util::{BodyExt, Empty, Limited};
+    use hyper_util::client::legacy::Client;
+    use hyper_util::rt::TokioExecutor;
+
+    let port = llm_port_raw(cfg);
+    if port > i64::from(u16::MAX) {
+        return false;
+    }
+    let Ok(uri) = format!("http://localhost:{port}/props").parse::<hyper::Uri>() else {
+        return false;
+    };
+    let mut req = hyper::Request::get(uri);
+    if !key.is_empty() {
+        req = req.header(hyper::header::AUTHORIZATION, format!("Bearer {key}"));
+    }
+    let Ok(req) = req.body(Empty::<Bytes>::new()) else {
+        return false;
+    };
+    let client = Client::builder(TokioExecutor::new()).build_http::<Empty<Bytes>>();
+    let read = async {
+        let resp = client.request(req).await.ok()?;
+        if resp.status() != hyper::StatusCode::OK {
+            return None;
+        }
+        let body = Limited::new(resp.into_body(), 1 << 20)
+            .collect()
+            .await
+            .ok()?
+            .to_bytes();
+        let v: serde_json::Value = serde_json::from_slice(&body).ok()?;
+        Some(v["is_sleeping"] == true)
+    };
+    matches!(
+        tokio::time::timeout(HEALTH_TIMEOUT, read).await,
+        Ok(Some(true))
+    )
+}
+
 async fn health_probe(url: &str) -> bool {
     use bytes::Bytes;
     use http_body_util::Empty;

@@ -4172,7 +4172,9 @@ async function loadStatus(){
   // dessous : la pastille ne doit pas affirmer « incompatible » quand l'échec
   // peut être tout autre chose.
   let cls='err', txt='arrêté';
-  if(s.active && s.health){ cls='ok'; txt='prêt'; }
+  // En veille (--sleep-idle-seconds) : le modèle a quitté la VRAM, la
+  // prochaine requête le recharge. On peut envoyer, d'où la classe « ok ».
+  if(s.active && s.health){ cls='ok'; txt=s.sleeping?'en veille':'prêt'; }
   else if(s.load_error){ cls='err'; txt='erreur'; }
   else if(s.active){
     cls='loading'; txt='chargement…';
@@ -4182,6 +4184,7 @@ async function loadStatus(){
   }
   el.className='statuspill '+cls;
   el.innerHTML='<span class="dot"></span>'+txt;
+  el.title=(s.active && s.health && s.sleeping)?'Modèle en veille : il se recharge au prochain message':'';
   MODEL_READY = !!(s.active && s.health);
   // Le bouton « Libérer la VRAM » suit l'état RÉEL du moteur (et pas un drapeau
   // local) : un arrêt venu d'un autre onglet, du terminal ou d'un job doit se

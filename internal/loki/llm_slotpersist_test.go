@@ -115,6 +115,9 @@ func TestSlotPersistKey(t *testing.T) {
 	if slotPersistKey([]string{bin, "-m", model, "-c", "32768", "--api-key", "autre"}, nil, si, bin) != k0 {
 		t.Fatal("la clé d'API ne doit pas entrer dans l'empreinte")
 	}
+	if slotPersistKey([]string{bin, "-m", model, "-c", "32768", "--sleep-idle-seconds", "300", "--api-key", "secret"}, nil, si, bin) != k0 {
+		t.Fatal("la veille (--sleep-idle-seconds) ne doit pas entrer dans l'empreinte")
+	}
 	if slotPersistKey([]string{bin, "-m", model, "-c", "65536"}, nil, si, bin) == k0 {
 		t.Fatal("CTX ignoré")
 	}
@@ -181,6 +184,8 @@ type moteurSlots struct {
 	actions     []string
 	used, spec  bool
 	restoreFail bool
+	sleeping    bool // /props : is_sleeping (--sleep-idle-seconds)
+	slotReads   int  // GET /slots reçus (chacun réveillerait un modèle en veille)
 	tokens      int
 }
 
@@ -190,7 +195,10 @@ func (m *moteurSlots) start(t *testing.T, home string) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		switch {
+		case r.URL.Path == "/props" && r.Method == http.MethodGet:
+			sendJSON(w, 200, map[string]any{"is_sleeping": m.sleeping, "total_slots": 1})
 		case r.URL.Path == "/slots" && r.Method == http.MethodGet:
+			m.slotReads++
 			s := map[string]any{"id": 0, "is_processing": false, "speculative": m.spec, "n_prompt_tokens": m.tokens}
 			if m.used {
 				s["id_task"] = 7
@@ -295,6 +303,25 @@ func TestSlotPersistSauveEtRecharge(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("fichier gardé après la tentative")
+	}
+}
+
+// Modèle en veille : son cache est déjà libéré. Rien n'est gardé, et /slots
+// n'est pas lu (il réveillerait le modèle juste pour la sauvegarde).
+func TestSlotPersistModeleEnVeille(t *testing.T) {
+	m, home := persistSetup(t, true)
+	m.mu.Lock()
+	m.sleeping = true
+	m.mu.Unlock()
+	slotPersistPrepare().save()
+	m.mu.Lock()
+	reads := m.slotReads
+	m.mu.Unlock()
+	if reads != 0 || len(m.got()) != 0 {
+		t.Fatalf("moteur sollicité en veille : %d lectures de /slots, %v", reads, m.got())
+	}
+	if _, err := os.Stat(filepath.Join(home, "slots", slotPersistName(persistTestKey, "c1"))); !os.IsNotExist(err) {
+		t.Fatal("état gardé d'un modèle en veille")
 	}
 }
 

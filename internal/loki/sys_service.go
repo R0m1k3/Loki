@@ -129,6 +129,8 @@ var configTemplate = []struct{ key, help string }{
 		"identiques à l'octet près (empreinte), slot encore vierge, sinon calcul normal. Refusé avec le décodage spéculatif, " +
 		"des poids sur CPU, ou un moteur joignable sans clé d'API hors 127.0.0.1. Jamais à travers une mise à jour du moteur. " +
 		"Réglage de machine, gardé à la bascule. Vide/off (défaut) = rien n'est écrit"},
+	{"IDLE_UNLOAD", "minutes sans requête avant que le modèle quitte la VRAM (veille de llama-server, rechargé à la " +
+		"requête suivante) ; vide = 5, 0/off = jamais. Moteur récent nécessaire. Réglage de machine, gardé à la bascule"},
 	{"CTX_CHECKPOINTS", "points de reprise par slot d'un modèle hybride (--ctx-checkpoints) ; vide = défaut du moteur (32) ; " +
 		"chacun pèse 70 à 200 Mio de RAM hôte : 8 à 16 si le modèle remplit déjà la RAM"},
 	{"CKPT_MIN_STEP", "espacement minimal en jetons entre deux points de reprise (--checkpoint-min-step), > 0 ; " +

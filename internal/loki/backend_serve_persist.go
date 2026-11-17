@@ -137,7 +137,8 @@ func slotPersistKey(args []string, env map[string]string, si serveSysInfo, bin s
 	h := sha256.New()
 	w := func(s string) { h.Write([]byte(s)); h.Write([]byte{0}) }
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--api-key" {
+		// La veille (--sleep-idle-seconds) ne change pas le calcul du cache.
+		if args[i] == "--api-key" || args[i] == "--sleep-idle-seconds" {
 			i++
 			continue
 		}
